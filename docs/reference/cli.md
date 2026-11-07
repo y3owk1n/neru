@@ -664,6 +664,7 @@ again.
 | `gc`, `gr`, `gm` + motion | Left, right or middle click the middle of what the motion covers, as `gciw` |
 | `gs` + motion, or `Return` in visual mode | Drag across the text so the app selects it, then leave. Works on text that cannot be edited |
 | `s` + two characters | Jump to a match, by label when there are several |
+| `]i`, `[i` | Move to the next or the previous icon, with a count to skip |
 | `Ctrl+W` + `h`, `j`, `k`, `l` | Move to the container left, below, above or right |
 | `Ctrl+W` + `w`, `W` | Move to the next or the previous container |
 | `ic`, `ac` | The container's text, or with the blank line after it, as `yic` copies a card |
@@ -679,8 +680,11 @@ reading, and it outlines the one the cursor is in.
 
 Vim mode reads the screen twice. A fast read opens the mode at once, and an
 accurate read replaces it when it finishes. The status bar says `reading…`
-until then. The box beside the cursor shows the word under it as read. A count is at most four
-digits, and one command changes at most 64 places or 2000 characters.
+until then. The accurate read also finds icons and pictures with no text,
+such as an icon-only button, and puts a `□` where each one is, so `w`, `j` and
+`s` reach it and `Return` clicks it. A yank leaves the `□` out. The box beside
+the cursor shows the word under it as read. A count is at most four digits,
+and one command changes at most 64 places or 2000 characters.
 
 Typing into the app re-sends each key, so an input method's composition does
 not work there, and `i` over text that cannot be edited sends the keys to the

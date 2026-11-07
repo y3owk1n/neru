@@ -222,13 +222,23 @@ func vimIsPut(label string) bool {
 }
 
 // vimYank copies the text a yank took, as it was read, without touching the
-// app, and flashes where it was taken from so the copy shows.
+// app, and flashes where it was taken from so the copy shows. Icons in it are
+// left out, since the app has no text for them.
 func (h *handlerState) vimYank(read string) {
 	session := h.vim
 	text := session.host.Screen()
 
 	spans, _ := session.machine.Flash()
 	session.flash = nil
+
+	if len(spans) > 0 {
+		parts := make([]string, 0, len(spans))
+		for _, span := range spans {
+			parts = append(parts, text.AppText(span[0], span[1]))
+		}
+
+		read = strings.Join(parts, "\n")
+	}
 
 	for _, span := range spans {
 		for _, seg := range lineSegments(text, span[0], span[1]) {

@@ -11,11 +11,14 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/screentext"
 )
 
+// wordSave is a word several screens share.
+const wordSave = "Save"
+
 // screen is two lines read out of order: "File Edit View" over "Open Save".
 func screen() []screentext.Word {
 	return []screentext.Word{
 		{Text: "View", Bounds: image.Rect(120, 10, 160, 30)},
-		{Text: "Save", Bounds: image.Rect(80, 52, 120, 70)},
+		{Text: wordSave, Bounds: image.Rect(80, 52, 120, 70)},
 		{Text: "File", Bounds: image.Rect(0, 10, 40, 30)},
 		{Text: "Open", Bounds: image.Rect(0, 50, 40, 70)},
 		{Text: "Edit", Bounds: image.Rect(60, 12, 100, 32)},
@@ -305,5 +308,70 @@ func TestHost_YankInsideContainer_CopiesItsText(t *testing.T) {
 
 	if copied != "Article\nbody" {
 		t.Fatalf("copied %q, want the article's text", copied)
+	}
+}
+
+func TestText_Icons_AreReachedButNotCopied(t *testing.T) {
+	text := screentext.New([]screentext.Word{
+		{Text: wordSave, Bounds: image.Rect(0, 0, 40, 10)},
+		screentext.Icon(image.Rect(50, 0, 60, 10)),
+		{Text: "Close", Bounds: image.Rect(70, 0, 120, 10)},
+	})
+	host := screentext.NewHost(text, 0, nil)
+	machine := screentext.NewMachine(host)
+
+	for _, key := range vim.Keys("w") {
+		err := machine.Feed(key)
+		if err != nil {
+			t.Fatalf("feed %q: %v", key, err)
+		}
+	}
+
+	if got, _ := text.Point(host.Cursor()); got != image.Pt(55, 5) {
+		t.Fatalf("w landed at %v, want the icon at (55,5)", got)
+	}
+
+	if got := text.AppText(0, text.Len()); got != "Save Close" {
+		t.Fatalf("AppText = %q, want the line without the icon", got)
+	}
+
+	if got := text.AppRunes(0, text.Len()); got != len("Save  Close") {
+		t.Fatalf("AppRunes = %d, want %d", got, len("Save  Close"))
+	}
+}
+
+func TestHost_BracketI_MovesBetweenIcons(t *testing.T) {
+	tests := []struct {
+		name  string
+		keys  string
+		point image.Point
+	}{
+		{name: "]i goes to the next icon", keys: "]i", point: image.Pt(55, 5)},
+		{name: "a count skips icons", keys: "2]i", point: image.Pt(135, 5)},
+		{name: "[i goes back to the previous icon", keys: "$[i", point: image.Pt(55, 5)},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			text := screentext.New([]screentext.Word{
+				{Text: wordSave, Bounds: image.Rect(0, 0, 40, 10)},
+				screentext.Icon(image.Rect(50, 0, 60, 10)),
+				{Text: "Close", Bounds: image.Rect(70, 0, 120, 10)},
+				screentext.Icon(image.Rect(130, 0, 140, 10)),
+			})
+			host := screentext.NewHost(text, 0, nil)
+			machine := screentext.NewMachine(host)
+
+			for _, key := range vim.Keys(test.keys) {
+				err := machine.Feed(key)
+				if err != nil {
+					t.Fatalf("feed %q: %v", key, err)
+				}
+			}
+
+			if got, _ := text.Point(host.Cursor()); got != test.point {
+				t.Fatalf("cursor at %v, want %v", got, test.point)
+			}
+		})
 	}
 }

@@ -4720,3 +4720,46 @@ func TestSimulation_VimMovesBetweenContainers(t *testing.T) {
 		return f.Container == image.Rect(500, 100, 605, 130) && f.Cursor.In(f.Container)
 	})
 }
+
+// TestSimulation_VimReachesIcons covers icons. An icon-only button the
+// segment detector finds joins the text as a placeholder once the accurate
+// read lands, w reaches it, Return clicks it, and a yank of its line leaves
+// it out.
+func TestSimulation_VimReachesIcons(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.vision.DetectSegmentsFunc = func(
+		context.Context, image.Rectangle, config.HintsSegmentConfig,
+	) ([]*element.Element, error) {
+		icon, err := element.NewElement(
+			"segment-icon",
+			image.Rect(180, 100, 210, 130),
+			element.RoleButton,
+		)
+
+		return []*element.Element{icon}, err
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the accurate read landed", func(f ports.VimFrame) bool {
+		return !strings.Contains(f.Status, "reading")
+	})
+
+	sim.press("y", "y")
+	sim.waitFor("the line copied without the icon", func() bool {
+		return slices.Equal(sim.clipboard.Written(), []string{vimWordFile})
+	})
+
+	sim.press("0", "w")
+	vimFrameShows(sim, "the cursor on the icon", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(180, 100, 210, 130)
+	})
+
+	sim.press("Return")
+	sim.waitFor("the icon clicked", func() bool {
+		clicks := sim.ax.recordedClicks()
+
+		return len(clicks) == 1 && clicks[0].point == image.Pt(195, 115)
+	})
+}
