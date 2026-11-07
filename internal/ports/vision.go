@@ -74,9 +74,39 @@ type VisionPort interface {
 	// screen content and must never be logged.
 	ReadText(ctx context.Context, rect image.Rectangle) (string, error)
 
+	// ReadLines captures region, in global coordinates, and returns its text
+	// a line at a time, top to bottom, each line's whitespace-separated words
+	// with their bounds. An accurate read spells small text right where a
+	// fast one misreads it, and its first use loads a model that can take
+	// seconds, during which other reads in the process wait. The caller
+	// bounds the read with ctx. The text is screen content and must never be
+	// logged. Platforms without it report CodeNotSupported.
+	ReadLines(ctx context.Context, region image.Rectangle, level TextLevel) ([][]TextPiece, error)
+
 	// CaptureExcludesOwnWindows reports whether a capture leaves Neru's own
 	// windows out of the frame. When it does not, a hints refresh that reads
 	// the screen takes the old labels off first, or it reads them back as
 	// targets.
 	CaptureExcludesOwnWindows() bool
+}
+
+// TextLevel is how carefully ReadLines reads.
+type TextLevel int
+
+const (
+	// TextFast reads quickly and misreads small text.
+	TextFast TextLevel = iota
+	// TextAccurate reads slowly and gets small text right.
+	TextAccurate
+)
+
+// TextPiece is a word of a line read off the screen and the global bounds it
+// was read from. Word numbers the words of its line.
+type TextPiece struct {
+	Text   string
+	Bounds image.Rectangle
+	Word   int
+	// Background is the color behind its word, as 0xRRGGBB, or zero when
+	// the platform does not say.
+	Background uint32
 }
