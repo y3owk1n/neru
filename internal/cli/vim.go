@@ -25,7 +25,8 @@ typing, then reads the screen again:
   Return              click the character under the cursor
   gc gr gm {motion}   left, right or middle click, as gciw
   gs{motion}          drag across the text, so the app selects it, then leave
-  s{char}{char}       jump to a match, by label when there are several
+  s{chars}{label}     jump to a match of any number of characters by its
+                      label, or to the nearest with Return
   ]i [i               move to the next or the previous icon
   Ctrl+W h j k l      move to the container left, below, above or right
   Ctrl+W w W          move to the next or the previous container

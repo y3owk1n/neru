@@ -4493,8 +4493,10 @@ func TestSimulation_VimDropsAnAccurateReadFromAClosedSession(t *testing.T) {
 	})
 }
 
-// TestSimulation_VimJumpByLabel covers s. Two characters with one match jump
-// there at once, and with several the label typed picks one.
+// TestSimulation_VimJumpByLabel covers s. It takes any number of
+// characters, labels each match over the character after it, and a label
+// jumps there. Return jumps to the nearest match, and Backspace takes back a
+// character.
 func TestSimulation_VimJumpByLabel(t *testing.T) {
 	sim := vimHarness(t, map[string]image.Rectangle{
 		vimWordFile: image.Rect(100, 100, 160, 130),
@@ -4505,22 +4507,36 @@ func TestSimulation_VimJumpByLabel(t *testing.T) {
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
 
-	sim.press("s", "e", "x")
+	sim.press("s", "e", "x", "i", "Return")
 	vimFrameShows(sim, "cursor on the E of Exit", func(f ports.VimFrame) bool {
-		return f.Cursor == image.Rect(100, 200, 115, 230)
+		return f.Cursor == image.Rect(100, 200, 115, 230) && len(f.Labels) == 0
 	})
 
-	sim.press("s", "i", "t")
-	vimFrameShows(
-		sim,
-		"a label on each it",
-		func(f ports.VimFrame) bool { return len(f.Labels) == 2 },
-	)
+	// e matches three times, so the third match would get d after a and s.
+	// d follows the e of Edit, so it is no label, and typing it adds to the
+	// text.
+	sim.press("s", "e")
+	vimFrameShows(sim, "a label on each e, none of them d", func(f ports.VimFrame) bool {
+		return len(f.Labels) == 3 && !slices.ContainsFunc(f.Labels, func(l ports.VimLabel) bool {
+			return l.Text == "d"
+		})
+	})
+
+	sim.press("d")
+	vimFrameShows(sim, "d narrowed the jump to Edit", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "sed") && len(f.Matches) == 1
+	})
+	sim.press("Escape")
+
+	sim.press("s", "i", "t", "x", "Backspace")
+	vimFrameShows(sim, "a label on each it", func(f ports.VimFrame) bool {
+		return len(f.Labels) == 2 && len(f.Matches) == 2
+	})
 
 	frame, _ := sim.overlay.lastVimFrame()
 	for _, label := range frame.Labels {
-		if label.Bounds == image.Rect(230, 100, 245, 130) {
-			sim.press(strings.Split(label.Text, "")...)
+		if label.Bounds.Min.Y == 100 {
+			sim.press(label.Text)
 		}
 	}
 

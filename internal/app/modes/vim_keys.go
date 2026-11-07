@@ -1,7 +1,7 @@
 package modes
 
 import (
-	"context"
+	"cmp"
 	"fmt"
 	"image"
 	"slices"
@@ -15,10 +15,11 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	configpkg "github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/domain/element"
-	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
 	"github.com/y3owk1n/neru/internal/domain/screentext"
 )
+
+// vimReturn is Return in vim's notation.
+const vimReturn vim.Key = "<CR>"
 
 // vimControlKeys are the Ctrl chords vim reads, held back from the focused
 // app while a session is open so they reach the machine, or while typing, so
@@ -30,8 +31,6 @@ const (
 	// would run a motion or a macro for minutes under h.mu, with the keyboard
 	// held.
 	vimMaxCountDigits = 4
-	// vimJumpQueryLength is how many characters an s jump looks for.
-	vimJumpQueryLength = 2
 	// The scroll keys' distances: line heights for Ctrl+E and Ctrl+Y, and
 	// shares of the region read for the rest and for j and k past an edge.
 	vimScrollLines    = 2
@@ -112,7 +111,7 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 		}
 	}
 
-	if machine.Mode() == vim.Visual && vimKey == "<CR>" {
+	if machine.Mode() == vim.Visual && vimKey == vimReturn {
 		if sel, ok := machine.Selection(); ok {
 			h.vimDragRange(sel.Start, sel.End)
 		}
@@ -337,7 +336,7 @@ func (h *handlerState) handleVimIdleKey(key vim.Key) bool {
 	switch key {
 	case "<Esc>":
 		h.exitMode()
-	case "<CR>":
+	case vimReturn:
 		h.vimSelectAtCursor("")
 	case "<C-l>":
 		h.startVim(h.vimSessionActivation())
@@ -414,73 +413,83 @@ func (h *handlerState) vimStartTyping(caret image.Point, click bool) {
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
 }
 
-// vimJump is an s jump: two characters, then the label of where to go.
+// vimJump is an s jump. It keeps the text typed so far, its matches nearest
+// the cursor first, and each match's label. A match past the last label has
+// an empty one.
 type vimJump struct {
 	query   string
-	targets []int
+	matches [][2]int
 	labels  []string
-	typed   string
 }
 
-// handleVimJumpKey reads the two characters to look for, then the label of
-// the match to jump to. Escape, or a key no label starts with, gives up.
+// handleVimJumpKey reads an s jump's keys. A label jumps to its match,
+// Return to the nearest, Backspace drops the last character typed and
+// Escape gives up. Any other character adds to the text to find.
 func (h *handlerState) handleVimJumpKey(key vim.Key) {
 	session := h.vim
 	jump := session.jump
 
-	char, size := utf8.DecodeRuneInString(string(key))
-	if key == "<Esc>" || size != len(key) || !unicode.IsPrint(char) {
+	switch _, size := utf8.DecodeRuneInString(string(key)); {
+	case key == "<Esc>":
 		session.jump = nil
-
-		h.redrawFrame(h.vimFrame(), "update vim overlay")
-
-		return
-	}
-
-	if utf8.RuneCountInString(jump.query) < vimJumpQueryLength {
-		jump.query += string(key)
-		if utf8.RuneCountInString(jump.query) == vimJumpQueryLength {
-			h.findVimJumpTargets()
-		}
-
-		h.redrawFrame(h.vimFrame(), "update vim overlay")
-
-		return
-	}
-
-	jump.typed += string(key)
-
-	prefixed := false
-
-	for index, label := range jump.labels {
-		if label == jump.typed {
-			h.vimJumpTo(jump.targets[index])
+	case key == vimReturn:
+		if len(jump.matches) > 0 {
+			h.vimJumpTo(jump.matches[0][0])
 
 			return
 		}
 
-		prefixed = prefixed || strings.HasPrefix(label, jump.typed)
-	}
-
-	if !prefixed {
 		session.jump = nil
+	case key == "<BS>":
+		if jump.query == "" {
+			session.jump = nil
+
+			break
+		}
+
+		_, last := utf8.DecodeLastRuneInString(jump.query)
+		jump.query = jump.query[:len(jump.query)-last]
+
+		h.findVimJumpTargets()
+	case size != len(key):
+		return
+	default:
+		if index := slices.Index(jump.labels, string(key)); index >= 0 {
+			h.vimJumpTo(jump.matches[index][0])
+
+			return
+		}
+
+		jump.query += string(key)
+
+		h.findVimJumpTargets()
 	}
 
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
 }
 
-// findVimJumpTargets finds every place the two characters start, ignoring
-// case unless one is a capital, as search does. One match jumps at once, and
-// more get labels.
+// vimJumpLabelChars are the labels a jump's matches get, nearest first.
+const vimJumpLabelChars = "asdfghjklqwertyuiopzxcvbnm"
+
+// findVimJumpTargets finds where the text typed matches. Like search, it
+// ignores case unless the text has a capital. It labels the matches nearest
+// the cursor first, and never with the character after a match, so typing
+// more of the text never jumps.
 func (h *handlerState) findVimJumpTargets() {
 	session := h.vim
 	jump := session.jump
-	text := session.host.Screen().String()
+	jump.matches, jump.labels = nil, nil
 
-	query, haystack := jump.query, text
-	if strings.ToLower(query) == query {
-		haystack = strings.ToLower(text)
+	if jump.query == "" {
+		return
 	}
+
+	query, haystack := jump.query, session.host.Screen().String()
+	if strings.ToLower(query) == query {
+		haystack = strings.ToLower(haystack)
+	}
+
+	next := map[rune]bool{}
 
 	for from := 0; ; {
 		found := strings.Index(haystack[from:], query)
@@ -488,69 +497,51 @@ func (h *handlerState) findVimJumpTargets() {
 			break
 		}
 
-		jump.targets = append(jump.targets, from+found)
-		from += found + 1
+		start := from + found
+		jump.matches = append(jump.matches, [2]int{start, start + len(query)})
+
+		if r, _ := utf8.DecodeRuneInString(haystack[start+len(query):]); r != utf8.RuneError {
+			next[unicode.ToLower(r)] = true
+		}
+
+		from = start + 1
 	}
 
-	switch len(jump.targets) {
-	case 0:
-		session.jump = nil
-	case 1:
-		h.vimJumpTo(jump.targets[0])
-	default:
-		jump.labels = h.vimJumpLabels(jump.targets)
-		if jump.labels == nil {
-			session.jump = nil
+	cursor := session.host.Cursor()
+	distance := func(match [2]int) int { return max(match[0]-cursor, cursor-match[0]) }
+	slices.SortStableFunc(jump.matches, func(a, b [2]int) int {
+		return cmp.Compare(distance(a), distance(b))
+	})
+
+	free := []rune(vimJumpLabelChars)
+	jump.labels = make([]string, len(jump.matches))
+
+	for index := range jump.matches {
+		for len(free) > 0 && next[free[0]] {
+			free = free[1:]
 		}
+
+		if len(free) == 0 {
+			break
+		}
+
+		jump.labels[index] = string(free[0])
+		free = free[1:]
 	}
 }
 
-// vimJumpLabels labels targets the way hints labels elements, with the
-// configured hint characters, or returns nil when they cannot be labeled.
-func (h *handlerState) vimJumpLabels(targets []int) []string {
-	text := h.vim.host.Screen()
-
-	generator, err := domainHint.NewAlphabetGenerator(
-		h.config.Hints.HintCharacters, domainHint.LabelDirectionNormal,
-	)
-	if err != nil {
-		h.logger.Debug("Vim jump labels unavailable", zap.Error(err))
-
-		return nil
-	}
-
-	elements := make([]*element.Element, 0, len(targets))
-	index := make(map[element.ID]int, len(targets))
-
-	for target, offset := range targets {
-		box, _ := text.Box(offset)
-		elementID := element.ID("vim-jump-" + strconv.Itoa(target))
-
-		targetElement, err := element.NewElement(
-			elementID, box.Union(box.Add(image.Pt(1, 1))), element.RoleStaticText,
-		)
-		if err != nil {
-			continue
+// vimJumpLabelBox is where a jump match's label goes: over the character
+// after the match, or just past the line's end.
+func vimJumpLabelBox(text *screentext.Text, match [2]int) (image.Rectangle, bool) {
+	if text.Slice(match[1], min(match[1]+1, text.Len())) != "\n" {
+		if box, ok := text.Box(match[1]); ok {
+			return box, true
 		}
-
-		elements = append(elements, targetElement)
-		index[elementID] = target
 	}
 
-	hints, err := generator.Generate(context.Background(), elements)
-	if err != nil {
-		h.logger.Debug("Vim jump labels unavailable", zap.Error(err))
+	last, ok := text.Box(match[1] - 1)
 
-		return nil
-	}
-
-	labels := make([]string, len(targets))
-
-	for _, hint := range hints {
-		labels[index[hint.Element().ID()]] = strings.ToLower(hint.Label())
-	}
-
-	return labels
+	return last.Add(image.Pt(last.Dx(), 0)), ok
 }
 
 // vimJumpTo puts the cursor on target and ends the jump.
