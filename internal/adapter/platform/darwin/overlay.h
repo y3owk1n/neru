@@ -389,6 +389,7 @@ typedef struct {
 	char **labels;        ///< Jump labels
 	CGRect *labelBounds;  ///< The character each jump label sits on
 	int labelCount;       ///< Number of jump labels
+	char *notice;  ///< A wait to show as a card with a spinner, title and detail split by a newline (empty = none)
 } VimScene;
 
 /// Draw the vim surface, replacing what it drew before.

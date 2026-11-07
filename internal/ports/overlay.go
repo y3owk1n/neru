@@ -218,6 +218,10 @@ type VimFrame struct {
 	// Labels name an s jump's matches, each drawn over the character after
 	// its match.
 	Labels []VimLabel
+	// Notice is a wait the user should see, drawn as a card with a spinner
+	// near the top of Region: a title, then a detail after a newline. Empty
+	// draws none.
+	Notice string
 }
 
 // VimLabel is one jump target's label and the character it sits on.

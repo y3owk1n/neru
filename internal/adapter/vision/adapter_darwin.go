@@ -473,29 +473,6 @@ func readTextNow(region image.Rectangle, timeout C.int64_t) (string, error) {
 // captured for ReadLines, which is a Retina display's own resolution.
 const readLinesScale = 2
 
-// Ensure the macOS adapter warms its recognizer, whose models compile on first
-// use.
-var _ ports.TextRecognizerWarmer = (*Adapter)(nil)
-
-// WarmTextRecognizer reads a sample in several scripts with the accurate
-// recognizer, so the models its script detection needs are compiled before
-// the first read that needs them.
-func (a *Adapter) WarmTextRecognizer(ctx context.Context) error {
-	timeout, err := captureTimeoutMS(ctx)
-	if err != nil {
-		return err
-	}
-
-	if C.NeruWarmTextRecognizer(timeout) == 0 {
-		return derrors.New(
-			derrors.CodeActionFailed,
-			"the text recognizer was interrupted or timed out while loading",
-		)
-	}
-
-	return nil
-}
-
 // ReadLines captures region and reads it with the recognizer level names.
 func (a *Adapter) ReadLines(
 	ctx context.Context,
@@ -514,12 +491,40 @@ func (a *Adapter) ReadLines(
 		return nil, err
 	}
 
+	started := time.Now()
+
+	var lines [][]ports.TextPiece
+
+	inHelper := level == ports.TextAccurate && a.linesHelper != ""
+	if inHelper {
+		lines, err = a.readLinesInHelper(ctx, region, timeout)
+	} else {
+		lines, err = readLinesHere(region, level, timeout)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	a.logger.Debug("Read lines",
+		zap.Bool("accurate", level == ports.TextAccurate),
+		zap.Bool("helper", inHelper),
+		zap.Int("line_count", len(lines)),
+		zap.Duration("duration", time.Since(started)))
+
+	return lines, nil
+}
+
+// readLinesHere captures region and reads it in this process.
+func readLinesHere(
+	region image.Rectangle,
+	level ports.TextLevel,
+	timeout C.int64_t,
+) ([][]ports.TextPiece, error) {
 	accurate := C.int(0)
 	if level == ports.TextAccurate {
 		accurate = 1
 	}
-
-	started := time.Now()
 
 	result := C.NeruReadLines(cRect(region), readLinesScale, accurate, timeout)
 	if result == nil {
@@ -527,36 +532,7 @@ func (a *Adapter) ReadLines(
 	}
 	defer C.NeruFreeTextResult(result)
 
-	pieces := unsafe.Slice(result.pieces, int(result.count))
-
-	var lines [][]ports.TextPiece
-
-	for _, piece := range pieces {
-		line := int(piece.line)
-		for len(lines) <= line {
-			lines = append(lines, nil)
-		}
-
-		lines[line] = append(lines[line], ports.TextPiece{
-			Text: C.GoString(piece.text),
-			Bounds: image.Rect(
-				int(math.Round(float64(piece.x))),
-				int(math.Round(float64(piece.y))),
-				int(math.Round(float64(piece.x+piece.width))),
-				int(math.Round(float64(piece.y+piece.height))),
-			),
-			Word:       int(piece.word),
-			Background: uint32(piece.background),
-		})
-	}
-
-	a.logger.Debug("Read lines",
-		zap.Bool("accurate", level == ports.TextAccurate),
-		zap.Int("line_count", len(lines)),
-		zap.Int("piece_count", len(pieces)),
-		zap.Duration("duration", time.Since(started)))
-
-	return lines, nil
+	return groupLines(linePiecesOf(result)), nil
 }
 
 func cRect(r image.Rectangle) C.CGRect {

@@ -2,7 +2,10 @@
 
 package main
 
-import "github.com/y3owk1n/neru/internal/cli"
+import (
+	visionAdapter "github.com/y3owk1n/neru/internal/adapter/vision"
+	"github.com/y3owk1n/neru/internal/cli"
+)
 
 // main starts the CLI.
 //
@@ -11,6 +14,7 @@ import "github.com/y3owk1n/neru/internal/cli"
 // daemon logic.
 func main() {
 	cli.LaunchFunc = LaunchDaemon
+	cli.ReadTextLinesFunc = visionAdapter.ServeTextLines
 
 	cli.Execute()
 }

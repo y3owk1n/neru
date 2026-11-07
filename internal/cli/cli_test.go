@@ -91,6 +91,7 @@ func TestCommandInitialization(t *testing.T) {
 		"bisect":                         false,
 		"monitor_select":                 false,
 		"vim":                            false,
+		"read-text-lines":                false,
 		"mode <name>":                    false,
 	}
 
