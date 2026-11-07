@@ -247,9 +247,9 @@ func (g *AlphabetGenerator) Update(characters string, direction LabelDirection) 
 		seen             = make(map[rune]struct{}, len(characters))
 	)
 
-	for _, rune := range characters {
-		upper := unicode.ToUpper(rune)
-		uppercaseRuneMap[rune] = upper
+	for _, char := range characters {
+		upper := unicode.ToUpper(char)
+		uppercaseRuneMap[char] = upper
 
 		if _, ok := seen[upper]; ok {
 			continue

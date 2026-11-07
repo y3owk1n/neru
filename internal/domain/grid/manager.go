@@ -50,9 +50,7 @@ func NewManager(
 	}
 
 	return &Manager{
-		BaseManager: domain.BaseManager{
-			Logger: logger,
-		},
+		Logger:      logger,
 		grid:        grid,
 		labelLength: labelLength,
 		onUpdate:    onUpdate,
