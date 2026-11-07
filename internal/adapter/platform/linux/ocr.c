@@ -294,16 +294,13 @@ static int neru_ocr_collect(
 	return NERU_OCR_OK;
 }
 
-int neru_ocr_recognize(
-    const unsigned char *pixels, int width, int height, int stride, const NeruOCRConfig *config, NeruOCRResult *out) {
-	if (out == NULL) {
-		return NERU_OCR_ERR_IMAGE;
-	}
-
-	out->words = NULL;
-	out->count = 0;
-	out->elapsedMS = 0;
-
+// neru_ocr_run_locked takes the engine and recognizes pixels within the
+// caller's deadline. On NERU_OCR_OK it returns with the engine in *api and the
+// mutex held, for the caller to collect the result, then reset the engine and
+// unlock. On any other status the mutex is released.
+static int neru_ocr_run_locked(
+    const unsigned char *pixels, int width, int height, int stride, const NeruOCRConfig *config, int *elapsedMS,
+    TessBaseAPI **api_out) {
 	if (pixels == NULL || width <= 0 || height <= 0 || stride < width * NERU_OCR_BYTES_PER_PIXEL) {
 		return NERU_OCR_ERR_IMAGE;
 	}
@@ -345,7 +342,7 @@ int neru_ocr_recognize(
 	int recognized = TessBaseAPIRecognize(api, monitor);
 
 	int64_t elapsed = neru_ocr_now_ms() - started;
-	out->elapsedMS = (int)(elapsed > 0 ? elapsed : 0);
+	*elapsedMS = (int)(elapsed > 0 ? elapsed : 0);
 
 	if (monitor != NULL) {
 		TessMonitorDelete(monitor);
@@ -363,6 +360,27 @@ int neru_ocr_recognize(
 		}
 
 		return NERU_OCR_ERR_RECOGNIZE;
+	}
+
+	*api_out = api;
+
+	return NERU_OCR_OK;
+}
+
+int neru_ocr_recognize(
+    const unsigned char *pixels, int width, int height, int stride, const NeruOCRConfig *config, NeruOCRResult *out) {
+	if (out == NULL) {
+		return NERU_OCR_ERR_IMAGE;
+	}
+
+	out->words = NULL;
+	out->count = 0;
+	out->elapsedMS = 0;
+
+	TessBaseAPI *api = NULL;
+	int ran = neru_ocr_run_locked(pixels, width, height, stride, config, &out->elapsedMS, &api);
+	if (ran != NERU_OCR_OK) {
+		return ran;
 	}
 
 	TessPageIteratorLevel level = config->wordLevel ? RIL_WORD : RIL_TEXTLINE;
@@ -392,6 +410,144 @@ int neru_ocr_recognize(
 	out->count = count;
 
 	return NERU_OCR_OK;
+}
+
+// neru_ocr_collect_symbols walks the result a character at a time, numbering
+// each one's line and its word within the line.
+static int neru_ocr_collect_symbols(TessResultIterator *iterator, NeruOCRSymbol **symbols, int *count, int *capacity) {
+	const TessPageIterator *page = TessResultIteratorGetPageIteratorConst(iterator);
+	if (page == NULL) {
+		return NERU_OCR_OK;
+	}
+
+	int line = -1;
+	int word = -1;
+
+	do {
+		if (TessPageIteratorIsAtBeginningOf(page, RIL_TEXTLINE)) {
+			line++;
+			word = -1;
+		}
+		if (TessPageIteratorIsAtBeginningOf(page, RIL_WORD)) {
+			word++;
+		}
+
+		int left = 0;
+		int top = 0;
+		int right = 0;
+		int bottom = 0;
+		if (!TessPageIteratorBoundingBox(page, RIL_SYMBOL, &left, &top, &right, &bottom) || right <= left ||
+		    bottom <= top) {
+			continue;
+		}
+
+		char *text = TessResultIteratorGetUTF8Text(iterator, RIL_SYMBOL);
+		if (text == NULL) {
+			continue;
+		}
+
+		int status = NERU_OCR_OK;
+		if (*count == *capacity) {
+			int next = (*capacity == 0) ? NERU_OCR_INITIAL_CAPACITY : (*capacity * 2);
+			NeruOCRSymbol *grown = realloc(*symbols, (size_t)next * sizeof(NeruOCRSymbol));
+			if (grown == NULL) {
+				status = NERU_OCR_ERR_ALLOC;
+			} else {
+				*symbols = grown;
+				*capacity = next;
+			}
+		}
+
+		char *copy = status == NERU_OCR_OK ? strdup(text) : NULL;
+		if (status == NERU_OCR_OK && copy == NULL) {
+			status = NERU_OCR_ERR_ALLOC;
+		}
+
+		// The tesseract-owned string held screen text. Wipe it before handing
+		// it back rather than leaving a readable copy in freed heap.
+		neru_capture_wipe((unsigned char *)text, strlen(text));
+		TessDeleteText(text);
+
+		if (status != NERU_OCR_OK) {
+			return status;
+		}
+
+		(*symbols)[*count] = (NeruOCRSymbol){
+		    .text = copy,
+		    .x = left,
+		    .y = top,
+		    .width = right - left,
+		    .height = bottom - top,
+		    .line = line < 0 ? 0 : line,
+		    .word = word < 0 ? 0 : word,
+		};
+		(*count)++;
+	} while (TessResultIteratorNext(iterator, RIL_SYMBOL));
+
+	return NERU_OCR_OK;
+}
+
+int neru_ocr_recognize_lines(
+    const unsigned char *pixels, int width, int height, int stride, const NeruOCRConfig *config, NeruOCRLines *out) {
+	if (out == NULL) {
+		return NERU_OCR_ERR_IMAGE;
+	}
+
+	out->symbols = NULL;
+	out->count = 0;
+	out->elapsedMS = 0;
+
+	TessBaseAPI *api = NULL;
+	int ran = neru_ocr_run_locked(pixels, width, height, stride, config, &out->elapsedMS, &api);
+	if (ran != NERU_OCR_OK) {
+		return ran;
+	}
+
+	NeruOCRSymbol *symbols = NULL;
+	int count = 0;
+	int capacity = 0;
+	int status = NERU_OCR_OK;
+
+	TessResultIterator *iterator = TessBaseAPIGetIterator(api);
+	if (iterator != NULL) {
+		status = neru_ocr_collect_symbols(iterator, &symbols, &count, &capacity);
+		TessResultIteratorDelete(iterator);
+	}
+
+	neru_ocr_reset_locked(api);
+	pthread_mutex_unlock(&neru_ocr_mutex);
+
+	if (status != NERU_OCR_OK) {
+		NeruOCRLines partial = {symbols, count, 0};
+		neru_ocr_lines_free(&partial);
+
+		return status;
+	}
+
+	out->symbols = symbols;
+	out->count = count;
+
+	return NERU_OCR_OK;
+}
+
+void neru_ocr_lines_free(NeruOCRLines *lines) {
+	if (lines == NULL) {
+		return;
+	}
+
+	for (int i = 0; i < lines->count; i++) {
+		char *text = lines->symbols[i].text;
+		if (text == NULL) {
+			continue;
+		}
+
+		neru_capture_wipe((unsigned char *)text, strlen(text));
+		free(text);
+	}
+
+	free(lines->symbols);
+	lines->symbols = NULL;
+	lines->count = 0;
 }
 
 void neru_ocr_result_free(NeruOCRResult *result) {

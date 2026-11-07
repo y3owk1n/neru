@@ -328,13 +328,29 @@ func TestVisionAdapter_ReadTextDefersToThePassOnLinux(t *testing.T) {
 	}
 }
 
-// TestVisionAdapter_ReadLinesIsNotSupportedOnLinux pins that vim mode's line
-// reader is macOS only, so vim mode refuses here instead of opening on nothing.
-func TestVisionAdapter_ReadLinesIsNotSupportedOnLinux(t *testing.T) {
+// TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead pins the question
+// vim mode asks before it captures anything. An empty region answers
+// CodeNotSupported where lines cannot be read, a build without CGO or a
+// machine without tesseract's language data, and CodeInvalidInput where they
+// can, never nothing at all.
+func TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead(t *testing.T) {
 	lines, err := vision.NewAdapter(nil).ReadLines(
-		context.Background(), image.Rect(0, 0, 100, 100), ports.TextAccurate,
+		context.Background(), image.Rectangle{}, ports.TextFast,
 	)
-	if !derrors.IsNotSupported(err) || lines != nil {
-		t.Fatalf("ReadLines = %v, %v, want nothing and CodeNotSupported", lines, err)
+	if lines != nil || err == nil {
+		t.Fatalf("ReadLines(empty) = %v, %v, want nothing and an error", lines, err)
+	}
+
+	readable := platformlinux.LinesReadable()
+	if readable != nil && !derrors.IsNotSupported(err) {
+		t.Fatalf(
+			"ReadLines(empty) = %v where lines cannot be read (%v), want CodeNotSupported",
+			err,
+			readable,
+		)
+	}
+
+	if readable == nil && derrors.GetCode(err) != derrors.CodeInvalidInput {
+		t.Fatalf("ReadLines(empty) = %v where lines can be read, want CodeInvalidInput", err)
 	}
 }

@@ -293,12 +293,71 @@ func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error)
 	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Linux")
 }
 
-// ReadLines reports CodeNotSupported. Only the macOS recognizer reads a line
-// a piece at a time, which vim mode needs.
+// ReadLines captures region and has tesseract read it a character at a time.
+// tesseract has one level, so a fast and an accurate read are the same read.
 func (a *Adapter) ReadLines(
-	_ context.Context,
-	_ image.Rectangle,
-	_ ports.TextLevel,
+	ctx context.Context,
+	region image.Rectangle,
+	level ports.TextLevel,
 ) ([][]ports.TextPiece, error) {
-	return nil, derrors.New(derrors.CodeNotSupported, "reading lines is only supported on macOS")
+	if region.Empty() {
+		err := platformlinux.LinesReadable()
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, derrors.New(
+			derrors.CodeInvalidInput,
+			"reading lines needs a region with an area",
+		)
+	}
+
+	img, err := a.captureRegion(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	timeoutMS := 0
+	if deadline, ok := ctx.Deadline(); ok {
+		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
+	}
+
+	found, stats, err := platformlinux.RecognizeLines(
+		img,
+		platformlinux.OCRParams{TimeoutMS: timeoutMS},
+	)
+	if err != nil {
+		if derrors.IsNotSupported(err) {
+			return nil, err
+		}
+
+		return nil, derrors.Wrapf(
+			err,
+			derrors.GetCode(err),
+			"reading lines failed after %s (frame %dx%d)",
+			stats.Recognition,
+			img.Rect.Dx(),
+			img.Rect.Dy(),
+		)
+	}
+
+	symbols := make([]lineSymbol, 0, len(found))
+	for _, symbol := range found {
+		symbols = append(symbols, lineSymbol{
+			text: symbol.Text,
+			ink:  symbol.Bounds.Add(img.Rect.Min),
+			line: symbol.Line,
+			word: symbol.Word,
+		})
+	}
+
+	lines := piecesFromSymbols(symbols, img, region)
+
+	a.logger.Debug("Read lines",
+		zap.Bool("accurate", level == ports.TextAccurate),
+		zap.Int("line_count", len(lines)),
+		zap.Int("piece_count", len(symbols)),
+		zap.Duration("recognition", stats.Recognition))
+
+	return lines, nil
 }
