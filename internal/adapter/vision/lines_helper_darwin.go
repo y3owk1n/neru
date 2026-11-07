@@ -51,6 +51,9 @@ type linesHeader struct {
 	X, Y, W, H float64
 	// TimeoutMS bounds the read, compile included.
 	TimeoutMS int64
+	// Language is the Chinese, Japanese or Korean language to read with
+	// too, such as "zh-Hans", or empty for the one the user prefers.
+	Language [16]byte
 }
 
 // linesMagic opens every request.
@@ -107,7 +110,7 @@ func (a *Adapter) readLinesInHelper(
 	request, err := encodeLinesRequest(img, image.Rect(
 		int(captured.origin.x), int(captured.origin.y),
 		int(captured.origin.x+captured.size.width), int(captured.origin.y+captured.size.height),
-	), int64(timeout))
+	), int64(timeout), "")
 	if err != nil {
 		return nil, err
 	}
@@ -144,6 +147,7 @@ func encodeLinesRequest(
 	img *image.RGBA,
 	shows image.Rectangle,
 	timeoutMS int64,
+	language string,
 ) (*bytes.Buffer, error) {
 	header := linesHeader{
 		Magic:     linesMagic,
@@ -156,6 +160,8 @@ func encodeLinesRequest(
 		H:         float64(shows.Dy()),
 		TimeoutMS: timeoutMS,
 	}
+	copy(header.Language[:], language)
+
 	var request bytes.Buffer
 
 	request.Grow(binary.Size(header) + len(img.Pix))
@@ -245,7 +251,16 @@ func readImageLines(img *image.RGBA, header linesHeader) ([]linePiece, error) {
 			C.CGFloat(header.X), C.CGFloat(header.Y), C.CGFloat(header.W), C.CGFloat(header.H),
 		)
 
-		result := C.NeruReadImageLines(cgImage, bounds, 1, C.int64_t(max(header.TimeoutMS, 1)))
+		language := C.CString(string(bytes.TrimRight(header.Language[:], "\x00")))
+		defer C.free(unsafe.Pointer(language))
+
+		result := C.NeruReadImageLines(
+			cgImage,
+			bounds,
+			1,
+			language,
+			C.int64_t(max(header.TimeoutMS, 1)),
+		)
 		if result == nil {
 			return
 		}

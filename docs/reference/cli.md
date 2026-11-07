@@ -690,8 +690,10 @@ and one command changes at most 64 places or 2000 characters.
 
 The fast read knows Latin script only. The accurate read finds each line's
 script, so it reads Chinese, Japanese, Korean, Thai, Russian and the other
-languages macOS knows, mixed with English on one line too. Until it
-finishes, a line in another script shows as noise. A wide character such as 中
+languages macOS knows. It reads each line in one script. When your macOS
+languages include Chinese, Japanese or Korean, it also reads with that
+language, so a word of it in an English line is read correctly. Until the
+accurate read finishes, a line in another script shows as noise. A wide character such as 中
 takes two columns, and a character the app moves over in one step, such as
 a Thai consonant with its vowel sign, is one character to vim. Arabic and
 Hebrew are read and moved over, but laid out left to right, so an edit in

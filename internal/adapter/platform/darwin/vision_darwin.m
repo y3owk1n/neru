@@ -989,9 +989,81 @@ static NSArray<NSValue *> *characterRanges(NSString *text) {
 	return ranges;
 }
 
+/// The Chinese, Japanese or Korean recognition language the user reads, from
+/// the first of the system's preferred languages that is one, or override
+/// when set, or nil when the user reads none of them.
+static NSString *wideLanguage(NSString *override) {
+	if (override.length > 0)
+		return override;
+
+	for (NSString *preferred in [NSLocale preferredLanguages]) {
+		NSString *tag = preferred.lowercaseString;
+		if ([tag hasPrefix:@"zh-hant"] || [tag hasPrefix:@"zh-tw"] || [tag hasPrefix:@"zh-hk"] ||
+		    [tag hasPrefix:@"zh-mo"] || [tag hasPrefix:@"yue"])
+			return @"zh-Hant";
+		if ([tag hasPrefix:@"zh"])
+			return @"zh-Hans";
+		if ([tag hasPrefix:@"ja"])
+			return @"ja-JP";
+		if ([tag hasPrefix:@"ko"])
+			return @"ko-KR";
+	}
+	return nil;
+}
+
+/// Whether text has a character that takes two cells.
+static BOOL hasWide(NSString *text) {
+	__block BOOL wide = NO;
+	[text enumerateSubstringsInRange:NSMakeRange(0, text.length)
+	                         options:NSStringEnumerationByComposedCharacterSequences
+	                      usingBlock:^(NSString *piece, NSRange range, NSRange enclosing, BOOL *stop) {
+		                      wide = isWide(piece);
+		                      *stop = wide;
+	                      }];
+	return wide;
+}
+
+/// The top candidate's text of an observation.
+static NSString *topText(VNRecognizedTextObservation *observation) {
+	return [[observation topCandidates:1] firstObject].string ?: @"";
+}
+
+/// The detected lines, with a line replaced by the wide-language read of it
+/// when that read has a wide character and detection's has none. That is a
+/// Chinese word read as Latin noise. A line detection read with wide
+/// characters stays, since detection reads Korean and Japanese that the
+/// Chinese model would garble. A wide-language line detection missed is
+/// added. Two reads are the same line when their boxes overlap by at least
+/// half the smaller box.
+static NSArray<VNRecognizedTextObservation *> *mergeWideLines(
+    NSArray<VNRecognizedTextObservation *> *detected, NSArray<VNRecognizedTextObservation *> *wide) {
+	NSMutableArray<VNRecognizedTextObservation *> *merged = [NSMutableArray arrayWithArray:detected ?: @[]];
+	for (VNRecognizedTextObservation *line in wide) {
+		if (!hasWide(topText(line)))
+			continue;
+		CGRect box = line.boundingBox;
+		NSInteger same = -1;
+		for (NSUInteger i = 0; i < merged.count; i++) {
+			CGRect other = merged[i].boundingBox;
+			CGRect overlap = CGRectIntersection(box, other);
+			CGFloat smaller = MIN(box.size.width * box.size.height, other.size.width * other.size.height);
+			if (!CGRectIsNull(overlap) && smaller > 0 && overlap.size.width * overlap.size.height >= smaller / 2) {
+				same = (NSInteger)i;
+				break;
+			}
+		}
+		if (same < 0)
+			[merged addObject:line];
+		else if (!hasWide(topText(merged[(NSUInteger)same])))
+			merged[(NSUInteger)same] = line;
+	}
+	return merged;
+}
+
 /// Reads image's lines by deadline as NeruReadLines does, with captured as
 /// the global rect the image shows.
-static NeruTextResult *readLines(CGImageRef image, CGRect captured, int accurate, dispatch_time_t deadline) {
+static NeruTextResult *readLines(
+    CGImageRef image, CGRect captured, int accurate, NSString *languageOverride, dispatch_time_t deadline) {
 	@autoreleasepool {
 		__block NSArray<VNRecognizedTextObservation *> *lines = nil;
 		dispatch_group_t group = dispatch_group_create();
@@ -1008,11 +1080,27 @@ static NeruTextResult *readLines(CGImageRef image, CGRect captured, int accurate
 			if (@available(macOS 13.0, *))
 				request.automaticallyDetectsLanguage = accurate != 0;
 			request.minimumTextHeight = 0;
+			NSMutableArray<VNRequest *> *requests = [NSMutableArray arrayWithObject:request];
+
+			// Detection picks one model per line, so a Chinese word in an
+			// English line reads as Latin noise. The user's own Chinese,
+			// Japanese or Korean model, with English, reads such lines whole.
+			VNRecognizeTextRequest *wide = nil;
+			NSString *language = accurate ? wideLanguage(languageOverride) : nil;
+			if (language) {
+				wide = [[VNRecognizeTextRequest alloc] init];
+				wide.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
+				wide.usesLanguageCorrection = NO;
+				wide.recognitionLanguages = @[ language, @"en-US" ];
+				wide.minimumTextHeight = 0;
+				[requests addObject:wide];
+			}
+
 			VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:image options:@{}];
 			NSError *error = nil;
-			[handler performRequests:@[ request ] error:&error];
+			[handler performRequests:requests error:&error];
 			if (!error)
-				lines = request.results;
+				lines = wide ? mergeWideLines(request.results, wide.results) : request.results;
 			CGImageRelease(image);
 		});
 		BOOL finished = dispatch_group_wait(group, deadline) == 0;
@@ -1120,14 +1208,16 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 		if (!image)
 			return NULL;
 
-		NeruTextResult *result = readLines(image, captured, accurate, deadline);
+		NeruTextResult *result = readLines(image, captured, accurate, nil, deadline);
 		CGImageRelease(image);
 		return result;
 	}
 }
 
-NeruTextResult *NeruReadImageLines(CGImageRef image, CGRect bounds, int accurate, int64_t timeoutMS) {
-	return readLines(image, bounds, accurate, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC));
+NeruTextResult *NeruReadImageLines(
+    CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS) {
+	NSString *override = language && language[0] ? [NSString stringWithUTF8String:language] : nil;
+	return readLines(image, bounds, accurate, override, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC));
 }
 
 void NeruFreeTextResult(NeruTextResult *result) {
