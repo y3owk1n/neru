@@ -95,7 +95,7 @@ func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) {
 	}
 
 	h.vimClick(vimCaretIn(text, from))
-	h.vimFeed(slices.Repeat([]string{extend}, text.AppRunes(start, end))...)
+	h.vimFeed(slices.Repeat([]string{extend}, text.AppChars(start, end))...)
 }
 
 // vimClick left clicks p, and gives the app a moment to place its caret

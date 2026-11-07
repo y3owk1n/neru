@@ -90,6 +90,17 @@ type VisionPort interface {
 	CaptureExcludesOwnWindows() bool
 }
 
+// TextRecognizerWarmer is an optional VisionPort extension for a platform
+// whose accurate recognizer compiles its models the first time an executable
+// uses it, which takes seconds. WarmTextRecognizer reads a sample so the
+// first accurate read does not wait for them. A fast read cancels it, since a
+// key the user pressed is waiting on the fast read. So it fails when a fast
+// read starts meanwhile, and the caller tries again later. Treat a missing implementation
+// as nothing to warm.
+type TextRecognizerWarmer interface {
+	WarmTextRecognizer(ctx context.Context) error
+}
+
 // TextLevel is how carefully ReadLines reads.
 type TextLevel int
 

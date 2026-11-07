@@ -688,6 +688,18 @@ such as an icon-only button, and puts a `□` where each one is, so `w`, `j` and
 the cursor shows the word under it as read. A count is at most four digits,
 and one command changes at most 64 places or 2000 characters.
 
+The fast read knows Latin script only. The accurate read finds each line's
+script, so it reads Chinese, Japanese, Korean, Thai, Russian and the other
+languages macOS knows, mixed with English on one line too. Until it
+finishes, a line in another script shows as noise. A wide character such as 中
+takes two columns, and a character the app moves over in one step, such as
+a Thai consonant with its vowel sign, is one character to vim. Arabic and
+Hebrew are read and moved over, but laid out left to right, so an edit in
+them selects the wrong text. Japanese and Korean on one line can be read as
+one of the two. macOS compiles the models that find the script the first
+time Neru uses them, which takes several seconds, so with vim mode enabled
+Neru does that in the background at launch.
+
 Typing into the app re-sends each key, so an input method's composition does
 not work there, and `i` over text that cannot be edited sends the keys to the
 app as shortcuts. A drag and every edit change the app's own selection. Vim
