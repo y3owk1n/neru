@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.62.0](https://github.com/y3owk1n/neru/compare/v1.61.0...v1.62.0) (2026-11-07)
+
+
+### Features
+
+* **hints:** copy a hint's text to the clipboard with copy_text ([#1917](https://github.com/y3owk1n/neru/issues/1917)) ([cb101a8](https://github.com/y3owk1n/neru/commit/cb101a80802a6a548236e30e55bf674062160256))
+* **hints:** pick a hint's action by the modifiers held on its last key ([#1915](https://github.com/y3owk1n/neru/issues/1915)) ([b1405e2](https://github.com/y3owk1n/neru/commit/b1405e2f3dbe9b048a4ddb772023876517485320))
+
+
+### Bug Fixes
+
+* **hints,darwin:** make copy text via vision more accurate ([#1918](https://github.com/y3owk1n/neru/issues/1918)) ([31acf29](https://github.com/y3owk1n/neru/commit/31acf29e1c2407602750e572e4342181ef8c5f04))
+
 ## [1.61.0](https://github.com/y3owk1n/neru/compare/v1.60.0...v1.61.0) (2026-11-02)
 
 
