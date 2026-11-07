@@ -206,6 +206,17 @@ func (s *HintService) CaptureShowsOwnWindows() bool {
 	return s.vision != nil && !s.vision.CaptureExcludesOwnWindows()
 }
 
+// ReadText reads one screen region again, for copy_text. It reports
+// CodeNotSupported with no vision port, as platforms whose detection pass
+// already reads text word for word do.
+func (s *HintService) ReadText(ctx context.Context, rect image.Rectangle) (string, error) {
+	if s.vision == nil {
+		return "", derrors.New(derrors.CodeNotSupported, "text reading needs a vision backend")
+	}
+
+	return s.vision.ReadText(ctx, rect)
+}
+
 // Generator returns the registered hint generator for the given label
 // direction. An empty direction resolves to the default generator. If no
 // generator exists for the requested direction the default is returned as a

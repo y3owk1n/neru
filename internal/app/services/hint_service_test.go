@@ -849,6 +849,10 @@ func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
 
 func (m *mockVisionPort) CaptureExcludesOwnWindows() bool { return false }
 
+func (m *mockVisionPort) ReadText(context.Context, image.Rectangle) (string, error) {
+	return "", derrors.New(derrors.CodeNotSupported, "not supported")
+}
+
 func (m *mockVisionPort) Health(context.Context) error {
 	return nil
 }

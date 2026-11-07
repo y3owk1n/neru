@@ -285,3 +285,9 @@ func (a *Adapter) captureRegion(ctx context.Context, region image.Rectangle) (*i
 
 	return img, nil
 }
+
+// ReadText reports CodeNotSupported. tesseract already reads text accurately
+// in the detection pass, so copy_text keeps the text the hint has.
+func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
+	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Linux")
+}

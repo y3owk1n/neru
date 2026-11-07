@@ -145,7 +145,16 @@ snap refuses those strategies while a mode is open.
 `eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. Windows uses
 `Windows.Media.Ocr`, which reports no per-word confidence. On both, the
 contour detector finds rectangles in the same frame, with its shipped
-thresholds. Recognized text is never logged or stored.
+thresholds. macOS places hints with Vision's fast recognizer over the whole
+frame, and at that size it misreads small text. `copy_text` reads a
+screen-found hint again with the same recognizer, language correction off, on
+a capture of only the hint's box at three times its size in points. At that
+size it reads UI text word for word. A read that takes longer than 500 ms is
+dropped, and the copy uses the hints pass's text. Neru does not use Vision's
+accurate recognizer, because it skips text on mostly empty frames that the fast
+one finds. Its first load in a process also takes tens of seconds and holds up
+every fast request until it finishes. Recognized text is never logged or
+stored.
 
 ⁷ **Modifiers on injected input.** On X11, Wayland and Windows, an injected
 pointer event carries whatever modifiers the keyboard holds, so a chord still

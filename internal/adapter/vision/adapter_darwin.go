@@ -14,6 +14,7 @@ import (
 	"context"
 	"image"
 	"math"
+	"sync"
 	"time"
 	"unsafe"
 
@@ -387,4 +388,82 @@ func (a *Adapter) logCapture(path string, started time.Time, img *image.RGBA) {
 		zap.Int("width", img.Rect.Dx()),
 		zap.Int("height", img.Rect.Dy()),
 	)
+}
+
+// readTextScale is how many pixels per point ReadText captures at. Glyphs at
+// three times their size in points are what the recognizer reads small UI text
+// word for word from.
+const readTextScale = 3
+
+// readTextPadding widens a hint's box before ReadText captures it, since an
+// OCR word box sits tight on the glyphs and the recognizer misses clipped
+// edges.
+const readTextPadding = 4
+
+// readTextMu lets one read run at a time. A second one gives up at once rather
+// than queue.
+var readTextMu sync.Mutex
+
+// ReadText captures rect at readTextScale and reads it. The recognizer cannot
+// be canceled, so a read that outlives ctx keeps running on its own and its
+// result is dropped. Holding readTextMu means that costs at most one read in
+// flight.
+func (a *Adapter) ReadText(ctx context.Context, rect image.Rectangle) (string, error) {
+	if rect.Empty() {
+		return "", derrors.New(derrors.CodeInvalidInput, "text reading needs a region with an area")
+	}
+
+	timeout, err := captureTimeoutMS(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if !readTextMu.TryLock() {
+		return "", derrors.New(derrors.CodeActionFailed, "a text read is already running")
+	}
+
+	type result struct {
+		text string
+		err  error
+	}
+
+	done := make(chan result, 1)
+
+	go func() {
+		defer readTextMu.Unlock()
+
+		text, err := readTextNow(rect.Inset(-readTextPadding), timeout)
+		done <- result{text: text, err: err}
+	}()
+
+	select {
+	case got := <-done:
+		return got.text, got.err
+	case <-ctx.Done():
+		return "", derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "text reading timed out")
+	}
+}
+
+// readTextNow captures region and reads it.
+func readTextNow(region image.Rectangle, timeout C.int64_t) (string, error) {
+	cgRect := C.CGRect{
+		origin: C.CGPoint{x: C.double(region.Min.X), y: C.double(region.Min.Y)},
+		size:   C.CGSize{width: C.double(region.Dx()), height: C.double(region.Dy())},
+	}
+
+	var captured C.CGRect
+
+	cgImage := C.NeruCaptureRectAtScale(cgRect, readTextScale, &captured, timeout)
+	if uintptr(cgImage) == 0 {
+		return "", derrors.New(derrors.CodeActionFailed, "failed to capture the region to read")
+	}
+	defer C.CGImageRelease(cgImage)
+
+	cText := C.NeruReadText(cgImage)
+	if cText == nil {
+		return "", nil
+	}
+	defer C.free(unsafe.Pointer(cText))
+
+	return C.GoString(cText), nil
 }

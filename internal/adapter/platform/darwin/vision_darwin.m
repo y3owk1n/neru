@@ -220,15 +220,16 @@ static void rememberDisplays(NSArray<SCDisplay *> *displays, SCRunningApplicatio
 }
 
 // captureDisplay screenshots source, a display-local rectangle in points, or
-// the whole display when source is CGRectNull, at its size in points: the size
-// the rest of the pipeline was written against. When own is known, the filter
-// leaves Neru's own windows out, so a scan that runs while labels are on screen
-// does not read them back as targets. The configuration leaves the pointer out
+// the whole display when source is CGRectNull. A region comes back at scale
+// times its size in points. Detection asks for 1, the size the rest of the
+// pipeline was written against, and copy_text's re-read of one hint asks for
+// more. When own is known, the filter leaves Neru's own windows out, so a scan
+// that runs while labels are on screen does not read them back as targets. The configuration leaves the pointer out
 // too, because a pixel detector reads it as a control under the cursor, where a
 // snap starts looking.
 static void captureDisplay(
-    SCDisplay *display, SCRunningApplication *own, CGRect source, NeruScreenshotState *state, dispatch_group_t group)
-    API_AVAILABLE(macos(14.0)) {
+    SCDisplay *display, SCRunningApplication *own, CGRect source, double scale, NeruScreenshotState *state,
+    dispatch_group_t group) API_AVAILABLE(macos(14.0)) {
 	SCContentFilter *filter = own != nil ? [[SCContentFilter alloc] initWithDisplay:display
 	                                                          excludingApplications:@[ own ]
 	                                                               exceptingWindows:@[]]
@@ -241,8 +242,8 @@ static void captureDisplay(
 		config.height = CGDisplayPixelsHigh(display.displayID);
 	} else {
 		config.sourceRect = source;
-		config.width = (size_t)source.size.width;
-		config.height = (size_t)source.size.height;
+		config.width = (size_t)(source.size.width * scale);
+		config.height = (size_t)(source.size.height * scale);
 	}
 
 	[SCScreenshotManager captureImageWithFilter:filter
@@ -264,7 +265,8 @@ static void captureDisplay(
 // not list takes the first one, as it always has. A region capture gives up
 // instead, because its source rect is local to displayID and would land on the
 // wrong pixels anywhere else. Its caller then falls back to the display path.
-static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRect source, int64_t timeoutMS) {
+static CGImageRef captureWithScreenCaptureKit(
+    CGDirectDisplayID displayID, CGRect source, double scale, int64_t timeoutMS) {
 	if (@available(macOS 14.0, *)) {
 		uint64_t generation = 0;
 		SCRunningApplication *rememberedOwn = nil;
@@ -273,7 +275,7 @@ static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRec
 
 		return awaitScreenshot(timeoutMS, ^(NeruScreenshotState *state, dispatch_group_t group) {
 			if (rememberedDisplay != nil) {
-				captureDisplay(rememberedDisplay, rememberedOwn, source, state, group);
+				captureDisplay(rememberedDisplay, rememberedOwn, source, scale, state, group);
 				return;
 			}
 
@@ -293,7 +295,8 @@ static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRec
 					    return;
 				    }
 
-				    captureDisplay(display != nil ? display : content.displays.firstObject, own, source, state, group);
+				    captureDisplay(
+				        display != nil ? display : content.displays.firstObject, own, source, scale, state, group);
 			    }];
 		});
 	}
@@ -304,7 +307,7 @@ static CGImageRef captureWithScreenCaptureKit(CGDirectDisplayID displayID, CGRec
 static CGImageRef captureDisplayImage(CGDirectDisplayID displayID, int64_t timeoutMS) {
 	@autoreleasepool {
 		if (@available(macOS 14.0, *)) {
-			return captureWithScreenCaptureKit(displayID, CGRectNull, timeoutMS);
+			return captureWithScreenCaptureKit(displayID, CGRectNull, 1, timeoutMS);
 		}
 
 		return createDisplayImage(displayID);
@@ -348,6 +351,10 @@ CGImageRef NeruCaptureDisplayContaining(CGRect rect, CGRect *outBounds, int64_t 
 // plain Objective-C loop. A daemon that captures on every activation cannot
 // carry that.
 CGImageRef NeruCaptureRect(CGRect rect, CGRect *outCaptured, int64_t timeoutMS) {
+	return NeruCaptureRectAtScale(rect, 1, outCaptured, timeoutMS);
+}
+
+CGImageRef NeruCaptureRectAtScale(CGRect rect, double scale, CGRect *outCaptured, int64_t timeoutMS) {
 	if (@available(macOS 14.0, *)) {
 		@autoreleasepool {
 			CGDirectDisplayID display = displayContaining(rect);
@@ -363,7 +370,7 @@ CGImageRef NeruCaptureRect(CGRect rect, CGRect *outCaptured, int64_t timeoutMS) 
 
 			CGRect source = CGRectOffset(captured, -bounds.origin.x, -bounds.origin.y);
 
-			return captureWithScreenCaptureKit(display, source, timeoutMS);
+			return captureWithScreenCaptureKit(display, source, scale, timeoutMS);
 		}
 	}
 
@@ -398,6 +405,98 @@ static NSArray<VNRecognizedTextObservation *> *detectText(CGImageRef image) {
 		return @[];
 	}
 	return request.results ?: @[];
+}
+
+// readTextMinimumHeight is the height in pixels below which a crop is enlarged
+// before it is read. The fast recognizer reads a line of UI text word for word
+// at about three times its size in points, which puts a padded line of 11pt
+// text at about 54 pixels, and misreads it both below that and well above it.
+// ReadText captures at three times already, so this only enlarges smaller
+// crops.
+static const CGFloat readTextMinimumHeight = 54;
+
+// enlargedForReading draws image at a whole factor large enough to clear
+// readTextMinimumHeight, or retains it unchanged when it already does.
+static CGImageRef enlargedForReading(CGImageRef image) {
+	size_t width = CGImageGetWidth(image);
+	size_t height = CGImageGetHeight(image);
+	if (height == 0 || height >= readTextMinimumHeight) {
+		return CGImageRetain(image);
+	}
+
+	size_t factor = (size_t)ceil(readTextMinimumHeight / (CGFloat)height);
+	CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+	CGContextRef context = CGBitmapContextCreate(
+	    NULL, width * factor, height * factor, 8, 0, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+	CGColorSpaceRelease(space);
+	if (!context) {
+		return CGImageRetain(image);
+	}
+
+	CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
+	CGContextDrawImage(context, CGRectMake(0, 0, width * factor, height * factor), image);
+	CGImageRef enlarged = CGBitmapContextCreateImage(context);
+	CGContextRelease(context);
+
+	return enlarged ? enlarged : CGImageRetain(image);
+}
+
+char *NeruReadText(CGImageRef image) {
+	if (!image) {
+		return NULL;
+	}
+
+	@autoreleasepool {
+		CGImageRef readable = enlargedForReading(image);
+
+		// The fast recognizer, as hint detection uses, reads one enlarged line
+		// as well as the accurate one, and needs no model loaded first. The
+		// accurate one's first load takes tens of seconds and holds up every
+		// fast request in the process meanwhile, hint detection's included.
+		// Language correction stays off, since it rewrites paths, flags and
+		// identifiers into dictionary words.
+		VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] init];
+		request.recognitionLevel = VNRequestTextRecognitionLevelFast;
+		request.usesLanguageCorrection = NO;
+
+		VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:readable options:@{}];
+		NSError *error = nil;
+		[handler performRequests:@[ request ] error:&error];
+		CGImageRelease(readable);
+		if (error || request.results.count == 0) {
+			return NULL;
+		}
+
+		// Vision's boxes have a bottom-left origin, so the line highest up has
+		// the largest y. Reading order is top to bottom, then left to right.
+		// Two boxes whose middles sit within half the shorter one's height are
+		// on the same line, since words on one line come back with different
+		// heights.
+		NSArray<VNRecognizedTextObservation *> *lines =
+		    [request.results sortedArrayUsingComparator:^NSComparisonResult(
+		                         VNRecognizedTextObservation *a, VNRecognizedTextObservation *b) {
+			    CGFloat ay = CGRectGetMidY(a.boundingBox), by = CGRectGetMidY(b.boundingBox);
+			    CGFloat sameLine = MIN(CGRectGetHeight(a.boundingBox), CGRectGetHeight(b.boundingBox)) / 2;
+			    if (fabs(ay - by) > sameLine) {
+				    return ay > by ? NSOrderedAscending : NSOrderedDescending;
+			    }
+			    return a.boundingBox.origin.x < b.boundingBox.origin.x ? NSOrderedAscending : NSOrderedDescending;
+		    }];
+
+		NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithCapacity:lines.count];
+		for (VNRecognizedTextObservation *line in lines) {
+			NSString *text = [line topCandidates:1].firstObject.string;
+			if (text.length > 0) {
+				[parts addObject:text];
+			}
+		}
+
+		if (parts.count == 0) {
+			return NULL;
+		}
+
+		return strdup([[parts componentsJoinedByString:@" "] UTF8String]);
+	}
 }
 
 static CGRect visionRectToCGRect(CGRect imageBounds, CGRect normalizedRect) {

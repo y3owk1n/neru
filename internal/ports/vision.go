@@ -65,6 +65,15 @@ type VisionPort interface {
 	// the detection that asked for it.
 	CaptureScreen(ctx context.Context) (*image.RGBA, error)
 
+	// ReadText captures rect, a screen region in global coordinates, and
+	// returns the text in it, read from that region alone rather than from the
+	// whole frame DetectElements reads. It is a second look at one hint, for
+	// copy_text. A platform whose DetectElements already reads text accurately
+	// returns CodeNotSupported, and the caller keeps the text it has. The
+	// caller bounds the read with ctx. Like CaptureScreen's frame, the text is
+	// screen content and must never be logged.
+	ReadText(ctx context.Context, rect image.Rectangle) (string, error)
+
 	// CaptureExcludesOwnWindows reports whether a capture leaves Neru's own
 	// windows out of the frame. When it does not, a hints refresh that reads
 	// the screen takes the old labels off first, or it reads them back as

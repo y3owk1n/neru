@@ -1008,8 +1008,10 @@ neru action copy_text
 
 Copy the text of the hint most recently selected to the clipboard. That is its
 value, such as a field's contents, else its title, such as a button's or link's
-name, else its description. With the `vision` strategy it is the recognized
-words.
+name, else its description. For a hint found by reading the screen, with the
+`vision`, `contour` or `segment` strategy, it is the text recognized there. See
+[Platform support](platform-support.md#capability-matrix) for how each
+platform reads it.
 
 Use it as a step in a
 [`[hints.select_with]`](configuration.md#select-with-modifiers) entry or a
@@ -1025,9 +1027,9 @@ you type without clicking it:
 ```
 
 - It fails with `ERR_INVALID_INPUT` when no hint has been selected since a mode
-  last opened, and with `ERR_ACTION_FAILED` when the hint has no text. Hints
-  found by `contour` and `segment` never have any. As the mode's `--action`, a
-  copy that fails closes hints as canceled and runs no `--on-exit`.
+  last opened, and with `ERR_ACTION_FAILED` when the hint has no text. As the
+  mode's `--action`, a copy that fails closes hints as canceled and runs no
+  `--on-exit`.
 - It never copies a password field's text.
 - On Linux it needs a clipboard tool, listed in
   [Linux setup](../guide/linux.md#runtime-libraries). Without one it fails with

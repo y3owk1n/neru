@@ -315,3 +315,14 @@ func TestVisionAdapter_CaptureExcludesOwnWindowsOnceTheOverlayRegisters(t *testi
 		t.Error("CaptureExcludesOwnWindows() = false with an overlay that takes itself off")
 	}
 }
+
+// TestVisionAdapter_ReadTextDefersToThePassOnLinux pins that there is no
+// second, more careful read here. tesseract already reads text accurately in
+// the detection pass, so ReadText reports CodeNotSupported with no text, and
+// copy_text keeps the text the pass read.
+func TestVisionAdapter_ReadTextDefersToThePassOnLinux(t *testing.T) {
+	text, err := vision.NewAdapter(nil).ReadText(context.Background(), image.Rect(0, 0, 100, 100))
+	if !derrors.IsNotSupported(err) || text != "" {
+		t.Fatalf("ReadText = %q, %v, want no text and CodeNotSupported", text, err)
+	}
+}

@@ -264,7 +264,7 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 		)
 	}
 
-	h.rememberSelectedHint(selectedHint.Element().Text())
+	h.rememberSelectedHint(selectedHint.Element())
 
 	pendingAction := h.hints.Context.PendingAction()
 
