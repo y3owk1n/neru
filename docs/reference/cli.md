@@ -1026,7 +1026,8 @@ you type without clicking it:
 
 - It fails with `ERR_INVALID_INPUT` when no hint has been selected since a mode
   last opened, and with `ERR_ACTION_FAILED` when the hint has no text. Hints
-  found by `contour` and `segment` never have any.
+  found by `contour` and `segment` never have any. As the mode's `--action`, a
+  copy that fails closes hints as canceled and runs no `--on-exit`.
 - It never copies a password field's text.
 - On Linux it needs a clipboard tool, listed in
   [Linux setup](../guide/linux.md#runtime-libraries). Without one it fails with

@@ -65,6 +65,15 @@ type selectWithPlan struct {
 	repeat          bool
 	onExit          []string
 	env             []string
+	// actionName is what the selection ran, reported as the mode's exit
+	// action when it completes. Empty for a select_with entry.
+	actionName string
+	// settle says the selection may have clicked, so the target app gets a
+	// moment before hints rescan.
+	settle bool
+	// failed says the selection's action failed, which ends the session as
+	// canceled, with no --on-exit, as a failed click does.
+	failed bool
 }
 
 // selectWithEntry moves the cursor to the selected hint and runs entry's
@@ -77,28 +86,53 @@ func (h *handlerState) selectWithEntry(point image.Point, entry configpkg.Bindin
 		zap.String("entry", entry.Key),
 		zap.Int("step_count", len(entry.Steps)))
 
-	h.runSelectionSteps(point, entry.Key, entry.Steps, "")
+	h.runSelectionSteps(point, entry.Key, entry.Steps)
 }
 
-// copyTextSelection runs a copy_text session's action on the selected hint.
-// It goes through the steps path rather than the click path so the clipboard
-// is written by the copy_text action off h.mu, where a slow clipboard tool
-// cannot hold up key handling.
+// copyTextSelection copies the selected hint's text in a copy_text session.
+// The clipboard is written on a goroutine, off h.mu, so a slow clipboard tool
+// cannot hold up key handling, and its result decides how the session ends. A
+// hint with no text fails at once.
 //
 // Caller must hold h.mu.
 func (h *handlerState) copyTextSelection(point image.Point) {
-	h.runSelectionSteps(
-		point,
-		string(action.NameCopyText),
-		[]string{action.PrefixAction + " " + string(action.NameCopyText)},
-		string(action.NameCopyText),
-	)
+	plan := h.newSelectionPlan(point, string(action.NameCopyText))
+	text := h.selectedHintText
+
+	if text == "" || h.clipboard == nil {
+		h.logger.Debug("Selected hint has no text to copy")
+
+		plan.failed = true
+		h.finishSelectWith(plan)
+
+		return
+	}
+
+	h.selectWithInFlight = true
+	h.selectWithSession = plan.session
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				h.logger.Error("Panic in copy_text", zap.Any("recover", r))
+			}
+		}()
+
+		err := h.clipboard.WriteText(h.ctx, text)
+		if err != nil {
+			h.logger.Warn("Failed to copy the hint's text", zap.Error(err))
+
+			plan.failed = true
+		}
+
+		h.outer.finishSelectWithAfterSteps(plan)
+	}()
 }
 
 // runSelectionSteps moves the cursor to the selected hint, runs steps there,
 // then finishes the session the way its --action would have. source names
 // the steps in logs and to the modifier suppression a mode-entering step
-// triggers, and actionName is what the select event reports the selection ran.
+// triggers.
 //
 // The steps run on a goroutine, as a binding's do, because a step may reach
 // the handler through IPC and h.mu is held here. Finishing re-enters through
@@ -108,35 +142,16 @@ func (h *handlerState) copyTextSelection(point image.Point) {
 // steps. Bindings, Escape among them, still answer.
 //
 // Caller must hold h.mu.
-func (h *handlerState) runSelectionSteps(
-	point image.Point,
-	source string,
-	steps []string,
-	actionName string,
-) {
-	moveErr := h.actionService.MoveCursorToPoint(h.ctx, point)
-	if moveErr != nil {
-		h.logger.Error("Failed to move cursor", zap.Error(moveErr))
-	}
-
-	selection := h.publishSelect(point, actionName)
-
-	plan := selectWithPlan{
-		session:         h.modeSession,
-		activation:      h.hintSessionActivation(),
-		pendingAction:   h.hints.Context.PendingAction(),
-		pendingModifier: h.hints.Context.PendingModifier(),
-		repeat:          h.hints.Context.Repeat(),
-		onExit:          h.currentModeOnExit(),
-		env:             selection.Env(),
-	}
+func (h *handlerState) runSelectionSteps(point image.Point, source string, steps []string) {
+	plan := h.newSelectionPlan(point, "")
 
 	if h.executeActionSequence == nil {
-		h.finishSelectWith(plan, false)
+		h.finishSelectWith(plan)
 
 		return
 	}
 
+	plan.settle = true
 	h.selectWithInFlight = true
 	h.selectWithSession = plan.session
 
@@ -156,6 +171,31 @@ func (h *handlerState) runSelectionSteps(
 	}()
 }
 
+// newSelectionPlan moves the cursor to the selected hint, reports the
+// selection with actionName as what it ran, and captures what finishing it
+// needs from the session.
+//
+// Caller must hold h.mu.
+func (h *handlerState) newSelectionPlan(point image.Point, actionName string) selectWithPlan {
+	moveErr := h.actionService.MoveCursorToPoint(h.ctx, point)
+	if moveErr != nil {
+		h.logger.Error("Failed to move cursor", zap.Error(moveErr))
+	}
+
+	selection := h.publishSelect(point, actionName)
+
+	return selectWithPlan{
+		session:         h.modeSession,
+		activation:      h.hintSessionActivation(),
+		pendingAction:   h.hints.Context.PendingAction(),
+		pendingModifier: h.hints.Context.PendingModifier(),
+		repeat:          h.hints.Context.Repeat(),
+		onExit:          h.currentModeOnExit(),
+		env:             selection.Env(),
+		actionName:      actionName,
+	}
+}
+
 // finishSelectWithAfterSteps finishes a select_with selection once its steps
 // have run.
 func (h *Handler) finishSelectWithAfterSteps(plan selectWithPlan) {
@@ -166,7 +206,7 @@ func (h *Handler) finishSelectWithAfterSteps(plan selectWithPlan) {
 		return
 	}
 
-	h.finishSelectWith(plan, true)
+	h.finishSelectWith(plan)
 }
 
 // selectWithPending reports whether a select_with selection made in the
@@ -189,11 +229,11 @@ func (h *handlerState) selectWithPending() bool {
 // while the steps run is indistinguishable from an "idle" step and counts as
 // one.
 //
-// stepsRan says the entry's steps ran, which is when the target app needs a
-// moment to take their clicks before a rescan.
+// A failed action ends the session as canceled and runs no --on-exit, as a
+// failed click does, so an exit step never acts on a copy that did not happen.
 //
 // Caller must hold h.mu.
-func (h *handlerState) finishSelectWith(plan selectWithPlan, stepsRan bool) {
+func (h *handlerState) finishSelectWith(plan selectWithPlan) {
 	// Only this selection's own guard is cleared. A later session may have a
 	// selection of its own running.
 	if h.selectWithSession == plan.session {
@@ -201,9 +241,17 @@ func (h *handlerState) finishSelectWith(plan selectWithPlan, stepsRan bool) {
 	}
 
 	if h.modeSession != plan.session {
-		if h.modeSession == plan.session+1 && h.appState.CurrentMode() == domain.ModeIdle {
+		if !plan.failed && h.modeSession == plan.session+1 &&
+			h.appState.CurrentMode() == domain.ModeIdle {
 			h.runOnExit(plan.onExit, plan.env)
 		}
+
+		return
+	}
+
+	if plan.failed {
+		h.appState.SetModeExitReason(state.ModeExitReasonCancelled)
+		h.exitMode()
 
 		return
 	}
@@ -211,7 +259,7 @@ func (h *handlerState) finishSelectWith(plan selectWithPlan, stepsRan bool) {
 	if plan.repeat || plan.pendingAction == nil {
 		// Give the target app time to take the steps' clicks before the
 		// rescan, as a --repeat selection does after its action.
-		if stepsRan {
+		if plan.settle {
 			time.Sleep(postActionSettleDelay)
 		}
 
@@ -226,6 +274,7 @@ func (h *handlerState) finishSelectWith(plan selectWithPlan, stepsRan bool) {
 	}
 
 	h.appState.SetModeExitReason(state.ModeExitReasonCompleted)
+	h.exitAction = plan.actionName
 	h.exitMode()
 	h.runOnExit(plan.onExit, plan.env)
 }

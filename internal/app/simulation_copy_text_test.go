@@ -12,15 +12,18 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/event"
 )
 
 const (
-	copyTextTitle = "Save"
-	stepCopyText  = "action copy_text"
-	stepIdle      = "idle"
-	hintsCopyText = "hints --action copy_text"
+	copyTextTitle  = "Save"
+	stepCopyText   = "action copy_text"
+	stepIdle       = "idle"
+	hintsCopyText  = "hints --action copy_text"
+	copyTextAction = "copy_text"
 )
 
 // saveButton is the one-element fixture the copy journeys select.
@@ -244,4 +247,77 @@ func TestSimulation_CopyText_ASlowClipboardNeverHoldsUpKeys(t *testing.T) {
 
 	sim.waitMode(domain.ModeIdle)
 	sim.waitFor("the text copied", func() bool { return len(sim.clipboard.Written()) == 1 })
+}
+
+// TestSimulation_CopyText_ReportsItsExitAction pins that a completed copy
+// names copy_text on both the selection and the mode exit, so an
+// on_mode_exit hook sees it as NERU_ACTION.
+func TestSimulation_CopyText_ReportsItsExitAction(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[hintsHotkey] = []string{hintsCopyText}
+
+	elements := saveButton(t)
+	sim := newSimHarness(t, cfg, elements)
+	events := subscribeEvents(t, sim)
+
+	sim.typeLabel(sim.openHints()[0])
+	sim.waitMode(domain.ModeIdle)
+
+	completed := modeExit(domain.ModeNameHints, event.ExitCompleted)
+	completed.Action = copyTextAction
+
+	events.expect(
+		modeEnter(domain.ModeNameHints),
+		hintsSelection(copyTextAction, elements[0].Center()),
+		completed,
+	)
+}
+
+// TestSimulation_CopyText_AFailedCopyRunsNoOnExit pins that a copy that did
+// not happen ends the session as canceled and skips --on-exit, as a failed
+// click does, so an exit step never reads a clipboard the copy left alone.
+func TestSimulation_CopyText_AFailedCopyRunsNoOnExit(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		write func(context.Context, string) error
+	}{
+		{"a hint with no text", "", nil},
+		{
+			"a clipboard that refuses",
+			copyTextTitle,
+			func(context.Context, string) error {
+				return derrors.New(derrors.CodeNotSupported, "no clipboard tool found")
+			},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[hintsHotkey] = []string{
+				"hints --action copy_text --on-exit='action left_click'",
+			}
+
+			target := simElement(t, "target", image.Rect(100, 100, 220, 140), testCase.title)
+			sim := newSimHarness(t, cfg, []*element.Element{target})
+			sim.clipboard.WriteTextFunc = testCase.write
+			events := subscribeEvents(t, sim)
+
+			sim.typeLabel(sim.openHints()[0])
+			sim.waitMode(domain.ModeIdle)
+
+			events.expect(
+				modeEnter(domain.ModeNameHints),
+				hintsSelection(copyTextAction, target.Center()),
+				modeExit(domain.ModeNameHints, event.ExitCancelled),
+			)
+
+			time.Sleep(postSelectionQuiet)
+
+			if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
+				t.Fatalf("--on-exit ran after a failed copy, clicking %v", clicks)
+			}
+		})
+	}
 }

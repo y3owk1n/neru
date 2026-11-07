@@ -359,6 +359,7 @@ func initializeModeHandler(app *App) {
 		Shutdown:               app.Quit,
 		TextInput:              app.textInput,
 		System:                 app.systemPort,
+		Clipboard:              app.clipboard,
 		Motion:                 app.motion.Group("modes"),
 		Events:                 app.events,
 	})
