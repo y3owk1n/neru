@@ -58,6 +58,7 @@ the footnotes below give the mechanism behind its limits.
 | **Font resolution**           | NSFont                | fontconfig          | fontconfig                | fontconfig           | GDI `EnumFontFamiliesExW` ¹ |
 | **Text measurement**          | CoreText              | Cairo text extents ¹ | Cairo text extents ¹      | Cairo text extents ¹ | GDI `GetTextExtentPoint32W` ¹ |
 | **System tray**               | NSStatusItem ⁸        | D-Bus StatusNotifierItem ⁸ | StatusNotifierItem ⁸      | StatusNotifierItem ⁸ | Win32 notification area ⁸ |
+| **Clipboard (`copy_text`)**   | `pbcopy`, `LANG` forced to UTF-8 | `xclip`, else `xsel` | `wl-copy`, else `xclip`/`xsel` on Xwayland | `wl-copy`, else `xclip`/`xsel` on Xwayland | `SetClipboardData` (Unicode) |
 | **Native alerts**             | NSAlert               | D-Bus, not modal    | D-Bus, not modal          | D-Bus, not modal     | `MessageBoxW`             |
 | **Native notifications**      | UNNotification        | `org.freedesktop.Notifications` | `org.freedesktop.Notifications` | `org.freedesktop.Notifications` | Tray balloon tips ⁸ |
 | **Secure input detection**    | private macOS API     | always false        | always false              | always false         | always false              |

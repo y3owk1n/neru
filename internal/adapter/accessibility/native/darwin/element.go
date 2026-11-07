@@ -26,6 +26,9 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
+// subroleSecureTextField is the AXSubrole of a password field.
+const subroleSecureTextField = "AXSecureTextField"
+
 // Element is a UI element in the macOS accessibility hierarchy.
 //
 // Element owns a +1 retained AXUIElementRef. Every Element produced by this
@@ -352,6 +355,12 @@ func (e *Element) Info() (*ElementInfo, error) {
 	}
 	if cInfo.roleDescription != nil {
 		info.roleDescription = C.GoString(cInfo.roleDescription)
+	}
+
+	// A secure text field's value is a password. Nothing Neru does needs it,
+	// so it never leaves here, through copy_text or `neru query hints`.
+	if info.subrole == subroleSecureTextField {
+		info.value = ""
 	}
 
 	return info, nil

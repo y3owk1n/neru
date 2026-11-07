@@ -317,6 +317,55 @@ func (h *ActionsHandler) handleSessionAction(ctx context.Context) ipc.Response {
 	}
 }
 
+// handleCopyTextAction copies the text of the hint most recently selected to
+// the clipboard. The text is read under the mode handler's lock and written
+// after it is released, so a slow clipboard tool never holds up key handling.
+func (h *ActionsHandler) handleCopyTextAction(ctx context.Context) ipc.Response {
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgModesHandlerNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	text, err := h.modesHandler.SelectedHintText()
+	if err != nil {
+		code := ipc.CodeActionFailed
+		if derrors.IsCode(err, derrors.CodeInvalidInput) {
+			code = ipc.CodeInvalidInput
+		}
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to copy text: " + derrors.Message(err),
+			Code:    code,
+		}
+	}
+
+	err = h.clipboard.WriteText(ctx, text)
+	if err != nil {
+		h.logger.Debug("Failed to write the clipboard", zap.Error(err))
+
+		code := ipc.CodeActionFailed
+		if derrors.IsNotSupported(err) {
+			code = ipc.CodeNotSupported
+		}
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to copy text: " + derrors.Message(err),
+			Code:    code,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "copy_text performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
 // handleSearchHintsAction activates text search in hints mode.
 func (h *ActionsHandler) handleSearchHintsAction(parsed parsedActionArgs) ipc.Response {
 	if h.modesHandler == nil {

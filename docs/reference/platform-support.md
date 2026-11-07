@@ -48,6 +48,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Global hotkeys                 | ✅    | ✅        | ⚠️ ⁶              | ⚠️ ⁶          | ✅      |
 | Modifier passthrough           | ✅    | ❌        | ⚠️ ⁶              | ⚠️ ⁶          | ✅      |
 | Sticky modifiers, `action feed` | ✅   | ✅        | ✅                | ✅            | ✅      |
+| Copy a hint's text (`copy_text`) | ✅  | ⚠️ ¹⁴     | ⚠️ ¹⁴             | ⚠️ ¹⁴         | ✅      |
 | Per-app config                 | ✅    | ✅        | ⚠️ ⁷              | ⚠️ ⁷          | ✅      |
 | Screen capture for hints       | ✅    | ⚠️ ¹²     | ⚠️ ¹²             | ⚠️ ⁸ ¹²       | ✅      |
 | Tray icon                      | ✅    | ✅        | ✅                | ✅            | ✅      |
@@ -143,6 +144,13 @@ leave the overlay out of the capture.
 recordings as well as screen shares, while it stays on the monitor. It takes
 Windows 10 version 2004 or later, and an earlier build leaves the overlay in
 the share.
+
+¹⁴ **Linux copies through a command-line tool**, since setting the clipboard
+needs a process that keeps serving it. [Linux setup](../guide/linux.md#runtime-libraries)
+names the tools to install. Without one, `neru action copy_text` fails with
+`ERR_NOT_SUPPORTED`, and a copy from hints mode copies nothing and logs a
+warning. Neru looks for the tool on every copy, so one installed while it runs
+works right away.
 
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.

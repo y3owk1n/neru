@@ -27,7 +27,7 @@ Available subcommands:
                     go_top, go_bottom, page_up, page_down
   Mouse movement:   move_mouse, move_mouse_relative, move_monitor, snap
   Mode control:     reset, backspace, move_cell, bisect, wait_for_mode_exit, cycle_hint,
-                    refresh_hints, session_action
+                    refresh_hints, session_action, copy_text
   Cursor saving:    save_cursor_pos, restore_cursor_pos
   Cursor visibility: hide_cursor, show_cursor
   Key injection:    feed
@@ -497,6 +497,26 @@ nothing to run, so this does nothing there.`,
 	false,
 )
 
+// ActionCopyTextCmd copies the text of the selected hint to the clipboard.
+var ActionCopyTextCmd = BuildActionCommand(
+	"copy_text",
+	"Copy the selected hint's text to the clipboard",
+	`Copy the text of the hint most recently selected to the clipboard. That is
+its value, such as a field's contents, else its title, such as a button's name,
+else its description.
+
+Use it as a step in a [hints.select_with] entry, or as the hints mode's
+--action, as in neru hints --action copy_text, which copies the hint you type
+without clicking it.
+
+It fails when no hint has been selected since a mode last opened, and when the
+hint has no text, as with contour and segment hints. It never copies a
+password field's text. On Linux it needs wl-copy on Wayland, or xclip or xsel
+on X11.`,
+	[]string{"copy_text"},
+	false,
+)
+
 // ActionSnapCmd moves the cursor onto the nearest clickable element.
 var ActionSnapCmd = BuildSnapCommand()
 
@@ -537,6 +557,7 @@ func init() {
 	ActionCmd.AddCommand(ActionCycleHintCmd)
 	ActionCmd.AddCommand(ActionRefreshHintsCmd)
 	ActionCmd.AddCommand(ActionSessionActionCmd)
+	ActionCmd.AddCommand(ActionCopyTextCmd)
 	ActionCmd.AddCommand(ActionSnapCmd)
 	ActionCmd.AddCommand(ActionMoveCellCmd)
 	ActionCmd.AddCommand(ActionBisectCmd)

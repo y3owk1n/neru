@@ -50,6 +50,7 @@ func newCursorSlotHarness(t *testing.T) *cursorSlotHarness {
 		nil,
 		state.NewAppState(),
 		nil,
+		nil,
 		state.NewCursorSlots(),
 		zap.NewNop(),
 	)

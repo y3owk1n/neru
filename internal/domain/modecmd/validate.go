@@ -19,6 +19,7 @@ const (
 	msgOnExitWithRepeat                = "--on-exit cannot be combined with --repeat, because a repeating mode closes only when canceled, and a cancel skips the steps"
 	msgModifierRequiresAction          = "--modifier requires --action"
 	msgModifierWithMoveMouse           = "--modifier needs a mouse button action, because move_mouse presses nothing for it to hold"
+	msgModifierWithCopyText            = "--modifier needs a mouse button action, because copy_text presses nothing for it to hold"
 	msgHideOnEmptySearchRequiresSearch = "--hide-on-empty-search requires --search"
 	msgTwoCycles                       = "only one flag per command can take a cycle list, because two lists advance together and never mix, so give --strategy or --capture-scope a single value"
 	msgSplitWordWithCycle              = "--split-word cannot be combined with a --strategy cycle list, because word splitting needs the vision strategy on every step"
@@ -103,6 +104,10 @@ var dependencies = []dependency{
 	{
 		unmet:   func(a Activation) bool { return a.Modifier != nil && movesOnly(a.Action) },
 		message: msgModifierWithMoveMouse,
+	},
+	{
+		unmet:   func(a Activation) bool { return a.Modifier != nil && copiesText(a.Action) },
+		message: msgModifierWithCopyText,
 	},
 	{
 		unmet:   func(a Activation) bool { return isTrue(a.HideOnEmptySearch) && !isTrue(a.Search) },
@@ -223,13 +228,17 @@ func validateModifier(activation Activation) error {
 // each entry is judged on its own. A mode performs its action on a selection,
 // so the action has to be a mouse button, or move_mouse to stop there.
 // Anything else, such as scrolling, a relative move or a key press, is an
-// action in its own right and reaches the same place without a mode.
+// action in its own right and reaches the same place without a mode. The one
+// exception is copy_text, which copies a hint's text, so it is a hints action
+// and stands alone.
 func validateAction(activation Activation) error {
 	if activation.Action == nil {
 		return nil
 	}
 
-	for index, entry := range strings.Split(*activation.Action, ",") {
+	entries := strings.Split(*activation.Action, ",")
+
+	for index, entry := range entries {
 		name := strings.TrimSpace(entry)
 		if name == "" {
 			return derrors.Newf(
@@ -246,6 +255,24 @@ func validateAction(activation Activation) error {
 				name,
 				action.SupportedNamesString(),
 			)
+		}
+
+		if action.IsCopyTextAction(name) {
+			if activation.Mode != domain.ModeHints {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"copy_text works only in hints mode, since only a hint carries text to copy",
+				)
+			}
+
+			if len(entries) > 1 {
+				return derrors.New(
+					derrors.CodeInvalidInput,
+					"copy_text cannot be chained with other actions, so give it on its own",
+				)
+			}
+
+			continue
 		}
 
 		if action.IsScrollSubAction(name) {
@@ -285,6 +312,12 @@ func NotDeclared(name string) error {
 // isTrue reads a presence-only flag, where absent and false are the same answer.
 func isTrue(value *bool) bool {
 	return value != nil && *value
+}
+
+// copiesText reports whether an action chain is copy_text, which presses no
+// button a modifier could be held for.
+func copiesText(chain *string) bool {
+	return chain != nil && action.IsCopyTextAction(strings.TrimSpace(*chain))
 }
 
 // movesOnly reports whether every entry of an action chain is move_mouse, so

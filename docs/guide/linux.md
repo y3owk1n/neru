@@ -70,6 +70,10 @@ and on apt, dnf and pacman prints the command that finds its package.
 - **DejaVu fonts** are the overlay fonts when `font_family` is unset, and
   carry the sticky modifier symbols `❖⇧⌥⌃`.
 
+[`copy_text`](../reference/cli.md#neru-action-copy_text) also needs a
+clipboard tool. Install `wl-copy` (package `wl-clipboard`) on Wayland, or
+`xclip` or `xsel` on X11. Only that action uses it, so it is optional.
+
 ### Debian / Ubuntu
 
 ```bash

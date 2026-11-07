@@ -1213,8 +1213,10 @@ type simHarness struct {
 	// it rather than by poking the accessibility fake alone, because the
 	// activation event is the half of a focus change that reaches the app.
 	watcher *mocks.MockAppWatcherPort
-	desktop *simDesktop
-	runDone chan error
+	// clipboard records what copy_text wrote.
+	clipboard *mocks.MockClipboardPort
+	desktop   *simDesktop
+	runDone   chan error
 }
 
 // focusApp switches the fixture desktop to another application. The desktop
@@ -1528,6 +1530,8 @@ func buildSimHarness(
 		},
 	}
 
+	clipboard := &mocks.MockClipboardPort{}
+
 	application, err := app.New(
 		app.WithConfig(cfg),
 		app.WithWrittenConfig(written),
@@ -1542,6 +1546,7 @@ func buildSimHarness(
 		app.WithSystemPort(system),
 		app.WithAccessibility(axPort),
 		app.WithVisionPort(vision),
+		app.WithClipboard(clipboard),
 	)
 	if err != nil {
 		tb.Fatalf("app.New failed: %v", err)
@@ -1558,6 +1563,7 @@ func buildSimHarness(
 		cursor:     cursor,
 		hotkeys:    hotkeys,
 		tap:        tap,
+		clipboard:  clipboard,
 		watcher:    watcher,
 		desktop:    desktop,
 		runDone:    make(chan error, 1),

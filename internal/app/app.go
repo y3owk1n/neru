@@ -83,6 +83,7 @@ type App struct {
 	eventTap      ports.EventTapPort
 	textInput     ports.TextInputPort
 	keyFeed       ports.KeyFeedPort
+	clipboard     ports.ClipboardPort
 	ipcServer     ports.IPCPort
 	appWatcher    Watcher
 

@@ -274,6 +274,7 @@ func TestCapabilities_ProbeCoverageIsDocumented(t *testing.T) {
 		ports.CapabilityVision:            "a probe would trigger a screen-capture permission prompt",
 		ports.CapabilityKeyFeed:           "injects real keystrokes into the focused app",
 		ports.CapabilitySystray:           "needs a live run loop and adds a tray icon",
+		ports.CapabilityClipboard:         "a probe would overwrite the user's clipboard",
 	}
 
 	covered := make(map[ports.CapabilityKey]bool)

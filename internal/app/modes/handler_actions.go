@@ -176,6 +176,15 @@ func (h *handlerState) sessionAction(point image.Point) error {
 		return nil
 	}
 
+	// copy_text writes the clipboard, which the step that names it does off
+	// h.mu, so this refuses it rather than write it here.
+	if isCopyTextAction(pending) {
+		return derrors.New(
+			derrors.CodeInvalidInput,
+			"session_action cannot run copy_text, use action copy_text instead",
+		)
+	}
+
 	_, failed, parsed := h.performActionChain(*pending, h.hints.Context.PendingModifier(), point)
 	if !parsed || failed {
 		return derrors.New(derrors.CodeActionFailed, "the session's action failed")
@@ -194,6 +203,12 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 
 	if h.hints == nil || h.hints.Context == nil {
 		return derrors.New(derrors.CodeActionFailed, "hints component not available")
+	}
+
+	// The hints on screen still belong to a selection whose steps are running,
+	// so moving the selection now would change what those steps act on.
+	if h.selectWithPending() {
+		return derrors.New(derrors.CodeInvalidInput, "a selection is still running")
 	}
 
 	manager := h.hints.Context.Manager()
@@ -249,7 +264,15 @@ func (h *handlerState) cycleHint(ctx context.Context, backward bool, executeActi
 		)
 	}
 
+	h.rememberSelectedHint(selectedHint.Element().Text())
+
 	pendingAction := h.hints.Context.PendingAction()
+
+	if executeAction && isCopyTextAction(pendingAction) {
+		h.copyTextSelection(center)
+
+		return nil
+	}
 
 	pendingModifier := h.hints.Context.PendingModifier()
 	if pendingAction != nil && executeAction {

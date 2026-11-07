@@ -22,6 +22,7 @@ type ActionsHandler struct {
 	modesHandler  *modes.Handler
 	appState      *state.AppState
 	keyFeed       ports.KeyFeedPort
+	clipboard     ports.ClipboardPort
 	logger        *zap.Logger
 
 	// cursorSlots holds the positions save_cursor_pos captured, by slot name.
@@ -82,6 +83,7 @@ func NewActionsHandler(
 	modesHandler *modes.Handler,
 	appState *state.AppState,
 	keyFeed ports.KeyFeedPort,
+	clipboard ports.ClipboardPort,
 	cursorSlots *state.CursorSlots,
 	logger *zap.Logger,
 ) *ActionsHandler {
@@ -97,6 +99,7 @@ func NewActionsHandler(
 		modesHandler:  modesHandler,
 		appState:      appState,
 		keyFeed:       keyFeed,
+		clipboard:     clipboard,
 		cursorSlots:   cursorSlots,
 		logger:        logger,
 	}
@@ -227,6 +230,9 @@ func (h *ActionsHandler) dispatchByName(
 
 	case action.IsSessionActionAction(actionName):
 		return h.handleSessionAction(ctx), true
+
+	case action.IsCopyTextAction(actionName):
+		return h.handleCopyTextAction(ctx), true
 
 	case action.IsSnapAction(actionName):
 		return h.handleSnapAction(ctx, parsed), true

@@ -6,6 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/clipboard"
 	eventtapadapter "github.com/y3owk1n/neru/internal/adapter/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/adapter/keyfeed"
@@ -71,6 +72,10 @@ func initializeInfrastructure(app *App) error {
 
 	if app.keyFeed == nil {
 		app.keyFeed = keyfeed.NewAdapter(logger)
+	}
+
+	if app.clipboard == nil {
+		app.clipboard = clipboard.NewAdapter(logger)
 	}
 
 	// Install the platform font resolver. SetFontResolver makes the
@@ -354,6 +359,7 @@ func initializeModeHandler(app *App) {
 		Shutdown:               app.Quit,
 		TextInput:              app.textInput,
 		System:                 app.systemPort,
+		Clipboard:              app.clipboard,
 		Motion:                 app.motion.Group("modes"),
 		Events:                 app.events,
 	})
@@ -379,6 +385,7 @@ func initializeIPCController(app *App) {
 		// EventTap and IPCServer stay zero here. Phase 8 fills them in
 		// through SetInfrastructure.
 		KeyFeed:         app.keyFeed,
+		Clipboard:       app.clipboard,
 		ReloadConfig:    app.ReloadConfig,
 		ExecuteSequence: app.executeActionSequenceWithPolicy,
 		ExecuteMacro:    app.executeMacro,

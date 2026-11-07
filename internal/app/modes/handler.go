@@ -183,14 +183,19 @@ type handlerState struct {
 	// dropped while both hold for the current session.
 	selectWithInFlight bool
 	selectWithSession  uint64
-	keymapSettledFor   keymapInputs
-	keymapSettled      bool
+	// hintSelected says a hint has been selected since a mode last opened, and
+	// selectedHintText is its text, for copy_text.
+	hintSelected     bool
+	selectedHintText string
+	keymapSettledFor keymapInputs
+	keymapSettled    bool
 
 	// eventTap is nil until the app's phase 8 calls SetEventTap. Every use
 	// goes through the nil-guarded helpers in eventtap.go.
 	eventTap              ports.EventTapPort
 	refreshHotkeys        func()
 	executeActionSequence func(source string, steps []string, env []string)
+	clipboard             ports.ClipboardPort
 	shutdown              func()
 	refreshHintsTimer     *time.Timer
 	modeSession           uint64
@@ -304,6 +309,8 @@ type HandlerDeps struct {
 
 	TextInput ports.TextInputPort
 	System    ports.SystemPort
+	// Clipboard takes the text a copy_text session copies.
+	Clipboard ports.ClipboardPort
 
 	// Motion is the handler's namespace in the held-key glide controller.
 	Motion *heldmotion.Group
@@ -361,6 +368,7 @@ func NewHandler(deps HandlerDeps) *Handler {
 		screenBounds:           screenBounds,
 		refreshHotkeys:         deps.RefreshHotkeys,
 		executeActionSequence:  deps.ExecuteActionSequence,
+		clipboard:              deps.Clipboard,
 		shutdown:               deps.Shutdown,
 		textInput:              deps.TextInput,
 		motion:                 deps.Motion,
