@@ -148,13 +148,16 @@ contour detector finds rectangles in the same frame, with its shipped
 thresholds. macOS places hints with Vision's fast recognizer over the whole
 frame, and at that size it misreads small text. `copy_text` reads a
 screen-found hint again with the same recognizer, language correction off, on
-a capture of only the hint's box at three times its size in points. At that
-size it reads UI text word for word. A read that takes longer than 500 ms is
+a capture of only the hint's box at three times its size in points. Any one
+read of that capture can still swap a letter, so Neru reads a one-line box at
+five heights from 80 to 120 pixels and keeps the read most of them give. That
+reads every line of the OCR fixtures word for word. One read at the captured
+size misread about one line in seven. A read that takes longer than 500 ms is
 dropped, and the copy uses the hints pass's text. Neru does not use Vision's
-accurate recognizer, because it skips text on mostly empty frames that the fast
-one finds. Its first load in a process also takes tens of seconds and holds up
-every fast request until it finishes. Recognized text is never logged or
-stored.
+accurate recognizer, because it skips text on mostly empty frames that the
+fast one finds. Its first load on a Mac that has not used it yet also takes
+tens of seconds and holds up every fast request until it finishes. Recognized
+text is never logged or stored.
 
 ⁷ **Modifiers on injected input.** On X11, Wayland and Windows, an injected
 pointer event carries whatever modifiers the keyboard holds, so a chord still

@@ -407,95 +407,119 @@ static NSArray<VNRecognizedTextObservation *> *detectText(CGImageRef image) {
 	return request.results ?: @[];
 }
 
-// readTextMinimumHeight is the height in pixels below which a crop is enlarged
-// before it is read. The fast recognizer reads a line of UI text word for word
-// at about three times its size in points, which puts a padded line of 11pt
-// text at about 54 pixels, and misreads it both below that and well above it.
-// ReadText captures at three times already, so this only enlarges smaller
-// crops.
-static const CGFloat readTextMinimumHeight = 54;
+// readTextHeights are the heights in pixels a one-line crop is read at. The
+// fast recognizer misreads a line of small UI text below about 80 pixels
+// tall. Above that, any one height can still swap a letter, such as an e for
+// an 8, but a different letter at each height, so the answer most heights
+// agree on is usually right.
+static const CGFloat readTextHeights[] = {80, 90, 100, 110, 120};
+static const size_t readTextHeightCount = sizeof(readTextHeights) / sizeof(readTextHeights[0]);
 
-// enlargedForReading draws image at a whole factor large enough to clear
-// readTextMinimumHeight, or retains it unchanged when it already does.
-static CGImageRef enlargedForReading(CGImageRef image) {
-	size_t width = CGImageGetWidth(image);
-	size_t height = CGImageGetHeight(image);
-	if (height == 0 || height >= readTextMinimumHeight) {
-		return CGImageRetain(image);
-	}
+// readTextMaxLineHeight is the tallest crop read as one line. A taller one,
+// such as a contour hint around a whole panel, is read once at its own size,
+// since scaling it to one line's height would shrink its text away.
+static const size_t readTextMaxLineHeight = 160;
 
-	size_t factor = (size_t)ceil(readTextMinimumHeight / (CGFloat)height);
+// scaledToHeight draws image at height pixels tall, keeping its aspect ratio.
+// The caller releases the result, which is NULL on failure.
+static CGImageRef scaledToHeight(CGImageRef image, CGFloat height) {
+	CGFloat scale = height / (CGFloat)CGImageGetHeight(image);
+	size_t width = (size_t)ceil((CGFloat)CGImageGetWidth(image) * scale);
 	CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
-	CGContextRef context = CGBitmapContextCreate(
-	    NULL, width * factor, height * factor, 8, 0, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+	CGContextRef context =
+	    CGBitmapContextCreate(NULL, width, (size_t)height, 8, 0, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
 	CGColorSpaceRelease(space);
 	if (!context) {
-		return CGImageRetain(image);
+		return NULL;
 	}
 
 	CGContextSetInterpolationQuality(context, kCGInterpolationHigh);
-	CGContextDrawImage(context, CGRectMake(0, 0, width * factor, height * factor), image);
-	CGImageRef enlarged = CGBitmapContextCreateImage(context);
+	CGContextDrawImage(context, CGRectMake(0, 0, width, height), image);
+	CGImageRef scaled = CGBitmapContextCreateImage(context);
 	CGContextRelease(context);
 
-	return enlarged ? enlarged : CGImageRetain(image);
+	return scaled;
+}
+
+// readTextOnce reads image with the fast recognizer, top to bottom, joining
+// lines with a space. It returns an empty string when it finds no text.
+static NSString *readTextOnce(CGImageRef image) {
+	// The fast recognizer, as hint detection uses, needs no model loaded
+	// first. The accurate one's first load can take tens of seconds and holds
+	// up every fast request in the process meanwhile, hint detection's
+	// included. Language correction stays off, since it rewrites paths, flags
+	// and identifiers into dictionary words.
+	VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] init];
+	request.recognitionLevel = VNRequestTextRecognitionLevelFast;
+	request.usesLanguageCorrection = NO;
+
+	VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:image options:@{}];
+	NSError *error = nil;
+	[handler performRequests:@[ request ] error:&error];
+	if (error || request.results.count == 0) {
+		return @"";
+	}
+
+	// Vision's boxes have a bottom-left origin, so the line highest up has
+	// the largest y. Reading order is top to bottom, then left to right.
+	// Two boxes whose middles sit within half the shorter one's height are
+	// on the same line, since words on one line come back with different
+	// heights.
+	NSArray<VNRecognizedTextObservation *> *lines = [request.results
+	    sortedArrayUsingComparator:^NSComparisonResult(VNRecognizedTextObservation *a, VNRecognizedTextObservation *b) {
+		    CGFloat ay = CGRectGetMidY(a.boundingBox), by = CGRectGetMidY(b.boundingBox);
+		    CGFloat sameLine = MIN(CGRectGetHeight(a.boundingBox), CGRectGetHeight(b.boundingBox)) / 2;
+		    if (fabs(ay - by) > sameLine) {
+			    return ay > by ? NSOrderedAscending : NSOrderedDescending;
+		    }
+		    return a.boundingBox.origin.x < b.boundingBox.origin.x ? NSOrderedAscending : NSOrderedDescending;
+	    }];
+
+	NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithCapacity:lines.count];
+	for (VNRecognizedTextObservation *line in lines) {
+		NSString *text = [line topCandidates:1].firstObject.string;
+		if (text.length > 0) {
+			[parts addObject:text];
+		}
+	}
+
+	return [parts componentsJoinedByString:@" "];
+}
+
+// readTextByVote reads image at each of readTextHeights and returns the read
+// most of them give. When no read comes up more often than another, the one
+// at the middle height wins.
+static NSString *readTextByVote(CGImageRef image) {
+	NSMutableArray<NSString *> *reads = [NSMutableArray arrayWithCapacity:readTextHeightCount];
+	for (size_t i = 0; i < readTextHeightCount; i++) {
+		CGImageRef scaled = scaledToHeight(image, readTextHeights[i]);
+		[reads addObject:scaled ? readTextOnce(scaled) : @""];
+		CGImageRelease(scaled);
+	}
+
+	NSCountedSet<NSString *> *counts = [[NSCountedSet alloc] initWithArray:reads];
+	NSString *best = reads[readTextHeightCount / 2];
+	for (NSString *read in reads) {
+		if ([counts countForObject:read] > [counts countForObject:best]) {
+			best = read;
+		}
+	}
+
+	return best;
 }
 
 char *NeruReadText(CGImageRef image) {
-	if (!image) {
+	if (!image || CGImageGetHeight(image) == 0) {
 		return NULL;
 	}
 
 	@autoreleasepool {
-		CGImageRef readable = enlargedForReading(image);
-
-		// The fast recognizer, as hint detection uses, reads one enlarged line
-		// as well as the accurate one, and needs no model loaded first. The
-		// accurate one's first load takes tens of seconds and holds up every
-		// fast request in the process meanwhile, hint detection's included.
-		// Language correction stays off, since it rewrites paths, flags and
-		// identifiers into dictionary words.
-		VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] init];
-		request.recognitionLevel = VNRequestTextRecognitionLevelFast;
-		request.usesLanguageCorrection = NO;
-
-		VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:readable options:@{}];
-		NSError *error = nil;
-		[handler performRequests:@[ request ] error:&error];
-		CGImageRelease(readable);
-		if (error || request.results.count == 0) {
+		NSString *text = CGImageGetHeight(image) > readTextMaxLineHeight ? readTextOnce(image) : readTextByVote(image);
+		if (text.length == 0) {
 			return NULL;
 		}
 
-		// Vision's boxes have a bottom-left origin, so the line highest up has
-		// the largest y. Reading order is top to bottom, then left to right.
-		// Two boxes whose middles sit within half the shorter one's height are
-		// on the same line, since words on one line come back with different
-		// heights.
-		NSArray<VNRecognizedTextObservation *> *lines =
-		    [request.results sortedArrayUsingComparator:^NSComparisonResult(
-		                         VNRecognizedTextObservation *a, VNRecognizedTextObservation *b) {
-			    CGFloat ay = CGRectGetMidY(a.boundingBox), by = CGRectGetMidY(b.boundingBox);
-			    CGFloat sameLine = MIN(CGRectGetHeight(a.boundingBox), CGRectGetHeight(b.boundingBox)) / 2;
-			    if (fabs(ay - by) > sameLine) {
-				    return ay > by ? NSOrderedAscending : NSOrderedDescending;
-			    }
-			    return a.boundingBox.origin.x < b.boundingBox.origin.x ? NSOrderedAscending : NSOrderedDescending;
-		    }];
-
-		NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithCapacity:lines.count];
-		for (VNRecognizedTextObservation *line in lines) {
-			NSString *text = [line topCandidates:1].firstObject.string;
-			if (text.length > 0) {
-				[parts addObject:text];
-			}
-		}
-
-		if (parts.count == 0) {
-			return NULL;
-		}
-
-		return strdup([[parts componentsJoinedByString:@" "] UTF8String]);
+		return strdup(text.UTF8String);
 	}
 }
 

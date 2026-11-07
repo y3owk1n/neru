@@ -187,15 +187,16 @@ type handlerState struct {
 	// selectedHintText is its text, for copy_text.
 	hintSelected     bool
 	selectedHintText string
-	// selectedHintBounds is the hint's box, selectedHintOnScreen says it was
-	// found by reading the screen rather than the accessibility tree, and
-	// selectedHintSession is the mode session it was selected in. Together
-	// they say whether copy_text can read the hint again.
-	selectedHintBounds   image.Rectangle
-	selectedHintOnScreen bool
-	selectedHintSession  uint64
-	keymapSettledFor     keymapInputs
-	keymapSettled        bool
+	// selectedHintBounds is the hint's box, selectedHintRereadable says it
+	// was found by reading the screen and nothing the selection ran before
+	// copying can have changed what is there, and selectedHintSession is the
+	// mode session it was selected in. Together they say whether copy_text
+	// can read the hint again.
+	selectedHintBounds     image.Rectangle
+	selectedHintRereadable bool
+	selectedHintSession    uint64
+	keymapSettledFor       keymapInputs
+	keymapSettled          bool
 
 	// eventTap is nil until the app's phase 8 calls SetEventTap. Every use
 	// goes through the nil-guarded helpers in eventtap.go.

@@ -88,6 +88,10 @@ func (h *handlerState) selectWithEntry(point image.Point, entry configpkg.Bindin
 		zap.String("entry", entry.Key),
 		zap.Int("step_count", len(entry.Steps)))
 
+	if !copiesBeforeOtherSteps(entry.Steps) {
+		h.selectedHintRereadable = false
+	}
+
 	h.runSelectionSteps(point, entry.Key, entry.Steps)
 }
 
@@ -110,6 +114,8 @@ func (h *handlerState) copyTextSelection(point image.Point) {
 	h.selectWithInFlight = true
 	h.selectWithSession = plan.session
 
+	hint := h.selectedHintCopy()
+
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -117,7 +123,7 @@ func (h *handlerState) copyTextSelection(point image.Point) {
 			}
 		}()
 
-		text, err := h.outer.HintTextToCopy(h.ctx)
+		text, err := h.textToCopy(h.ctx, hint)
 		if err == nil {
 			err = h.clipboard.WriteText(h.ctx, text)
 		}
@@ -314,11 +320,33 @@ func (h *handlerState) rememberSelectedHint(elem *element.Element) {
 	h.hintSelected = true
 	h.selectedHintText = elem.Text()
 	h.selectedHintBounds = elem.Bounds()
-	h.selectedHintOnScreen = elem.IsVisionOnly()
+	h.selectedHintRereadable = elem.IsVisionOnly()
 	h.selectedHintSession = h.modeSession
 }
 
-// hintCopy is what HintTextToCopy needs from the handler, read under h.mu.
+// copiesBeforeOtherSteps reports whether every copy_text step in steps comes
+// before any other step, so no click or key a step sends can have changed
+// the screen by the time the hint is read again.
+func copiesBeforeOtherSteps(steps []string) bool {
+	otherRan := false
+
+	for _, step := range steps {
+		fields := strings.Fields(step)
+		copies := len(fields) == 2 && fields[0] == domain.CommandAction &&
+			action.IsCopyTextAction(fields[1])
+
+		if copies && otherRan {
+			return false
+		}
+
+		otherRan = otherRan || !copies
+	}
+
+	return true
+}
+
+// hintCopy is what copying the selected hint needs from the handler, read
+// under h.mu.
 type hintCopy struct {
 	text     string
 	bounds   image.Rectangle
@@ -333,11 +361,18 @@ func (h *Handler) hintToCopy() hintCopy {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	return h.selectedHintCopy()
+}
+
+// selectedHintCopy reads the selected hint.
+//
+// Caller must hold h.mu.
+func (h *handlerState) selectedHintCopy() hintCopy {
 	return hintCopy{
 		text:     h.selectedHintText,
 		bounds:   h.selectedHintBounds,
 		selected: h.hintSelected,
-		reread: h.selectedHintOnScreen &&
+		reread: h.selectedHintRereadable &&
 			h.appState.CurrentMode() == domain.ModeHints &&
 			h.modeSession == h.selectedHintSession,
 	}
@@ -355,11 +390,17 @@ const textRereadTimeout = 500 * time.Millisecond
 // selected from are still open, since the pass that placed it reads the whole
 // frame and can misread small text. Once they close, a click may have changed
 // what is under the hint. The pass's text is used then, and when the platform
-// does not read hints again or the read fails or times out. The read runs with
-// h.mu released.
+// does not read hints again, when the read fails or times out, and when a
+// select_with entry ran another step before copying. The read runs with h.mu
+// released.
 func (h *Handler) HintTextToCopy(ctx context.Context) (string, error) {
-	hint := h.hintToCopy()
+	return h.textToCopy(ctx, h.hintToCopy())
+}
 
+// textToCopy is HintTextToCopy for a hint already read from the handler.
+//
+// Caller must not hold h.mu.
+func (h *handlerState) textToCopy(ctx context.Context, hint hintCopy) (string, error) {
 	if !hint.selected {
 		return "", derrors.New(derrors.CodeInvalidInput, "copy_text needs a selected hint")
 	}

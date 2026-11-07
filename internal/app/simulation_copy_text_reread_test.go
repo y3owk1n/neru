@@ -22,6 +22,8 @@ const (
 	// accurateText what a careful read of the same region returns.
 	passText     = "denote5 breaking CLI chan9es."
 	accurateText = "denotes breaking CLI changes."
+
+	stepLeftClick = "action left_click"
 )
 
 // screenHintBounds is where the screen-found fixture hint sits.
@@ -58,8 +60,20 @@ func screenHintSim(
 	t.Helper()
 
 	cfg := simConfig()
-	cfg.Hints.Strategy = domain.StrategyVision
 	cfg.Hotkeys.Bindings[hintsHotkey] = []string{binding}
+
+	return screenHintSimWith(t, cfg, read)
+}
+
+// screenHintSimWith is screenHintSim for a configuration the caller built.
+func screenHintSimWith(
+	t *testing.T,
+	cfg *config.Config,
+	read func(context.Context, image.Rectangle) (string, error),
+) (*simHarness, *textReads) {
+	t.Helper()
+
+	cfg.Hints.Strategy = domain.StrategyVision
 
 	sim := newSimHarness(t, cfg, nil)
 	reads := &textReads{}
@@ -249,4 +263,49 @@ func TestSimulation_CopyText_ASlowRereadNeverHoldsUpKeys(t *testing.T) {
 	close(release)
 
 	sim.waitMode(domain.ModeIdle)
+}
+
+// TestSimulation_CopyText_ASelectWithEntryRereadsOnlyBeforeOtherSteps pins
+// that a select_with entry reads the hint again only when no other step ran
+// before the copy. A click before it may have changed what is under the hint
+// while hints stays open, so the pass's text is copied instead.
+func TestSimulation_CopyText_ASelectWithEntryRereadsOnlyBeforeOtherSteps(t *testing.T) {
+	tests := []struct {
+		name      string
+		steps     []string
+		wantText  string
+		wantReads int
+	}{
+		{"copy first", []string{stepCopyText, stepIdle}, accurateText, 1},
+		{
+			"a click before the copy",
+			[]string{stepLeftClick, stepCopyText, stepIdle},
+			passText,
+			0,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsClick}
+			cfg.Hints.SelectWith = map[string]config.StringOrStringArray{
+				selectWithCtrl: testCase.steps,
+			}
+
+			sim, reads := screenHintSimWith(t, cfg, readAccurately)
+
+			sim.typeLabelWith("Ctrl", sim.openHints()[0])
+
+			sim.waitFor("the text copied", func() bool { return len(sim.clipboard.Written()) == 1 })
+
+			if got := sim.clipboard.Written()[0]; got != testCase.wantText {
+				t.Errorf("clipboard = %q, want %q", got, testCase.wantText)
+			}
+
+			if got := reads.all(); len(got) != testCase.wantReads {
+				t.Errorf("ReadText regions = %v, want %d read(s)", got, testCase.wantReads)
+			}
+		})
+	}
 }

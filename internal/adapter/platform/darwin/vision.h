@@ -55,10 +55,10 @@ CGImageRef NeruCaptureRect(CGRect rect, CGRect *outCaptured, int64_t timeoutMS);
 // times its size in points, for reading small text from it.
 CGImageRef NeruCaptureRectAtScale(CGRect rect, double scale, CGRect *outCaptured, int64_t timeoutMS);
 
-// NeruReadText reads the text in image, enlarged to a height the recognizer
-// reads small UI text at, top to bottom, joining lines with a space. It returns
-// a malloc'd UTF-8 string the caller frees, or NULL when the image holds no
-// text.
+// NeruReadText reads the text in image, top to bottom, joining lines with a
+// space. A one-line image is read at several heights, and the read most of
+// them agree on wins. It returns a malloc'd UTF-8 string the caller frees, or NULL when the
+// image holds no text.
 char *NeruReadText(CGImageRef image);
 
 // Creates a bitmap context drawing into data as 32-bit little-endian BGRA with

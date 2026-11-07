@@ -390,9 +390,9 @@ func (a *Adapter) logCapture(path string, started time.Time, img *image.RGBA) {
 	)
 }
 
-// readTextScale is how many pixels per point ReadText captures at. Glyphs at
-// three times their size in points are what the recognizer reads small UI text
-// word for word from.
+// readTextScale is how many pixels per point ReadText captures at, before
+// NeruReadText scales a line to the heights it reads at. Of one, two and three,
+// three misread the fewest lines of the OCR fixtures.
 const readTextScale = 3
 
 // readTextPadding widens a hint's box before ReadText captures it, since an

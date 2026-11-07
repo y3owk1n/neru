@@ -161,7 +161,7 @@ func TestSimulation_SnapWithNothingToSnapToLeavesTheGridClickWorking(t *testing.
 
 	sim.app.HandleCommand(context.Background(), ipc.Command{
 		Action: domain.CommandRun,
-		Args:   []string{"action snap --bail-on-error", "action left_click"},
+		Args:   []string{"action snap --bail-on-error", stepLeftClick},
 	})
 
 	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
@@ -170,7 +170,7 @@ func TestSimulation_SnapWithNothingToSnapToLeavesTheGridClickWorking(t *testing.
 
 	sim.app.HandleCommand(context.Background(), ipc.Command{
 		Action: domain.CommandRun,
-		Args:   []string{"action snap", "action left_click"},
+		Args:   []string{"action snap", stepLeftClick},
 	})
 
 	clicks := sim.ax.recordedClicks()
