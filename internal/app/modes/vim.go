@@ -86,6 +86,9 @@ type vimSession struct {
 	refining bool
 	slowRead bool
 
+	// scrolled is when the last scroll of the app finished.
+	scrolled time.Time
+
 	jump *vimJump
 
 	// commandKeys are the keys of the command being typed, and insertCommand
@@ -137,10 +140,24 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 		defer h.exitModeForTransition()()
 	}
 
+	// A platform that cannot read lines refuses before the permission is
+	// asked for, or the user grants screen sharing for a mode that can never
+	// open. An empty region answers without capturing anything.
+	_, probeErr := h.readVimText(image.Rectangle{}, ports.TextFast)
+	if derrors.IsNotSupported(probeErr) {
+		h.logger.Warn("Vim mode cannot read the screen here", zap.Error(probeErr))
+		h.activationRefusal = probeErr
+		h.abandonVim(isRefresh)
+
+		return
+	}
+
 	if h.system != nil && !h.system.CheckScreenCapturePermission(h.ctx) {
 		// The dialog blocks, so it is asked off h.mu and the activation is
 		// given up. The user runs the command again once it is granted.
 		h.logger.Warn("Vim mode needs the screen recording permission")
+		h.activationRefusal = derrors.New(derrors.CodeActionFailed,
+			"vim mode needs the screen recording permission, run it again once it is granted")
 
 		system, ctx := h.system, h.ctx
 		go system.RequestScreenCapturePermission(ctx)

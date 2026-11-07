@@ -360,6 +360,13 @@ Mode logic is shared. Only these rows differ, by rendering or element discovery.
 | **Monitor select**| Whole mode                     | native panels           | Cairo panels            | one layered window per display |
 | **Vim**           | Whole mode                     | Vision line reads with per-character boxes, CALayers on the shared window | none | none |
 
+On macOS vim mode's accurate read runs in a helper process. It is the same
+binary, started with the hidden `read-text-lines` command for each read, and
+the daemon sends it the captured pixels through a pipe. The first time Vision
+meets a script, it compiles a model for it, which takes seconds, and every
+other read in the process waits for the compile. So the daemon itself runs
+only fast reads.
+
 Everything else is the same on all three, including label placement, the
 search badge, label sizing, virtual pointer indicators, transition animations,
 the recursive-grid sub-key preview, and what an open subgrid shows.

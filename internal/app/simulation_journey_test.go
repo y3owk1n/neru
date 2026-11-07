@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -4358,6 +4359,34 @@ func TestSimulation_VimRefusesWhereTheScreenCannotBeRead(t *testing.T) {
 	sim.waitMode(domain.ModeGrid)
 }
 
+// TestSimulation_VimRefusesBeforeAskingForAPermissionItCannotUse covers a
+// platform that cannot read lines and whose screen capture permission is not
+// granted yet, such as a portal desktop on Linux. The mode refuses without
+// asking for the permission, which would have the user share the screen for
+// a mode that can never open.
+func TestSimulation_VimRefusesBeforeAskingForAPermissionItCannotUse(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	var asked atomic.Int32
+
+	sim.system.CheckScreenCapturePermissionFunc = func(context.Context) bool { return false }
+	sim.system.RequestScreenCapturePermissionFunc = func(context.Context) ports.ScreenCaptureConsent {
+		asked.Add(1)
+
+		return ports.ScreenCaptureCanceled
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.neverMode(domain.ModeVim, 250*time.Millisecond)
+
+	if asked.Load() != 0 {
+		t.Fatalf("the screen capture permission was asked for %d times, want none", asked.Load())
+	}
+}
+
 // TestSimulation_VimRefusesWhereTheOverlayCannotDrawIt covers a backend with
 // no vim surface. The mode refuses rather than holding the keyboard over an
 // empty overlay.
@@ -4467,6 +4496,30 @@ func TestSimulation_VimYankCopiesWithoutTouchingTheApp(t *testing.T) {
 		t.Fatalf("yank touched the app: keys %v, clicks %v", keys, clicks)
 	}
 }
+
+// TestSimulation_VimDropsTheCopyFlashOfAClosedSession covers the timer that
+// takes a yank's flash off the screen. A yank and then Escape before it fires
+// close the session, and the timer must not draw it back.
+func TestSimulation_VimDropsTheCopyFlashOfAClosedSession(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordEdit: image.Rect(200, 100, 260, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("y", "i", "w", "Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	drawn := sim.overlay.vimDrawCount()
+
+	time.Sleep(vimFlashForTest)
+
+	if got := sim.overlay.vimDrawCount(); got != drawn {
+		t.Fatalf("the flash timer drew %d vim frames after the session closed", got-drawn)
+	}
+}
+
+// vimFlashForTest is longer than a yank's flash stays on screen.
+const vimFlashForTest = 400 * time.Millisecond
 
 // TestSimulation_VimDropsAnAccurateReadFromAClosedSession covers a slow
 // accurate read that lands after its session closed and another opened. It
@@ -4654,6 +4707,8 @@ func TestSimulation_VimScrollsTheAppSideways(t *testing.T) {
 		func() bool { return len(sim.ax.recordedScrolls()) == 1 },
 	)
 
+	// A scroll key right after a scroll is a held key's repeat, and dropped.
+	time.Sleep(vimScrollSettleForTest)
 	sim.press("3", "z")
 	vimFrameShows(sim, "the count and z waiting", func(f ports.VimFrame) bool {
 		return strings.Contains(f.Status, "3z")
@@ -4720,6 +4775,36 @@ func TestSimulation_VimDotRepeatsTypedChange(t *testing.T) {
 		return len(selected) > len(change)-1 && third[len(third)-1] == "x" &&
 			!slices.ContainsFunc(selected, func(k string) bool { return k != vimKeyExtend })
 	})
+}
+
+// vimScrollSettleForTest is longer than vim mode waits after a scroll before
+// it takes another scroll key.
+const vimScrollSettleForTest = 200 * time.Millisecond
+
+// TestSimulation_VimDropsScrollKeysThatRepeatFasterThanAScroll covers a held
+// scroll key. Each scroll holds the keyboard while it settles and the screen
+// is read again, so repeats queued behind one would keep the app scrolling
+// long after the key is let go. The ones that arrive before a scroll has
+// settled are dropped, and a later press scrolls again.
+func TestSimulation_VimDropsScrollKeysThatRepeatFasterThanAScroll(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("Ctrl+d", "Ctrl+d", "Ctrl+d", "Ctrl+d", "Ctrl+d")
+	sim.waitFor("one scroll", func() bool { return len(sim.ax.recordedScrolls()) >= 1 })
+
+	if scrolls := sim.ax.recordedScrolls(); len(scrolls) != 1 {
+		t.Fatalf("five repeats in a row scrolled %d times, want 1", len(scrolls))
+	}
+
+	time.Sleep(vimScrollSettleForTest)
+	sim.press("Ctrl+d")
+	sim.waitFor(
+		"a later press scrolling again",
+		func() bool { return len(sim.ax.recordedScrolls()) == 2 },
+	)
 }
 
 // TestSimulation_VimCountStopsAtFourDigits covers a long count, which would

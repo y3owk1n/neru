@@ -316,6 +316,18 @@ func (h *handlerState) vimUndo(chord string) {
 // pointer still moves it there and back.
 func (h *handlerState) vimScroll(scroll vimScrollKey) {
 	session := h.vim
+
+	// A held key repeats faster than a scroll and its re-read finish. Each
+	// repeat waits on h.mu, so the queued ones would keep the app scrolling,
+	// and Escape waiting, long after the key is let go. A scroll key that
+	// arrives within vimScrollSettle of the last scroll ending is dropped,
+	// which empties the queue at once.
+	if time.Since(session.scrolled) < vimScrollSettle {
+		return
+	}
+
+	defer func() { session.scrolled = time.Now() }()
+
 	point := h.vimCursorPoint()
 	text := session.host.Screen()
 

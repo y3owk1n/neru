@@ -562,6 +562,14 @@ func (m *simOverlayPort) setIndicatorVisible(indicator ports.Indicator, visible 
 
 // drawnModeNames reports every mode with content on screen right now, sorted
 // so a failure message reads the same way twice.
+// vimDrawCount reports how many vim frames were drawn.
+func (m *simOverlayPort) vimDrawCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return len(m.vimDraws)
+}
+
 func (m *simOverlayPort) drawnModeNames() []string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -1238,8 +1246,11 @@ type simHarness struct {
 	// clipboard records what copy_text wrote.
 	clipboard *mocks.MockClipboardPort
 	keyFeed   *mocks.MockKeyFeedPort
-	desktop   *simDesktop
-	runDone   chan error
+	// system is the platform system port, for a journey that changes what
+	// the platform answers, such as a screen capture permission not granted.
+	system  *mocks.MockSystemPort
+	desktop *simDesktop
+	runDone chan error
 }
 
 // focusApp switches the fixture desktop to another application. The desktop
@@ -1584,6 +1595,7 @@ func buildSimHarness(
 		overlay:    recorder,
 		ax:         axPort,
 		vision:     vision,
+		system:     system,
 		textInput:  textInput,
 		cursor:     cursor,
 		hotkeys:    hotkeys,
