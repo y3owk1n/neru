@@ -183,6 +183,27 @@ func (t *Text) AppRunes(start, end int) int {
 	return count
 }
 
+// AppStart returns pos. When pos is in the padding or the icons before a
+// line's first character, it returns that character instead, since the app
+// has no text for either.
+func (t *Text) AppStart(pos int) int {
+	if pos < 0 || pos >= len(t.s) {
+		return pos
+	}
+
+	for at := t.starts[t.LineOf(pos)]; at < pos; at++ {
+		if t.s[at] != ' ' && !t.icons[at] {
+			return pos
+		}
+	}
+
+	for pos < len(t.s) && (t.s[pos] == ' ' || t.icons[pos]) {
+		pos++
+	}
+
+	return pos
+}
+
 // AppText returns the text of [start, end) the app has: every rune but an
 // icon's glyph, and the space an icon leaves doubled or at a line's end, so a
 // line keeps its spacing without the icon.

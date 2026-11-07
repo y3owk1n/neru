@@ -44,8 +44,10 @@ const (
 	vimKeyRedo  = "Primary+Shift+z"
 	vimKeyPaste = "Primary+v"
 	vimKeyErase = "Delete"
-	// vimKeyExtend grows the app's selection by one character.
-	vimKeyExtend = "Shift+Right"
+	// vimKeyExtend grows the app's selection by one character, and
+	// vimKeyExtendBack grows it backwards.
+	vimKeyExtend     = "Shift+Right"
+	vimKeyExtendBack = "Shift+Left"
 )
 
 // vimCaretIn is where a click puts the app's caret before the character at
@@ -80,15 +82,20 @@ func vimCaretIn(text *screentext.Text, pos int) image.Point {
 // click puts the caret before start, and one Shift+Right per character the
 // app has extends the selection. Keys land exactly, where a Shift+click is
 // taken as a plain click by some apps.
+//
+// The click has to land on text the app has. A range that starts in a line's
+// padding clicks the line's first character. A range that starts at a line
+// break, as dd on the last line does, clicks its end and selects backwards.
+// The line above can be outside the field, such as the title over a search
+// bar.
 func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) {
-	h.vimClick(vimCaretIn(text, start))
-
-	keys := make([]string, text.AppRunes(start, end))
-	for i := range keys {
-		keys[i] = vimKeyExtend
+	extend, from := vimKeyExtend, text.AppStart(start)
+	if text.Slice(start, min(start+1, text.Len())) == "\n" {
+		extend, from = vimKeyExtendBack, end
 	}
 
-	h.vimFeed(keys...)
+	h.vimClick(vimCaretIn(text, from))
+	h.vimFeed(slices.Repeat([]string{extend}, text.AppRunes(start, end))...)
 }
 
 // vimClick left clicks p, and gives the app a moment to place its caret

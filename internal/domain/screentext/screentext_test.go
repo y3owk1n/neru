@@ -311,6 +311,37 @@ func TestHost_YankInsideContainer_CopiesItsText(t *testing.T) {
 	}
 }
 
+func TestText_AppStart_SkipsPaddingAndIcons(t *testing.T) {
+	text := screentext.New([]screentext.Word{
+		{Text: "Title", Bounds: image.Rect(100, 100, 175, 130)},
+		screentext.Icon(image.Rect(160, 140, 175, 170)),
+		{Text: "search", Bounds: image.Rect(190, 140, 280, 170)},
+	})
+
+	search := strings.Index(text.String(), "search")
+	tests := []struct {
+		name string
+		pos  int
+		want int
+	}{
+		{"a character stays", 1, 1},
+		{
+			"the line start goes past padding and the icon",
+			strings.Index(text.String(), "\n") + 1,
+			search,
+		},
+		{"a character after the text starts stays", search + 2, search + 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := text.AppStart(tt.pos); got != tt.want {
+				t.Fatalf("AppStart(%d) = %d, want %d in %q", tt.pos, got, tt.want, text.String())
+			}
+		})
+	}
+}
+
 func TestText_Icons_AreReachedButNotCopied(t *testing.T) {
 	text := screentext.New([]screentext.Word{
 		{Text: wordSave, Bounds: image.Rect(0, 0, 40, 10)},
