@@ -4675,6 +4675,57 @@ func TestSimulation_VimScrollsTheApp(t *testing.T) {
 	sim.waitFor("the screen read again", func() bool { return reads >= 2 })
 }
 
+// TestSimulation_VimDotRepeatsTypedChange covers . after a change typed into
+// the app. The machine never saw the typing, so . must replay it with the
+// command, and change the word under the cursor the same way. A count before
+// . replaces the command's own.
+func TestSimulation_VimDotRepeatsTypedChange(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("0", "w", "c", "i", "w", "x", "Escape")
+	vimFrameShows(sim, "back to normal mode", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL")
+	})
+
+	sim.press("0", ".")
+
+	change := []string{vimKeyExtend, vimKeyExtend, vimKeyExtend, vimKeyExtend, "x"}
+	sim.waitFor("the change repeated on File", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(), slices.Concat(change, change))
+	})
+
+	clicks := sim.ax.recordedClicks()
+	if len(clicks) != 2 || clicks[1].point != image.Pt(103, 115) {
+		t.Fatalf(". did not click the caret before File: %v", clicks)
+	}
+
+	vimFrameShows(sim, "normal mode after the repeat", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL")
+	})
+
+	// 2. is 2ciw, File and the spaces after it, with the x typed again.
+	sim.press("0", "2", ".")
+	sim.waitFor("the change repeated with the count", func() bool {
+		fed := sim.keyFeed.FedKeys()
+		if len(fed) <= 2*len(change) ||
+			!slices.Equal(fed[:2*len(change)], slices.Concat(change, change)) {
+			return false
+		}
+
+		third := fed[2*len(change):]
+		selected := third[:len(third)-1]
+
+		return len(selected) > len(change)-1 && third[len(third)-1] == "x" &&
+			!slices.ContainsFunc(selected, func(k string) bool { return k != vimKeyExtend })
+	})
+}
+
 // TestSimulation_VimCountStopsAtFourDigits covers a long count, which would
 // otherwise run a motion for minutes with the keyboard held. A fifth digit is
 // dropped and the motion runs.

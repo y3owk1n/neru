@@ -20,6 +20,7 @@ typing, then reads the screen again:
   c d x s r J ...     select the text, then erase it or type over it
   p P                 click into place and paste
   u Ctrl+R            the app's own undo and redo
+  .                   repeat the last change, with what was typed into the app
   y{motion}           copy the text as read, without touching the app
   Return              click the character under the cursor
   gc gr gm {motion}   left, right or middle click, as gciw

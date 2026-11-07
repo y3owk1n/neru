@@ -80,6 +80,16 @@ type vimSession struct {
 
 	jump *vimJump
 
+	// commandKeys are the keys of the command being typed, and insertCommand
+	// those of the one that started typing into the app. typedKeys are the
+	// keys typed into the app, and lastInsert the last command and typing
+	// together, which . repeats, since the machine never saw the typing.
+	commandKeys   []vim.Key
+	insertCommand []vim.Key
+	typedKeys     []string
+	lastInsert    *vimInsert
+	repeating     bool
+
 	// flash is where the last yank took its text, shown briefly, and notice
 	// what the status bar says about it until the next key.
 	flash  []image.Rectangle
@@ -490,6 +500,7 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 		session.machine.Operator(name, 0,
 			func(_ vim.Text, start, end int, _ bool, _ []string) []vim.Edit {
 				if p, ok := rangeCenter(session.host.Screen(), start, end); ok {
+					session.lastInsert = nil
 					session.act = func() { h.vimSelect(p, name) }
 				}
 

@@ -206,6 +206,8 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 		return
 	}
 
+	session.lastInsert = nil
+
 	h.rereadVim(anchor)
 }
 

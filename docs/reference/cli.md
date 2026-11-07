@@ -659,6 +659,7 @@ again.
 | `c`, `d`, `x`, `s`, `r`, `J` and the rest | Select the text, then erase it or type over it |
 | `p`, `P` | Click into place and paste |
 | `u`, `Ctrl+R` | The app's own undo and redo |
+| `.` | Repeat the last change. A change typed into the app repeats with what was typed |
 | `y` + motion | Copy the text as read, without touching the app. The copied text flashes and the status bar says how much |
 | `Return` | Click the character under the cursor, or with `--action` run that action there |
 | `gc`, `gr`, `gm` + motion | Left, right or middle click the middle of what the motion covers, as `gciw` |
