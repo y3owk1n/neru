@@ -105,3 +105,5 @@ func (o *wlrootsOverlay) startPoller()                   {}
 
 // withBlanked runs capture as it is, because this build draws no overlay.
 func (o *wlrootsOverlay) withBlanked(capture func() error) error { return capture() }
+
+func (o *wlrootsOverlay) DrawVim(manager.VimScene, manager.VimStyle) {}

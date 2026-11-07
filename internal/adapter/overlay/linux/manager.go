@@ -357,6 +357,9 @@ func (m *Manager) ConfigureComponents(cfg *config.Config, pointer manager.Pointe
 // Every backend reports headlessness through manager.HeadlessReporter.
 var _ manager.HeadlessReporter = (*Manager)(nil)
 
+// Linux draws vim mode's surface on the shared overlay.
+var _ manager.VimDrawer = (*Manager)(nil)
+
 // Headless reports whether no backend surface was created: no display server,
 // a failed backend init, or a build without cgo.
 func (m *Manager) Headless() bool {
@@ -987,6 +990,29 @@ func (m *Manager) DrawMonitorSelect(
 		derrors.CodeNotSupported,
 		"monitor_select overlay not implemented on linux backend",
 	)
+}
+
+// DrawVim paints vim mode's surface. The adapter has already brought the
+// shared window up, so this only draws.
+func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error {
+	m.cancelBackendAnimation()
+
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil {
+		m.x11.DrawVim(scene, style)
+
+		return nil
+	}
+
+	if m.wlroots != nil {
+		m.wlroots.DrawVim(scene, style)
+
+		return nil
+	}
+
+	return derrors.New(derrors.CodeNotSupported, "vim overlay not implemented on linux backend")
 }
 
 // HideMonitorSelect hides the monitor_select overlay, clearing its panels.

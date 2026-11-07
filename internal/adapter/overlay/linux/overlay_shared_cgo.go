@@ -298,6 +298,43 @@ func (o *sharedOverlay) DrawMonitorSelect(
 	o.drawMonitorSelect(targets, style)
 }
 
+// DrawVim paints vim mode's surface, replacing what was on the surface. The
+// scene arrives screen-local and gets the origin offset, as hints do.
+func (o *sharedOverlay) DrawVim(scene manager.VimScene, style manager.VimStyle) {
+	if !o.drawable() {
+		return
+	}
+
+	o.srf.ensureBuffers()
+	o.cancelAnimation()
+	o.hasLast = false
+
+	if !o.srf.beginFrame() {
+		return
+	}
+
+	o.srf.surfaceClear()
+
+	measure := func(text string, fontSize float64, bold bool) int {
+		return badge.TextWidth(text, style.FontFamily, fontSize*o.srf.surfaceScale(), bold)
+	}
+
+	for _, op := range manager.LayoutVim(scene, style, measure) {
+		bounds := o.offset(op.Bounds)
+
+		switch op.Kind {
+		case manager.VimOpRect:
+			o.drawRect(bounds, op.Fill, op.Border, op.LineWidth)
+		case manager.VimOpRoundedRect:
+			o.drawRoundedRect(bounds, op.Radius, op.Fill, op.Border, op.LineWidth)
+		case manager.VimOpText:
+			o.drawTextCentered(op.Text, bounds, op.Family, op.FontSize, op.Fill, op.Bold)
+		}
+	}
+
+	o.srf.surfaceFlush()
+}
+
 func (o *sharedOverlay) DrawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
