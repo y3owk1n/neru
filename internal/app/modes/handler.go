@@ -173,10 +173,18 @@ type handlerState struct {
 	// have been settled at all. Two zero keymaps are a legitimate answer (a mode
 	// that binds nothing, with no global chords), so neither can double as "not
 	// settled yet".
-	keymap           configpkg.Keymap
-	globalHotkeys    configpkg.Keymap
-	keymapSettledFor keymapInputs
-	keymapSettled    bool
+	keymap        configpkg.Keymap
+	globalHotkeys configpkg.Keymap
+	// selectWith is hints' select_with entries in force. It settles with the
+	// keymaps, from the same inputs, and is empty outside hints.
+	selectWith configpkg.SelectWith
+	// selectWithInFlight says a select_with selection is running its steps,
+	// and selectWithSession is the mode session it was made in. Label keys are
+	// dropped while both hold for the current session.
+	selectWithInFlight bool
+	selectWithSession  uint64
+	keymapSettledFor   keymapInputs
+	keymapSettled      bool
 
 	// eventTap is nil until the app's phase 8 calls SetEventTap. Every use
 	// goes through the nil-guarded helpers in eventtap.go.

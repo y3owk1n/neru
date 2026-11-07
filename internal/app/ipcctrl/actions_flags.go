@@ -78,10 +78,11 @@ var actionFlagSupport = map[string][]string{
 	string(action.NameCycleHint):       {flagBackward},
 	string(action.NameWaitForModeExit): {flagBail},
 
-	string(action.NameReset):        {},
-	string(action.NameBackspace):    {},
-	string(action.NameSearchHints):  {flagConfirmOnLabel},
-	string(action.NameRefreshHints): {},
+	string(action.NameReset):         {},
+	string(action.NameBackspace):     {},
+	string(action.NameSearchHints):   {flagConfirmOnLabel},
+	string(action.NameRefreshHints):  {},
+	string(action.NameSessionAction): {},
 	string(action.NameSnap): {
 		flagStrategy, flagRole, flagText, flagDirection, flagBare,
 	},

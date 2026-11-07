@@ -506,6 +506,10 @@ func defaultHints() HintsConfig {
 		VisibleCheckEnabled:  false,
 
 		AppConfigs: []AppConfig{},
+
+		// No entries, so every selection runs the session's --action, whatever
+		// modifiers are held.
+		SelectWith: map[string]StringOrStringArray{},
 	}
 }
 

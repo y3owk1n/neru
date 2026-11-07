@@ -2,6 +2,7 @@ package modes
 
 import (
 	"context"
+	"image"
 
 	"go.uber.org/zap"
 
@@ -134,6 +135,50 @@ func (h *Handler) RefreshHints() error {
 			derrors.CodeActionFailed,
 			"refresh_hints found no hints, hints mode exited",
 		)
+	}
+
+	return nil
+}
+
+// SessionAction runs the open hints session's --action, with its --modifier
+// and any sticky modifiers, at the cursor. It leaves the mode as it is, which
+// is what lets a select_with entry run the session's action and then decide
+// what follows. A session opened without --action has nothing to run.
+//
+// The cursor is read before the lock is taken, because on Wayland reading it
+// for an action can wait on the compositor, and h.mu serializes key handling.
+func (h *Handler) SessionAction(ctx context.Context) error {
+	point, err := h.actionService.CursorPositionForAction(ctx)
+	if err != nil {
+		return derrors.Wrap(err, derrors.CodeActionFailed, "failed to read the cursor position")
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	return h.sessionAction(point)
+}
+
+// sessionAction is the body of SessionAction.
+//
+// Caller must hold h.mu.
+func (h *handlerState) sessionAction(point image.Point) error {
+	if h.appState.CurrentMode() != domain.ModeHints {
+		return derrors.New(derrors.CodeInvalidInput, "session_action requires hints mode")
+	}
+
+	if h.hints == nil || h.hints.Context == nil {
+		return derrors.New(derrors.CodeActionFailed, "hints component not available")
+	}
+
+	pending := h.hints.Context.PendingAction()
+	if pending == nil {
+		return nil
+	}
+
+	_, failed, parsed := h.performActionChain(*pending, h.hints.Context.PendingModifier(), point)
+	if !parsed || failed {
+		return derrors.New(derrors.CodeActionFailed, "the session's action failed")
 	}
 
 	return nil

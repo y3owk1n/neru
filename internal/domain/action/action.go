@@ -403,6 +403,8 @@ const (
 	NameSearchHints Name = "search_hints"
 	// NameRefreshHints rescans hints mode with the flags the session holds.
 	NameRefreshHints Name = "refresh_hints"
+	// NameSessionAction runs the open hints session's --action at the cursor.
+	NameSessionAction Name = "session_action"
 	// NameSnap moves the cursor onto the nearest element hints would label.
 	NameSnap Name = "snap"
 
@@ -552,6 +554,11 @@ func IsRefreshHintsAction(name string) bool {
 	return Name(name) == NameRefreshHints
 }
 
+// IsSessionActionAction reports whether the given action is session_action.
+func IsSessionActionAction(name string) bool {
+	return Name(name) == NameSessionAction
+}
+
 // IsSnapAction reports whether the given action is snap.
 func IsSnapAction(name string) bool {
 	return Name(name) == NameSnap
@@ -589,7 +596,7 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSnap,
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSessionAction, NameSnap,
 		NameHideCursor, NameShowCursor:
 		return true
 	default:
@@ -618,7 +625,7 @@ func IsScrollSubAction(name string) bool {
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameMoveCell, NameBisect,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSnap,
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSessionAction, NameSnap,
 		NameHideCursor, NameShowCursor:
 		return false
 	default:
@@ -733,6 +740,7 @@ func (n Name) ToType() (Type, error) {
 		NameCycleHint,
 		NameSearchHints,
 		NameRefreshHints,
+		NameSessionAction,
 		NameSnap,
 		NameHideCursor,
 		NameShowCursor:

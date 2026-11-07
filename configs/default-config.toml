@@ -177,6 +177,16 @@ visible_check_enabled = false
 "Left" = "action move_mouse_relative --dx=-10 --dy=0"
 "Right" = "action move_mouse_relative --dx=10 --dy=0"
 
+# Steps that run in place of the session's --action when you type the key that
+# completes a label with these modifiers held. No default, so this stays
+# commented out. Neru refuses a modifier set when its chord with a hint
+# character is already bound, so shift needs Shift+L rebound while "l" is a
+# hint character.
+# [hints.select_with]
+# ctrl = ["action session_action", "idle"]  # the session's action, then exit
+# alt = "action right_click"
+# cmd = "action left_click --modifier cmd"  # open a link in a new tab
+
 [hints.ui]
 font_size = 10
 font_family = ""                            # Empty = platform sans

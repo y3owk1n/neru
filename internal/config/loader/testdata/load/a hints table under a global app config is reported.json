@@ -9,6 +9,7 @@
     "+ .appConfigs[0].scrollStep = null",
     "+ .appConfigs[0].scrollStepFull = null",
     "+ .appConfigs[0].scrollStepHalf = null",
+    "+ .appConfigs[0].selectWith = null",
     "+ .appConfigs[0].strategy = \"\"",
     "+ .appConfigs[0].visibleCheckEnabled = null",
     "- .appConfigs = null"

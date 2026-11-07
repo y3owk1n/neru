@@ -321,6 +321,20 @@ func (c *Config) modeBindingTables() []modeBindingTable {
 		}
 	}
 
+	// A select_with entry runs its steps through the same executor a binding
+	// does, so the walk reads them too.
+	tables = append(tables, modeBindingTable{
+		field: ModeNameHints + ".select_with",
+		table: c.Hints.SelectWith,
+	})
+
+	for idx, appConfig := range c.Hints.AppConfigs {
+		tables = append(tables, modeBindingTable{
+			field: fmt.Sprintf("%s.app_configs[%d].select_with", ModeNameHints, idx),
+			table: appConfig.SelectWith,
+		})
+	}
+
 	return tables
 }
 

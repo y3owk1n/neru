@@ -225,6 +225,9 @@ func (h *ActionsHandler) dispatchByName(
 	case action.IsRefreshHintsAction(actionName):
 		return h.handleRefreshHintsAction(), true
 
+	case action.IsSessionActionAction(actionName):
+		return h.handleSessionAction(ctx), true
+
 	case action.IsSnapAction(actionName):
 		return h.handleSnapAction(ctx, parsed), true
 

@@ -10,6 +10,7 @@
     "+ .scroll.appConfigs[0].scrollStep = 25",
     "+ .scroll.appConfigs[0].scrollStepFull = 1000",
     "+ .scroll.appConfigs[0].scrollStepHalf = 200",
+    "+ .scroll.appConfigs[0].selectWith = null",
     "+ .scroll.appConfigs[0].strategy = \"\"",
     "+ .scroll.appConfigs[0].visibleCheckEnabled = null"
   ],

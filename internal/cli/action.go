@@ -27,7 +27,7 @@ Available subcommands:
                     go_top, go_bottom, page_up, page_down
   Mouse movement:   move_mouse, move_mouse_relative, move_monitor, snap
   Mode control:     reset, backspace, move_cell, bisect, wait_for_mode_exit, cycle_hint,
-                    refresh_hints
+                    refresh_hints, session_action
   Cursor saving:    save_cursor_pos, restore_cursor_pos
   Cursor visibility: hide_cursor, show_cursor
   Key injection:    feed
@@ -480,6 +480,23 @@ since there is nothing to rescan. If the rescan finds nothing, hints mode exits.
 	false,
 )
 
+// ActionSessionActionCmd runs the open hints session's --action at the cursor.
+var ActionSessionActionCmd = BuildActionCommand(
+	"session_action",
+	"Run the hints session's --action at the cursor",
+	`Run the action the open hints session was activated with, holding its
+--modifier and any sticky modifiers, at the cursor. The mode stays open.
+
+Use it as a step in a [hints.select_with] entry. The entry runs after the
+cursor moves to the selected hint, so it can run the session's own action and
+then decide what follows, such as "idle" to exit.
+
+Requires hints mode to be active. A session opened without --action has
+nothing to run, so this does nothing there.`,
+	[]string{"session_action"},
+	false,
+)
+
 // ActionSnapCmd moves the cursor onto the nearest clickable element.
 var ActionSnapCmd = BuildSnapCommand()
 
@@ -519,6 +536,7 @@ func init() {
 	ActionCmd.AddCommand(ActionPageDownCmd)
 	ActionCmd.AddCommand(ActionCycleHintCmd)
 	ActionCmd.AddCommand(ActionRefreshHintsCmd)
+	ActionCmd.AddCommand(ActionSessionActionCmd)
 	ActionCmd.AddCommand(ActionSnapCmd)
 	ActionCmd.AddCommand(ActionMoveCellCmd)
 	ActionCmd.AddCommand(ActionBisectCmd)

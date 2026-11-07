@@ -289,6 +289,34 @@ func (h *ActionsHandler) handleRefreshHintsAction() ipc.Response {
 	}
 }
 
+// handleSessionAction runs the open hints session's --action at the cursor.
+func (h *ActionsHandler) handleSessionAction(ctx context.Context) ipc.Response {
+	if h.modesHandler == nil {
+		return ipc.Response{
+			Success: false,
+			Message: msgModesHandlerNotAvailable,
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	err := h.modesHandler.SessionAction(ctx)
+	if err != nil {
+		h.logger.Debug("Failed to run the session action", zap.Error(err))
+
+		return ipc.Response{
+			Success: false,
+			Message: "failed to run the session action: " + err.Error(),
+			Code:    ipc.CodeActionFailed,
+		}
+	}
+
+	return ipc.Response{
+		Success: true,
+		Message: "session_action performed",
+		Code:    ipc.CodeOK,
+	}
+}
+
 // handleSearchHintsAction activates text search in hints mode.
 func (h *ActionsHandler) handleSearchHintsAction(parsed parsedActionArgs) ipc.Response {
 	if h.modesHandler == nil {

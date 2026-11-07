@@ -36,82 +36,13 @@ func (h *handlerState) executeActionAtPoint(
 		return
 	}
 
-	var modifiers action.Modifiers
-	if modifierStr != nil {
-		var err error
-
-		modifiers, err = action.ParseModifiers(*modifierStr)
-		if err != nil {
-			h.logger.Error("Failed to parse pending modifier", zap.Error(err))
-
-			return
-		}
-
-		if *modifierStr != "" && modifiers == 0 {
-			h.logger.Error("Pending modifier was non-empty but parsed to no modifiers")
-
-			return
-		}
-	}
-
-	modifiers |= h.stickyModifiers()
-
 	h.logger.Debug("Executing pending action",
 		zap.String("action", *actionStr),
-		zap.String("modifiers", modifiers.String()),
 		zap.Bool("repeat", repeat))
 
-	ctx := h.ctx
-
-	// Split comma-separated actions and execute each one sequentially.
-	// This enables multi-click sequences like --action left_click,left_click
-	// which produce a double-click via the native click-counting layer.
-	actions := strings.Split(*actionStr, ",")
-	performed := make([]string, 0, len(actions))
-	actionPerformed := false
-	chainFailed := false
-
-	for actionIdx, a := range actions {
-		trimmed := strings.TrimSpace(a)
-		if trimmed == "" {
-			continue
-		}
-
-		// Add a small delay between actions so the OS has time to process
-		// each click before the next one arrives. This is required for the
-		// native click-counting to correctly detect multi-click sequences.
-		if actionIdx > 0 {
-			time.Sleep(postActionSettleDelay)
-		}
-
-		performErr := h.actionService.PerformActionAtPoint(
-			ctx,
-			trimmed,
-			point,
-			modifiers,
-		)
-		if performErr != nil {
-			h.logger.Error("Failed to perform pending action", zap.Error(performErr))
-
-			chainFailed = true
-
-			break
-		}
-
-		performed = append(performed, trimmed)
-
-		// Track whether any action was a click (not a move-mouse action)
-		// so handleCursorRestoration can insert a settling delay.
-		if trimmed != "move_mouse" &&
-			trimmed != "move_mouse_relative" {
-			actionPerformed = true
-		}
-	}
-
-	// Signal that a click was just performed so handleCursorRestoration
-	// can insert a settling delay before moving the cursor.
-	if actionPerformed {
-		h.cursorState.MarkActionPerformed()
+	performed, chainFailed, ok := h.performActionChain(*actionStr, modifierStr, point)
+	if !ok {
+		return
 	}
 
 	// Published before the mode re-arms or exits, so a selection always
@@ -153,6 +84,84 @@ func (h *handlerState) executeActionAtPoint(
 	if !chainFailed {
 		h.runOnExit(onExit, selection.Env())
 	}
+}
+
+// performActionChain performs each action of a comma-separated chain at point,
+// holding the modifiers modifierStr names plus the sticky ones, and returns the
+// actions performed and whether the chain stopped on a failure. The last result
+// is false, with nothing performed, when modifierStr does not parse.
+//
+// A chain such as left_click,left_click is a double-click, through the native
+// click-counting layer.
+func (h *handlerState) performActionChain(
+	actionStr string,
+	modifierStr *string,
+	point image.Point,
+) ([]string, bool, bool) {
+	var modifiers action.Modifiers
+	if modifierStr != nil {
+		var err error
+
+		modifiers, err = action.ParseModifiers(*modifierStr)
+		if err != nil {
+			h.logger.Error("Failed to parse pending modifier", zap.Error(err))
+
+			return nil, false, false
+		}
+
+		if *modifierStr != "" && modifiers == 0 {
+			h.logger.Error("Pending modifier was non-empty but parsed to no modifiers")
+
+			return nil, false, false
+		}
+	}
+
+	modifiers |= h.stickyModifiers()
+
+	actions := strings.Split(actionStr, ",")
+	performed := make([]string, 0, len(actions))
+	actionPerformed := false
+	chainFailed := false
+
+	for actionIdx, a := range actions {
+		trimmed := strings.TrimSpace(a)
+		if trimmed == "" {
+			continue
+		}
+
+		// Add a small delay between actions so the OS has time to process
+		// each click before the next one arrives. This is required for the
+		// native click-counting to correctly detect multi-click sequences.
+		if actionIdx > 0 {
+			time.Sleep(postActionSettleDelay)
+		}
+
+		performErr := h.actionService.PerformActionAtPoint(h.ctx, trimmed, point, modifiers)
+		if performErr != nil {
+			h.logger.Error("Failed to perform pending action", zap.Error(performErr))
+
+			chainFailed = true
+
+			break
+		}
+
+		performed = append(performed, trimmed)
+
+		// Track whether any action was a click (not a move-mouse action)
+		// so handleCursorRestoration can insert a settling delay.
+		if trimmed != "move_mouse" &&
+			trimmed != "move_mouse_relative" {
+			actionPerformed = true
+		}
+	}
+
+	// Signal that a click was just performed so handleCursorRestoration
+	// can insert a settling delay before moving the cursor.
+	if actionPerformed {
+		h.cursorState.MarkActionPerformed()
+	}
+
+	return performed, chainFailed, true
 }
 
 // currentModeOnExit returns the --on-exit steps configured for the currently
@@ -277,6 +286,20 @@ func (h *handlerState) trackSelection(input func()) {
 
 // handleHintsModeKey handles key processing for hints mode.
 func (h *handlerState) handleHintsModeKey(key string) {
+	h.handleHintsLabelKey(key, "")
+}
+
+// handleHintsLabelKey types key into the label. modifiers is the select_with
+// modifier set the key was typed with, in comparison form, or empty for a key
+// typed bare. Only the key that completes a label reads it, so the modifiers
+// held on that key decide what the selection runs.
+func (h *handlerState) handleHintsLabelKey(key, modifiers string) {
+	if h.selectWithPending() {
+		h.logger.Debug("Label key dropped while a select_with entry runs")
+
+		return
+	}
+
 	// Route hint-specific keys via domain hints router
 	if h.hints.Context.Router() == nil {
 		h.logger.Debug("Hints router is nil, ignoring key press")
@@ -305,6 +328,12 @@ func (h *handlerState) handleHintsModeKey(key string) {
 
 		h.logger.Debug("Hint matched")
 
+		if entry, ok := h.selectWith.Lookup(modifiers); modifiers != "" && ok {
+			h.selectWithEntry(center, entry)
+
+			return
+		}
+
 		pendingAction := h.hints.Context.PendingAction()
 		pendingModifier := h.hints.Context.PendingModifier()
 		repeat := h.hints.Context.Repeat()
@@ -317,29 +346,42 @@ func (h *handlerState) handleHintsModeKey(key string) {
 			repeat ||
 				pendingAction == nil, // re-activate on repeat, or when no action (existing behavior)
 			func() {
-				h.activateHintModeInternal(session)
-				// Restore the session's settings on the fresh context so later
-				// selections continue the repeat cycle, but only when the
-				// re-activation succeeded and the mode is still hints.
-				if repeat && h.appState.CurrentMode() == domain.ModeHints &&
-					h.hints != nil && h.hints.Context != nil {
-					h.hints.Context.SetPendingAction(pendingAction)
-					h.hints.Context.SetPendingModifier(pendingModifier)
-					h.hints.Context.SetRepeat(true)
-					h.hints.Context.SetCursorFollowSelection(*session.CursorFollowSelection)
-					h.hints.Context.SetFilterRoles(session.FilterRoles)
-					h.hints.Context.SetFilterTextContains(session.FilterTextContains)
-					h.hints.Context.SetStartWithSearch(*session.Search)
-					h.hints.Context.SetConfirmOnLabel(*session.ConfirmOnLabel)
-					h.hints.Context.SetExitOnUnmatched(*session.ExitOnUnmatched)
-					h.hints.Context.SetStrategyOverride(*session.Strategy)
-					h.hints.Context.SetCaptureScopeOverride(*session.CaptureScope)
-					h.hints.Context.SetLabelDirectionOverride(*session.LabelDirection)
-					h.hints.Context.SetSplitWord(*session.SplitWord)
-				}
+				h.reactivateHintSession(session, pendingAction, pendingModifier, repeat)
 			},
 		)
 	}
+}
+
+// reactivateHintSession opens hints again for the session that just selected.
+// With repeat, the fresh context takes the session's action, modifier and
+// flags back so later selections continue the cycle, but only when the
+// re-activation succeeded and the mode is still hints.
+func (h *handlerState) reactivateHintSession(
+	session modecmd.Activation,
+	pendingAction *string,
+	pendingModifier *string,
+	repeat bool,
+) {
+	h.activateHintModeInternal(session)
+
+	if !repeat || h.appState.CurrentMode() != domain.ModeHints ||
+		h.hints == nil || h.hints.Context == nil {
+		return
+	}
+
+	h.hints.Context.SetPendingAction(pendingAction)
+	h.hints.Context.SetPendingModifier(pendingModifier)
+	h.hints.Context.SetRepeat(true)
+	h.hints.Context.SetCursorFollowSelection(*session.CursorFollowSelection)
+	h.hints.Context.SetFilterRoles(session.FilterRoles)
+	h.hints.Context.SetFilterTextContains(session.FilterTextContains)
+	h.hints.Context.SetStartWithSearch(*session.Search)
+	h.hints.Context.SetConfirmOnLabel(*session.ConfirmOnLabel)
+	h.hints.Context.SetExitOnUnmatched(*session.ExitOnUnmatched)
+	h.hints.Context.SetStrategyOverride(*session.Strategy)
+	h.hints.Context.SetCaptureScopeOverride(*session.CaptureScope)
+	h.hints.Context.SetLabelDirectionOverride(*session.LabelDirection)
+	h.hints.Context.SetSplitWord(*session.SplitWord)
 }
 
 // handleSearchInputKey routes all keys while hint text search is active.

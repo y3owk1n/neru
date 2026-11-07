@@ -595,6 +595,7 @@ font_size = 12
 | `clickable_roles`                  | array        | shared semantic defaults | Roles that generate hints. See [Clickable roles](#clickable-roles)                                                                                         |
 | `ignore_clickable_check`           | bool         | `false`                  | Hint elements of the clickable roles even when the app reports them as disabled. On macOS it also skips the press-action, hidden and hit tests |
 | `visible_check_enabled`            | bool         | `false`                  | Enable visibility hit-test (slower but fewer noisy hints)                                                                                                  |
+| `select_with`                      | table        | none                     | Steps to run in place of the session's `--action` when a label is finished with modifiers held. See [Select with modifiers](#select-with-modifiers). Overridable per app |
 
 #### Choosing a label direction
 
@@ -808,6 +809,51 @@ targets = "phrases"
 "Shift+Tab" = "action cycle_hint --backward"
 ```
 
+### Select with modifiers
+
+`[hints.select_with]` lets the key that finishes a label choose what the
+selection does. Hold a modifier set while typing that key, and the steps for
+that set run in place of the session's `--action`.
+
+```toml
+[hints.select_with]
+ctrl = ["action session_action", "idle"]   # the session's action, then exit
+alt = "action right_click"
+cmd = "action left_click --modifier cmd"   # open a link in a new tab
+```
+
+- **Keys** are modifier sets: one or more of `cmd`, `ctrl`, `alt`, `shift` and
+  `primary`, joined with `+`, as in `"cmd+shift"`. Aliases such as `command`,
+  `control` and `option` work too. A set matches only when exactly those
+  modifiers are held.
+- **Values** are steps, written as in a hotkey binding, so actions, macros,
+  `exec` and mode commands all work. They run after the cursor moves to the
+  hint, so a click step acts on it.
+- **`action session_action`** runs the session's own `--action` there, with
+  its `--modifier`. Use it when an entry should do what the session does and
+  then something more, such as exiting a `--repeat` session in one key.
+- **Afterwards** the session ends as its `--action` would have. A `--repeat`
+  session, or one opened without `--action`, reopens hints. Any other session
+  exits and runs its binding's `--on-exit`. A step that leaves the mode ends
+  it early. Leaving to idle still runs `--on-exit`, and entering another mode
+  runs nothing. Until the steps finish, Neru ignores labels you type, while
+  bindings such as `Escape` still work.
+- **Hold the modifier for the whole label if you like.** Every hint character
+  typed with a set that has an entry goes into the label, and only the key
+  that finishes it decides. A chord whose modifiers have no entry is a key
+  binding as usual.
+- **Neru refuses a binding for one of those chords at load.** A mapped set
+  plus each hint character is label input, so a binding for any of those
+  chords could never run. Rebind the key or drop the character from
+  `hint_characters`. With the defaults, `shift` collides with `Shift+L`, since
+  `l` is a hint character. Neru checks every hotkey table in force, global and
+  per-app included.
+- **Only a physically held modifier selects an entry.** A sticky modifier
+  still means "hold this on the next click", so a label typed with one runs
+  the session's action holding it.
+- On Linux a held Shift turns a symbol hint character into its shifted
+  symbol, so use letters with `shift`.
+
 ### Hints per-app config
 
 An empty string or an unset bool keeps the `[hints]` value. How an entry
@@ -823,6 +869,7 @@ applies is under [Per-app hotkey overrides](#per-app-hotkey-overrides).
 | `ignore_clickable_check`     | bool   | Hint elements of the clickable roles in this app even when it reports them as disabled. On macOS it also skips the press-action, hidden and hit tests |
 | `visible_check_enabled`      | bool   | Enable visibility hit-test for this app                                                      |
 | `hotkeys`                    | map    | [per-app hotkey overrides](#per-app-hotkey-overrides)                                        |
+| `select_with`                | map    | Entries that replace [`select_with`](#select-with-modifiers) ones for the same modifier set while this app is focused. `"__disabled__"` removes one |
 
 ## [grid]
 

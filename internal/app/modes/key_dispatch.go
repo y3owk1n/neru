@@ -148,6 +148,14 @@ func (h *handlerState) handleKeyPress(key string) {
 		key = h.stripStickyModifiersFromKey(key, activeMods)
 	}
 
+	// A hint character held with a select_with modifier set types into the
+	// label before any binding is asked. Validation refuses a binding that
+	// such a chord would shadow. Sticky modifiers are already stripped, so only
+	// physically held ones select an entry.
+	if h.routeSelectWithLabelKey(key) {
+		return
+	}
+
 	// Check for per-mode hotkeys before mode-specific handling.
 	// If sticky modifiers were stripped, resolve bindings with the stripped key
 	// only. Sticky modifiers are for the next action, not Neru's own navigation
