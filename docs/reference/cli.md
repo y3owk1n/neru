@@ -646,7 +646,7 @@ the `monitor_select` flags in the [mode flag reference](#mode-flag-reference).
 neru vim [flags]
 ```
 
-macOS only. Read the text in the focused window, or the whole screen with
+macOS and Linux. Read the text in the focused window, or the whole screen with
 `--capture-scope screen`, and move a cursor over it with vim's keys. Motions,
 counts, text objects, search, marks, registers, macros and `.` work as in
 vim. Vim mode makes each edit in the app under the cursor, by clicking the

@@ -42,7 +42,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Menu bar, Dock and other system surfaces in hints | ✅ | ➖ | ➖          | ➖            | ➖      |
 | Scroll mode                    | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Monitor select                 | ✅    | ✅        | ✅                | ✅            | ✅      |
-| Vim mode                       | ✅    | ❌        | ❌                | ❌            | ❌      |
+| Vim mode                       | ✅    | ⚠️ ¹⁶     | ⚠️ ¹⁶             | ⚠️ ¹⁶         | ❌      |
 | Clicks, drag, modified clicks  | ✅    | ✅        | ✅ ⁴              | ✅ ⁴          | ✅      |
 | Smooth cursor and held-key glide | ✅  | ✅        | ✅                | ✅            | ✅      |
 | Smooth scroll                  | ✅    | ⚠️ ⁵      | ✅ ⁵              | ⚠️ ⁵          | ✅      |
@@ -163,6 +163,16 @@ copies what the hints pass read. Linux and Windows always copy what the hints
 pass read, since their OCR reads small UI text word for word from the whole
 screen. `contour` and `segment` hints there have nothing to copy.
 
+¹⁶ **Linux vim mode reads Latin script only**, from tesseract's English
+language data, and tesseract places each character only roughly, so the
+cursor can sit a little off a character. On niri, as on the other wlroots
+compositors under [wlroots compositors](../guide/linux-desktops.md#wlroots-compositors),
+a tiled window gives no bounds, and vim mode reads the whole screen. Floating
+the window reads just the window. On Wayland, edits and typing need the
+keyboard proxy, which needs a readable `/dev/input` and a writable
+`/dev/uinput`. Without it Neru takes the keyboard through its own overlay, and
+the keys vim mode types come back to Neru instead of reaching the app.
+
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.
 
@@ -185,7 +195,7 @@ load, and `neru doctor` lists them under `platform_support`.
 | `hints.include_menubar_hints`, `hints.additional_menubar_hints_targets`, `hints.include_dock_hints`, `hints.include_nc_hints`, `hints.include_stage_manager_hints`, `hints.include_pip_hints`, `hints.include_screen_capture_hints` | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.detect_mission_control`, `hints.on_mission_control_activated`, `hints.on_mission_control_deactivated`, `hooks.on_mission_control_activated`, `hooks.on_mission_control_deactivated` | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `grid.prewarm_enabled` | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
-| `vim.enabled`, `vim.capture_scope`, `vim.ui.font_size`, `vim.ui.font_family`, `vim.ui.cursor_color`, `vim.ui.selection_color`, `vim.ui.match_color`, `vim.ui.container_color`, `vim.ui.status_background_color`, `vim.ui.status_text_color`, `mode_indicator.vim.enabled`, `mode_indicator.vim.text`, `mode_indicator.vim.background_color`, `mode_indicator.vim.text_color`, `mode_indicator.vim.border_color` | ✅ | ❌ | ❌ | only the macOS overlay draws vim mode's surface |
+| `vim.enabled`, `vim.capture_scope`, `vim.ui.font_size`, `vim.ui.font_family`, `vim.ui.cursor_color`, `vim.ui.selection_color`, `vim.ui.match_color`, `vim.ui.container_color`, `vim.ui.status_background_color`, `vim.ui.status_text_color`, `mode_indicator.vim.enabled`, `mode_indicator.vim.text`, `mode_indicator.vim.background_color`, `mode_indicator.vim.text_color`, `mode_indicator.vim.border_color` | ✅ | ✅ | ❌ | Windows has no reader yet that places each character, nor an overlay that draws vim mode's surface |
 | `hints.vision.minimum_confidence`, `hints.vision.button_min_confidence`, `hints.vision.generic_clickable_min_confidence` | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; the Vision framework and tesseract score each word |
 | `hide_cursor` (action), `show_cursor` (action) | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 
@@ -210,9 +220,9 @@ A boundary is a requirement the platform imposes, not something Neru lacks.
 
 **Linux**: two gaps.
 
-- **Vim mode** refuses with `ERR_NOT_SUPPORTED`. It needs a text reader that
-  returns where each character is, and an overlay surface to draw its cursor,
-  and only macOS has both so far.
+- **Vim mode reads Latin script only**, since the tesseract language data is
+  English. macOS reads Chinese, Japanese, Korean and the other scripts it
+  knows.
 - **A Wayland monitor's resolution or scale change** needs a
   [daemon restart](../guide/troubleshooting.md#restart-the-daemon) before
   overlays fit it again. Plugging in or removing a monitor is tracked live.
@@ -237,8 +247,9 @@ These are boundaries, not gaps:
 
 **Windows**: one gap.
 
-- **Vim mode** refuses with `ERR_NOT_SUPPORTED`, for the reason given under
-  Linux.
+- **Vim mode** refuses with `ERR_NOT_SUPPORTED`. It needs a text reader that
+  returns where each character is, and an overlay surface to draw its cursor,
+  and Windows has neither yet.
 
 These are boundaries, not gaps:
 

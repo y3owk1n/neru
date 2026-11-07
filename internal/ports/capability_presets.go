@@ -142,7 +142,8 @@ func LinuxCapabilities() PlatformCapabilities {
 				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +
 				"ScreenCast session on KDE and COSMIC, which asks for screen-sharing consent " +
 				"once), with button shapes from the contour detector over the same " +
-				"frame; text needs a cgo build and the tesseract eng language data installed",
+				"frame; text needs a cgo build and the tesseract eng language data installed, " +
+				"which vim mode also reads a character at a time",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via XTest on X11, and on Wayland a uinput virtual keyboard " +
