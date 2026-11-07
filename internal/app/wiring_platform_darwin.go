@@ -20,6 +20,10 @@ func initializePlatformLogger(logger *zap.Logger) {
 // keyboard and there is no key event for the tap to mistake for the user's.
 func registerSyntheticModifierSink(_ tap.Tap, _ *zap.Logger) {}
 
+// registerKeyboardYielder has nothing to wire on macOS, whose tap passes the
+// keys Neru types through.
+func registerKeyboardYielder(_ tap.Tap, _ *zap.Logger) {}
+
 // platformQuit triggers the platform-specific quit mechanism.
 func platformQuit() {
 	infrasystray.Quit()

@@ -145,8 +145,8 @@ func LinuxCapabilities() PlatformCapabilities {
 				"frame; text needs a cgo build and the tesseract eng language data installed",
 		),
 		KeyFeed: supportedCapability(
-			"key injection via a uinput virtual keyboard when /dev/uinput is " +
-				"writable (works on X11, wlroots, KWin, and cosmic-comp), falling back to " +
+			"key injection via XTest on X11, and on Wayland a uinput virtual keyboard " +
+				"when /dev/uinput is writable (wlroots, KWin, and cosmic-comp), falling back to " +
 				"zwp_virtual_keyboard_v1 on wlroots compositors and cosmic-comp",
 		),
 		Systray: supportedCapability(

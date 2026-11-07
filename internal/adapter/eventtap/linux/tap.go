@@ -106,6 +106,11 @@ type EventTap struct {
 
 	// dropWarned limits a full dispatch channel to one warning until it drains.
 	dropWarned atomic.Bool
+
+	// x11Grabbed is true while the X11 tap holds the keyboard grab, and
+	// yieldCh is how YieldKeyboard asks it to step aside.
+	x11Grabbed atomic.Bool
+	yieldCh    chan x11Yield
 }
 
 // NewEventTap creates a new EventTap.
@@ -115,6 +120,7 @@ func NewEventTap(callback tap.Callback, logger *zap.Logger) *EventTap {
 		callback: callback,
 	}
 	tap.dispatchCh = make(chan string, dispatchChBufferSize)
+	tap.yieldCh = make(chan x11Yield)
 	tap.dispatchWg.Add(1)
 
 	go tap.dispatchLoop()
@@ -344,6 +350,41 @@ func syntheticModifierName(modifier action.Modifiers) string {
 	}
 
 	return name
+}
+
+// x11Yield is one YieldKeyboard request. The tap closes released once it has
+// let go of the keyboard, and the caller closes sent once its keys are out.
+type x11Yield struct {
+	released chan struct{}
+	sent     chan struct{}
+}
+
+// YieldKeyboard runs send with the X11 keyboard grab released, and the tap
+// takes the grab back once send returns. A key the user presses in that moment
+// goes to the focused window. With no grab held, as on Wayland or with no mode
+// open, send runs as is.
+func (et *EventTap) YieldKeyboard(send func() error) error {
+	if !et.x11Grabbed.Load() {
+		return send()
+	}
+
+	et.mu.RLock()
+	doneCh := et.doneCh
+	et.mu.RUnlock()
+
+	request := x11Yield{released: make(chan struct{}), sent: make(chan struct{})}
+
+	select {
+	case et.yieldCh <- request:
+	case <-doneCh:
+		return send()
+	}
+
+	defer close(request.sent)
+
+	<-request.released
+
+	return send()
 }
 
 // IsEnabled returns whether interception is active.

@@ -506,6 +506,7 @@ func initializeEventTapAndIPC(app *App) error {
 			// user pressing that modifier. Which backends need it is a
 			// per-platform answer, and the concrete tap is only in reach here.
 			registerSyntheticModifierSink(tap, logger)
+			registerKeyboardYielder(tap, logger)
 		}
 	}
 
@@ -629,6 +630,7 @@ func cleanupEventTapAndIPC(app *App) {
 		// The injection backend holds the tap in a slot of its own, which
 		// outlives this App unless it is let go of here.
 		registerSyntheticModifierSink(nil, app.logger)
+		registerKeyboardYielder(nil, app.logger)
 	}
 
 	app.ipcController = nil

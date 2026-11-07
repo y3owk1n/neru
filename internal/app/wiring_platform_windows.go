@@ -19,6 +19,10 @@ func initializePlatformLogger(_ *zap.Logger) {}
 // nothing has to be told in advance.
 func registerSyntheticModifierSink(_ tap.Tap, _ *zap.Logger) {}
 
+// registerKeyboardYielder has nothing to wire on Windows, whose tap passes the
+// keys Neru types through.
+func registerKeyboardYielder(_ tap.Tap, _ *zap.Logger) {}
+
 // platformQuit posts WM_QUIT to unblock the Windows message pump.
 func platformQuit() {
 	infrasystray.Quit()

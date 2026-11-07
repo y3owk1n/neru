@@ -162,6 +162,9 @@ func (et *EventTap) runX11() {
 	}
 	defer C.neru_eventtap_ungrab_keyboard(display)
 
+	et.x11Grabbed.Store(true)
+	defer et.x11Grabbed.Store(false)
+
 	// Count modifiers already held at grab time. Otherwise their releases
 	// drive counts negative and allZero() arms detection while some are still
 	// held.
@@ -185,7 +188,19 @@ func (et *EventTap) runX11() {
 		}
 
 		if C.neru_eventtap_pending(display) == 0 {
-			time.Sleep(x11PollingInterval)
+			select {
+			case <-et.stopCh:
+				return
+			case request := <-et.yieldCh:
+				if !et.yieldX11Keyboard(display, request) {
+					return
+				}
+
+				// Keys may have gone up or down while the window had them.
+				modState = x11QueryModifierState(display)
+				x11ForgetReleasedKeys(display, down)
+			case <-time.After(x11PollingInterval):
+			}
 
 			continue
 		}
@@ -266,6 +281,42 @@ func (et *EventTap) runX11() {
 		}
 
 		et.dispatchKey(key)
+	}
+}
+
+// yieldX11Keyboard lets go of the keyboard for one YieldKeyboard request and
+// takes it back once the caller's keys are out. It reports false when the mode
+// ended meanwhile.
+func (et *EventTap) yieldX11Keyboard(display *C.Display, request x11Yield) bool {
+	et.x11Grabbed.Store(false)
+	C.neru_eventtap_ungrab_keyboard(display)
+	close(request.released)
+
+	select {
+	case <-request.sent:
+	case <-et.stopCh:
+		return false
+	}
+
+	if !et.grabX11Keyboard(display) {
+		return false
+	}
+
+	et.x11Grabbed.Store(true)
+
+	return true
+}
+
+// x11ForgetReleasedKeys drops from down every key the server no longer reads
+// as held, since its release went to the focused window.
+func x11ForgetReleasedKeys(display *C.Display, down map[C.uint]struct{}) {
+	var keymap [32]C.char
+	C.XQueryKeymap(display, &keymap[0])
+
+	for keycode := range down {
+		if (keymap[keycode/x11BitsPerByte]>>(keycode%x11BitsPerByte))&1 == 0 {
+			delete(down, keycode)
+		}
 	}
 }
 

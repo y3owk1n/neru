@@ -68,7 +68,7 @@ the footnotes below give the mechanism behind its limits.
 | **Native hint-search field**  | text view in a key panel | XIM window ⁴        | layer-shell field ⁴       | layer-shell field ⁴  | `EDIT` control in a tool window ⁴ |
 | **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁵ | `BitBlt` ⁵        |
 | **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁶ | tesseract and contour ⁶ | tesseract and contour ⁶ | `Windows.Media.Ocr` and contour ⁶ |
-| **Key feed (`action feed`)** | `CGEventPost`         | uinput               | uinput / virtual-keyboard | uinput               | `SendInput`               |
+| **Key feed (`action feed`)** | `CGEventPost`         | XTest                | uinput / virtual-keyboard | uinput               | `SendInput`               |
 | **Service management (`neru services`)** | launchd user agent | systemd user unit only ² | systemd user unit only ² | systemd user unit only ² | Task Scheduler logon task |
 
 Each footnote gives the mechanism. The effect a user sees is in the
@@ -248,6 +248,16 @@ inside a mode, and the mode's own binding for the same chord wins. Only chords
 with Ctrl, Alt or Cmd fall through, because a bare key is a hint label or grid
 key. On Linux the mode owns the keyboard, so a chord bound in the compositor
 cannot fire while a mode is open.
+
+**Keys Neru types while a mode is open.** Vim mode types into the focused app
+while the mode holds the keyboard. An X11 key event carries no origin, so under
+the grab each typed key would come straight back to Neru. The X11 tap releases
+the grab for each key, sends it through XTest, and grabs again once the server
+has handled it. A key the user presses in that moment goes to the app. The
+Wayland evdev proxy never grabs Neru's own devices, and macOS and Windows tag
+injected keys. The wl-keyboard fallback takes the keyboard through Neru's own
+overlay surface, where typed keys also come back to Neru, so vim mode cannot
+edit there.
 
 **One key, one name.** Every backend names a key by the character it types,
 or by keysym name when it types none, so `Shift+;` has one name everywhere. On

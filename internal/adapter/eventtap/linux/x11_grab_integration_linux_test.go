@@ -72,3 +72,84 @@ func TestEventTap_X11_GrabsTheKeyboardOnceTheActivatingHotkeyIsReleased(t *testi
 		)
 	}
 }
+
+// x11NoKeyWait is how long the test waits to be sure the tap dispatched nothing.
+const x11NoKeyWait = 300 * time.Millisecond
+
+// TestEventTap_X11_YieldKeyboard_SendsTypedKeysToTheFocusedWindow pins that a
+// key Neru types while a mode holds the keyboard reaches the app. X11 cannot
+// tag a key as Neru's, so under the grab it came straight back to the tap,
+// and vim mode's edits and typing never reached the window and looped.
+func TestEventTap_X11_YieldKeyboard_SendsTypedKeysToTheFocusedWindow(t *testing.T) {
+	if os.Getenv("NERU_DESKTOP_TESTS") == "" {
+		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")
+	}
+
+	if os.Getenv("DISPLAY") == "" || platform.DetectLinuxBackend().IsWayland() {
+		t.Skip("skipping: no X11 session; this drives the X11 keyboard grab")
+	}
+
+	window, err := openX11FocusedWindow()
+	if err != nil {
+		t.Fatalf("opening a focused window: %v", err)
+	}
+	defer window.close()
+
+	keys := make(chan string, 64)
+	eventTap := NewEventTap(func(key string) { keys <- key }, nil)
+
+	eventTap.Enable()
+	defer eventTap.Destroy()
+
+	time.Sleep(x11GrabSettle)
+
+	err = pressX11Keys(x11KeyQ)
+	if err != nil {
+		t.Fatalf("typing into the mode: %v", err)
+	}
+
+	select {
+	case <-keys:
+	case <-time.After(x11KeysWait):
+		t.Fatal("the tap dispatched no key, so it never held the keyboard")
+	}
+
+	// The release follows as a key-up event.
+	time.Sleep(x11NoKeyWait)
+
+	for len(keys) > 0 {
+		<-keys
+	}
+
+	window.keyPresses()
+
+	err = eventTap.YieldKeyboard(func() error { return pressX11Keys(x11KeyQ) })
+	if err != nil {
+		t.Fatalf("typing a key with the tap stepped aside: %v", err)
+	}
+
+	if got := window.keyPresses(); got != 1 {
+		t.Fatalf("the focused window received %d key presses, want the 1 Neru typed", got)
+	}
+
+	select {
+	case key := <-keys:
+		t.Fatalf("the tap dispatched %q, the key Neru typed into the window", key)
+	case <-time.After(x11NoKeyWait):
+	}
+
+	err = pressX11Keys(x11KeyQ)
+	if err != nil {
+		t.Fatalf("typing into the mode after the yield: %v", err)
+	}
+
+	select {
+	case <-keys:
+	case <-time.After(x11KeysWait):
+		t.Fatal("the tap dispatched no key after the yield, so it never took the keyboard back")
+	}
+
+	if got := window.keyPresses(); got != 0 {
+		t.Fatalf("the focused window received %d key presses after the yield, want none", got)
+	}
+}
