@@ -33,7 +33,7 @@ func (c *Config) HotkeysForModeAndApp(
 		appConfig = c.Bisect.AppConfigForBundleID(bundleID)
 	case ModeNameScroll:
 		appConfig = c.Scroll.AppConfigForBundleID(bundleID)
-	case ModeNameMonitorSelect:
+	case ModeNameMonitorSelect, ModeNameVim:
 		return base
 	default:
 		appConfig = c.Modes[modeName].AppConfigForBundleID(bundleID)
@@ -374,3 +374,11 @@ func (c *ScrollConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 
 	return nil
 }
+
+// HasAppCaptureScopeOverrides reports false, since vim mode takes no per-app
+// configuration.
+func (c *VimConfig) HasAppCaptureScopeOverrides() bool { return false }
+
+// CaptureScopeForApp returns the capture scope vim mode reads, which is the
+// same for every app.
+func (c *VimConfig) CaptureScopeForApp(string) string { return c.CaptureScope }

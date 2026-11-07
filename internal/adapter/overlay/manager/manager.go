@@ -30,6 +30,8 @@ const (
 	ModeBisect Mode = Mode(domain.ModeNameBisect)
 	// ModeMonitorSelect is the monitor_select mode.
 	ModeMonitorSelect Mode = Mode(domain.ModeNameMonitorSelect)
+	// ModeVim is the vim mode.
+	ModeVim Mode = Mode(domain.ModeNameVim)
 )
 
 // StateChange is a change in overlay mode.
@@ -145,6 +147,45 @@ type MonitorSelectStyle struct {
 type MonitorSelector interface {
 	DrawMonitorSelect(targets []MonitorSelectTarget, style MonitorSelectStyle) error
 	HideMonitorSelect()
+}
+
+// VimStyle is how the vim surface draws, resolved from [vim.ui].
+type VimStyle struct {
+	FontSize              int
+	FontFamily            string
+	CursorColor           string
+	SelectionColor        string
+	MatchColor            string
+	ContainerColor        string
+	StatusBackgroundColor string
+	StatusTextColor       string
+}
+
+// VimScene is a vim frame in the overlay's screen-local space.
+type VimScene struct {
+	Region    image.Rectangle
+	Cursor    image.Rectangle
+	Pending   bool
+	Selection []image.Rectangle
+	Matches   []image.Rectangle
+	Current   int
+	Container image.Rectangle
+	Status    string
+	Lens      [3]string
+	Labels    []VimLabel
+}
+
+// VimLabel is a jump label in screen-local space.
+type VimLabel struct {
+	Text   string
+	Bounds image.Rectangle
+}
+
+// VimDrawer is the optional extension a backend implements when it can draw
+// the vim surface. A backend without it makes the mode report
+// CodeNotSupported.
+type VimDrawer interface {
+	DrawVim(scene VimScene, style VimStyle) error
 }
 
 // Interface is the overlay window management contract.

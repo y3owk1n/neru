@@ -385,31 +385,31 @@ replaces its earlier value unless its entry says it can be repeated.
 
 #### `--action`
 
-Shorthand `-a`. Takes a value. Modes: `hints` · `grid` · `recursive_grid`.
+Shorthand `-a`. Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `vim`.
 
 Action to run on the selection: left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle, move_mouse. move_mouse only leaves the cursor there. Chain with commas, as in left_click,left_click. In hints, copy_text copies the hint's text instead, and takes no chain.
 
 #### `--modifier`
 
-Takes a value. Modes: `hints` · `grid` · `recursive_grid`.
+Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `vim`.
 
 Modifiers to hold during the action, comma-separated: cmd, super, meta, shift, alt, option, ctrl. Needs --action.
 
 #### `--on-exit`
 
-Takes a value, and can be repeated. Modes: `hints` · `grid` · `recursive_grid`.
+Takes a value, and can be repeated. Modes: `hints` · `grid` · `recursive_grid` · `vim`.
 
 Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action and refuses --repeat. Does not run if the mode is canceled. Exec steps see the selection as NERU_X, NERU_Y, NERU_MODE and NERU_ACTION.
 
 #### `--repeat`
 
-Shorthand `-r`. Takes no value. Modes: `hints` · `grid` · `recursive_grid`.
+Shorthand `-r`. Takes no value. Modes: `hints` · `grid` · `recursive_grid` · `vim`.
 
 Reopen the mode after the action runs. Needs --action.
 
 #### `--toggle`
 
-Shorthand `-t`. Takes no value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode`.
+Shorthand `-t`. Takes no value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode` · `vim`.
 
 Open the mode, or leave it if it is already open.
 
@@ -457,7 +457,7 @@ How hints find elements: axtree (accessibility tree), vision (OCR), contour (sha
 
 #### `--capture-scope`
 
-Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect`.
+Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `vim`.
 
 Region to work in: window (the focused window) or screen (the whole screen). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --capture-scope=window,screen. With --toggle, running the command on the last value leaves the mode instead of wrapping.
 
@@ -487,7 +487,7 @@ Open recursive grid already zoomed to this depth at the cursor.
 
 #### `--cursor-selection-mode`
 
-Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect`.
+Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `vim`.
 
 Whether the real cursor follows the selection (follow) or stays put (hold).
 
@@ -633,6 +633,56 @@ It needs more than one display. With one, the command succeeds and opens
 nothing. Labels come from
 `monitor_select.characters`, default `123456789`, and `Escape` cancels. Takes
 the `monitor_select` flags in the [mode flag reference](#mode-flag-reference).
+
+### neru vim
+
+```
+neru vim [flags]
+```
+
+macOS only. Read the text in the focused window, or the whole screen with
+`--capture-scope screen`, and move a cursor over it with vim's keys. Motions,
+counts, text objects, search, marks, registers, macros and `.` work as in
+vim. Vim mode makes each edit in the app under the cursor, by clicking the
+caret into place, selecting with Shift+Right and typing, then reads the screen
+again.
+
+| Keys | Does |
+| :--- | :--- |
+| `i`, `a`, `I`, `A`, `o`, `O` | Click the app's caret into place, then type into the app until `Escape` |
+| `c`, `d`, `x`, `s`, `r`, `J` and the rest | Select the text, then erase it or type over it |
+| `p`, `P` | Click into place and paste |
+| `u`, `Ctrl+R` | The app's own undo and redo |
+| `y` + motion | Copy the text as read, without touching the app. The copied text flashes and the status bar says how much |
+| `Return` | Click the character under the cursor, or with `--action` run that action there |
+| `gc`, `gr`, `gm` + motion | Left, right or middle click the middle of what the motion covers, as `gciw` |
+| `gs` + motion, or `Return` in visual mode | Drag across the text so the app selects it, then leave. Works on text that cannot be edited |
+| `s` + two characters | Jump to a match, by label when there are several |
+| `Ctrl+W` + `h`, `j`, `k`, `l` | Move to the container left, below, above or right |
+| `Ctrl+W` + `w`, `W` | Move to the next or the previous container |
+| `ic`, `ac` | The container's text, or with the blank line after it, as `yic` copies a card |
+| `Ctrl+D`, `Ctrl+U`, `Ctrl+F`, `Ctrl+B`, `Ctrl+E`, `Ctrl+Y` | Scroll the app, and read the screen again. `j` and `k` past the edge scroll too |
+| `Ctrl+L` | Read the screen again, keeping registers, macros and the last search |
+| `:q`, `:click`, `:rightclick`, `:middleclick` | Leave, or click at the cursor |
+| `Escape` | Cancel what is pending, then leave |
+
+Vim mode groups the words of a column, a sidebar or a card into a container,
+using the gaps between words and the color behind them. It lays each container
+out as its own block, so `j`, `k`, `w` and search stay inside the one you are
+reading, and it outlines the one the cursor is in.
+
+Vim mode reads the screen twice. A fast read opens the mode at once, and an
+accurate read replaces it when it finishes. The status bar says `reading…`
+until then. The box beside the cursor shows the word under it as read. A count is at most four
+digits, and one command changes at most 64 places or 2000 characters.
+
+Typing into the app re-sends each key, so an input method's composition does
+not work there, and `i` over text that cannot be edited sends the keys to the
+app as shortcuts. A drag and every edit change the app's own selection. Vim
+mode also reads the window's title and toolbar as text, so an edit there, such
+as `A` on the title line, renames or types into it. Takes the `vim` flags in
+the [mode flag reference](#mode-flag-reference). The scope and appearance are
+under [`[vim]`](configuration.md#vim).
 
 ### neru mode
 

@@ -122,6 +122,8 @@ type handlerState struct {
 	// before SetHints, whose synchronous update callback performs the window
 	// transition (`hints.go`, `monitor.go`, `handler_refresh.go`).
 	hintsFrameOnScreen bool
+	// vim is the open vim session, or nil.
+	vim *vimSession
 	// Services
 	hintService            *services.HintService
 	gridService            *services.GridService
@@ -204,6 +206,8 @@ type handlerState struct {
 	refreshHotkeys        func()
 	executeActionSequence func(source string, steps []string, env []string)
 	clipboard             ports.ClipboardPort
+	vision                ports.VisionPort
+	keyFeed               ports.KeyFeedPort
 	shutdown              func()
 	refreshHintsTimer     *time.Timer
 	modeSession           uint64
@@ -319,6 +323,10 @@ type HandlerDeps struct {
 	System    ports.SystemPort
 	// Clipboard takes the text a copy_text session copies.
 	Clipboard ports.ClipboardPort
+	// Vision reads the screen's text for vim mode.
+	Vision ports.VisionPort
+	// KeyFeed types into the focused app for vim mode.
+	KeyFeed ports.KeyFeedPort
 
 	// Motion is the handler's namespace in the held-key glide controller.
 	Motion *heldmotion.Group
@@ -377,6 +385,8 @@ func NewHandler(deps HandlerDeps) *Handler {
 		refreshHotkeys:         deps.RefreshHotkeys,
 		executeActionSequence:  deps.ExecuteActionSequence,
 		clipboard:              deps.Clipboard,
+		vision:                 deps.Vision,
+		keyFeed:                deps.KeyFeed,
 		shutdown:               deps.Shutdown,
 		textInput:              deps.TextInput,
 		motion:                 deps.Motion,
@@ -410,6 +420,7 @@ func newModes(state *handlerState) map[domain.Mode]Mode {
 		domain.ModeBisect:        NewBisectMode(state),
 		domain.ModeMonitorSelect: NewMonitorSelectMode(state),
 		domain.ModeCustom:        NewCustomMode(state),
+		domain.ModeVim:           NewVimMode(state),
 	}
 }
 

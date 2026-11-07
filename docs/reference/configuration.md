@@ -1101,6 +1101,40 @@ accepted and do nothing.
 `[[bisect.app_configs]]` takes `bundle_id`, `capture_scope` and
 [`hotkeys`](#per-app-hotkey-overrides), as in [grid](#grid).
 
+## [vim]
+
+Settings for vim mode, macOS only. How the mode behaves is in
+[`neru vim`](cli.md#neru-vim). Every key is vim's own, so the mode has no
+hotkey table and no per-app config.
+
+```toml
+[vim]
+capture_scope = "screen"
+
+[vim.ui]
+cursor_color = "#FF8800AA"
+```
+
+### Vim options
+
+| Option          | Type   | Default    | Description                                                                                         |
+| --------------- | ------ | ---------- | --------------------------------------------------------------------------------------------------- |
+| `enabled`       | bool   | `true`     | Turn the mode on or off                                                                             |
+| `capture_scope` | string | `"window"` | What is read: `window` (the screen if nothing is focused) or `screen`. `--capture-scope` overrides it |
+
+### Vim UI
+
+| Option                    | Type   | Default | Description                                                                                 |
+| ------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------- |
+| `font_size`               | int    | `13`    | Status bar and lens font size                                                               |
+| `font_family`             | string | `""`    | Status bar and lens font. Accepts [generic aliases](#fonts), and empty means a monospaced face |
+| `cursor_color`            | color  | derived | Fill of the cursor, and of the cursor's character in the lens                               |
+| `selection_color`         | color  | derived | Fill of the visual selection                                                                |
+| `match_color`             | color  | derived | Underline of each search match, and outline of the one under the cursor                     |
+| `container_color`         | color  | derived | Outline of the container the cursor is in. A fully transparent color hides it               |
+| `status_background_color` | color  | derived | Background of the status bar and the lens                                                   |
+| `status_text_color`       | color  | derived | Text of the status bar and the lens                                                         |
+
 ## [scroll]
 
 Keyboard-driven scrolling.
@@ -1269,7 +1303,7 @@ text = "H"
 ### Per-mode
 
 Each mode has a `[mode_indicator.<mode>]` table for `scroll`, `hints`, `grid`,
-`recursive_grid`, `bisect` and `monitor_select`. Only `scroll` is shown by
+`recursive_grid`, `bisect`, `monitor_select` and `vim`. Only `scroll` is shown by
 default, and the default `text` is the mode's name in title case, such as
 `Recursive Grid`.
 

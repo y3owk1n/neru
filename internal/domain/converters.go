@@ -11,6 +11,7 @@ const (
 	ModeNameRecursiveGrid = "recursive_grid"
 	ModeNameBisect        = "bisect"
 	ModeNameMonitorSelect = "monitor_select"
+	ModeNameVim           = "vim"
 	// ModeNameCustom is the command word that enters a user-declared mode:
 	// "mode <name>". It is the word wherever a built-in mode is called by its
 	// name, so the CLI command, the IPC action and the binding step all agree.
@@ -37,6 +38,8 @@ func ModeString(mode Mode) string {
 		return ModeNameMonitorSelect
 	case ModeCustom:
 		return ModeNameCustom
+	case ModeVim:
+		return ModeNameVim
 	default:
 		return UnknownMode
 	}

@@ -356,6 +356,8 @@ func (o *Overlay) resolveModeConfig(mode string) *config.ModeIndicatorModeConfig
 		return &o.indicatorConfig.RecursiveGrid
 	case domain.ModeNameBisect:
 		return &o.indicatorConfig.Bisect
+	case domain.ModeNameVim:
+		return &o.indicatorConfig.Vim
 	default:
 		return customModeConfig(o.customLabels, mode)
 	}

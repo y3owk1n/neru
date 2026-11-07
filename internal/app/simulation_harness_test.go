@@ -185,6 +185,9 @@ type simOverlayPort struct {
 	// monitor picker. Showing that frame reports CodeNotSupported, the way an
 	// adapter over a backend without the capability does.
 	refuseMonitorSelect bool
+	// refuseVim stands in for a backend with no vim surface, which is every
+	// backend but the macOS one.
+	refuseVim bool
 	// refuseHintSearch stands in for a backend that draws no hint search
 	// badge. The draw reports CodeNotSupported, the way the Linux overlay does
 	// for a search input no backend there implements.
@@ -208,6 +211,7 @@ type simOverlayPort struct {
 	gridDraws          []simGridDraw
 	recursiveGridDraws []image.Rectangle
 	bisectDraws        []ports.BisectFrame
+	vimDraws           []ports.VimFrame
 	monitorDraws       [][]ports.MonitorSelectTarget
 
 	matchPrefixes []string
@@ -269,6 +273,10 @@ func (m *simOverlayPort) ShowFrame(_ context.Context, frame ports.Frame) error {
 
 	if _, isPicker := frame.(ports.MonitorSelectFrame); isPicker && m.refuseMonitorSelect {
 		return derrors.New(derrors.CodeNotSupported, "no monitor picker on this backend")
+	}
+
+	if _, isVim := frame.(ports.VimFrame); isVim && m.refuseVim {
+		return derrors.New(derrors.CodeNotSupported, "no vim surface on this backend")
 	}
 
 	m.mu.Lock()
@@ -524,6 +532,8 @@ func (m *simOverlayPort) recordLocked(frame ports.Frame) {
 		m.recursiveGridDraws = append(m.recursiveGridDraws, drawn.Bounds)
 	case ports.BisectFrame:
 		m.bisectDraws = append(m.bisectDraws, drawn)
+	case ports.VimFrame:
+		m.vimDraws = append(m.vimDraws, drawn)
 	case ports.MonitorSelectFrame:
 		m.monitorDraws = append(m.monitorDraws, slices.Clone(drawn.Targets))
 	case ports.ScrollFrame:
@@ -643,6 +653,18 @@ func (m *simOverlayPort) lastBisectFrame() (ports.BisectFrame, bool) {
 	}
 
 	return m.bisectDraws[len(m.bisectDraws)-1], true
+}
+
+// lastVimFrame returns the most recent vim frame, and whether one was drawn.
+func (m *simOverlayPort) lastVimFrame() (ports.VimFrame, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(m.vimDraws) == 0 {
+		return ports.VimFrame{}, false
+	}
+
+	return m.vimDraws[len(m.vimDraws)-1], true
 }
 
 // showCount reports how many times a frame was put on screen with the window
@@ -1215,6 +1237,7 @@ type simHarness struct {
 	watcher *mocks.MockAppWatcherPort
 	// clipboard records what copy_text wrote.
 	clipboard *mocks.MockClipboardPort
+	keyFeed   *mocks.MockKeyFeedPort
 	desktop   *simDesktop
 	runDone   chan error
 }
@@ -1428,7 +1451,7 @@ func newSimHarnessHeadlessOverlay(
 		cfg,
 		nil,
 		displays,
-		&simOverlayPort{refuseMonitorSelect: true},
+		&simOverlayPort{refuseMonitorSelect: true, refuseVim: true},
 		nil,
 	)
 }
@@ -1531,6 +1554,7 @@ func buildSimHarness(
 	}
 
 	clipboard := &mocks.MockClipboardPort{}
+	keyFeed := &mocks.MockKeyFeedPort{}
 
 	application, err := app.New(
 		app.WithConfig(cfg),
@@ -1547,6 +1571,7 @@ func buildSimHarness(
 		app.WithAccessibility(axPort),
 		app.WithVisionPort(vision),
 		app.WithClipboard(clipboard),
+		app.WithKeyFeed(keyFeed),
 	)
 	if err != nil {
 		tb.Fatalf("app.New failed: %v", err)
@@ -1564,6 +1589,7 @@ func buildSimHarness(
 		hotkeys:    hotkeys,
 		tap:        tap,
 		clipboard:  clipboard,
+		keyFeed:    keyFeed,
 		watcher:    watcher,
 		desktop:    desktop,
 		runDone:    make(chan error, 1),

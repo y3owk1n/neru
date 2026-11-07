@@ -151,6 +151,16 @@ func WithVisionPort(vision ports.VisionPort) Option {
 	}
 }
 
+// WithKeyFeed sets the port keys are typed into the focused app through.
+// Note: keyFeed can be nil, will be initialized during app startup if not provided.
+func WithKeyFeed(keyFeed ports.KeyFeedPort) Option {
+	return func(a *App) error {
+		a.keyFeed = keyFeed
+
+		return nil
+	}
+}
+
 // WithSystemPort sets the system port implementation.
 // Note: systemPort can be nil, will be initialized during app startup if not provided.
 func WithSystemPort(systemPort ports.SystemPort) Option {
