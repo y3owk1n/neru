@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -78,10 +79,33 @@ func (h *handlerState) handleVimKey(key string) {
 		return
 	}
 
+	h.handleVimMachineKey(vimKey)
+}
+
+// handleVimMachineKey runs a key in vim's notation: the keys vim mode owns,
+// or the machine's, and what the machine asks of the app once it returns.
+func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
+	session := h.vim
 	machine := session.machine
 
-	if machine.Idle() && h.handleVimIdleKey(vimKey) {
-		return
+	if vimKey == "." && session.lastInsert != nil && !session.repeating {
+		if count, ok := vimPendingCount(machine); ok || machine.Idle() {
+			if ok && !h.feedVim("<Esc>") {
+				return
+			}
+
+			h.vimRepeatInsert(count)
+
+			return
+		}
+	}
+
+	if machine.Idle() {
+		session.commandKeys = nil
+
+		if h.handleVimIdleKey(vimKey) {
+			return
+		}
 	}
 
 	if machine.Mode() == vim.Visual && vimKey == "<CR>" {
@@ -100,9 +124,14 @@ func (h *handlerState) handleVimKey(key string) {
 
 	line := session.host.Screen().LineOf(session.host.Cursor())
 	session.edited, session.edits, session.yank, session.notice = false, nil, "", ""
+	session.commandKeys = append(session.commandKeys, vimKey)
 
 	if !h.feedVim(vimKey) {
 		return
+	}
+
+	if machine.Mode() == vim.Insert {
+		session.insertCommand = slices.Clone(session.commandKeys)
 	}
 
 	if act := session.act; act != nil {
@@ -137,6 +166,84 @@ func (h *handlerState) handleVimKey(key string) {
 	if !h.swapInRefinedVimText() {
 		h.redrawFrame(h.vimFrame(), "update vim overlay")
 	}
+}
+
+// vimInsert is a command that typed into the app, and what it typed.
+type vimInsert struct {
+	command []vim.Key
+	typed   []string
+}
+
+// vimRepeatInsert repeats the last command that typed into the app, with
+// what it typed, for . after such a command. The machine never saw the
+// typing, so its own . would repeat the command alone. A count replaces the
+// command's own, as 3. after ciw changes three words.
+func (h *handlerState) vimRepeatInsert(count int) {
+	session := h.vim
+	last := session.lastInsert
+
+	command := last.command
+	if count > 0 {
+		for len(command) > 0 && len(command[0]) == 1 && unicode.IsDigit(rune(command[0][0])) {
+			command = command[1:]
+		}
+
+		command = slices.Concat(vimCountKeys(count), command)
+	}
+
+	// The replay runs the machine's own . for a . inside the command, rather
+	// than this one again.
+	session.repeating = true
+	for _, key := range command {
+		h.handleVimMachineKey(key)
+
+		if h.vim != session {
+			return
+		}
+	}
+
+	session.repeating = false
+
+	if !session.typing {
+		return
+	}
+
+	if len(last.typed) > 0 {
+		session.eraseOnEscape = false
+	}
+
+	h.vimFeed(last.typed...)
+	session.typedKeys = last.typed
+
+	h.handleVimTypingKey(configpkg.KeyNameEscape)
+}
+
+// vimPendingCount returns the count typed so far when a count is all the
+// machine holds.
+func vimPendingCount(machine *vim.Machine) (int, bool) {
+	shown := machine.Shown()
+	if shown == "" || strings.TrimFunc(shown, unicode.IsDigit) != "" ||
+		machine.Mode() != vim.Normal || machine.Pending() {
+		return 0, false
+	}
+
+	count, err := strconv.Atoi(shown)
+
+	return count, err == nil
+}
+
+// vimCountKeys returns the keys that type count, or none for zero.
+func vimCountKeys(count int) []vim.Key {
+	if count <= 0 {
+		return nil
+	}
+
+	keys := make([]vim.Key, 0, vimMaxCountDigits)
+	for _, digit := range strconv.Itoa(count) {
+		keys = append(keys, vim.Key(digit))
+	}
+
+	return keys
 }
 
 // feedVim feeds key to the machine. A panic inside it would take the daemon
@@ -221,6 +328,7 @@ func (h *handlerState) handleVimTypingKey(key string) {
 		}
 
 		session.typing, session.eraseOnEscape = false, false
+		session.lastInsert = &vimInsert{command: session.insertCommand, typed: session.typedKeys}
 
 		if !h.feedVim("<Esc>") {
 			return
@@ -233,6 +341,7 @@ func (h *handlerState) handleVimTypingKey(key string) {
 	}
 
 	session.eraseOnEscape = false
+	session.typedKeys = append(session.typedKeys, key)
 
 	h.vimFeed(key)
 }
@@ -248,6 +357,7 @@ func (h *handlerState) vimStartTyping(caret image.Point, click bool) {
 
 	session.typing = true
 	session.typedAt = caret
+	session.typedKeys = nil
 
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
 }
