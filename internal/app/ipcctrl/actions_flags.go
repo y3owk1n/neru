@@ -83,6 +83,7 @@ var actionFlagSupport = map[string][]string{
 	string(action.NameSearchHints):   {flagConfirmOnLabel},
 	string(action.NameRefreshHints):  {},
 	string(action.NameSessionAction): {},
+	string(action.NameCopyText):      {},
 	string(action.NameSnap): {
 		flagStrategy, flagRole, flagText, flagDirection, flagBare,
 	},

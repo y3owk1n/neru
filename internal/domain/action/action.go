@@ -405,6 +405,8 @@ const (
 	NameRefreshHints Name = "refresh_hints"
 	// NameSessionAction runs the open hints session's --action at the cursor.
 	NameSessionAction Name = "session_action"
+	// NameCopyText copies the text of the selected hint to the clipboard.
+	NameCopyText Name = "copy_text"
 	// NameSnap moves the cursor onto the nearest element hints would label.
 	NameSnap Name = "snap"
 
@@ -559,6 +561,11 @@ func IsSessionActionAction(name string) bool {
 	return Name(name) == NameSessionAction
 }
 
+// IsCopyTextAction reports whether the given action is copy_text.
+func IsCopyTextAction(name string) bool {
+	return Name(name) == NameCopyText
+}
+
 // IsSnapAction reports whether the given action is snap.
 func IsSnapAction(name string) bool {
 	return Name(name) == NameSnap
@@ -596,7 +603,7 @@ func IsKnownName(name Name) bool {
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
 		NameScrollUp, NameScrollDown, NameScrollLeft, NameScrollRight,
 		NameGoTop, NameGoBottom, NamePageUp, NamePageDown,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSessionAction, NameSnap,
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSessionAction, NameCopyText, NameSnap,
 		NameHideCursor, NameShowCursor:
 		return true
 	default:
@@ -625,7 +632,7 @@ func IsScrollSubAction(name string) bool {
 		NameMoveMouse, NameMoveMouseRelative, NameScroll,
 		NameReset, NameBackspace, NameMoveCell, NameBisect,
 		NameWaitForModeExit, NameSaveCursorPos, NameRestoreCursorPos,
-		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSessionAction, NameSnap,
+		NameMoveMonitor, NameFeed, NameSleep, NameCycleHint, NameSearchHints, NameRefreshHints, NameSessionAction, NameCopyText, NameSnap,
 		NameHideCursor, NameShowCursor:
 		return false
 	default:
@@ -741,6 +748,7 @@ func (n Name) ToType() (Type, error) {
 		NameSearchHints,
 		NameRefreshHints,
 		NameSessionAction,
+		NameCopyText,
 		NameSnap,
 		NameHideCursor,
 		NameShowCursor:

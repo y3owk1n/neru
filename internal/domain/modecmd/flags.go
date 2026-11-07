@@ -143,7 +143,8 @@ const usageCycleToggle = "With --toggle, running the command on the last value l
 // is offered is the one the rules accept rather than a list kept alongside it.
 var usageAction = "Action to run on the selection: " +
 	action.ModeActionNamesString() +
-	". move_mouse only leaves the cursor there. Chain with commas, as in left_click,left_click"
+	". move_mouse only leaves the cursor there. Chain with commas, as in left_click,left_click. " +
+	"In hints, copy_text copies the hint's text instead, and takes no chain"
 
 // String returns the bare name.
 func (f Flag) String() string { return string(f) }

@@ -183,8 +183,12 @@ type handlerState struct {
 	// dropped while both hold for the current session.
 	selectWithInFlight bool
 	selectWithSession  uint64
-	keymapSettledFor   keymapInputs
-	keymapSettled      bool
+	// hintSelected says a hint has been selected since a mode last opened, and
+	// selectedHintText is its text, for copy_text.
+	hintSelected     bool
+	selectedHintText string
+	keymapSettledFor keymapInputs
+	keymapSettled    bool
 
 	// eventTap is nil until the app's phase 8 calls SetEventTap. Every use
 	// goes through the nil-guarded helpers in eventtap.go.

@@ -63,6 +63,8 @@ const (
 	CapabilityKeyFeed CapabilityKey = "key_feed"
 	// CapabilitySystray covers the system tray / notification-area icon.
 	CapabilitySystray CapabilityKey = "systray"
+	// CapabilityClipboard covers writing text to the system clipboard.
+	CapabilityClipboard CapabilityKey = "clipboard"
 )
 
 // PlatformCapabilities describes the current platform support surface.
@@ -88,6 +90,7 @@ type PlatformCapabilities struct {
 	Vision            FeatureCapability
 	KeyFeed           FeatureCapability
 	Systray           FeatureCapability
+	Clipboard         FeatureCapability
 }
 
 // CapabilityEntry pairs a capability with its stable wire key so callers can
@@ -144,5 +147,6 @@ func (c PlatformCapabilities) Entries() []CapabilityEntry {
 		{Key: CapabilityVision, Field: "Vision", FeatureCapability: c.Vision},
 		{Key: CapabilityKeyFeed, Field: "KeyFeed", FeatureCapability: c.KeyFeed},
 		{Key: CapabilitySystray, Field: "Systray", FeatureCapability: c.Systray},
+		{Key: CapabilityClipboard, Field: "Clipboard", FeatureCapability: c.Clipboard},
 	}
 }

@@ -263,3 +263,49 @@ func TestElement_Options(t *testing.T) {
 		})
 	}
 }
+
+func TestElement_Text_PrefersValueThenTitleThenDescription(t *testing.T) {
+	tests := []struct {
+		name string
+		opts []element.Option
+		want string
+	}{
+		{
+			"a field's value wins over its label",
+			[]element.Option{
+				element.WithTitle("Name"),
+				element.WithValue("Ada"),
+				element.WithDescription("Your name"),
+			},
+			"Ada",
+		},
+		{
+			"a button is named by its title",
+			[]element.Option{element.WithTitle("Save"), element.WithDescription("Saves the file")},
+			"Save",
+		},
+		{
+			"an icon button may have only a description",
+			[]element.Option{element.WithDescription("Back")},
+			"Back",
+		},
+		{"an element with no text", nil, ""},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			elem, err := element.NewElement(
+				"id",
+				image.Rect(0, 0, 10, 10),
+				element.RoleButton,
+				testCase.opts...)
+			if err != nil {
+				t.Fatalf("NewElement() = %v", err)
+			}
+
+			if got := elem.Text(); got != testCase.want {
+				t.Fatalf("Text() = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}

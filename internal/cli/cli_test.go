@@ -147,6 +147,7 @@ func TestCommandInitialization(t *testing.T) {
 		"cycle_hint":          false,
 		"refresh_hints":       false,
 		"session_action":      false,
+		"copy_text":           false,
 		"snap":                false,
 		"hide_cursor":         false,
 		"show_cursor":         false,

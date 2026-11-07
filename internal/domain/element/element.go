@@ -217,6 +217,21 @@ func (e *Element) Value() string {
 	return e.value
 }
 
+// Text returns the element's text as copy_text copies it: its value, else its
+// title, else its description. A field's value is what it holds and static
+// text keeps its words there, so the value comes first, and a button or link
+// is named by its title. It is empty for an element with none, such as a hint
+// found by contour or segment.
+func (e *Element) Text() string {
+	for _, text := range []string{e.value, e.title, e.description} {
+		if text != "" {
+			return text
+		}
+	}
+
+	return ""
+}
+
 // SearchText returns additional searchable text associated with the element.
 func (e *Element) SearchText() string {
 	return e.searchText

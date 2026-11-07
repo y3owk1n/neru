@@ -359,7 +359,8 @@ replaces its earlier value unless its entry says it can be repeated.
 `--action` may be positional: `hints left_click`.
 
 - `--action` takes the mouse-button [action names](#action-names) or
-  `move_mouse`, and `--on-exit` steps form one [action sequence](#neru-run).
+  `move_mouse`, and in hints also `copy_text`. `--on-exit` steps form one
+  [action sequence](#neru-run).
   `hints --action move_mouse --on-exit scroll` opens scroll mode on the hint
   you pick.
 - `--role` takes the [`neru roles`](#neru-roles) vocabulary. `--label-direction`
@@ -386,7 +387,7 @@ replaces its earlier value unless its entry says it can be repeated.
 
 Shorthand `-a`. Takes a value. Modes: `hints` · `grid` · `recursive_grid`.
 
-Action to run on the selection: left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle, move_mouse. move_mouse only leaves the cursor there. Chain with commas, as in left_click,left_click.
+Action to run on the selection: left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle, move_mouse. move_mouse only leaves the cursor there. Chain with commas, as in left_click,left_click. In hints, copy_text copies the hint's text instead, and takes no chain.
 
 #### `--modifier`
 
@@ -678,7 +679,7 @@ These names work as a mode `--action`, in a hotkey binding, or after
 | Toggle   | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                                    |
 | Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`, `snap`                                         |
 | Scroll   | `scroll` ³, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
-| Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `refresh_hints`, `session_action`, `search_hints` ³, `wait_for_mode_exit` |
+| Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `refresh_hints`, `session_action`, `copy_text`, `search_hints` ³, `wait_for_mode_exit` |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
 | Keys     | `feed`                                                                                              |
 | Timing   | `sleep`, in [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
@@ -690,7 +691,9 @@ on the hints flag of the same name for that one search. `scroll` takes no
 flags. For one-shot scrolling use the directional names below.
 
 A mode `--action` accepts only the click, press, release and toggle names,
-`move_mouse`, and the deprecated `mouse_down` and `mouse_up`. `move_mouse`
+`move_mouse`, and the deprecated `mouse_down` and `mouse_up`. Hints also
+accepts [`copy_text`](#neru-action-copy_text) on its own, without a chain or
+`--modifier`. `move_mouse`
 leaves the cursor on the selection and presses nothing, so a mode refuses
 `--modifier` when every action in the chain is `move_mouse`. A chain with a
 button keeps it, as in `move_mouse,left_click --modifier cmd`. A mode refuses
@@ -996,6 +999,40 @@ opened without `--action` has nothing to run, so it does nothing there.
 [hints.select_with]
 ctrl = ["action session_action", "idle"]
 ```
+
+### neru action copy_text
+
+```
+neru action copy_text
+```
+
+Copy the text of the hint most recently selected to the clipboard. That is its
+value, such as a field's contents, else its title, such as a button's or link's
+name, else its description. With the `vision` strategy it is the recognized
+words.
+
+Use it as a step in a
+[`[hints.select_with]`](configuration.md#select-with-modifiers) entry or a
+binding's `--on-exit`, or as the hints mode's `--action`, which copies the hint
+you type without clicking it:
+
+```toml
+[hotkeys]
+"Primary+Shift+Y" = "hints --action copy_text"
+
+[hints.select_with]
+"ctrl+alt" = ["action copy_text", "idle"]
+```
+
+- It fails with `ERR_INVALID_INPUT` when no hint has been selected since a mode
+  last opened, and with `ERR_ACTION_FAILED` when the hint has no text. Hints
+  found by `contour` and `segment` never have any.
+- It never copies a password field's text.
+- On Linux it needs a clipboard tool, listed in
+  [Linux setup](../guide/linux.md#runtime-libraries). Without one it fails with
+  `ERR_NOT_SUPPORTED` and names the tools.
+- To use the text in a command, copy it first and read the clipboard, as in
+  `["action copy_text", 'exec say "$(pbpaste)"']`.
 
 ### neru action wait_for_mode_exit
 

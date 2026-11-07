@@ -8,7 +8,9 @@ import (
 	"go.uber.org/zap"
 
 	configpkg "github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -69,6 +71,35 @@ type selectWithPlan struct {
 // steps there in place of the session's --action, then finishes the session
 // the way that action would have.
 //
+// Caller must hold h.mu.
+func (h *handlerState) selectWithEntry(point image.Point, entry configpkg.Binding) {
+	h.logger.Debug("Hint selected with modifiers",
+		zap.String("entry", entry.Key),
+		zap.Int("step_count", len(entry.Steps)))
+
+	h.runSelectionSteps(point, entry.Key, entry.Steps, "")
+}
+
+// copyTextSelection runs a copy_text session's action on the selected hint.
+// It goes through the steps path rather than the click path so the clipboard
+// is written by the copy_text action off h.mu, where a slow clipboard tool
+// cannot hold up key handling.
+//
+// Caller must hold h.mu.
+func (h *handlerState) copyTextSelection(point image.Point) {
+	h.runSelectionSteps(
+		point,
+		string(action.NameCopyText),
+		[]string{action.PrefixAction + " " + string(action.NameCopyText)},
+		string(action.NameCopyText),
+	)
+}
+
+// runSelectionSteps moves the cursor to the selected hint, runs steps there,
+// then finishes the session the way its --action would have. source names
+// the steps in logs and to the modifier suppression a mode-entering step
+// triggers, and actionName is what the select event reports the selection ran.
+//
 // The steps run on a goroutine, as a binding's do, because a step may reach
 // the handler through IPC and h.mu is held here. Finishing re-enters through
 // the outer locked surface, guarded by the mode-session token. Until it does,
@@ -77,13 +108,18 @@ type selectWithPlan struct {
 // steps. Bindings, Escape among them, still answer.
 //
 // Caller must hold h.mu.
-func (h *handlerState) selectWithEntry(point image.Point, entry configpkg.Binding) {
+func (h *handlerState) runSelectionSteps(
+	point image.Point,
+	source string,
+	steps []string,
+	actionName string,
+) {
 	moveErr := h.actionService.MoveCursorToPoint(h.ctx, point)
 	if moveErr != nil {
 		h.logger.Error("Failed to move cursor", zap.Error(moveErr))
 	}
 
-	selection := h.publishSelect(point, "")
+	selection := h.publishSelect(point, actionName)
 
 	plan := selectWithPlan{
 		session:         h.modeSession,
@@ -95,10 +131,6 @@ func (h *handlerState) selectWithEntry(point image.Point, entry configpkg.Bindin
 		env:             selection.Env(),
 	}
 
-	h.logger.Debug("Hint selected with modifiers",
-		zap.String("entry", entry.Key),
-		zap.Int("step_count", len(entry.Steps)))
-
 	if h.executeActionSequence == nil {
 		h.finishSelectWith(plan, false)
 
@@ -108,17 +140,14 @@ func (h *handlerState) selectWithEntry(point image.Point, entry configpkg.Bindin
 	h.selectWithInFlight = true
 	h.selectWithSession = plan.session
 
-	// The entry's key is the source, as a binding's is, so a step that enters a
-	// mode suppresses the modifiers the user is still holding.
-	source := entry.Key
-	steps := append([]string(nil), entry.Steps...)
+	steps = append([]string(nil), steps...)
 
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				h.logger.Error("Panic in select_with handler",
+				h.logger.Error("Panic in selection steps",
 					zap.Any("recover", r),
-					zap.String("entry", entry.Key))
+					zap.String("source", source))
 			}
 		}()
 
@@ -224,4 +253,36 @@ func (h *handlerState) selectWithChords() []string {
 	}
 
 	return chords
+}
+
+// rememberSelectedHint records the hint the user just selected, for copy_text.
+//
+// Caller must hold h.mu.
+func (h *handlerState) rememberSelectedHint(text string) {
+	h.hintSelected = true
+	h.selectedHintText = text
+}
+
+// SelectedHintText returns the text of the hint most recently selected, for
+// copy_text. It is refused when no hint has been selected since a mode last
+// opened, and fails when the hint has no text, such as one found by contour
+// or segment.
+func (h *Handler) SelectedHintText() (string, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if !h.hintSelected {
+		return "", derrors.New(derrors.CodeInvalidInput, "copy_text needs a selected hint")
+	}
+
+	if h.selectedHintText == "" {
+		return "", derrors.New(derrors.CodeActionFailed, "the selected hint has no text")
+	}
+
+	return h.selectedHintText, nil
+}
+
+// isCopyTextAction reports whether a session's --action is copy_text.
+func isCopyTextAction(pendingAction *string) bool {
+	return pendingAction != nil && action.IsCopyTextAction(strings.TrimSpace(*pendingAction))
 }

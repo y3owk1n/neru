@@ -160,3 +160,13 @@ func WithSystemPort(systemPort ports.SystemPort) Option {
 		return nil
 	}
 }
+
+// WithClipboard sets the clipboard implementation. Nil leaves the platform
+// adapter to be built during startup.
+func WithClipboard(clipboard ports.ClipboardPort) Option {
+	return func(a *App) error {
+		a.clipboard = clipboard
+
+		return nil
+	}
+}

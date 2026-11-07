@@ -55,7 +55,7 @@ func TestSimulation_SelectWith_FinishesARepeatSessionInOneKey(t *testing.T) {
 	cfg := simConfig()
 	cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsRepeatClicks}
 	cfg.Hints.SelectWith = map[string]config.StringOrStringArray{
-		selectWithCtrl: {"action session_action", "idle"},
+		selectWithCtrl: {"action session_action", stepIdle},
 	}
 
 	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
@@ -229,7 +229,7 @@ func TestSimulation_SelectWith_LabelsWaitForTheEntrysSteps(t *testing.T) {
 		"hints --action=left_click --on-exit='action middle_click'",
 	}
 	cfg.Hints.SelectWith = map[string]config.StringOrStringArray{
-		selectWithCtrl: {"action sleep 300ms", "action session_action", "idle"},
+		selectWithCtrl: {"action sleep 300ms", "action session_action", stepIdle},
 	}
 
 	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")

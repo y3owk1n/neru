@@ -328,8 +328,16 @@ func (h *handlerState) handleHintsLabelKey(key, modifiers string) {
 
 		h.logger.Debug("Hint matched")
 
+		h.rememberSelectedHint(hint.Element().Text())
+
 		if entry, ok := h.selectWith.Lookup(modifiers); modifiers != "" && ok {
 			h.selectWithEntry(center, entry)
+
+			return
+		}
+
+		if isCopyTextAction(h.hints.Context.PendingAction()) {
+			h.copyTextSelection(center)
 
 			return
 		}

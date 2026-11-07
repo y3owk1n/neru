@@ -44,8 +44,9 @@ func DarwinCapabilities() PlatformCapabilities {
 		Vision: supportedCapability(
 			"OCR element detection available via the Vision framework and ScreenCaptureKit",
 		),
-		KeyFeed: supportedCapability("key injection available via CGEventPost"),
-		Systray: supportedCapability("tray icon available via NSStatusItem"),
+		KeyFeed:   supportedCapability("key injection available via CGEventPost"),
+		Systray:   supportedCapability("tray icon available via NSStatusItem"),
+		Clipboard: supportedCapability("clipboard writes available via pbcopy"),
 	}
 }
 
@@ -151,6 +152,12 @@ func LinuxCapabilities() PlatformCapabilities {
 		Systray: supportedCapability(
 			"tray icon available via the D-Bus StatusNotifierItem + dbusmenu protocols",
 		),
+		// The copier is a separate program the user installs, looked up on each
+		// copy, so this static preset names it as what may be missing.
+		Clipboard: supportedCapability(
+			"clipboard writes via wl-copy on Wayland, or xclip or xsel on X11, " +
+				"one of which has to be installed",
+		),
 	}
 }
 
@@ -213,6 +220,9 @@ func WindowsCapabilities() PlatformCapabilities {
 		KeyFeed: supportedCapability("key injection available via SendInput"),
 		Systray: supportedCapability(
 			"tray icon available via the Win32 notification area (Shell_NotifyIcon)",
+		),
+		Clipboard: supportedCapability(
+			"clipboard writes available via the Win32 clipboard (SetClipboardData)",
 		),
 	}
 }

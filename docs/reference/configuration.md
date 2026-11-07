@@ -820,6 +820,7 @@ that set run in place of the session's `--action`.
 ctrl = ["action session_action", "idle"]   # the session's action, then exit
 alt = "action right_click"
 cmd = "action left_click --modifier cmd"   # open a link in a new tab
+"ctrl+alt" = ["action copy_text", "idle"]  # copy the hint's text, then exit
 ```
 
 - **Keys** are modifier sets: one or more of `cmd`, `ctrl`, `alt`, `shift` and

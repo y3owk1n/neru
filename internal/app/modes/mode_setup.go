@@ -22,6 +22,13 @@ func (h *handlerState) setAppMode(mode domain.Mode) {
 	h.modeSession++
 	h.appState.SetMode(mode)
 
+	// A mode opening starts a new selection, so copy_text forgets the last
+	// one. Returning to idle keeps it, for a step that runs after the exit.
+	if mode != domain.ModeIdle {
+		h.hintSelected = false
+		h.selectedHintText = ""
+	}
+
 	// The idle between two modes of a transition publishes nothing. The old
 	// mode's exit goes out here when the next mode opens, or from the
 	// transition's release if none does.

@@ -1165,3 +1165,63 @@ func TestNextInCycle(t *testing.T) {
 		}
 	}
 }
+
+// TestValidate_CopyTextIsAHintsActionOnItsOwn pins where --action copy_text
+// is accepted. It copies a hint's text, so only hints takes it, and it presses
+// nothing, so it neither chains with clicks nor takes a --modifier.
+func TestValidate_CopyTextIsAHintsActionOnItsOwn(t *testing.T) {
+	t.Parallel()
+
+	const argCopyText = "--action=copy_text"
+
+	tests := []struct {
+		name string
+		mode domain.Mode
+		args []string
+		want string
+	}{
+		{name: "hints", mode: domain.ModeHints, args: []string{argCopyText}},
+		{
+			name: "hints with on-exit",
+			mode: domain.ModeHints,
+			args: []string{argCopyText, "--on-exit=idle"},
+		},
+		{
+			name: "grid",
+			mode: domain.ModeGrid,
+			args: []string{argCopyText},
+			want: "copy_text works only in hints mode, since only a hint carries text to copy",
+		},
+		{
+			name: "chained",
+			mode: domain.ModeHints,
+			args: []string{"--action=copy_text,left_click"},
+			want: "copy_text cannot be chained with other actions, so give it on its own",
+		},
+		{
+			name: "with a modifier",
+			mode: domain.ModeHints,
+			args: []string{argCopyText, argModifierCmd},
+			want: "--modifier needs a mouse button action, because copy_text presses nothing for it to hold",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := modecmd.Parse(testCase.mode, testCase.args)
+			if testCase.want == "" {
+				if err != nil {
+					t.Fatalf("Parse(%v) = %v, want it accepted", testCase.args, err)
+				}
+
+				return
+			}
+
+			if err == nil || message(err) != testCase.want {
+				t.Fatalf("Parse(%v) = %v, want %q", testCase.args, err, testCase.want)
+			}
+		})
+	}
+}
