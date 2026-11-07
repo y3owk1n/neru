@@ -153,6 +153,13 @@ func (c *Config) ValidateWithWarnings(warnings *Warnings, written WrittenConfig)
 		return err
 	}
 
+	// After the hotkey tables, which it reads to find a chord a binding
+	// would answer before a hint label could.
+	err = c.ValidateSelectWith()
+	if err != nil {
+		return err
+	}
+
 	// The two whole-configuration walks close the ladder. Both go through
 	// eachBindingAction, which reads every action string the configuration can
 	// dispatch rather than one section of it, so both run after the validators

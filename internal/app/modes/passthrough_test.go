@@ -493,3 +493,40 @@ func TestSyncModifierPassthrough_ConsumesTheGlobalChordsAModeFallsBackTo(t *test
 		t.Errorf("intercepted modifier keys = %v, want %v", got, want)
 	}
 }
+
+// TestSyncModifierPassthrough_ConsumesTheSelectWithChords pins that a hint
+// character held with a select_with modifier set reaches the label. Passed
+// through, the chord would go to the focused application instead. A Shift-only
+// set is never passed through, so it needs no entry.
+func TestSyncModifierPassthrough_ConsumesTheSelectWithChords(t *testing.T) {
+	t.Parallel()
+
+	canonical := config.CanonicalHotkeyForPlatform
+
+	cfg := &config.Config{
+		General: config.GeneralConfig{PassthroughUnboundedKeys: true},
+		Hints: config.HintsConfig{
+			HintCharacters: "as",
+			SelectWith: map[string]config.StringOrStringArray{
+				"ctrl":  {stepLeftClick},
+				"shift": {stepLeftClick},
+			},
+		},
+	}
+
+	_, tap := newPassthroughHandler(t, cfg, "", (*Handler).SetModeHints)
+
+	want := []string{canonical("ctrl+a"), canonical("ctrl+s")}
+	slices.Sort(want)
+
+	if got := tap.InterceptedModifierKeys(); !slices.Equal(got, want) {
+		t.Errorf("intercepted modifier keys = %v, want %v", got, want)
+	}
+
+	_, blacklist := tap.ModifierPassthrough()
+	for _, chord := range want {
+		if !slices.Contains(blacklist, chord) {
+			t.Errorf("blacklist is %v, want %q among them", blacklist, chord)
+		}
+	}
+}

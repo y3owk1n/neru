@@ -176,13 +176,16 @@ func (m *HintsMode) Backspace() {
 	handler.cycleHintIndex = -1
 }
 
-// HasAppHotkeyOverrides reports whether [hints.apps] binds any per-app hotkey.
+// HasAppHotkeyOverrides reports whether [[hints.app_configs]] binds any
+// per-app hotkey or select_with entry, either of which makes the focused app
+// part of what a keystroke runs.
 func (m *HintsMode) HasAppHotkeyOverrides() bool {
 	if m.handler.config == nil {
 		return false
 	}
 
-	return m.handler.config.Hints.HasAppHotkeyOverrides()
+	return m.handler.config.Hints.HasAppHotkeyOverrides() ||
+		m.handler.config.Hints.HasAppSelectWithOverrides()
 }
 
 // ActiveStrategy reports the strategy the open hint session scanned with.

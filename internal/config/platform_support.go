@@ -297,6 +297,8 @@ func PlatformSupport() parity.Declaration {
 			"hints.app_configs.scroll_step_half",
 			"hints.app_configs.scroll_step_full",
 			"hints.app_configs.hotkeys",
+			"hints.app_configs.select_with",
+			"hints.select_with",
 
 			"grid.enabled",
 			"grid.characters",
@@ -319,6 +321,7 @@ func PlatformSupport() parity.Declaration {
 			"grid.app_configs.scroll_step_half",
 			"grid.app_configs.scroll_step_full",
 			"grid.app_configs.hotkeys",
+			"grid.app_configs.select_with",
 
 			"recursive_grid.enabled",
 			"recursive_grid.grid_cols",
@@ -356,6 +359,7 @@ func PlatformSupport() parity.Declaration {
 			"recursive_grid.app_configs.scroll_step_half",
 			"recursive_grid.app_configs.scroll_step_full",
 			"recursive_grid.app_configs.hotkeys",
+			"recursive_grid.app_configs.select_with",
 
 			"bisect.enabled",
 			"bisect.animation.enabled",
@@ -384,6 +388,7 @@ func PlatformSupport() parity.Declaration {
 			"bisect.app_configs.scroll_step_half",
 			"bisect.app_configs.scroll_step_full",
 			"bisect.app_configs.hotkeys",
+			"bisect.app_configs.select_with",
 
 			"virtual_pointer.ui.char",
 			"virtual_pointer.ui.font_size",
@@ -414,6 +419,7 @@ func PlatformSupport() parity.Declaration {
 			"scroll.app_configs.scroll_step_half",
 			"scroll.app_configs.scroll_step_full",
 			"scroll.app_configs.hotkeys",
+			"scroll.app_configs.select_with",
 
 			"mode_indicator.scroll.enabled",
 			"mode_indicator.scroll.text",
@@ -471,6 +477,7 @@ func PlatformSupport() parity.Declaration {
 			"app_configs.scroll_step_half",
 			"app_configs.scroll_step_full",
 			"app_configs.hotkeys",
+			"app_configs.select_with",
 
 			"hints.ui.background_color",
 			"hints.ui.text_color",

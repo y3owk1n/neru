@@ -118,6 +118,22 @@ func rejectHintsFields(modeName string) AppConfigFieldValidator {
 			)
 		}
 
+		return rejectSelectWith(modeName)(idx, appConfig)
+	}
+}
+
+// rejectSelectWith creates a field validator that rejects select_with, which
+// only hints reads.
+func rejectSelectWith(modeName string) AppConfigFieldValidator {
+	return func(idx int, appConfig *AppConfig) error {
+		if len(appConfig.SelectWith) > 0 {
+			return derrors.Newf(
+				derrors.CodeInvalidConfig,
+				"%s.app_configs[%d].select_with is only valid for hints mode",
+				modeName, idx,
+			)
+		}
+
 		return nil
 	}
 }
@@ -184,7 +200,7 @@ func validateScrollAppConfigs(modeName string, appConfigs []AppConfig) error {
 
 // validateHotkeysAppConfigs validates per-app global hotkey configuration.
 func validateHotkeysAppConfigs(modeName string, appConfigs []AppConfig) error {
-	return validateAppConfigsWithCallback(modeName, appConfigs, nil)
+	return validateAppConfigsWithCallback(modeName, appConfigs, rejectSelectWith(modeName))
 }
 
 // ValidateAppConfigs validates per-app hint configuration.

@@ -171,11 +171,16 @@ func (h *handlerState) settleKeymaps() {
 
 	h.keymap = configpkg.Keymap{}
 	h.globalHotkeys = configpkg.Keymap{}
+	h.selectWith = configpkg.SelectWith{}
 
 	if inputs.config != nil {
 		focusedApp := h.resolveFocusedApp(inputs)
 
 		h.keymap = inputs.config.ResolveKeymap(inputs.keymapModeName(), focusedApp)
+
+		if inputs.mode == domain.ModeHints {
+			h.selectWith = inputs.config.ResolveSelectWith(focusedApp)
+		}
 
 		// Idle takes no fallback. Nothing is captured there, so the platform's
 		// own hotkey mechanism is what runs a global binding, and a key fed
@@ -192,6 +197,7 @@ func (h *handlerState) settleKeymaps() {
 		zap.String("mode", domain.ModeString(inputs.mode)),
 		zap.Int("binding_count", h.keymap.Len()),
 		zap.Int("global_fallback_count", h.globalHotkeys.Len()),
+		zap.Int("select_with_count", h.selectWith.Len()),
 		zap.Bool("asked_the_platform", inputs.mustAsk))
 }
 

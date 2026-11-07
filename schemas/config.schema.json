@@ -82,6 +82,12 @@
           "scroll_step_half": {
             "type": "integer"
           },
+          "select_with": {
+            "additionalProperties": {
+              "$ref": "#/definitions/steps"
+            },
+            "type": "object"
+          },
           "strategy": {
             "type": "string"
           },
@@ -145,6 +151,12 @@
               },
               "scroll_step_half": {
                 "type": "integer"
+              },
+              "select_with": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
               },
               "strategy": {
                 "type": "string"
@@ -394,6 +406,12 @@
               "scroll_step_half": {
                 "type": "integer"
               },
+              "select_with": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
               "strategy": {
                 "type": "string"
               },
@@ -557,6 +575,12 @@
               },
               "scroll_step_half": {
                 "type": "integer"
+              },
+              "select_with": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
               },
               "strategy": {
                 "type": "string"
@@ -740,6 +764,12 @@
             "targets": {
               "type": "string"
             }
+          },
+          "type": "object"
+        },
+        "select_with": {
+          "additionalProperties": {
+            "$ref": "#/definitions/steps"
           },
           "type": "object"
         },
@@ -1167,6 +1197,12 @@
                 "scroll_step_half": {
                   "type": "integer"
                 },
+                "select_with": {
+                  "additionalProperties": {
+                    "$ref": "#/definitions/steps"
+                  },
+                  "type": "object"
+                },
                 "strategy": {
                   "type": "string"
                 },
@@ -1374,6 +1410,12 @@
               "scroll_step_half": {
                 "type": "integer"
               },
+              "select_with": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
               "strategy": {
                 "type": "string"
               },
@@ -1545,6 +1587,12 @@
               },
               "scroll_step_half": {
                 "type": "integer"
+              },
+              "select_with": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
               },
               "strategy": {
                 "type": "string"

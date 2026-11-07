@@ -11,6 +11,7 @@
     "+ .hints.appConfigs[0].scrollStep = null",
     "+ .hints.appConfigs[0].scrollStepFull = null",
     "+ .hints.appConfigs[0].scrollStepHalf = null",
+    "+ .hints.appConfigs[0].selectWith = null",
     "+ .hints.appConfigs[0].strategy = \"\"",
     "+ .hints.appConfigs[0].visibleCheckEnabled = null"
   ],

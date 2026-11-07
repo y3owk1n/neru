@@ -265,6 +265,9 @@ type AppConfig struct {
 	ScrollStepHalf       *int                           `json:"scrollStepHalf"       toml:"scroll_step_half,omitempty"`
 	ScrollStepFull       *int                           `json:"scrollStepFull"       toml:"scroll_step_full,omitempty"`
 	Hotkeys              map[string]StringOrStringArray `json:"hotkeys"              toml:"hotkeys"`
+	// SelectWith replaces hints' select_with entries for this app, one
+	// modifier set at a time. Only hints reads it.
+	SelectWith map[string]StringOrStringArray `json:"selectWith" toml:"select_with,omitempty"`
 }
 
 // HotkeysConfig defines hotkey mappings and their associated actions.
@@ -561,6 +564,11 @@ type HintsConfig struct {
 	VisibleCheckEnabled  bool     `json:"visibleCheckEnabled"  toml:"visible_check_enabled"`
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
+
+	// SelectWith maps a set of held modifiers, such as "shift" or
+	// "cmd+shift", to the steps that run in place of the session's --action
+	// when the key completing a label is typed with exactly those modifiers.
+	SelectWith map[string]StringOrStringArray `json:"selectWith" toml:"select_with"`
 
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }

@@ -678,7 +678,7 @@ These names work as a mode `--action`, in a hotkey binding, or after
 | Toggle   | `left_mouse_toggle`, `right_mouse_toggle`, `middle_mouse_toggle`                                    |
 | Movement | `move_mouse`, `move_mouse_relative`, `move_monitor`, `snap`                                         |
 | Scroll   | `scroll` ³, `scroll_up`, `scroll_down`, `scroll_left`, `scroll_right`, `page_up`, `page_down`, `go_top`, `go_bottom` |
-| Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `refresh_hints`, `search_hints` ³, `wait_for_mode_exit` |
+| Mode     | `reset`, `backspace`, `move_cell`, `bisect`, `cycle_hint`, `refresh_hints`, `session_action`, `search_hints` ³, `wait_for_mode_exit` |
 | Cursor   | `save_cursor_pos`, `restore_cursor_pos`, `hide_cursor`, `show_cursor`                               |
 | Keys     | `feed`                                                                                              |
 | Timing   | `sleep`, in [hotkey bindings only](#action-sleep-hotkey-bindings-only)                                |
@@ -977,6 +977,24 @@ the command fails.
 ```toml
 [hints.hotkeys]
 "Ctrl+R" = "action refresh_hints"
+```
+
+### neru action session_action
+
+```
+neru action session_action
+```
+
+Run the action the hints session was opened with, holding its `--modifier`
+and any sticky modifiers, at the cursor. The mode stays open. Use it as a step in a
+[`[hints.select_with]`](configuration.md#select-with-modifiers) entry. The
+entry runs once the cursor is on the selected hint, so it can do what the
+session does and then something more. Hints mode only. A session
+opened without `--action` has nothing to run, so it does nothing there.
+
+```toml
+[hints.select_with]
+ctrl = ["action session_action", "idle"]
 ```
 
 ### neru action wait_for_mode_exit
