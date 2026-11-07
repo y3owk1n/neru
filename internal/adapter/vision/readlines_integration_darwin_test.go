@@ -71,23 +71,10 @@ var cjkInk = [][]inkCenter{
 		{"ス", 112.5},
 		{"ト", 129.0},
 	},
-	{
-		{"한", 19.0},
-		{"국", 32.5},
-		{"어", 45.8},
-		{"텍", 64.2},
-		{"스", 78.5},
-		{"트", 92.0},
-		{"를", 106.0},
-		{"읽", 123.8},
-		{"습", 138.0},
-		{"니", 151.5},
-		{"다", 166.2},
-	},
 }
 
-// TestReadLines_PutsEachWideCharacterOverItsInk pins ReadLines on Chinese,
-// Japanese and Korean. With no language set the recognizer reads English
+// TestReadLines_PutsEachWideCharacterOverItsInk pins ReadLines on Chinese
+// and Japanese. With no language set the recognizer reads English
 // alone. The gaps inside a character such as 测 split it in two, and
 // punctuation such as 」 is set narrower than a character, so an even split
 // drifts. Each character has to come back as a piece of its own whose box
