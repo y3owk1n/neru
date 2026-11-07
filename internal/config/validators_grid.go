@@ -171,11 +171,11 @@ func (c *Config) warnGridKeySets(warnings *Warnings, written WrittenConfig) {
 
 	for _, labels := range []derivedGridKeySet{
 		{
-			gridKeySet:  gridKeySet{field: "grid.row_labels", keys: c.Grid.RowLabels},
+			field: "grid.row_labels", keys: c.Grid.RowLabels,
 			readWritten: func(cfg *Config) string { return cfg.Grid.RowLabels },
 		},
 		{
-			gridKeySet:  gridKeySet{field: "grid.col_labels", keys: c.Grid.ColLabels},
+			field: "grid.col_labels", keys: c.Grid.ColLabels,
 			readWritten: func(cfg *Config) string { return cfg.Grid.ColLabels },
 		},
 	} {

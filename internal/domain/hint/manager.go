@@ -37,9 +37,7 @@ type Manager struct {
 // requires the caller to hold externalMu (see requireExternalMuHeld).
 func NewManager(logger *zap.Logger, externalMu *sync.Mutex) *Manager {
 	return &Manager{
-		BaseManager: domain.BaseManager{
-			Logger: logger,
-		},
+		Logger:     logger,
 		externalMu: externalMu,
 	}
 }

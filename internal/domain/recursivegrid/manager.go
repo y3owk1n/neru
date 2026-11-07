@@ -147,9 +147,7 @@ func NewManagerWithLayers(
 	}
 
 	return &Manager{
-		BaseManager: domain.BaseManager{
-			Logger: logger,
-		},
+		Logger: logger,
 		grid: NewRecursiveGridWithLayers(
 			screenBounds,
 			minSizeWidth,

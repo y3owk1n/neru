@@ -441,8 +441,8 @@ func TestCursorAnimator_StopHaltsPostsAndReleasesWaiter(t *testing.T) {
 	// The session is still running, so the waiter must still be blocked.
 	// Otherwise stop() releasing it below would prove nothing.
 	select {
-	case <-waitResult:
-		t.Fatal("wait returned while the animation was still in flight")
+	case err := <-waitResult:
+		t.Fatalf("wait returned %v while the animation was still in flight", err)
 	case <-time.After(20 * time.Millisecond):
 	}
 

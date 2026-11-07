@@ -6,14 +6,14 @@ platforms = ["darwin-arm64", "linux-amd64-glibc", "linux-arm64-glibc", "windows-
 
 # go: packages build with this go, on the same go line as the go package below.
 [runtimes]
-go = { ref = "./.oku/go.toml", version = "1.26" }
+go = { ref = "./.oku/go.toml", version = "1.27" }
 
 # A version names the line to follow, and oku.lock pins the exact build. The
 # linter decides what CI accepts, so a new major version of it is a change to
 # review. clang-format and clang-tidy fix their versions in their manifests.
 # The other tools follow the newest release.
 [packages]
-go = { ref = "./.oku/go.toml", version = "1.26" }
+go = { ref = "./.oku/go.toml", version = "1.27" }
 golangci-lint = { ref = "github:golangci/golangci-lint", version = "^2" }
 just = { ref = "github:casey/just", version = "^1" }
 clang-format = "./.oku/clang-format.toml"
