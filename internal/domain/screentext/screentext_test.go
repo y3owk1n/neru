@@ -231,6 +231,26 @@ func TestText_AppChars_LeavesOutWhereALineStarts(t *testing.T) {
 	}
 }
 
+func TestText_AppChars_CountsAGapAsTheSpacesItHolds(t *testing.T) {
+	// Characters 10.4 pixels apart read as 10 wide, so by the third word the
+	// columns from the left edge have drifted a character, and the layout
+	// pads with a space the app does not have.
+	text := screentext.New([]screentext.Word{
+		{Text: "aaaaaaaaaa", Bounds: image.Rect(0, 0, 104, 10)},
+		{Text: "bbbbbbbbbb", Bounds: image.Rect(114, 0, 218, 10)},
+		{Text: "cccccccccc", Bounds: image.Rect(229, 0, 333, 10)},
+	})
+
+	want := "aaaaaaaaaa bbbbbbbbbb cccccccccc"
+	if got := text.AppChars(0, text.Len()); got != len(want) {
+		t.Fatalf("AppChars = %d over %q, want %d", got, text.String(), len(want))
+	}
+
+	if got := text.AppText(0, text.Len()); got != want {
+		t.Fatalf("AppText = %q, want %q", got, want)
+	}
+}
+
 // columns is two columns side by side, a gutter apart, and a footer below on
 // another background.
 func columns() []screentext.Word {

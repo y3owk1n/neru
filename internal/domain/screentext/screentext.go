@@ -175,9 +175,13 @@ func (t *Text) AppChars(start, end int) int {
 
 	for char := graphemes.FromString(t.s[start:end]); char.Next(); {
 		pos := start + char.Start()
-		if !t.icons[pos] &&
-			(char.Value() != " " || strings.TrimLeft(t.s[t.starts[t.LineOf(pos)]:pos], " ") != "") {
+
+		switch {
+		case t.icons[pos]:
+		case char.Value() != " ":
 			count++
+		case !t.leading(pos) && (pos == start || t.s[pos-1] != ' '):
+			count += t.appSpaces(pos, end)
 		}
 	}
 
@@ -214,6 +218,16 @@ func (t *Text) AppText(start, end int) string {
 	var builder strings.Builder
 
 	for pos := start; pos < end; pos++ {
+		if t.s[pos] == ' ' && !t.icons[pos] && !t.leading(pos) {
+			builder.WriteString(strings.Repeat(" ", t.appSpaces(pos, end)))
+
+			for pos+1 < end && t.s[pos+1] == ' ' && !t.icons[pos+1] {
+				pos++
+			}
+
+			continue
+		}
+
 		if !t.icons[pos] {
 			builder.WriteByte(t.s[pos])
 
@@ -369,6 +383,27 @@ func (t *Text) Nearest(point image.Point) int {
 	}
 
 	return best
+}
+
+// leading reports whether pos is in the padding a line starts with.
+func (t *Text) leading(pos int) bool {
+	return strings.TrimLeft(t.s[t.starts[t.LineOf(pos)]:pos], " ") == ""
+}
+
+// appSpaces is how many spaces the app has for the run of padding from pos,
+// up to end: the run's width on screen in characters, and at least one. The
+// layout places words at columns counted from the block's left edge. A
+// character width read a little narrow then pads a long line with spaces the
+// app does not have, while the run's width on screen stays right.
+func (t *Text) appSpaces(pos, end int) int {
+	last := pos
+	for last+1 < end && t.s[last+1] == ' ' && !t.icons[last+1] {
+		last++
+	}
+
+	width := t.boxes[last].Max.X - t.boxes[pos].Min.X
+
+	return max(int(math.Round(float64(width)/float64(max(t.cell, 1)))), 1)
 }
 
 // addBlock lays out one container's words as lines, and returns the box of
