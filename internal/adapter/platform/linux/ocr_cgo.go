@@ -15,6 +15,7 @@ import "C"
 import (
 	"image"
 	"runtime"
+	"sync"
 	"time"
 	"unsafe"
 )
@@ -34,6 +35,11 @@ const (
 		C.NERU_OCR_ERR_TIMEOUT-ocrStatusTimeout,
 	) + uint(
 		ocrStatusTimeout-C.NERU_OCR_ERR_TIMEOUT,
+	)
+	_ = uint(
+		C.NERU_OCR_ERR_CANCELED-ocrStatusCanceled,
+	) + uint(
+		ocrStatusCanceled-C.NERU_OCR_ERR_CANCELED,
 	)
 )
 
@@ -176,6 +182,9 @@ func RecognizeLines(img *image.RGBA, params OCRParams) ([]OCRSymbol, OCRStats, e
 	config, free := ocrConfig(datapath, params)
 	defer free()
 
+	stopWatching := watchForCancel(&config, params.Done)
+	defer stopWatching()
+
 	var lines C.NeruOCRLines
 
 	status := C.neru_ocr_recognize_lines(
@@ -223,6 +232,37 @@ func RecognizeLines(img *image.RGBA, params OCRParams) ([]OCRSymbol, OCRStats, e
 	}
 
 	return symbols, stats, nil
+}
+
+// watchForCancel gives config a cancel flag in C memory and sets it once done
+// closes, so a recognition stops early. The returned function stops watching
+// and frees the flag, after the watcher has let go of it. A nil done watches
+// nothing.
+func watchForCancel(config *C.NeruOCRConfig, done <-chan struct{}) func() {
+	if done == nil {
+		return func() {}
+	}
+
+	flag := (*C.int)(C.calloc(1, C.size_t(unsafe.Sizeof(C.int(0)))))
+	config.cancel = flag
+
+	stop := make(chan struct{})
+
+	var watcher sync.WaitGroup
+
+	watcher.Go(func() {
+		select {
+		case <-done:
+			C.neru_ocr_cancel(flag)
+		case <-stop:
+		}
+	})
+
+	return func() {
+		close(stop)
+		watcher.Wait()
+		C.free(unsafe.Pointer(flag))
+	}
 }
 
 // readableImage reports whether img has pixels for its whole geometry. C reads

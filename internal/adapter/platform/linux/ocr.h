@@ -29,6 +29,9 @@
 // Recognition ran past the caller's deadline. Split from ERR_RECOGNIZE because
 // a timeout wants a bigger budget or smaller region, and a failure a bad frame.
 #define NERU_OCR_ERR_TIMEOUT 6
+// The caller canceled the recognition through its config's cancel flag. It
+// returns no lines, never the part read before it stopped.
+#define NERU_OCR_ERR_CANCELED 7
 
 typedef struct {
 	// text is a NUL-terminated UTF-8 string owned by the result.
@@ -71,7 +74,13 @@ typedef struct {
 	// engine is the cached engine slot, below NERU_OCR_ENGINES. Each slot keeps
 	// one language's engine under a lock of its own.
 	int engine;
+	// cancel, when not NULL, stops the recognition once it reads nonzero.
+	// neru_ocr_cancel sets it from another thread.
+	int *cancel;
 } NeruOCRConfig;
+
+// neru_ocr_cancel sets a cancel flag a recognition is watching.
+void neru_ocr_cancel(int *flag);
 
 // One character of a line read, with the ink box tesseract placed it in. line
 // and word count from 0 in reading order, so the characters of a word share a

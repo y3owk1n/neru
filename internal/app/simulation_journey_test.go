@@ -4868,13 +4868,14 @@ func TestSimulation_VimJumpByLabel(t *testing.T) {
 func TestSimulation_VimScrollsTheApp(t *testing.T) {
 	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
 
-	reads := 0
+	var reads atomic.Int32
+
 	read := sim.vision.ReadLinesFunc
 	sim.vision.ReadLinesFunc = func(
 		ctx context.Context, region image.Rectangle, level ports.TextLevel,
 	) ([][]ports.TextPiece, error) {
 		if level == ports.TextFast {
-			reads++
+			reads.Add(1)
 		}
 
 		return read(ctx, region, level)
@@ -4889,7 +4890,7 @@ func TestSimulation_VimScrollsTheApp(t *testing.T) {
 
 		return len(scrolls) == 1 && scrolls[0].Y < 0
 	})
-	sim.waitFor("the screen read again", func() bool { return reads >= 2 })
+	sim.waitFor("the screen read again", func() bool { return reads.Load() >= 2 })
 }
 
 // TestSimulation_VimScrollsTheAppSideways covers zl. It scrolls the app right
@@ -5007,6 +5008,246 @@ func TestSimulation_VimDropsScrollKeysThatRepeatFasterThanAScroll(t *testing.T) 
 	)
 }
 
+// vimScrollGapForTest is a pace of scroll keys just slower than the fastest
+// scroll vim mode takes.
+const vimScrollGapForTest = 190 * time.Millisecond
+
+// vimReadGate holds the fast reads after an activation until released or
+// canceled, as a read of a screen still settling would run, and counts how
+// each one ended.
+type vimReadGate struct {
+	armed     atomic.Bool
+	release   chan struct{}
+	started   atomic.Int32
+	canceled  atomic.Int32
+	completed atomic.Int32
+	accurate  atomic.Int32
+}
+
+// gateVimReads wraps the fake's reads. Reads pass straight through until the
+// gate is armed.
+func gateVimReads(sim *simHarness) *vimReadGate {
+	gate := &vimReadGate{release: make(chan struct{})}
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextAccurate {
+			gate.accurate.Add(1)
+		}
+
+		if level == ports.TextFast && !region.Empty() && gate.armed.Load() {
+			gate.started.Add(1)
+
+			select {
+			case <-gate.release:
+			case <-ctx.Done():
+				gate.canceled.Add(1)
+
+				return nil, ctx.Err()
+			}
+
+			gate.completed.Add(1)
+		}
+
+		return read(ctx, region, level)
+	}
+
+	return gate
+}
+
+// TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn covers scrolling a
+// long page. Each Ctrl+D scrolls at once and nothing is drawn over the moved
+// text. The read of each screen scrolled past is canceled by the next scroll,
+// and only the screen the run ends on is read and refined.
+func TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+	gate := gateVimReads(sim)
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the activation's accurate read landed", func(f ports.VimFrame) bool {
+		return !strings.Contains(f.Status, "reading")
+	})
+
+	gate.armed.Store(true)
+
+	for range 3 {
+		sim.press("Ctrl+d")
+		time.Sleep(vimScrollGapForTest)
+	}
+
+	if scrolls := len(sim.ax.recordedScrolls()); scrolls != 3 {
+		t.Fatalf("three spaced Ctrl+D scrolled %d times, want 3", scrolls)
+	}
+
+	vimFrameShows(sim, "nothing drawn over the moved text", func(f ports.VimFrame) bool {
+		return f.Status == "" && f.Cursor.Empty()
+	})
+	sim.waitFor("the reads of the two screens scrolled past canceled", func() bool {
+		return gate.canceled.Load() == 2 && gate.started.Load() == 3
+	})
+
+	close(gate.release)
+	vimFrameShows(sim, "the cursor back once the last screen is read", func(f ports.VimFrame) bool {
+		return !f.Cursor.Empty() && !strings.Contains(f.Status, "reading")
+	})
+
+	if n := gate.completed.Load(); n != 1 {
+		t.Fatalf("%d reads of scrolled screens landed, want only the last", n)
+	}
+
+	if n := gate.accurate.Load(); n != 2 {
+		t.Fatalf("read accurately %d times, want once for the activation and once after", n)
+	}
+}
+
+// TestSimulation_VimReadsFirstForAKeyAfterAScroll covers a motion right after
+// a scroll, before the screen was read. The key acts on the screen as the
+// scroll left it, so it cancels the read running in the background and reads
+// that screen itself before it runs.
+func TestSimulation_VimReadsFirstForAKeyAfterAScroll(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+	gate := gateVimReads(sim)
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	gate.armed.Store(true)
+	sim.press("Ctrl+d")
+	sim.waitFor("the background read running", func() bool { return gate.started.Load() == 1 })
+
+	gate.armed.Store(false)
+	sim.press("0", "w")
+	sim.waitFor("the background read the key replaced canceled", func() bool {
+		return gate.canceled.Load() == 1
+	})
+
+	vimFrameShows(sim, "the cursor on Edit in the text read", func(f ports.VimFrame) bool {
+		return f.Cursor.In(image.Rect(200, 100, 260, 130))
+	})
+}
+
+// TestSimulation_VimEscapeCancelsTheReadOfAScrolledScreen covers leaving
+// right after a scroll. The read of the scrolled screen is canceled, and no
+// accurate read follows for a session that has closed.
+func TestSimulation_VimEscapeCancelsTheReadOfAScrolledScreen(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+	gate := gateVimReads(sim)
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the activation's accurate read landed", func(f ports.VimFrame) bool {
+		return !strings.Contains(f.Status, "reading")
+	})
+
+	gate.armed.Store(true)
+	sim.press("Ctrl+d")
+	sim.waitFor("the background read running", func() bool { return gate.started.Load() == 1 })
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+	sim.waitFor("the read canceled", func() bool { return gate.canceled.Load() == 1 })
+
+	time.Sleep(vimScrollGapForTest)
+
+	if n := gate.accurate.Load(); n != 1 {
+		t.Fatalf("read accurately %d times, want only the activation's", n)
+	}
+}
+
+// TestSimulation_VimCancelsAnAccurateReadOfAScreenScrolledAway covers an
+// accurate read still running when the app scrolls. It is for a screen that
+// is gone, so it is canceled, and a new one is made for the screen the
+// scroll left.
+func TestSimulation_VimCancelsAnAccurateReadOfAScreenScrolledAway(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	var accurate, canceled atomic.Int32
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextAccurate && accurate.Add(1) == 1 {
+			<-ctx.Done()
+			canceled.Add(1)
+
+			return nil, ctx.Err()
+		}
+
+		return read(ctx, region, level)
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	sim.waitFor(
+		"the activation's accurate read running",
+		func() bool { return accurate.Load() == 1 },
+	)
+
+	sim.press("Ctrl+d")
+	sim.waitFor("that read canceled", func() bool { return canceled.Load() == 1 })
+	sim.waitFor(
+		"an accurate read of the scrolled screen",
+		func() bool { return accurate.Load() == 2 },
+	)
+	vimFrameShows(sim, "it landed", func(f ports.VimFrame) bool {
+		return !f.Cursor.Empty() && !strings.Contains(f.Status, "reading")
+	})
+}
+
+// TestSimulation_VimLetsASlowAccurateReadFinish covers an accurate read past
+// the point the overlay calls it slow, which on macOS is a model compiling
+// for a new script. Canceling it would start the compile over, so a scroll
+// leaves it running, and the read for the scrolled screen follows it.
+func TestSimulation_VimLetsASlowAccurateReadFinish(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	var accurate, canceled atomic.Int32
+
+	release := make(chan struct{})
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextAccurate && accurate.Add(1) == 1 {
+			select {
+			case <-release:
+			case <-ctx.Done():
+				canceled.Add(1)
+
+				return nil, ctx.Err()
+			}
+		}
+
+		return read(ctx, region, level)
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the slow read said on screen", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Notice, "Preparing text recognition")
+	})
+
+	sim.press("Ctrl+d")
+	time.Sleep(vimScrollGapForTest)
+
+	if n := canceled.Load(); n != 0 {
+		t.Fatal("a scroll canceled an accurate read past the slow mark")
+	}
+
+	close(release)
+	sim.waitFor("an accurate read of the scrolled screen after it", func() bool {
+		return accurate.Load() == 2
+	})
+}
+
 // TestSimulation_VimCountStopsAtFourDigits covers a long count, which would
 // otherwise run a motion for minutes with the keyboard held. A fifth digit is
 // dropped and the motion runs.
@@ -5051,6 +5292,60 @@ func TestSimulation_VimMovesBetweenContainers(t *testing.T) {
 	vimFrameShows(sim, "the article outlined with the cursor in it", func(f ports.VimFrame) bool {
 		return f.Container == image.Rect(500, 100, 605, 130) && f.Cursor.In(f.Container)
 	})
+}
+
+// TestSimulation_VimKeepsTheFastReadWhereAnAccurateReadWouldMatch covers a
+// platform whose accurate read reads what the fast one does, as Windows, and
+// Linux with no second language, do. The screen is read once per read, and
+// the icons the segment detector finds still join the text.
+func TestSimulation_VimKeepsTheFastReadWhereAnAccurateReadWouldMatch(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.vision.AccurateReadSame = true
+
+	var accurateReads atomic.Int32
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextAccurate {
+			accurateReads.Add(1)
+		}
+
+		return read(ctx, region, level)
+	}
+
+	sim.vision.DetectSegmentsFunc = func(
+		context.Context, image.Rectangle, config.HintsSegmentConfig,
+	) ([]*element.Element, error) {
+		icon, err := element.NewElement(
+			"segment-icon",
+			image.Rect(180, 100, 210, 130),
+			element.RoleButton,
+		)
+
+		return []*element.Element{icon}, err
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the refine landed", func(f ports.VimFrame) bool {
+		return !strings.Contains(f.Status, "reading")
+	})
+
+	sim.press("0", "w")
+	vimFrameShows(
+		sim,
+		"the cursor on the icon beside the fast read's text",
+		func(f ports.VimFrame) bool {
+			return f.Cursor == image.Rect(180, 100, 210, 130)
+		},
+	)
+
+	if n := accurateReads.Load(); n != 0 {
+		t.Fatalf("read the screen accurately %d times where it reads the same as fast", n)
+	}
 }
 
 // TestSimulation_VimReachesIcons covers icons. An icon-only button the

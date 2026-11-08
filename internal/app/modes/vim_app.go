@@ -20,8 +20,9 @@ import (
 const (
 	// vimClipboardTimeout bounds a yank's clipboard write, which runs off h.mu.
 	vimClipboardTimeout = 2 * time.Second
-	// vimScrollSettle is how long a scroll gets to finish moving, smooth
-	// scrolling included, before the screen is read again.
+	// vimScrollSettle is the shortest time between two scrolls, so a held
+	// scroll key scrolls no faster than the app keeps up. It bounds the key,
+	// not the read, which waits for the screen to stop moving instead.
 	vimScrollSettle = 150 * time.Millisecond
 	// vimClickSettle is how long the app gets to take a click before keys
 	// that act from its caret.
@@ -311,22 +312,23 @@ func (h *handlerState) vimUndo(chord string) {
 	}
 }
 
-// vimScroll scrolls the app under the cursor and reads the screen again.
+// vimScroll scrolls the app under the cursor and leaves the text read stale.
 // Scroll events go to the window under the pointer, so a session holding the
-// pointer still moves it there and back.
+// pointer still moves it there and back. The screen is read off h.mu once
+// the app has moved it and it stops moving, and the next scroll cancels that
+// read, so a run of scrolls reads only the screen it ends on.
 func (h *handlerState) vimScroll(scroll vimScrollKey) {
 	session := h.vim
 
-	// A held key repeats faster than a scroll and its re-read finish. Each
-	// repeat waits on h.mu, so the queued ones would keep the app scrolling,
-	// and Escape waiting, long after the key is let go. A scroll key that
-	// arrives within vimScrollSettle of the last scroll ending is dropped,
-	// which empties the queue at once.
+	// A held key repeats faster than the app scrolls. A scroll key that
+	// arrives within vimScrollSettle of the last scroll is dropped, so a
+	// held key scrolls at a pace the app keeps up with.
 	if time.Since(session.scrolled) < vimScrollSettle {
 		return
 	}
 
-	defer func() { session.scrolled = time.Now() }()
+	session.scrolled = time.Now()
+	session.afterScroll = ""
 
 	point := h.vimCursorPoint()
 	text := session.host.Screen()
@@ -360,22 +362,34 @@ func (h *handlerState) vimScroll(scroll vimScrollKey) {
 		_ = h.actionService.MoveCursorToPoint(h.ctx, held)
 	}
 
-	time.Sleep(vimScrollSettle)
+	near := point
+	if session.stale {
+		near = session.staleNear
+	}
 
 	if !scroll.stays {
 		switch scroll.direction {
 		case services.ScrollDirectionDown:
-			point.Y -= step
+			near.Y -= step
 		case services.ScrollDirectionUp:
-			point.Y += step
+			near.Y += step
 		case services.ScrollDirectionRight:
-			point.X -= step
+			near.X -= step
 		case services.ScrollDirectionLeft:
-			point.X += step
+			near.X += step
 		}
 	}
 
-	h.rereadVim(point)
+	// The text read is for the screen before the scroll, so applyVimRefine
+	// drops an accurate read of it when it lands.
+	session.stale, session.staleNear = true, near
+	session.generation++
+	session.refined = nil
+	session.scrollSeq++
+
+	h.cancelYoungRefine()
+	h.readVimAfterScroll()
+	h.redrawFrame(h.vimFrame(), "update vim overlay")
 }
 
 // vimSelectAtCursor runs a click at the character under the cursor.

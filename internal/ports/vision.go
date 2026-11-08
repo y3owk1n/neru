@@ -86,6 +86,21 @@ type VisionPort interface {
 	// can.
 	ReadLines(ctx context.Context, region image.Rectangle, level TextLevel) ([][]TextPiece, error)
 
+	// ReadLinesOnceChanged reads region as ReadLines does at TextFast, once
+	// it has changed from what the last fast read of it captured and has
+	// stopped changing, as after a scroll the app may still be animating.
+	// One that does not change within a bound, as a scroll at the end of a
+	// page, gives the last read's lines again without reading. Canceling ctx
+	// stops it.
+	ReadLinesOnceChanged(ctx context.Context, region image.Rectangle) ([][]TextPiece, error)
+
+	// AccurateReadDiffers reports whether ReadLines at TextAccurate reads
+	// anything TextFast does not. Where it does not, a caller holding a fast
+	// read keeps it rather than reading the same thing twice. The accurate
+	// read is there for accuracy, not for a newer frame, so keeping the fast
+	// one loses nothing.
+	AccurateReadDiffers() bool
+
 	// CaptureExcludesOwnWindows reports whether a capture leaves Neru's own
 	// windows out of the frame. When it does not, a hints refresh that reads
 	// the screen takes the old labels off first, or it reads them back as

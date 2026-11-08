@@ -669,7 +669,7 @@ again.
 | `Ctrl+W` + `h`, `j`, `k`, `l` | Move to the container left, below, above or right |
 | `Ctrl+W` + `w`, `W` | Move to the next or the previous container |
 | `ic`, `ac` | The container's text, or with the blank line after it, as `yic` copies a card |
-| `Ctrl+D`, `Ctrl+U`, `Ctrl+F`, `Ctrl+B`, `Ctrl+E`, `Ctrl+Y` | Scroll the app, and read the screen again. `j` and `k` past the edge scroll too |
+| `Ctrl+D`, `Ctrl+U`, `Ctrl+F`, `Ctrl+B`, `Ctrl+E`, `Ctrl+Y` | Scroll the app at once. The overlay clears while the page moves, and vim reads the screen again once it stops, so a run of scrolls reads only the screen it ends on. `j` and `k` past the edge scroll too |
 | `zh`, `zl`, `zH`, `zL` | Scroll the app left or right eight characters, or the count with one, or half the width read with `zH` and `zL` |
 | `Ctrl+L` | Read the screen again, keeping registers, macros and the last search |
 | `:q`, `:click`, `:rightclick`, `:middleclick` | Leave, or click at the cursor |

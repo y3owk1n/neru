@@ -76,18 +76,35 @@ type vimSession struct {
 
 	// generation counts reads, so a late accurate read of an older screen is
 	// dropped. reading is true until the accurate read lands, and refined
-	// holds it while the machine is mid-command.
+	// holds it while the machine is mid-command. fastLines are the lines of
+	// the last fast read, which stand in for the accurate read where it would
+	// read the same.
 	generation uint64
 	reading    bool
 	refined    *screentext.Text
+	fastLines  [][]ports.TextPiece
 	// refining is an accurate read in flight. One runs at a time, and a read
 	// asked for meanwhile waits for it. slowRead is set once it has taken
 	// longer than vimSlowRead, for the overlay to say why.
 	refining bool
 	slowRead bool
+	// refineCancel stops the accurate read in flight, which began at
+	// refineStarted.
+	refineCancel  context.CancelFunc
+	refineStarted time.Time
 
-	// scrolled is when the last scroll of the app finished.
-	scrolled time.Time
+	// scrolled is when the last scroll of the app started. stale is set from
+	// a scroll until the screen is read again, staleNear is where the
+	// cursor's text went, and afterScroll is a j or k that scrolled at an
+	// edge and still has to move the cursor. scrollSeq tells the read of a
+	// scrolled screen whether another scroll came after it, and readCancel
+	// stops that read.
+	scrolled    time.Time
+	stale       bool
+	staleNear   image.Point
+	afterScroll vim.Key
+	scrollSeq   uint64
+	readCancel  context.CancelFunc
 
 	jump *vimJump
 
@@ -143,7 +160,7 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 	// A platform that cannot read lines refuses before the permission is
 	// asked for, or the user grants screen sharing for a mode that can never
 	// open. An empty region answers without capturing anything.
-	_, probeErr := h.readVimText(image.Rectangle{}, ports.TextFast)
+	_, _, probeErr := h.readVimText(image.Rectangle{}, ports.TextFast)
 	if derrors.IsNotSupported(probeErr) {
 		h.logger.Warn("Vim mode cannot read the screen here", zap.Error(probeErr))
 		h.activationRefusal = probeErr
@@ -173,7 +190,7 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 	scope := h.resolveCaptureScope(domain.ModeNameVim, activation, &h.config.Vim)
 	region := h.captureStart(domain.ModeNameVim, screen, scope)
 
-	text, err := h.readVimText(region, ports.TextFast)
+	text, lines, err := h.readVimText(region, ports.TextFast)
 	if err != nil {
 		if derrors.IsNotSupported(err) {
 			h.logger.Warn("Vim mode cannot read the screen here", zap.Error(err))
@@ -202,10 +219,14 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 		h.vim = h.newVimSession(text, region)
 	}
 
+	h.cancelScrolledRead()
+
 	h.vim.scope = scope
 	h.vim.generation++
 	h.vim.reading = h.vision != nil
 	h.vim.refined = nil
+	h.vim.fastLines = lines
+	h.vim.stale, h.vim.afterScroll = false, ""
 	h.applyVimActivation(activation, isRefresh)
 
 	if isRefresh {
@@ -264,13 +285,17 @@ func (h *handlerState) vimScreen() image.Rectangle {
 	return bounds
 }
 
-// readVimText reads region at level, bounded the way a hint scan is.
+// readVimText reads region at level, bounded the way a hint scan is, and
+// returns the text with the lines it was made from.
 func (h *handlerState) readVimText(
 	region image.Rectangle,
 	level ports.TextLevel,
-) (*screentext.Text, error) {
+) (*screentext.Text, [][]ports.TextPiece, error) {
 	if h.vision == nil {
-		return nil, derrors.New(derrors.CodeNotSupported, "no vision port to read the screen with")
+		return nil, nil, derrors.New(
+			derrors.CodeNotSupported,
+			"no vision port to read the screen with",
+		)
 	}
 
 	ctx, cancel := context.WithTimeout(h.ctx, HintTimeout)
@@ -278,35 +303,54 @@ func (h *handlerState) readVimText(
 
 	lines, err := h.vision.ReadLines(ctx, region, level)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return screentext.New(vimWords(lines, region)), nil
+	return screentext.New(vimWords(lines, region)), lines, nil
 }
 
 // refineVim reads the screen again with the accurate recognizer off h.mu and
-// swaps the better text in when it lands. One read runs at a time. A read
-// asked for while one runs starts when it lands, for the screen as it is then.
+// swaps the better text in when it lands. Where the accurate read would read
+// what the fast one did, the fast read's lines stand in, and only the icons
+// are looked for. One read runs at a time. A read asked for while one runs
+// stops it when it is young (cancelYoungRefine), and starts once it lands.
 func (h *handlerState) refineVim() {
-	session := h.vim
-	if h.vision == nil || session.refining {
+	if h.vision == nil {
 		return
 	}
 
+	if h.vim.refining {
+		h.cancelYoungRefine()
+
+		return
+	}
+
+	h.startRefine()
+}
+
+// startRefine starts the accurate read of the session's last fast read.
+func (h *handlerState) startRefine() {
+	session := h.vim
 	session.refining = true
+	session.refineStarted = time.Now()
 
 	vision, parent, outer := h.vision, h.ctx, h.outer
-	generation, region := session.generation, session.region
+	generation, region, fastLines := session.generation, session.region, session.fastLines
+
+	ctx, cancel := context.WithTimeout(parent, vimRefineTimeout)
+	session.refineCancel = cancel
 
 	// A read still going after vimSlowRead is most likely compiling the
 	// model for a script it has not met before, so the overlay says so.
 	time.AfterFunc(vimSlowRead, func() { outer.markVimReadSlow(session, generation) })
 
 	go func() {
-		ctx, cancel := context.WithTimeout(parent, vimRefineTimeout)
 		defer cancel()
 
-		lines, err := vision.ReadLines(ctx, region, ports.TextAccurate)
+		lines, err := fastLines, error(nil)
+		if vision.AccurateReadDiffers() {
+			lines, err = vision.ReadLines(ctx, region, ports.TextAccurate)
+		}
 
 		// Icons have no text, so the segment detector finds them in the same
 		// region. When it fails, the text is kept without icons.
@@ -317,6 +361,18 @@ func (h *handlerState) refineVim() {
 
 		outer.applyVimRefine(session, generation, region, lines, icons, err)
 	}()
+}
+
+// cancelYoungRefine stops the accurate read in flight, for a screen that has
+// since changed, unless it has run past vimSlowRead. One that long is most
+// likely compiling a model for a new script, and stopping it would start the
+// compile over on the next read. Canceling stops a tesseract or Windows OCR
+// recognition, the macOS helper process and the icon pass.
+func (h *handlerState) cancelYoungRefine() {
+	session := h.vim
+	if session.refining && time.Since(session.refineStarted) < vimSlowRead {
+		session.refineCancel()
+	}
 }
 
 // markVimReadSlow shows the slow read notice for the session's accurate read
@@ -353,10 +409,12 @@ func (h *Handler) applyVimRefine(
 		return
 	}
 
-	session.refining = false
+	session.refining, session.refineCancel = false, nil
 
 	if session.generation != generation {
-		h.refineVim()
+		if !session.stale {
+			h.refineVim()
+		}
 
 		return
 	}
@@ -396,16 +454,126 @@ func (h *handlerState) swapInRefinedVimText() bool {
 	return true
 }
 
-// rereadVim reads the screen again after vim mode acted on the app, with the
-// cursor nearest near, and starts a fresh accurate read.
+// rereadVim reads the screen again after vim mode acted on the app, once it
+// has had vimSettleDelay to redraw.
 func (h *handlerState) rereadVim(near image.Point) {
 	time.Sleep(vimSettleDelay)
+	h.readVimAgain(near)
+}
 
+// readVimAfterScroll reads the screen a scroll moved, off h.mu, once the app
+// has moved it and it has stopped moving (ReadLinesOnceChanged), and lands
+// through applyScrolledVim. The next scroll cancels it, and a key that needs
+// the text first reads it itself (readScrolledVim).
+func (h *handlerState) readVimAfterScroll() {
 	session := h.vim
 
-	text, err := h.readVimText(session.region, ports.TextFast)
+	h.cancelScrolledRead()
+
+	vision, outer, region, seq := h.vision, h.outer, session.region, session.scrollSeq
+
+	ctx, cancel := context.WithTimeout(h.ctx, HintTimeout)
+	session.readCancel = cancel
+
+	go func() {
+		defer cancel()
+
+		lines, err := vision.ReadLinesOnceChanged(ctx, region)
+		outer.applyScrolledVim(session, seq, lines, err)
+	}()
+}
+
+// applyScrolledVim lands the read of the screen the scroll numbered seq left.
+// One for a session since closed, or a screen scrolled again or already read
+// for a key, is dropped.
+func (h *Handler) applyScrolledVim(
+	session *vimSession,
+	seq uint64,
+	lines [][]ports.TextPiece,
+	err error,
+) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.vim != session || !session.stale || session.scrollSeq != seq {
+		return
+	}
+
+	h.finishScrolledVim(lines, err)
+}
+
+// readScrolledVim reads the screen the scrolls left, now and under h.mu, for a
+// key that acts on the text. The read already running is canceled, since this one
+// replaces it.
+func (h *handlerState) readScrolledVim() {
+	session := h.vim
+
+	h.cancelScrolledRead()
+
+	ctx, cancel := context.WithTimeout(h.ctx, HintTimeout)
+	defer cancel()
+
+	lines, err := h.vision.ReadLinesOnceChanged(ctx, session.region)
+	h.finishScrolledVim(lines, err)
+}
+
+// finishScrolledVim takes the read of the screen the scrolls left, and moves the
+// cursor the line a j or k that scrolled at an edge asked for.
+func (h *handlerState) finishScrolledVim(lines [][]ports.TextPiece, err error) {
+	session := h.vim
+
+	var text *screentext.Text
+	if err == nil {
+		text = screentext.New(vimWords(lines, session.region))
+	}
+
+	// The text held is still for the screen before the scroll, so a read
+	// that found nothing leaves the session stale, and the next key reads
+	// again.
 	if err != nil || text.Len() == 0 {
-		h.logger.Debug("Vim read after an edit found nothing", zap.Error(err))
+		h.logger.Debug("Vim read after a scroll found nothing", zap.Error(err))
+
+		return
+	}
+
+	key := session.afterScroll
+	session.stale, session.afterScroll = false, ""
+
+	h.applyVimRead(session.staleNear, text, lines, nil)
+
+	if key != "" && h.vim == session && h.feedVim(key) {
+		h.followVimCursor()
+		h.redrawFrame(h.vimFrame(), "update vim overlay")
+	}
+}
+
+// cancelScrolledRead stops the read of a scrolled screen in flight.
+func (h *handlerState) cancelScrolledRead() {
+	if cancel := h.vim.readCancel; cancel != nil {
+		cancel()
+
+		h.vim.readCancel = nil
+	}
+}
+
+// readVimAgain reads the screen again with the cursor nearest near.
+func (h *handlerState) readVimAgain(near image.Point) {
+	text, lines, err := h.readVimText(h.vim.region, ports.TextFast)
+	h.applyVimRead(near, text, lines, err)
+}
+
+// applyVimRead replaces the text with a read of the screen, the cursor
+// nearest near, and starts a fresh accurate read.
+func (h *handlerState) applyVimRead(
+	near image.Point,
+	text *screentext.Text,
+	lines [][]ports.TextPiece,
+	err error,
+) {
+	session := h.vim
+
+	if err != nil || text.Len() == 0 {
+		h.logger.Debug("Vim read after acting on the app found nothing", zap.Error(err))
 		h.redrawFrame(h.vimFrame(), "update vim overlay")
 
 		return
@@ -415,6 +583,7 @@ func (h *handlerState) rereadVim(near image.Point) {
 	session.generation++
 	session.reading = true
 	session.refined = nil
+	session.fastLines = lines
 
 	h.followVimCursor()
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
@@ -756,6 +925,13 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 	if session.typing {
 		frame.Status = "INSERT   typing into the app, Escape to stop"
 
+		return frame
+	}
+
+	// The text read is no longer where the app scrolled it, so nothing is
+	// drawn until the screen is read again. An empty overlay also needs no
+	// blanking for the captures that wait for the screen to settle.
+	if session.stale {
 		return frame
 	}
 

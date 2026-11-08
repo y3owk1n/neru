@@ -354,3 +354,18 @@ func TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead(t *testing.T) {
 		t.Fatalf("ReadLines(empty) = %v where lines can be read, want CodeInvalidInput", err)
 	}
 }
+
+// TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoesOnLinux pins
+// that the read vim mode makes after a scroll answers a region with no area
+// the way a fast ReadLines does, so a machine without tesseract's language
+// data refuses it with the same reason.
+func TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoesOnLinux(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+
+	lines, err := adapter.ReadLinesOnceChanged(context.Background(), image.Rectangle{})
+	_, fastErr := adapter.ReadLines(context.Background(), image.Rectangle{}, ports.TextFast)
+
+	if lines != nil || derrors.GetCode(err) != derrors.GetCode(fastErr) {
+		t.Fatalf("ReadLinesOnceChanged(empty) = %v, %v, want no lines and %v", lines, err, fastErr)
+	}
+}

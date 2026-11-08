@@ -56,6 +56,7 @@ const (
 	ocrStatusRecognize
 	ocrStatusBusy
 	ocrStatusTimeout
+	ocrStatusCanceled
 )
 
 // OCRWord is one run of recognized text, with Bounds relative to the top-left
@@ -98,6 +99,9 @@ type OCRParams struct {
 	// Empty means eng. Any other language runs on an engine of its own, so a
 	// slow read in it never holds up one in eng.
 	Language string
+	// Done stops the recognition once it closes, as a context's Done does.
+	// A stopped recognition returns no lines. Nil runs it to the end.
+	Done <-chan struct{}
 }
 
 // ocrError maps a native OCR status onto the shared error vocabulary. Only
@@ -127,6 +131,8 @@ func ocrError(status ocrStatus) error {
 			"the OCR engine was busy with an earlier frame or behind an input method "+
 				"opening for hint search, so try again",
 		)
+	case ocrStatusCanceled:
+		return derrors.New(derrors.CodeContextCanceled, "text recognition was canceled")
 	case ocrStatusTimeout:
 		return derrors.New(
 			derrors.CodeActionFailed,

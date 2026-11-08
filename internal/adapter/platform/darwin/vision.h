@@ -69,6 +69,10 @@ NeruTextResult *NeruReadImageLines(
 // Frees what NeruReadLines returned.
 void NeruFreeTextResult(NeruTextResult *result);
 
+// Reports whether two captures hold the same pixels, 1 when they do. A read
+// that waits for the screen to settle compares its captures with it.
+int NeruImagesEqual(CGImageRef first, CGImageRef second);
+
 // Captures raw screen pixels for the main display.
 // Returns a CGImageRef (caller must CFRelease).
 CGImageRef NeruCaptureScreen(void);

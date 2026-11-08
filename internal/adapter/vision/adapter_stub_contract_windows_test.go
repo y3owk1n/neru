@@ -248,6 +248,21 @@ func TestVisionAdapter_ReadTextDefersToThePassOnWindows(t *testing.T) {
 	}
 }
 
+// TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoes pins that the
+// read vim mode makes after a scroll answers a region with no area the way a
+// fast ReadLines does, so a machine with no OCR language pack refuses it with
+// the same reason.
+func TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoes(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+
+	lines, err := adapter.ReadLinesOnceChanged(context.Background(), image.Rectangle{})
+	_, fastErr := adapter.ReadLines(context.Background(), image.Rectangle{}, ports.TextFast)
+
+	if lines != nil || derrors.GetCode(err) != derrors.GetCode(fastErr) {
+		t.Fatalf("ReadLinesOnceChanged(empty) = %v, %v, want no lines and %v", lines, err, fastErr)
+	}
+}
+
 // TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead pins the question
 // vim mode asks before it captures anything. An empty region answers
 // what the OCR engine answers where lines cannot be read, CodeNotSupported

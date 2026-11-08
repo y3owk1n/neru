@@ -20,8 +20,11 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/screentext"
 )
 
-// vimReturn is Return in vim's notation.
-const vimReturn vim.Key = "<CR>"
+// vimReturn is Return in vim's notation, and vimEscape Escape.
+const (
+	vimReturn vim.Key = "<CR>"
+	vimEscape vim.Key = "<Esc>"
+)
 
 // vimControlKeys are the Ctrl chords vim reads, held back from the focused
 // app while a session is open so they reach the machine, or while typing, so
@@ -74,6 +77,26 @@ func (h *handlerState) handleVimKey(key string) {
 		return
 	}
 
+	if session.stale {
+		if scroll, ok := h.vimEdgeScroll(vimKey); ok {
+			h.vimScroll(scroll)
+
+			session.afterScroll = vimKey
+
+			return
+		}
+
+		// Every key but another scroll, or Escape, acts on the text, so it
+		// first reads the screen the scrolls left.
+		if vimKey != vimEscape && !h.vimContinuesScroll(vimKey) {
+			h.readScrolledVim()
+
+			if h.vim != session {
+				return
+			}
+		}
+	}
+
 	if session.jump != nil {
 		h.handleVimJumpKey(vimKey)
 
@@ -95,7 +118,7 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 
 	if vimKey == "." && session.lastInsert != nil && !session.repeating {
 		if count, ok := vimPendingCount(machine); ok || machine.Idle() {
-			if ok && !h.feedVim("<Esc>") {
+			if ok && !h.feedVim(vimEscape) {
 				return
 			}
 
@@ -289,7 +312,7 @@ func (h *handlerState) handleVimZKey(vimKey vim.Key) bool {
 
 	session.zCount = count
 
-	if countOnly && !h.feedVim("<Esc>") {
+	if countOnly && !h.feedVim(vimEscape) {
 		return true
 	}
 
@@ -344,7 +367,7 @@ func (h *handlerState) feedVim(key vim.Key) bool {
 // whether key was one.
 func (h *handlerState) handleVimIdleKey(key vim.Key) bool {
 	switch key {
-	case "<Esc>":
+	case vimEscape:
 		h.exitMode()
 	case vimReturn:
 		h.vimSelectAtCursor("")
@@ -391,7 +414,7 @@ func (h *handlerState) handleVimTypingKey(key string) {
 		session.typing, session.eraseOnEscape = false, false
 		session.lastInsert = &vimInsert{command: session.insertCommand, typed: session.typedKeys}
 
-		if !h.feedVim("<Esc>") {
+		if !h.feedVim(vimEscape) {
 			return
 		}
 
@@ -502,7 +525,7 @@ func (h *handlerState) handleVimJumpKey(key vim.Key) {
 	jump := session.jump
 
 	switch _, size := utf8.DecodeRuneInString(string(key)); {
-	case key == "<Esc>":
+	case key == vimEscape:
 		session.jump = nil
 	case key == vimReturn:
 		if len(jump.matches) > 0 {
@@ -685,10 +708,45 @@ func (h *handlerState) vimScrollAtEdge(key vim.Key, lineBefore int) bool {
 
 	h.vimScroll(scroll)
 
-	if h.vim != nil && h.feedVim(key) {
-		h.followVimCursor()
-		h.redrawFrame(h.vimFrame(), "update vim overlay")
+	// The cursor moves the line once the screen is read again.
+	if session.stale {
+		session.afterScroll = key
 	}
 
 	return true
+}
+
+// vimEdgeScroll is the scroll a j or k makes while the text is stale from
+// that same key scrolling at an edge, so holding it keeps scrolling without
+// a read per scroll.
+func (h *handlerState) vimEdgeScroll(key vim.Key) (vimScrollKey, bool) {
+	switch {
+	case key != h.vim.afterScroll:
+		return vimScrollKey{}, false
+	case key == "j" || key == "<Down>":
+		return vimScrollKey{direction: services.ScrollDirectionDown, fraction: vimScrollEdge}, true
+	default:
+		return vimScrollKey{direction: services.ScrollDirectionUp, fraction: vimScrollEdge}, true
+	}
+}
+
+// vimContinuesScroll reports a key that scrolls again without reading the
+// text: a scroll key, a z starting a sideways scroll, or the key after it.
+func (h *handlerState) vimContinuesScroll(key vim.Key) bool {
+	session := h.vim
+	machine := session.machine
+
+	if session.zPrefix {
+		_, ok := vimSideScrollKeys[key]
+
+		return ok
+	}
+
+	if !machine.Idle() {
+		return false
+	}
+
+	_, ok := vimScrollKeys[key]
+
+	return ok || key == "z"
 }

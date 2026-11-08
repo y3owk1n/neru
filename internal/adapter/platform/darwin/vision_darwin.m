@@ -1220,6 +1220,25 @@ NeruTextResult *NeruReadImageLines(
 	return readLines(image, bounds, accurate, override, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC));
 }
 
+int NeruImagesEqual(CGImageRef first, CGImageRef second) {
+	if (!first || !second || CGImageGetWidth(first) != CGImageGetWidth(second) ||
+	    CGImageGetHeight(first) != CGImageGetHeight(second) ||
+	    CGImageGetBytesPerRow(first) != CGImageGetBytesPerRow(second) ||
+	    CGImageGetBitsPerPixel(first) != CGImageGetBitsPerPixel(second))
+		return 0;
+
+	CFDataRef firstData = CGDataProviderCopyData(CGImageGetDataProvider(first));
+	CFDataRef secondData = CGDataProviderCopyData(CGImageGetDataProvider(second));
+	int equal = firstData && secondData && CFDataGetLength(firstData) == CFDataGetLength(secondData) &&
+	            memcmp(CFDataGetBytePtr(firstData), CFDataGetBytePtr(secondData),
+	                   (size_t)CFDataGetLength(firstData)) == 0;
+	if (firstData)
+		CFRelease(firstData);
+	if (secondData)
+		CFRelease(secondData);
+	return equal;
+}
+
 void NeruFreeTextResult(NeruTextResult *result) {
 	if (!result)
 		return;

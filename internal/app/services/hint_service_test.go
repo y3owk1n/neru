@@ -956,6 +956,14 @@ func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
 
 func (m *mockVisionPort) CaptureExcludesOwnWindows() bool { return false }
 
+func (m *mockVisionPort) AccurateReadDiffers() bool { return true }
+
+func (m *mockVisionPort) ReadLinesOnceChanged(
+	ctx context.Context, region image.Rectangle,
+) ([][]ports.TextPiece, error) {
+	return m.ReadLines(ctx, region, ports.TextFast)
+}
+
 func (m *mockVisionPort) ReadLines(
 	context.Context, image.Rectangle, ports.TextLevel,
 ) ([][]ports.TextPiece, error) {

@@ -147,7 +147,8 @@ snap refuses those strategies while a mode is open.
 `TESSDATA_PREFIX` and then the distribution paths, and a missing
 `eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. A vim accurate
 read reads the frame a second time in the languages of other scripts the
-locale names, such as Chinese or Russian. That read runs on an engine with a
+locale names, such as Chinese or Russian. With none named, vim keeps the fast
+read and reads nothing a second time. That read runs on an engine with a
 lock of its own, so the fast read a keystroke waits on never queues behind it.
 Its line replaces eng's where it has a wide character or mostly non-Latin
 letters and eng's has neither. A few Cyrillic lookalikes that a Russian read

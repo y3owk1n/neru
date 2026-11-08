@@ -151,6 +151,13 @@ func toRecognizedWords(words []platformlinux.OCRWord) []recognizedWord {
 	return converted
 }
 
+// AccurateReadDiffers is true when the locale names a language in another
+// script whose data is installed, the one thing an accurate read adds here.
+// It asks what ReadLines asks, so the two never disagree.
+func (a *Adapter) AccurateReadDiffers() bool {
+	return a.secondLanguage() != ""
+}
+
 // CaptureExcludesOwnWindows is true once the overlay is built. No Linux
 // capture can leave a window out, so the overlay takes itself off the screen
 // around each one (platform/linux capture_exclusion.go).
@@ -322,12 +329,27 @@ func (a *Adapter) ReadLines(
 		return nil, err
 	}
 
+	lines, err := a.readFrameLines(ctx, region, img, level)
+	if err == nil && level == ports.TextFast {
+		a.lastRead.remember(region, img, lines)
+	}
+
+	return lines, err
+}
+
+// readFrameLines reads img, a capture of region, at level.
+func (a *Adapter) readFrameLines(
+	ctx context.Context,
+	region image.Rectangle,
+	img *image.RGBA,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
 	timeoutMS := 0
 	if deadline, ok := ctx.Deadline(); ok {
 		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
 	}
 
-	params := platformlinux.OCRParams{TimeoutMS: timeoutMS}
+	params := platformlinux.OCRParams{TimeoutMS: timeoutMS, Done: ctx.Done()}
 
 	lines, stats, err := readLinePieces(img, img, region, params)
 	if err != nil {

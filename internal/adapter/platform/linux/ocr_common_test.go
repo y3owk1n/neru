@@ -118,6 +118,7 @@ func TestOCRError_MapsEveryStatusToAnActionableSentence(t *testing.T) {
 		{ocrStatusRecognize, false},
 		{ocrStatusBusy, false},
 		{ocrStatusTimeout, false},
+		{ocrStatusCanceled, false},
 		{ocrStatus(99), false},
 	}
 

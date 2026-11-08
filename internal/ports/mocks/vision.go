@@ -30,6 +30,9 @@ type MockVisionPort struct {
 	DetectSegmentsFunc func(context.Context, image.Rectangle, config.HintsSegmentConfig) ([]*element.Element, error)
 	// ExcludesOwnWindows is what CaptureExcludesOwnWindows answers.
 	ExcludesOwnWindows bool
+	// AccurateReadSame makes AccurateReadDiffers answer false. The zero value
+	// has the accurate read differ, as on macOS.
+	AccurateReadSame bool
 
 	mu       sync.Mutex
 	detectN  int
@@ -152,6 +155,18 @@ func (m *MockVisionPort) DetectSegmentsCallCount() int {
 
 // CaptureExcludesOwnWindows implements ports.VisionPort.
 func (m *MockVisionPort) CaptureExcludesOwnWindows() bool { return m.ExcludesOwnWindows }
+
+// ReadLinesOnceChanged implements ports.VisionPort. It reads as ReadLines
+// does at TextFast, through ReadLinesFunc.
+func (m *MockVisionPort) ReadLinesOnceChanged(
+	ctx context.Context,
+	region image.Rectangle,
+) ([][]ports.TextPiece, error) {
+	return m.ReadLines(ctx, region, ports.TextFast)
+}
+
+// AccurateReadDiffers implements ports.VisionPort.
+func (m *MockVisionPort) AccurateReadDiffers() bool { return !m.AccurateReadSame }
 
 // ReadText implements ports.VisionPort. Without ReadTextFunc it reports
 // CodeNotSupported, as Linux and Windows do.

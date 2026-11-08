@@ -293,6 +293,13 @@ func RecognizeText(
 	bridge := worker()
 
 	err := bridge.do(func() error {
+		// A read canceled while it waited behind another on the worker is
+		// dropped before it converts the frame or starts the engine.
+		ctxErr := ctx.Err()
+		if ctxErr != nil {
+			return derrors.Wrap(ctxErr, derrors.CodeContextCanceled, "text recognition canceled")
+		}
+
 		engineErr := bridge.ensureEngine()
 		if engineErr != nil {
 			return engineErr

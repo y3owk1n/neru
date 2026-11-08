@@ -145,6 +145,10 @@ func (a *Adapter) DetectElements(
 	return elements, nil
 }
 
+// AccurateReadDiffers is true. The accurate read is Vision's accurate
+// recognizer, which spells small text right where the fast one misreads it.
+func (a *Adapter) AccurateReadDiffers() bool { return true }
+
 // CaptureExcludesOwnWindows is true on macOS, where every capture asks
 // ScreenCaptureKit to leave Neru's application out (vision_darwin.m).
 func (a *Adapter) CaptureExcludesOwnWindows() bool { return true }
@@ -499,7 +503,7 @@ func (a *Adapter) ReadLines(
 	if inHelper {
 		lines, err = a.readLinesInHelper(ctx, region, timeout)
 	} else {
-		lines, err = readLinesHere(region, level, timeout)
+		lines, err = a.readLinesHere(ctx, region, level)
 	}
 
 	if err != nil {
@@ -515,24 +519,94 @@ func (a *Adapter) ReadLines(
 	return lines, nil
 }
 
-// readLinesHere captures region and reads it in this process.
-func readLinesHere(
+// readLinesHere captures region and reads it in this process, the two within
+// ctx's one deadline. A fast read is remembered, for ReadLinesOnceChanged to
+// wait for the region to change from.
+func (a *Adapter) readLinesHere(
+	ctx context.Context,
 	region image.Rectangle,
 	level ports.TextLevel,
-	timeout C.int64_t,
 ) ([][]ports.TextPiece, error) {
+	frame, err := captureReadFrame(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+	defer releaseFrame(frame)
+
+	lines, err := readFrameLines(ctx, frame, level)
+	if err == nil && level == ports.TextFast {
+		a.lastRead.remember(region, frame, lines)
+	}
+
+	return lines, err
+}
+
+// readFrameLines reads a capture's text within what is left of ctx.
+func readFrameLines(
+	ctx context.Context,
+	frame readFrame,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	timeout, err := captureTimeoutMS(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	accurate := C.int(0)
 	if level == ports.TextAccurate {
 		accurate = 1
 	}
 
-	result := C.NeruReadLines(cRect(region), readLinesScale, accurate, timeout)
+	result := C.NeruReadImageLines(frame.image, frame.bounds, accurate, nil, timeout)
 	if result == nil {
 		return nil, derrors.New(derrors.CodeActionFailed, "failed to read the region's text")
 	}
 	defer C.NeruFreeTextResult(result)
 
 	return groupLines(linePiecesOf(result)), nil
+}
+
+// ReadLinesOnceChanged waits for region to change from what the last fast
+// read of it captured and to settle, then reads it fast. One that never
+// changes reads the last read's lines again.
+func (a *Adapter) ReadLinesOnceChanged(
+	ctx context.Context,
+	region image.Rectangle,
+) ([][]ports.TextPiece, error) {
+	if region.Empty() {
+		return a.ReadLines(ctx, region, ports.TextFast)
+	}
+
+	started := time.Now()
+
+	before, lines, remembered := a.lastRead.recall(region)
+	defer releaseFrame(before)
+
+	frame, unchanged, err := captureOnceChanged(ctx, before, remembered, settleFrames[readFrame]{
+		capture: func() (readFrame, error) { return captureReadFrame(ctx, region) },
+		same:    sameFrame,
+		release: releaseFrame,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer releaseFrame(frame)
+
+	if !unchanged {
+		lines, err = readFrameLines(ctx, frame, ports.TextFast)
+		if err != nil {
+			return nil, err
+		}
+
+		a.lastRead.remember(region, frame, lines)
+	}
+
+	a.logger.Debug("Read lines once changed",
+		zap.Bool("unchanged", unchanged),
+		zap.Int("line_count", len(lines)),
+		zap.Duration("duration", time.Since(started)))
+
+	return lines, nil
 }
 
 func cRect(r image.Rectangle) C.CGRect {

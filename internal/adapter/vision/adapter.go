@@ -19,6 +19,9 @@ type Adapter struct {
 	// linesHelper is the hidden command this executable reads text lines
 	// accurately with in a process of its own, or empty to read them here.
 	linesHelper string
+	// lastRead is the last fast line read, which ReadLinesOnceChanged waits
+	// for the screen to change from.
+	lastRead lastRead
 }
 
 // Option configures an Adapter.

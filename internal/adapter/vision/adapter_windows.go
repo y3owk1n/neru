@@ -157,6 +157,10 @@ func toRecognizedWords(words []platformwindows.OCRWord) []recognizedWord {
 	return converted
 }
 
+// AccurateReadDiffers is false. Windows.Media.Ocr has one level, so an
+// accurate read is the fast read again.
+func (a *Adapter) AccurateReadDiffers() bool { return false }
+
 // CaptureExcludesOwnWindows is true from Windows 10 version 2004, where each
 // capture leaves Neru's own windows out through their display affinity. On an
 // older build the BitBlt reads the overlay along with everything else on
@@ -369,6 +373,21 @@ func (a *Adapter) ReadLines(
 		return nil, err
 	}
 
+	lines, err := a.readFrameLines(ctx, region, img, level)
+	if err == nil && level == ports.TextFast {
+		a.lastRead.remember(region, img, lines)
+	}
+
+	return lines, err
+}
+
+// readFrameLines reads img, a capture of region, at level.
+func (a *Adapter) readFrameLines(
+	ctx context.Context,
+	region image.Rectangle,
+	img *image.RGBA,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
 	timeoutMS := 0
 	if deadline, ok := ctx.Deadline(); ok {
 		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)

@@ -52,6 +52,17 @@ func (a *Adapter) DetectSegments(
 	)
 }
 
+// ReadLinesOnceChanged reports CodeNotSupported, as ReadLines does.
+func (a *Adapter) ReadLinesOnceChanged(
+	ctx context.Context,
+	region image.Rectangle,
+) ([][]ports.TextPiece, error) {
+	return a.ReadLines(ctx, region, ports.TextFast)
+}
+
+// AccurateReadDiffers is false. This slot reads nothing.
+func (a *Adapter) AccurateReadDiffers() bool { return false }
+
 // CaptureExcludesOwnWindows is false. This slot captures nothing, so every
 // screen-reading scan fails before the answer matters.
 func (a *Adapter) CaptureExcludesOwnWindows() bool { return false }

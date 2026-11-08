@@ -78,6 +78,11 @@ func (m *VimMode) RefreshForScreenChange(_ context.Context) bool {
 // Exit tears vim mode down. The machine goes with it, so registers and
 // macros last one session.
 func (m *VimMode) Exit() {
+	if m.handler.vim != nil {
+		m.handler.cancelScrolledRead()
+		m.handler.cancelYoungRefine()
+	}
+
 	m.handler.vim = nil
 	m.handler.stopIndicatorPolling()
 }

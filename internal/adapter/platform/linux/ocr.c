@@ -5,6 +5,7 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -311,6 +312,19 @@ static int neru_ocr_collect(
 	return NERU_OCR_OK;
 }
 
+// neru_ocr_canceled is the monitor's cancel callback. cancel_this is the
+// config's cancel flag.
+static bool neru_ocr_canceled(void *cancel_this, int words) {
+	(void)words;
+	return __atomic_load_n((int *)cancel_this, __ATOMIC_ACQUIRE) != 0;
+}
+
+void neru_ocr_cancel(int *flag) {
+	if (flag != NULL) {
+		__atomic_store_n(flag, 1, __ATOMIC_RELEASE);
+	}
+}
+
 // neru_ocr_run_locked takes engine and recognizes pixels within the caller's
 // deadline. On NERU_OCR_OK it returns with the tesseract in *api and engine's
 // mutex held, for the caller to collect the result, then reset the engine and
@@ -338,11 +352,11 @@ static int neru_ocr_run_locked(
 	TessBaseAPISetImage(api, pixels, width, height, NERU_OCR_BYTES_PER_PIXEL, stride);
 	TessBaseAPISetSourceResolution(api, NERU_OCR_SOURCE_DPI);
 
-	// The deadline is why recognition goes through a monitor at all. Tesseract
-	// has no other way to stop, and a caller blocked in cgo cannot be canceled
-	// from Go.
+	// The deadline and the cancel flag are why recognition goes through a
+	// monitor at all. Tesseract has no other way to stop, and a caller blocked
+	// in cgo cannot be canceled from Go.
 	ETEXT_DESC *monitor = NULL;
-	if (config->timeoutMS > 0) {
+	if (config->timeoutMS > 0 || config->cancel != NULL) {
 		monitor = TessMonitorCreate();
 		if (monitor == NULL) {
 			neru_ocr_reset_locked(api);
@@ -351,7 +365,14 @@ static int neru_ocr_run_locked(
 			return NERU_OCR_ERR_ALLOC;
 		}
 
-		TessMonitorSetDeadlineMSecs(monitor, config->timeoutMS);
+		if (config->timeoutMS > 0) {
+			TessMonitorSetDeadlineMSecs(monitor, config->timeoutMS);
+		}
+
+		if (config->cancel != NULL) {
+			TessMonitorSetCancelFunc(monitor, neru_ocr_canceled);
+			TessMonitorSetCancelThis(monitor, config->cancel);
+		}
 	}
 
 	int64_t started = neru_ocr_now_ms();
@@ -363,6 +384,15 @@ static int neru_ocr_run_locked(
 
 	if (monitor != NULL) {
 		TessMonitorDelete(monitor);
+	}
+
+	// A canceled read returns nothing, whether tesseract stopped or finished
+	// first, so a caller never takes the part read before the cancel.
+	if (config->cancel != NULL && __atomic_load_n(config->cancel, __ATOMIC_ACQUIRE) != 0) {
+		neru_ocr_reset_locked(api);
+		pthread_mutex_unlock(&engine->mutex);
+
+		return NERU_OCR_ERR_CANCELED;
 	}
 
 	if (recognized != 0) {

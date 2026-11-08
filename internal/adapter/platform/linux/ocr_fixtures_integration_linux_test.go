@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/derrors"
 )
 
 // ocrFixturePhrases are lines every fixture frame in ../testdata/ocr holds,
@@ -130,4 +132,37 @@ func loadOCRFixture(t *testing.T, path string) *image.RGBA {
 	draw.Draw(frame, frame.Rect, decoded, decoded.Bounds().Min, draw.Src)
 
 	return frame
+}
+
+// TestRecognizeLines_StopsWhenDoneCloses pins what canceling a line read
+// means. A read whose Done closes stops and returns no lines and
+// CodeContextCanceled, never the part read before it stopped, so vim mode can
+// drop a read for a screen a scroll has since moved away.
+func TestRecognizeLines_StopsWhenDoneCloses(t *testing.T) {
+	requireEngine(t)
+
+	paths, err := filepath.Glob(filepath.Join("..", "testdata", "ocr", "*.png"))
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("no OCR fixtures found: %v", err)
+	}
+
+	done := make(chan struct{})
+	close(done)
+
+	symbols, _, err := RecognizeLines(
+		loadOCRFixture(t, paths[0]),
+		OCRParams{TimeoutMS: 10000, Done: done},
+	)
+	if !derrors.IsCode(err, derrors.CodeContextCanceled) {
+		t.Fatalf("RecognizeLines after Done closed = %v, want CodeContextCanceled", err)
+	}
+
+	if symbols != nil {
+		t.Fatalf("a canceled read returned %d characters, want none", len(symbols))
+	}
+
+	symbols, _, err = RecognizeLines(loadOCRFixture(t, paths[0]), OCRParams{TimeoutMS: 10000})
+	if err != nil || len(symbols) == 0 {
+		t.Fatalf("the read after a canceled one = %d characters, %v, want text", len(symbols), err)
+	}
 }
