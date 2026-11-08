@@ -126,6 +126,9 @@ type SnapScan struct {
 	// refused then when the capture would read Neru's own overlay as part of
 	// the screen.
 	OverlayDrawn bool
+	// BundleID is the focused app the caller already resolved. When it is
+	// empty, SnapCandidates looks it up.
+	BundleID string
 }
 
 // SnapCandidates collects the elements `neru action snap` chooses among, the
@@ -138,6 +141,7 @@ func (s *HintService) SnapCandidates(
 	elements, _, err := s.collect(ctx, collectRequest{
 		filterRoles:        scan.Roles,
 		filterTextContains: scan.Text,
+		bundleID:           scan.BundleID,
 		strategy:           scan.Strategy,
 		strict:             true,
 		region:             scan.Region,

@@ -24,8 +24,8 @@ For a bug report, attach the output of `neru doctor --json`.
 - **Accessibility** is required. Neru asks for it at launch. Grant it in
   **System Settings > Privacy & Security > Accessibility**.
 - **Screen Recording** is needed only for the `vision`, `contour` and
-  `segment` hint strategies. Neru asks the first time one runs, and macOS applies the grant
-  after Neru restarts.
+  `segment` hint strategies, in hints or in `neru action snap`. Neru asks the
+  first time one runs, and macOS applies the grant after Neru restarts.
 
 If a grant does not take after an upgrade, see
 [Troubleshooting](troubleshooting.md#neru-does-nothing-on-macos).

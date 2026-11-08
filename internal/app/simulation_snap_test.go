@@ -5,6 +5,7 @@ import (
 	"image"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/event"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // snap sends `neru action snap` with args to the app.
@@ -210,6 +212,49 @@ func TestSimulation_SnapIsDroppedWhenTheSelectionMovesDuringTheScan(t *testing.T
 	drawsBefore := sim.overlay.recursiveGridDrawCount()
 	sim.press("r")
 	sim.waitFor("the key zoomed in while the snap scanned", func() bool {
+		return sim.overlay.recursiveGridDrawCount() > drawsBefore
+	})
+
+	close(release)
+
+	resp := <-answer
+	if resp.Success || resp.Code != ipc.CodeChainBail {
+		t.Fatalf("snap = %+v, want a chain bail once the selection moved", resp)
+	}
+
+	if got := sim.cursor.position(); got == rectCenter(inside) {
+		t.Errorf("cursor = %v, the stale snap moved it anyway", got)
+	}
+}
+
+// TestSimulation_SnapIsDroppedWhenTheSelectionMovesDuringTheAppLookup covers
+// a key typed while a snap asks which app is focused, before it scans. The
+// snap reads the mode's selection before that lookup, so the move still drops
+// it.
+func TestSimulation_SnapIsDroppedWhenTheSelectionMovesDuringTheAppLookup(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+
+	region := sim.zoomRecursiveGrid()
+	inside := image.Rect(region.Min.X, region.Min.Y, region.Min.X+40, region.Min.Y+40)
+	sim.ax.setElements([]*element.Element{simElement(t, "inside", inside, "Inside")})
+
+	asking := make(chan struct{})
+	release := make(chan struct{})
+
+	sim.ax.setFocusGate(func() {
+		close(asking)
+		<-release
+	})
+
+	answer := make(chan ipc.Response, 1)
+
+	go func() { answer <- sim.snap() }()
+
+	<-asking
+
+	drawsBefore := sim.overlay.recursiveGridDrawCount()
+	sim.press("r")
+	sim.waitFor("the key zoomed in while the snap asked for the focused app", func() bool {
 		return sim.overlay.recursiveGridDrawCount() > drawsBefore
 	})
 
@@ -591,6 +636,76 @@ func TestSimulation_SnapWithAPixelStrategyReadsPastTheZoomedRegion(t *testing.T)
 
 	if got, want := sim.cursor.position(), rectCenter(region); got != want {
 		t.Errorf("cursor = %v, want %v, the wide button's part inside the cell", got, want)
+	}
+}
+
+// TestSimulation_SnapWithACaptureStrategyAsksForScreenRecordingFirst covers a
+// segment snap before screen recording is granted. The snap fails without
+// capturing or moving the cursor and opens one permission dialog, even when it
+// repeats. Once the user grants the permission, the next snap scans and lands.
+func TestSimulation_SnapWithACaptureStrategyAsksForScreenRecordingFirst(t *testing.T) {
+	sim := newSimHarness(t, simConfig(), nil)
+	sim.screenCapture.denied.Store(true)
+
+	button := image.Rect(100, 100, 140, 140)
+
+	var scans atomic.Int32
+
+	sim.vision.DetectSegmentsFunc = func(
+		context.Context, image.Rectangle, config.HintsSegmentConfig,
+	) ([]*element.Element, error) {
+		scans.Add(1)
+
+		found, err := element.NewElement("button", button, element.RoleButton)
+		if err != nil {
+			return nil, err
+		}
+
+		return []*element.Element{found}, nil
+	}
+
+	start := sim.cursor.position()
+
+	for range 2 {
+		resp := sim.snap("--strategy=segment")
+		if resp.Success || resp.Code != ipc.CodeActionFailed {
+			t.Fatalf(
+				"snap without permission = %v (%s), want an action failure",
+				resp.Success,
+				resp.Code,
+			)
+		}
+	}
+
+	sim.waitFor("the permission dialog open", func() bool {
+		return sim.screenCapture.requests.Load() == 1
+	})
+
+	if n := scans.Load(); n != 0 {
+		t.Errorf("segment scanned %d times before the permission was granted, want 0", n)
+	}
+
+	if got := sim.cursor.position(); got != start {
+		t.Errorf("cursor = %v after a refused snap, want it left at %v", got, start)
+	}
+
+	sim.screenCapture.consents <- ports.ScreenCaptureGranted
+
+	sim.waitFor("the permission granted", func() bool {
+		return !sim.screenCapture.denied.Load()
+	})
+
+	resp := sim.snap("--strategy=segment")
+	if !resp.Success {
+		t.Fatalf("snap after the grant failed: %s (%s)", resp.Message, resp.Code)
+	}
+
+	if got, want := sim.cursor.position(), rectCenter(button); got != want {
+		t.Errorf("cursor = %v after the grant, want %v, the button's center", got, want)
+	}
+
+	if n := sim.screenCapture.requests.Load(); n != 1 {
+		t.Errorf("permission dialog requested %d times, want 1", n)
 	}
 }
 
