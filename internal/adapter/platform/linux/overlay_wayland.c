@@ -1,5 +1,6 @@
 #include "overlay_wayland.h"
 
+#include "font_fallback.h"
 #include "shm_file.h"
 #include "wlr_protocol/fractional-scale-v1.h"
 #include "wlr_protocol/layer-shell.h"
@@ -1223,7 +1224,8 @@ static const char *neru_resolve_font_family(const char *family) {
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color, int bold) {
-	const char *resolved_family = neru_resolve_font_family(font_family);
+	char resolved_family[256];
+	neru_font_family_for_text(neru_resolve_font_family(font_family), text, resolved_family, sizeof(resolved_family));
 
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];

@@ -692,7 +692,8 @@ The fast read knows Latin script only. The accurate read finds each line's
 script, so it reads Chinese, Japanese, Korean, Thai, Russian and the other
 languages macOS knows. It reads each line in one script. When your macOS
 languages include Chinese, Japanese or Korean, it also reads with that
-language, so a word of it in an English line is read correctly. Until the
+language, so a word of it in an English line is read correctly. Linux reads
+fewer scripts, which [platform support](platform-support.md#notes) lists. Until the
 accurate read finishes, a line in another script shows as noise. A wide character such as 中
 takes two columns, and a character the app moves over in one step, such as
 a Thai consonant with its vowel sign, is one character to vim. Arabic and

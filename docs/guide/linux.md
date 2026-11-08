@@ -61,6 +61,10 @@ and on apt, dnf and pacman prints the command that finds its package.
 - **tesseract English language data** is a separate package. Without it the
   `vision` strategy reports that `eng.traineddata` is missing. Set
   `TESSDATA_PREFIX` to use language data from elsewhere, such as `tessdata_fast`.
+  Vim mode also reads the Chinese, Japanese or Korean your locale names when
+  its data is installed, such as `tesseract-langpack-chi_sim` on Fedora,
+  `tesseract-ocr-chi-sim` on Debian and Ubuntu, or `tesseract-data-chi_sim` on
+  Arch.
 - **pipewire** carries screen capture on KDE, but a missing
   `libpipewire-0.3.so` stops the daemon on every desktop.
 - **libei** injects input on KDE, COSMIC and GNOME.

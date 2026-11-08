@@ -75,8 +75,10 @@ Each footnote gives the mechanism. The effect a user sees is in the
 [user notes](../reference/platform-support.md#notes) and the [font rules](../reference/configuration.md#fonts).
 
 ¹ **Font resolution.** Linux and Windows resolve a family at load and fall back
-when it is missing. macOS and the non-CGO Linux build let the renderer
-substitute at draw time. **Text measurement** sizes boxes from the text,
+when it is missing. Linux also draws and measures text a family has no glyphs
+for, such as Chinese in a Latin font, in the first font fontconfig finds that
+has them, since Cairo's text API never falls back by itself. macOS and the
+non-CGO Linux build let the renderer substitute at draw time. **Text measurement** sizes boxes from the text,
 except on the non-CGO Linux build, which has no Cairo and estimates.
 
 ² **Service management** writes a systemd user unit tied to
@@ -143,7 +145,16 @@ snap refuses those strategies while a mode is open.
 
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing
-`eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. Windows uses
+`eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. A vim accurate
+read reads the frame a second time in the Chinese, Japanese or Korean the
+locale names. That read runs on an engine with a lock of its own, so the fast
+read a keystroke waits on never queues behind it. Its line replaces eng's
+where eng's has no wide character. tesseract's boxes for those characters
+drift by most of a character, so a run of them becomes one word, cut into
+cells of even pitch at blank columns where it can be. The second read scales
+the frame to two pixels a point, because at one tesseract keeps eng's reading
+of small Chinese.
+Windows uses
 `Windows.Media.Ocr`, which reports no per-word confidence. On both, the
 contour detector finds rectangles in the same frame, with its shipped
 thresholds. macOS places hints with Vision's fast recognizer over the whole

@@ -2,13 +2,22 @@ package vision
 
 import (
 	"image"
+	"math"
+	"slices"
 	"strings"
+
+	"github.com/clipperhouse/displaywidth"
 
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// halfDivisor halves a length.
-const halfDivisor = 2
+// halfDivisor halves a length, thirdDivisor takes a third of one, and
+// quarterDivisor a quarter.
+const (
+	halfDivisor    = 2
+	thirdDivisor   = 3
+	quarterDivisor = 4
+)
 
 // lineSymbol is one character a recognizer read, with the box of its ink in
 // the captured image's pixels, and its line and its word within the line.
@@ -30,12 +39,18 @@ type lineSymbol struct {
 // characters. Sometimes one character's ink starts left of the one before it.
 // Such a word becomes one piece, and vim mode splits it by the characters'
 // widths.
+//
+// tesseract reads each Chinese, Japanese or Korean character as a word of its
+// own, and its boxes for them drift by most of a character. A run of such
+// words is placed from the ink instead (placeWideRuns).
 func piecesFromSymbols(
 	symbols []lineSymbol,
 	img *image.RGBA,
 	region image.Rectangle,
 ) [][]ports.TextPiece {
 	var lines [][]ports.TextPiece
+
+	placed := placeWideRuns(symbols, img)
 
 	for start := 0; start < len(symbols); {
 		end := start + 1
@@ -54,6 +69,22 @@ func piecesFromSymbols(
 		line := word[0].line
 		for len(lines) <= line {
 			lines = append(lines, nil)
+		}
+
+		if allPlaced(placed, start, end) {
+			for index, symbol := range word {
+				place := placed[start+index]
+				lines[line] = append(lines[line], ports.TextPiece{
+					Text:       fullwidthPunctuation(symbol.text),
+					Bounds:     toRegion(place.cell, img.Rect, region),
+					Word:       place.word,
+					Background: backgroundOf(img, place.cell),
+				})
+			}
+
+			start = end
+
+			continue
 		}
 
 		background := backgroundOf(img, box)
@@ -91,6 +122,261 @@ func piecesFromSymbols(
 	}
 
 	return lines
+}
+
+// placeWideRuns places each run of characters in a line that are words of
+// their own or take two cells, when the run has one that takes two cells,
+// keyed by the symbol's index. A run is one word, as Chinese and Japanese
+// have no spaces, where tesseract reads each character as a word. A space
+// ends a run, so Korean words stay apart. evenPitchCells cuts the run's ink
+// into cells.
+func placeWideRuns(symbols []lineSymbol, img *image.RGBA) map[int]wideCell {
+	single := func(index int) bool {
+		symbol := symbols[index]
+		sameWord := func(other int) bool {
+			return other >= 0 && other < len(symbols) && symbols[other].line == symbol.line &&
+				symbols[other].word == symbol.word
+		}
+
+		return !sameWord(index-1) && !sameWord(index+1)
+	}
+
+	member := func(index int) bool { return single(index) || textHasWide(symbols[index].text) }
+
+	placed := map[int]wideCell{}
+
+	for start := 0; start < len(symbols); {
+		if !member(start) {
+			start++
+
+			continue
+		}
+
+		// A run stops at a space between two words of several characters, as
+		// between Korean words. tesseract's boxes for these characters drift,
+		// so the space is looked for in the pixels.
+		joins := func(index int) bool {
+			if symbols[index].word == symbols[index-1].word || single(index) || single(index-1) {
+				return true
+			}
+
+			return !spaceBetween(img, symbols[index-1].ink, symbols[index].ink)
+		}
+
+		end := start + 1
+		for end < len(symbols) && symbols[end].line == symbols[start].line && member(end) &&
+			joins(end) {
+			end++
+		}
+
+		run := symbols[start:end]
+		if slices.ContainsFunc(
+			run,
+			func(symbol lineSymbol) bool { return textHasWide(symbol.text) },
+		) {
+			for index, cell := range evenPitchCells(run, img) {
+				placed[start+index] = wideCell{cell: cell, word: run[0].word}
+			}
+		}
+
+		start = end
+	}
+
+	return placed
+}
+
+// wideCell is where placeWideRuns put a character, and the word it is in.
+type wideCell struct {
+	cell image.Rectangle
+	word int
+}
+
+// spaceBetween reports whether img shows a blank stretch wider than a third
+// of the characters' height between two characters' boxes, reaching across
+// both since the boxes can drift.
+func spaceBetween(img *image.RGBA, previous, current image.Rectangle) bool {
+	box := previous.Union(current).Intersect(img.Rect)
+	if box.Empty() {
+		return false
+	}
+
+	background := lumaOf(img, box)
+	space := max(previous.Dy(), current.Dy()) / thirdDivisor
+	blank := 0
+
+	for column := box.Min.X; column < box.Max.X; column++ {
+		if inkedColumn(img, column, box, background) {
+			blank = 0
+
+			continue
+		}
+
+		blank++
+		if blank > space {
+			return true
+		}
+	}
+
+	return false
+}
+
+// allPlaced reports whether every symbol from start to end has a placed cell.
+func allPlaced(placed map[int]wideCell, start, end int) bool {
+	for index := start; index < end; index++ {
+		if _, ok := placed[index]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+// evenPitchCells cuts the ink under run into one cell per character, by
+// evenPitchCuts. A gap inside a character, as between the halves of 测, would
+// leave a sliver of a cell, which the pitch rules out.
+func evenPitchCells(run []lineSymbol, img *image.RGBA) []image.Rectangle {
+	box := run[0].ink
+	for _, symbol := range run[1:] {
+		box = box.Union(symbol.ink)
+	}
+
+	box = box.Intersect(img.Rect)
+	if box.Empty() {
+		return nil
+	}
+
+	background := lumaOf(img, box)
+
+	inked := func(column int) bool { return inkedColumn(img, column, box, background) }
+
+	// tesseract's box can stop inside a character or short of it, so the run
+	// reaches to the ink at either end.
+	left, right := box.Min.X, box.Max.X
+	for inked(left - 1) {
+		left--
+	}
+
+	for left < right && !inked(left) {
+		left++
+	}
+
+	for inked(right) {
+		right++
+	}
+
+	for right > left && !inked(right-1) {
+		right--
+	}
+
+	edges := evenPitchCuts(left, right, inked, len(run))
+
+	cells := make([]image.Rectangle, len(run))
+	for index := range run {
+		cells[index] = image.Rect(
+			edges[index],
+			box.Min.Y,
+			max(edges[index+1], edges[index]+1),
+			box.Max.Y,
+		)
+	}
+
+	return cells
+}
+
+// evenPitchCuts cuts left to right into count cells closest to an even pitch,
+// by the sum of squared differences, where a cut through ink costs as much as
+// being half a pitch off. So cuts land in the gaps between characters, and
+// where two characters touch, near the pitch. It returns the count+1 edges,
+// evenly spaced when no cuts fit.
+func evenPitchCuts(left, right int, inked func(int) bool, count int) []int {
+	width := right - left
+	pitch := float64(width) / float64(count)
+	inkCost := pitch * pitch / quarterDivisor
+
+	even := func() []int {
+		edges := make([]int, count+1)
+		for index := range edges {
+			edges[index] = left + width*index/count
+		}
+
+		return edges
+	}
+
+	// A cell is a third of a pitch to twice one wide.
+	narrowest := max(int(pitch/thirdDivisor), 1)
+	widest := int(pitch*halfDivisor) + 1
+
+	// best[cells][offset] is the least cost of cutting left to left+offset into
+	// that many cells, and from[cells][offset] where the last of them starts.
+	best := make([][]float64, count+1)
+	from := make([][]int, count+1)
+
+	for cells := range best {
+		best[cells] = make([]float64, width+1)
+		from[cells] = make([]int, width+1)
+
+		for offset := range best[cells] {
+			best[cells][offset] = math.Inf(1)
+		}
+	}
+
+	best[0][0] = 0
+
+	for cells := 1; cells <= count; cells++ {
+		for offset := 1; offset <= width; offset++ {
+			cut := 0.0
+			if cells < count && inked(left+offset) {
+				cut = inkCost
+			}
+
+			for size := narrowest; size <= min(widest, offset); size++ {
+				diff := float64(size) - pitch
+
+				total := best[cells-1][offset-size] + diff*diff + cut
+				if total < best[cells][offset] {
+					best[cells][offset], from[cells][offset] = total, offset-size
+				}
+			}
+		}
+	}
+
+	if math.IsInf(best[count][width], 1) {
+		return even()
+	}
+
+	edges := make([]int, count+1)
+	edges[count] = right
+
+	for cells, offset := count, width; cells > 0; cells-- {
+		offset = from[cells][offset]
+		edges[cells-1] = left + offset
+	}
+
+	return edges
+}
+
+// fullwidthPunctuation is the fullwidth form of the ASCII punctuation tesseract
+// reads a Chinese or Japanese mark in a run as, such as "，" for ",". Other text
+// is returned as is.
+func fullwidthPunctuation(text string) string {
+	const fullwidthOffset = 0xFEE0
+
+	if len(text) == 1 && strings.ContainsRune("!(),:;?", rune(text[0])) {
+		return string(rune(text[0]) + fullwidthOffset)
+	}
+
+	return text
+}
+
+// textHasWide reports whether text has a character that takes two cells.
+func textHasWide(text string) bool {
+	for _, r := range text {
+		if displaywidth.Rune(r) > 1 {
+			return true
+		}
+	}
+
+	return false
 }
 
 // leftToRight reports whether each character's ink in word starts and ends
@@ -330,4 +616,56 @@ func backgroundOf(img *image.RGBA, box image.Rectangle) uint32 {
 	blue := uint32(best%levels) << shift
 
 	return red<<16 | green<<8 | blue
+}
+
+// mergeWideLines is the eng lines, with the lines a second-language line
+// overlaps replaced by it when it has a wide character and none of them do,
+// which is a Chinese line eng read as Latin noise, sometimes in pieces. A line
+// eng read with wide characters stays. A wide line eng missed is added. Two
+// reads are the same line when their boxes overlap by at least half the
+// smaller box, as on macOS.
+func mergeWideLines(detected, wide [][]ports.TextPiece) [][]ports.TextPiece {
+	merged := slices.Clone(detected)
+
+	for _, line := range wide {
+		if !lineHasWide(line) {
+			continue
+		}
+
+		box := lineBounds(line)
+		overlaps := func(other []ports.TextPiece) bool {
+			otherBox := lineBounds(other)
+			smaller := min(area(box), area(otherBox))
+
+			return smaller > 0 && area(box.Intersect(otherBox))*halfDivisor >= smaller
+		}
+
+		if slices.ContainsFunc(merged, func(other []ports.TextPiece) bool {
+			return overlaps(other) && lineHasWide(other)
+		}) {
+			continue
+		}
+
+		merged = append(slices.DeleteFunc(merged, overlaps), line)
+	}
+
+	return merged
+}
+
+// lineHasWide reports whether a line has a character that takes two cells.
+func lineHasWide(line []ports.TextPiece) bool {
+	return slices.ContainsFunc(
+		line,
+		func(piece ports.TextPiece) bool { return textHasWide(piece.Text) },
+	)
+}
+
+// lineBounds is the box around a line's pieces.
+func lineBounds(line []ports.TextPiece) image.Rectangle {
+	var box image.Rectangle
+	for _, piece := range line {
+		box = box.Union(piece.Bounds)
+	}
+
+	return box
 }

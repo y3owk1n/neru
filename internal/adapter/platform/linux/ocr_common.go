@@ -93,6 +93,10 @@ type OCRParams struct {
 	WordLevel bool
 	// TimeoutMS bounds the recognition. Zero or less means no deadline.
 	TimeoutMS int
+	// Language is the tesseract language to read in, such as "chi_sim+eng".
+	// Empty means eng. Any other language runs on an engine of its own, so a
+	// slow read in it never holds up one in eng.
+	Language string
 }
 
 // ocrError maps a native OCR status onto the shared error vocabulary. Only
@@ -142,6 +146,81 @@ func ocrError(status ocrStatus) error {
 			"text recognition failed for an unknown reason",
 		)
 	}
+}
+
+// localeEnvVars are where the locale says what the user reads, in the order
+// gettext asks them. LANGUAGE is a colon-separated list.
+var localeEnvVars = []string{"LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"}
+
+// tesseractTraditionalChinese is tesseract's name for Traditional Chinese.
+const tesseractTraditionalChinese = "chi_tra"
+
+// wideLanguages maps a locale's language, and for Chinese its region or
+// script, to the tesseract language that reads it. Traditional Chinese comes
+// first so zh_TW is not read as zh.
+var wideLanguages = []struct{ prefix, language string }{
+	{"zh_tw", tesseractTraditionalChinese},
+	{"zh_hk", tesseractTraditionalChinese},
+	{"zh_mo", tesseractTraditionalChinese},
+	{"zh_hant", tesseractTraditionalChinese},
+	{"yue", tesseractTraditionalChinese},
+	{"zh", "chi_sim"},
+	{"ja", "jpn"},
+	{"ko", "kor"},
+}
+
+// wideLanguage is the tesseract language for the first Chinese, Japanese or
+// Korean the locale names, or "" when it names none, as macOS takes the first
+// such language among the preferred ones.
+func wideLanguage(env func(string) string) string {
+	for _, name := range localeEnvVars {
+		for tag := range strings.SplitSeq(env(name), ":") {
+			tag = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(tag), "-", "_"))
+
+			for _, wide := range wideLanguages {
+				rest, ok := strings.CutPrefix(tag, wide.prefix)
+				if ok && (rest == "" || strings.ContainsRune("_.@", rune(rest[0]))) {
+					return wide.language
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// WideLanguage is the tesseract language for the Chinese, Japanese or Korean
+// the locale names, with eng, such as "chi_sim+eng", for a second read of
+// lines eng reads as Latin noise. It is "" with a nil error when the locale
+// names none, and "" with CodeNotSupported naming the file when its language
+// data is not installed beside eng's.
+func WideLanguage() (string, error) {
+	language := wideLanguage(os.Getenv)
+	if language == "" {
+		return "", nil
+	}
+
+	dir, err := tessdataDir()
+	if err != nil {
+		return "", err
+	}
+
+	data := language + ".traineddata"
+
+	info, err := os.Stat(filepath.Join(dir, data))
+	if err != nil || info.IsDir() {
+		return "", derrors.Newf(
+			derrors.CodeNotSupported,
+			"the locale reads %s, and %s was not found in %s, so text in it reads as Latin; "+
+				"install it beside %s",
+			language,
+			data,
+			dir,
+			ocrLanguageData,
+		)
+	}
+
+	return language + "+" + ocrLanguage, nil
 }
 
 // resolveTessdataDir finds the directory holding the language data, or reports

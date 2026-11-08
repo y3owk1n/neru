@@ -162,3 +162,57 @@ func (s stubEnv) get(key string) string { return s[key] }
 type stubExists map[string]bool
 
 func (s stubExists) has(path string) bool { return s[path] }
+
+func TestWideLanguage_TakesTheFirstChineseJapaneseOrKoreanTheLocaleNames(t *testing.T) {
+	const lang = "LANG"
+
+	tests := []struct {
+		name string
+		env  map[string]string
+		want string
+	}{
+		{name: "no locale", env: map[string]string{}, want: ""},
+		{name: "English", env: map[string]string{lang: "en_US.UTF-8"}, want: ""},
+		{
+			name: "Simplified Chinese",
+			env:  map[string]string{lang: "zh_CN.UTF-8"},
+			want: "chi_sim",
+		},
+		{
+			name: "Taiwan reads Traditional",
+			env:  map[string]string{lang: "zh_TW.UTF-8"},
+			want: "chi_tra",
+		},
+		{
+			name: "Hong Kong reads Traditional",
+			env:  map[string]string{"LC_ALL": "zh_HK"},
+			want: "chi_tra",
+		},
+		{name: "Japanese", env: map[string]string{"LC_MESSAGES": "ja_JP.UTF-8"}, want: "jpn"},
+		{name: "Korean", env: map[string]string{lang: "ko_KR.UTF-8"}, want: "kor"},
+		{
+			name: "a later LANGUAGE entry",
+			env:  map[string]string{"LANGUAGE": "en_US:ko_KR", lang: "en_US.UTF-8"},
+			want: "kor",
+		},
+		{
+			name: "LANGUAGE before LANG",
+			env:  map[string]string{"LANGUAGE": "ja", lang: "zh_CN.UTF-8"},
+			want: "jpn",
+		},
+		{
+			name: "a language merely starting with ja",
+			env:  map[string]string{lang: "jam_JM"},
+			want: "",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := wideLanguage(func(name string) string { return testCase.env[name] })
+			if got != testCase.want {
+				t.Fatalf("wideLanguage = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}

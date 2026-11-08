@@ -5,9 +5,11 @@ package vision
 import (
 	"context"
 	"image"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
+	"golang.org/x/image/draw"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
@@ -294,7 +296,10 @@ func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error)
 }
 
 // ReadLines captures region and has tesseract read it a character at a time.
-// tesseract has one level, so a fast and an accurate read are the same read.
+// An accurate read also reads it in the Chinese, Japanese or Korean the locale
+// names, on an engine of its own, as macOS does, since eng reads a Chinese word
+// in an English line as Latin noise. The fast read, which a keystroke waits on,
+// stays eng alone.
 func (a *Adapter) ReadLines(
 	ctx context.Context,
 	region image.Rectangle,
@@ -322,10 +327,9 @@ func (a *Adapter) ReadLines(
 		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
 	}
 
-	found, stats, err := platformlinux.RecognizeLines(
-		img,
-		platformlinux.OCRParams{TimeoutMS: timeoutMS},
-	)
+	params := platformlinux.OCRParams{TimeoutMS: timeoutMS}
+
+	lines, stats, err := readLinePieces(img, img, region, params)
 	if err != nil {
 		if derrors.IsNotSupported(err) {
 			return nil, err
@@ -341,23 +345,99 @@ func (a *Adapter) ReadLines(
 		)
 	}
 
+	wide := ""
+	if level == ports.TextAccurate {
+		wide = a.wideLanguage()
+	}
+
+	if wide != "" {
+		params.Language = wide
+		if timeoutMS > 0 {
+			params.TimeoutMS = max(timeoutMS-int(stats.Recognition.Milliseconds()), 1)
+		}
+
+		wideLines, wideStats, wideErr := readLinePieces(
+			atLeastTwoPixelsPerPoint(img, region), img, region, params,
+		)
+		if wideErr != nil {
+			a.logger.Debug("Second-language read failed, keeping the eng read",
+				zap.Duration("recognition", wideStats.Recognition), zap.Error(wideErr))
+		} else {
+			lines = mergeWideLines(lines, wideLines)
+			stats.Recognition += wideStats.Recognition
+		}
+	}
+
+	a.logger.Debug("Read lines",
+		zap.Bool("accurate", level == ports.TextAccurate),
+		zap.Bool("second_language", wide != ""),
+		zap.Int("line_count", len(lines)),
+		zap.Duration("recognition", stats.Recognition))
+
+	return lines, nil
+}
+
+// wideLanguageWarned keeps a missing second language to one warning.
+var wideLanguageWarned sync.Once
+
+// wideLanguage is the language an accurate read reads a second time in, or ""
+// for none. A locale naming one whose data is missing warns once and reads eng
+// alone.
+func (a *Adapter) wideLanguage() string {
+	language, err := platformlinux.WideLanguage()
+	if err != nil {
+		wideLanguageWarned.Do(func() {
+			a.logger.Warn("Vim mode reads Latin script only", zap.Error(err))
+		})
+	}
+
+	return language
+}
+
+// wideReadPixelsPerPoint is how many pixels per point the second-language read
+// gets. At one pixel per point, small Chinese text reads better as eng's Latin
+// noise, so tesseract keeps that reading, while at two it reads the
+// characters.
+const wideReadPixelsPerPoint = 2
+
+// atLeastTwoPixelsPerPoint is img, which shows region, scaled up to
+// wideReadPixelsPerPoint pixels per point when it has fewer.
+func atLeastTwoPixelsPerPoint(img *image.RGBA, region image.Rectangle) *image.RGBA {
+	if region.Dx() <= 0 || img.Rect.Dx() >= wideReadPixelsPerPoint*region.Dx() {
+		return img
+	}
+
+	scaled := image.NewRGBA(image.Rect(
+		0, 0, wideReadPixelsPerPoint*region.Dx(), wideReadPixelsPerPoint*region.Dy(),
+	))
+	draw.CatmullRom.Scale(scaled, scaled.Rect, img, img.Rect, draw.Src, nil)
+
+	return scaled
+}
+
+// readLinePieces has tesseract read read, a frame of img at any scale, and lays
+// the characters out as ReadLines pieces over img, which shows region. The
+// layout cuts at img's own pixels, since scaling blurs away the one-pixel gaps
+// between small characters.
+func readLinePieces(
+	read, img *image.RGBA,
+	region image.Rectangle,
+	params platformlinux.OCRParams,
+) ([][]ports.TextPiece, platformlinux.OCRStats, error) {
+	found, stats, err := platformlinux.RecognizeLines(read, params)
+	if err != nil {
+		return nil, stats, err
+	}
+
 	symbols := make([]lineSymbol, 0, len(found))
 	for _, symbol := range found {
 		symbols = append(symbols, lineSymbol{
 			text: symbol.Text,
-			ink:  symbol.Bounds.Add(img.Rect.Min),
+			ink:  toRegion(symbol.Bounds.Add(read.Rect.Min), read.Rect, img.Rect),
 			line: symbol.Line,
 			word: symbol.Word,
 		})
 	}
 
-	lines := piecesFromSymbols(symbols, img, region)
-
-	a.logger.Debug("Read lines",
-		zap.Bool("accurate", level == ports.TextAccurate),
-		zap.Int("line_count", len(lines)),
-		zap.Int("piece_count", len(symbols)),
-		zap.Duration("recognition", stats.Recognition))
-
-	return lines, nil
+	return piecesFromSymbols(symbols, img, region), stats, nil
 }

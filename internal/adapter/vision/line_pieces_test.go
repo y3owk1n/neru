@@ -4,7 +4,11 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"slices"
+	"strings"
 	"testing"
+
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 func TestPiecesFromSymbols_LaysCharactersOutAsCellsPerLineAndWord(t *testing.T) {
@@ -98,6 +102,137 @@ func TestPiecesFromSymbols_MovesABoundaryInsideACharacterToTheGap(t *testing.T) 
 			boundary,
 			lines[0][1].Bounds.Min.X,
 		)
+	}
+}
+
+//nolint:gosmopolitan // The fixtures are Chinese text.
+func TestPiecesFromSymbols_PlacesWideCharactersFromTheirInk(t *testing.T) {
+	// Three 20-pixel characters on a 24-pixel pitch, the middle one in two
+	// halves with a 2-pixel gap, as 测 is. tesseract reads each as a word of
+	// its own with boxes that drift right.
+	img := image.NewRGBA(image.Rect(0, 0, 100, 40))
+	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
+
+	for _, ink := range []image.Rectangle{
+		image.Rect(10, 10, 30, 30),
+		image.Rect(34, 10, 42, 30),
+		image.Rect(44, 10, 54, 30),
+		image.Rect(58, 10, 78, 30),
+	} {
+		drawGlyph(img, ink)
+	}
+
+	symbols := []lineSymbol{
+		{text: "今", ink: image.Rect(10, 10, 30, 30), line: 0, word: 0},
+		{text: "测", ink: image.Rect(44, 10, 56, 30), line: 0, word: 1},
+		{text: ",", ink: image.Rect(70, 10, 78, 30), line: 0, word: 2},
+	}
+
+	lines := piecesFromSymbols(symbols, img, img.Rect)
+
+	if len(lines) != 1 || len(lines[0]) != 3 {
+		t.Fatalf("lines = %v, want three pieces", lines)
+	}
+
+	// Each cell starts where the one before ends, and the boundaries between
+	// characters fall in the gaps, 30 to 34 and 54 to 58, never in the gap
+	// inside 测.
+	texts := []string{"今", "测", "，"}
+	gaps := [][2]int{{30, 34}, {54, 58}}
+
+	for index, piece := range lines[0] {
+		if piece.Word != 0 {
+			t.Fatalf("piece %d is in word %d, want the run as one word, 0", index, piece.Word)
+		}
+
+		if piece.Text != texts[index] {
+			t.Fatalf("piece %d is %q, want %q", index, piece.Text, texts[index])
+		}
+
+		if index == 0 {
+			continue
+		}
+
+		edge, gap := piece.Bounds.Min.X, gaps[index-1]
+		if edge != lines[0][index-1].Bounds.Max.X || edge < gap[0] || edge > gap[1] {
+			t.Fatalf("%q starts at %d after one ending at %d, want both in the gap %d to %d",
+				piece.Text, edge, lines[0][index-1].Bounds.Max.X, gap[0], gap[1])
+		}
+	}
+}
+
+func TestPiecesFromSymbols_KeepsWideWordsApartAtTheirSpace(t *testing.T) {
+	// Korean has spaces between words, 18 pixels here against characters 20
+	// high. Two such words stay two words.
+	img := image.NewRGBA(image.Rect(0, 0, 140, 40))
+	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
+
+	inks := []image.Rectangle{
+		image.Rect(10, 10, 30, 30), image.Rect(32, 10, 52, 30),
+		image.Rect(70, 10, 90, 30), image.Rect(92, 10, 112, 30),
+	}
+	for _, ink := range inks {
+		drawGlyph(img, ink)
+	}
+
+	symbols := []lineSymbol{
+		{text: "한", ink: inks[0], line: 0, word: 0},
+		{text: "국", ink: inks[1], line: 0, word: 0},
+		{text: "텍", ink: inks[2], line: 0, word: 1},
+		{text: "스", ink: inks[3], line: 0, word: 1},
+	}
+
+	lines := piecesFromSymbols(symbols, img, img.Rect)
+
+	if len(lines) != 1 || len(lines[0]) != 4 {
+		t.Fatalf("lines = %v, want four pieces", lines)
+	}
+
+	words := []int{lines[0][0].Word, lines[0][1].Word, lines[0][2].Word, lines[0][3].Word}
+	if !slices.Equal(words, []int{0, 0, 1, 1}) {
+		t.Fatalf("word numbers = %v, want two words of two, 0 0 1 1", words)
+	}
+
+	if gap := lines[0][2].Bounds.Min.X - lines[0][1].Bounds.Max.X; gap <= 0 {
+		t.Fatalf("the words touch, %d apart, want the space between them kept", gap)
+	}
+}
+
+//nolint:gosmopolitan // The fixtures are Chinese and Korean text.
+func TestMergeWideLines_ReplacesOnlyLinesReadAsLatinNoise(t *testing.T) {
+	piece := func(text string, left, top int) ports.TextPiece {
+		return ports.TextPiece{Text: text, Bounds: image.Rect(left, top, left+20, top+20)}
+	}
+
+	// eng read the second line as noise in two pieces.
+	detected := [][]ports.TextPiece{
+		{piece("hello", 0, 0)},
+		{piece("G", 0, 40)},
+		{piece("E", 20, 40)},
+		{piece("한", 0, 80)},
+	}
+	wide := [][]ports.TextPiece{
+		{piece("hello", 0, 0)},
+		{piece("括", 0, 40), piece("号", 20, 40)},
+		{piece("韓", 0, 80)},
+		{piece("新", 0, 120)},
+	}
+
+	merged := mergeWideLines(detected, wide)
+
+	texts := make([]string, 0, len(merged))
+	for _, line := range merged {
+		var text strings.Builder
+		for _, p := range line {
+			text.WriteString(p.Text)
+		}
+
+		texts = append(texts, text.String())
+	}
+
+	want := []string{"hello", "한", "括号", "新"}
+	if !slices.Equal(texts, want) {
+		t.Fatalf("merged lines = %q, want %q", texts, want)
 	}
 }
 

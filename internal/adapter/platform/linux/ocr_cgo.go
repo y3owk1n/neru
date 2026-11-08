@@ -40,8 +40,13 @@ const (
 // ocrConfig builds the native config for one call. The returned free function
 // releases the two C strings it owns and must run on every path.
 func ocrConfig(datapath string, params OCRParams) (C.NeruOCRConfig, func()) {
+	language, engine := ocrLanguage, C.int(0)
+	if params.Language != "" && params.Language != ocrLanguage {
+		language, engine = params.Language, 1
+	}
+
 	cDatapath := C.CString(datapath)
-	cLanguage := C.CString(ocrLanguage)
+	cLanguage := C.CString(language)
 
 	var wordLevel C.int
 	if params.WordLevel {
@@ -53,6 +58,7 @@ func ocrConfig(datapath string, params OCRParams) (C.NeruOCRConfig, func()) {
 		language:  cLanguage,
 		wordLevel: wordLevel,
 		timeoutMS: C.int(params.TimeoutMS),
+		engine:    engine,
 	}
 
 	return config, func() {

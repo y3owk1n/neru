@@ -54,6 +54,9 @@ typedef struct {
 	int elapsedMS;
 } NeruOCRResult;
 
+// NERU_OCR_ENGINES is how many engines stay cached at once.
+#define NERU_OCR_ENGINES 2
+
 typedef struct {
 	// datapath is the directory holding <language>.traineddata. Never NULL.
 	// Resolution is done in Go so a missing tessdata reports which file is
@@ -65,6 +68,9 @@ typedef struct {
 	int wordLevel;
 	// timeoutMS bounds one recognition. <= 0 means no deadline.
 	int timeoutMS;
+	// engine is the cached engine slot, below NERU_OCR_ENGINES. Each slot keeps
+	// one language's engine under a lock of its own.
+	int engine;
 } NeruOCRConfig;
 
 // One character of a line read, with the ink box tesseract placed it in. line
