@@ -272,6 +272,55 @@ func TestNew_LaysEachContainerOutAsItsOwnBlock(t *testing.T) {
 	}
 }
 
+// numberedLines is an editor's text beside its line numbers, a few
+// characters from it, on one background.
+func numberedLines(numbers ...string) []screentext.Word {
+	texts := []string{"Why do", "It is", "content"}
+	words := make([]screentext.Word, 0, len(numbers)*2)
+
+	for line, number := range numbers {
+		top := line * 20
+		words = append(words,
+			screentext.Word{Text: number, Bounds: image.Rect(8, top, 15, top+10)},
+			screentext.Word{Text: texts[line%len(texts)], Bounds: image.Rect(44, top, 100, top+10)},
+		)
+	}
+
+	return words
+}
+
+func TestNew_KeepsALineNumberGutterOutOfTheText(t *testing.T) {
+	got := screentext.New(numberedLines("1", "2", "3")).String()
+	if want := "1\n2\n3\n\nWhy do\nIt is\ncontent"; got != want {
+		t.Fatalf("text = %q, want the gutter apart from the text, %q", got, want)
+	}
+}
+
+func TestNew_KeepsTheOneReadableLineNumberOutOfTheText(t *testing.T) {
+	// An editor dims every number but the current line's, which is all that
+	// was read.
+	words := numberedLines("", "2", "")
+	words = slices.DeleteFunc(words, func(word screentext.Word) bool { return word.Text == "" })
+
+	got := screentext.New(words).String()
+	if strings.Contains(got, "2 ") || strings.HasPrefix(got, "Why do\n2") {
+		t.Fatalf("text = %q, want the number apart from its line", got)
+	}
+}
+
+func TestNew_KeepsANumberThatStartsAShortGap(t *testing.T) {
+	got := screentext.New([]screentext.Word{
+		{Text: "3", Bounds: image.Rect(0, 0, 7, 10)},
+		{Text: "apples", Bounds: image.Rect(14, 0, 56, 10)},
+		{Text: "pears", Bounds: image.Rect(14, 20, 49, 30)},
+		{Text: "plums", Bounds: image.Rect(14, 40, 49, 50)},
+	}).String()
+
+	if want := "3 apples\n  pears\n  plums"; got != want {
+		t.Fatalf("text = %q, want the number kept on its line, %q", got, want)
+	}
+}
+
 func TestHost_CtrlW_MovesBetweenContainers(t *testing.T) {
 	tests := []struct {
 		name  string

@@ -3,12 +3,19 @@ package screentext
 import (
 	"image"
 	"slices"
+	"strconv"
+	"strings"
 )
 
 const (
 	// containerGapColumns is the widest gap, in characters, between two
 	// words on one line of the same container. A wider one is a gutter.
 	containerGapColumns = 4
+	// gutterGapColumns is the narrowest gap, in characters, between a line
+	// number and its text, and gutterTextLines how many other lines have to
+	// start where that text does.
+	gutterGapColumns = 2
+	gutterTextLines  = 2
 	// containerGapLines is the tallest gap, in the taller word's heights,
 	// between two stacked words of the same container. It spans a paragraph
 	// break, and a wider one is space between blocks.
@@ -24,9 +31,12 @@ const (
 // belong together when they sit on the same background and are near: on one
 // line with a gap no wider than a few characters, or stacked, no further
 // apart side to side than an indent, with a gap no taller than a paragraph
-// break. Groups whose
-// bounds overlap are one container, since their text would interleave.
+// break. A line-number gutter is a container of its own, so a line's number
+// is not part of its text. Groups whose bounds overlap are one container,
+// since their text would interleave.
 func findContainers(words []Word, cell int) [][]Word {
+	gutter := lineNumberGutter(words, cell)
+
 	parent := make([]int, len(words))
 	for index := range parent {
 		parent[index] = index
@@ -43,7 +53,8 @@ func findContainers(words []Word, cell int) [][]Word {
 
 	for a := range words {
 		for b := a + 1; b < len(words); b++ {
-			if sameBackground(words[a].Background, words[b].Background) &&
+			if gutter[a] == gutter[b] &&
+				sameBackground(words[a].Background, words[b].Background) &&
 				near(words[a], words[b], cell) {
 				parent[root(a)] = root(b)
 			}
@@ -51,16 +62,29 @@ func findContainers(words []Word, cell int) [][]Word {
 	}
 
 	byRoot := map[int][]Word{}
+	gutterRoots := map[int]bool{}
+
 	for index, word := range words {
 		byRoot[root(index)] = append(byRoot[root(index)], word)
+		gutterRoots[root(index)] = gutter[index]
 	}
 
+	// A gutter sits beside the text rather than in it, so it stays apart even
+	// where its bounds overlap a container's, as an editor's toolbar above it
+	// widens the text's.
 	groups := make([][]Word, 0, len(byRoot))
-	for _, group := range byRoot {
-		groups = append(groups, group)
+
+	var gutters [][]Word
+
+	for at, group := range byRoot {
+		if gutterRoots[at] {
+			gutters = append(gutters, group)
+		} else {
+			groups = append(groups, group)
+		}
 	}
 
-	groups = mergeOverlapping(groups)
+	groups = append(mergeOverlapping(groups), gutters...)
 
 	slices.SortFunc(groups, func(a, b []Word) int {
 		boundsA, boundsB := boundsOf(a), boundsOf(b)
@@ -72,6 +96,97 @@ func findContainers(words []Word, cell int) [][]Word {
 	})
 
 	return groups
+}
+
+// lineNumberGutter reports which words are line numbers in a gutter. An editor
+// draws them in a column left of its text, a few characters from it. Often
+// only the current line's number is dark enough to read. So a number counts
+// when it is first on its row and at least gutterGapColumns left of the text
+// beside it, and that text starts where at least gutterTextLines other lines
+// do. A number right-aligned with one, such as a blank line's, counts too.
+func lineNumberGutter(words []Word, cell int) map[int]bool {
+	isNumber := func(text string) bool {
+		_, err := strconv.Atoi(strings.TrimSpace(text))
+
+		return err == nil && !strings.ContainsAny(text, "+-")
+	}
+
+	sameRow := func(a, b image.Rectangle) bool {
+		return min(a.Max.Y, b.Max.Y)-max(a.Min.Y, b.Min.Y) > 0
+	}
+
+	// leftmost reports a word first on its row, not counting numbers when
+	// numbers is set.
+	leftmost := func(index int, numbers bool) bool {
+		return !slices.ContainsFunc(words, func(other Word) bool {
+			return other.Bounds.Max.X <= words[index].Bounds.Min.X &&
+				sameRow(other.Bounds, words[index].Bounds) &&
+				(!numbers || !isNumber(other.Text))
+		})
+	}
+
+	// beside is the word after a number on its row.
+	beside := func(index int) (Word, bool) {
+		var next Word
+
+		found := false
+
+		for _, other := range words {
+			if other.Bounds.Min.X > words[index].Bounds.Max.X &&
+				sameRow(other.Bounds, words[index].Bounds) &&
+				(!found || other.Bounds.Min.X < next.Bounds.Min.X) {
+				next, found = other, true
+			}
+		}
+
+		return next, found
+	}
+
+	var numbers []int
+
+	for index, word := range words {
+		if isNumber(word.Text) && leftmost(index, false) {
+			numbers = append(numbers, index)
+		}
+	}
+
+	gutter := map[int]bool{}
+
+	for _, index := range numbers {
+		next, found := beside(index)
+		if !found || next.Bounds.Min.X-words[index].Bounds.Max.X < gutterGapColumns*cell {
+			continue
+		}
+
+		aligned := 0
+
+		for other, word := range words {
+			if other != index && !sameRow(word.Bounds, words[index].Bounds) &&
+				leftmost(other, true) &&
+				distance(word.Bounds.Min.X, next.Bounds.Min.X)*halfDivisor <= cell {
+				aligned++
+			}
+		}
+
+		if aligned >= gutterTextLines {
+			gutter[index] = true
+		}
+	}
+
+	for _, index := range numbers {
+		for marked := range gutter {
+			if distance(words[index].Bounds.Max.X, words[marked].Bounds.Max.X)*halfDivisor <= cell {
+				gutter[index] = true
+			}
+		}
+	}
+
+	return gutter
+}
+
+// distance is how far apart two coordinates are.
+func distance(a, b int) int {
+	return max(a-b, b-a)
 }
 
 // near reports whether two words sit close enough to read as one block.
