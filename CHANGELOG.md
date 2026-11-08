@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.62.0](https://github.com/y3owk1n/neru/compare/v1.61.0...v1.62.0) (2026-11-08)
+
+
+### Features
+
+* **grid:** add --no-subgrid flag to select a cell without the subgrid ([#1927](https://github.com/y3owk1n/neru/issues/1927)) ([c044540](https://github.com/y3owk1n/neru/commit/c044540a93287d9aee78be1be9419516d2a56c9d))
+* **hints:** copy a hint's text to the clipboard with copy_text ([#1917](https://github.com/y3owk1n/neru/issues/1917)) ([cb101a8](https://github.com/y3owk1n/neru/commit/cb101a80802a6a548236e30e55bf674062160256))
+* **hints:** pick a hint's action by the modifiers held on its last key ([#1915](https://github.com/y3owk1n/neru/issues/1915)) ([b1405e2](https://github.com/y3owk1n/neru/commit/b1405e2f3dbe9b048a4ddb772023876517485320))
+
+
+### Bug Fixes
+
+* **hints,darwin:** make copy text via vision more accurate ([#1918](https://github.com/y3owk1n/neru/issues/1918)) ([31acf29](https://github.com/y3owk1n/neru/commit/31acf29e1c2407602750e572e4342181ef8c5f04))
+* **hints:** show hints for a window that runs past the screen edge ([#1928](https://github.com/y3owk1n/neru/issues/1928)) ([a64a277](https://github.com/y3owk1n/neru/commit/a64a2774477352eb32a7a296dfc217c8da3c25c9))
+* **linux:** let X11 global hotkeys use symbol keys ([#1920](https://github.com/y3owk1n/neru/issues/1920)) ([2871d96](https://github.com/y3owk1n/neru/commit/2871d96cd37c6b3fe632d8f50ba292bba8576566))
+* **snap:** ask for screen recording before a capture-strategy snap ([#1926](https://github.com/y3owk1n/neru/issues/1926)) ([6a50136](https://github.com/y3owk1n/neru/commit/6a50136c18f75924273c54c81960d1280c62fe76))
+
 ## [1.61.0](https://github.com/y3owk1n/neru/compare/v1.60.0...v1.61.0) (2026-11-02)
 
 
