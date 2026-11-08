@@ -25,9 +25,11 @@ type lineSymbol struct {
 // them. Each piece carries its word's background color. macOS measures the
 // same cells from the pixels in its bridge.
 //
-// tesseract places characters roughly, and sometimes one's ink starts left of
-// the one before it. Such a word becomes one piece, and vim mode splits it by
-// the characters' widths.
+// tesseract places characters roughly, so each boundary between two of a
+// word's cells then moves to the nearest blank column, as macOS does for wide
+// characters. Sometimes one character's ink starts left of the one before it.
+// Such a word becomes one piece, and vim mode splits it by the characters'
+// widths.
 func piecesFromSymbols(
 	symbols []lineSymbol,
 	img *image.RGBA,
@@ -49,12 +51,12 @@ func piecesFromSymbols(
 			box = box.Union(symbol.ink)
 		}
 
-		background := backgroundOf(img, box)
-
 		line := word[0].line
 		for len(lines) <= line {
 			lines = append(lines, nil)
 		}
+
+		background := backgroundOf(img, box)
 
 		if !leftToRight(word) {
 			var text strings.Builder
@@ -73,7 +75,7 @@ func piecesFromSymbols(
 			continue
 		}
 
-		cells := symbolCells(word)
+		cells := snapToBlankColumns(symbolCells(word), img, box, snapWindow(img.Rect, region))
 
 		for index, symbol := range word {
 			cell := image.Rect(cells[index][0], box.Min.Y, cells[index][1], box.Max.Y)
@@ -135,6 +137,131 @@ func symbolCells(word []lineSymbol) [][2]int {
 	}
 
 	return cells
+}
+
+// snapPoints is how far, in points, a boundary between two characters may move
+// to reach a blank column, as on macOS.
+const snapPoints = 3
+
+// snapWindow is snapPoints in the pixels of an image that shows region.
+func snapWindow(pixels, region image.Rectangle) int {
+	if region.Dx() == 0 {
+		return snapPoints
+	}
+
+	return max(snapPoints*pixels.Dx()/region.Dx(), 1)
+}
+
+// inkContrast is how far a pixel's luma has to be from the background's to
+// count as ink, as on macOS.
+const inkContrast = 64
+
+// snapToBlankColumns moves each boundary between two of a word's cells to the
+// nearest column of box with no ink, within window pixels. tesseract places a
+// character's box only roughly, so the halfway point between two boxes can
+// land inside one of the characters, while the gap between them is a column or
+// two away.
+func snapToBlankColumns(cells [][2]int, img *image.RGBA, box image.Rectangle, window int) [][2]int {
+	if len(cells) <= 1 {
+		return cells
+	}
+
+	box = box.Intersect(img.Rect)
+	if box.Empty() {
+		return cells
+	}
+
+	background := lumaOf(img, box)
+
+	blank := func(column int) bool {
+		return column < box.Min.X || column >= box.Max.X ||
+			!inkedColumn(img, column, box, background)
+	}
+
+	for index := 1; index < len(cells); index++ {
+		edge := cells[index][0]
+
+		for distance := 0; distance <= window; distance++ {
+			if blank(edge - distance) {
+				edge -= distance
+
+				break
+			}
+
+			if blank(edge + distance) {
+				edge += distance
+
+				break
+			}
+		}
+
+		edge = min(max(edge, cells[index-1][0]+1), cells[index][1]-1)
+		cells[index-1][1], cells[index][0] = edge, edge
+	}
+
+	return cells
+}
+
+// inkedColumn reports whether column of img has ink between box's top and
+// bottom, a pixel whose luma is more than inkContrast from background. A
+// column outside img has none.
+func inkedColumn(img *image.RGBA, column int, box image.Rectangle, background int) bool {
+	if column < img.Rect.Min.X || column >= img.Rect.Max.X {
+		return false
+	}
+
+	for y := box.Min.Y; y < box.Max.Y; y++ {
+		pixel := img.RGBAAt(column, y)
+		if abs(luma(pixel.R, pixel.G, pixel.B)-background) > inkContrast {
+			return true
+		}
+	}
+
+	return false
+}
+
+// lumaOf is the most common luma inside box in img. Text covers less of its
+// own box than the background does, while the pixels around the box can run
+// along a border, such as an editor's current-line highlight.
+func lumaOf(img *image.RGBA, box image.Rectangle) int {
+	var histogram [256]int
+
+	for y := box.Min.Y; y < box.Max.Y; y++ {
+		for x := box.Min.X; x < box.Max.X; x++ {
+			pixel := img.RGBAAt(x, y)
+			histogram[luma(pixel.R, pixel.G, pixel.B)]++
+		}
+	}
+
+	best := 0
+	for value, count := range histogram {
+		if count > histogram[best] {
+			best = value
+		}
+	}
+
+	return best
+}
+
+// The Rec. 601 luma weights, in thousandths.
+const (
+	lumaRed   = 299
+	lumaGreen = 587
+	lumaBlue  = 114
+	lumaScale = 1000
+)
+
+// luma is a pixel's brightness, 0 to 255.
+func luma(red, green, blue uint8) int {
+	return (lumaRed*int(red) + lumaGreen*int(green) + lumaBlue*int(blue)) / lumaScale
+}
+
+func abs(value int) int {
+	if value < 0 {
+		return -value
+	}
+
+	return value
 }
 
 // toRegion maps rect from the pixels of an image that shows region to region's

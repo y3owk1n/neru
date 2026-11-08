@@ -69,6 +69,45 @@ func TestPiecesFromSymbols_KeepsAWordWithCrossedInkWhole(t *testing.T) {
 	}
 }
 
+func TestPiecesFromSymbols_MovesABoundaryInsideACharacterToTheGap(t *testing.T) {
+	// Two glyphs, 10 to 20 and 24 to 34, on white. tesseract
+	// reads the first one 4 pixels too wide, so halfway between the boxes is
+	// column 23, inside the second glyph's ink. The gap is columns 20 to 23.
+	img := image.NewRGBA(image.Rect(0, 0, 60, 40))
+	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
+
+	for _, glyph := range []image.Rectangle{image.Rect(10, 10, 20, 30), image.Rect(24, 10, 34, 30)} {
+		drawGlyph(img, glyph)
+	}
+
+	symbols := []lineSymbol{
+		{text: "a", ink: image.Rect(10, 10, 22, 30), line: 0, word: 0},
+		{text: "b", ink: image.Rect(24, 10, 34, 30), line: 0, word: 0},
+	}
+
+	lines := piecesFromSymbols(symbols, img, img.Rect)
+
+	if len(lines) != 1 || len(lines[0]) != 2 {
+		t.Fatalf("lines = %v, want two pieces", lines)
+	}
+
+	boundary := lines[0][0].Bounds.Max.X
+	if boundary < 20 || boundary > 23 || lines[0][1].Bounds.Min.X != boundary {
+		t.Fatalf(
+			"a ends at %d and b starts at %d, want both in the gap, 20 to 23",
+			boundary,
+			lines[0][1].Bounds.Min.X,
+		)
+	}
+}
+
+// drawGlyph draws a stand-in for a character over box: its outline, two
+// pixels thick, so like real text it leaves most of its box background.
+func drawGlyph(img *image.RGBA, box image.Rectangle) {
+	draw.Draw(img, box, image.NewUniform(color.Black), image.Point{}, draw.Src)
+	draw.Draw(img, box.Inset(2), image.NewUniform(color.White), image.Point{}, draw.Src)
+}
+
 func TestBackgroundOf_IsTheColorAroundTheBox(t *testing.T) {
 	img := image.NewRGBA(image.Rect(0, 0, 40, 40))
 	draw.Draw(
