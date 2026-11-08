@@ -181,10 +181,12 @@ while a mode is open, where a key it typed would come back to it. So there,
 while a mode is open, vim mode refuses each edit and says why in its status
 line, and `action feed` is refused too.
 
-¹⁷ **Windows vim mode reads the languages the account has OCR packs for**,
-since Windows.Media.Ocr reads in those. The engine gives a box for each word
-only, so vim mode places each character by its own ink. In a word whose
-letters touch, the cursor can sit a little off a character.
+¹⁷ **Windows vim mode reads one language**, the first in the account's
+language list that has an OCR pack, since Windows.Media.Ocr builds its engine
+from that list. A pack for a language further down goes unused. The engine
+gives a box for each word only, so vim mode places each character by its own
+ink. In a word whose letters touch, the cursor can sit a little off a
+character.
 
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.
@@ -258,8 +260,8 @@ These are boundaries, not gaps:
 
 **Windows**: one gap.
 
-- **Vim mode reads the languages the account has OCR packs for.** macOS
-  reads every script it knows.
+- **Vim mode reads one language**, the first in the account's language list
+  that has an OCR pack. macOS reads every script it knows.
 
 These are boundaries, not gaps:
 
