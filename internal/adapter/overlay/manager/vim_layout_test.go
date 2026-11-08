@@ -2,6 +2,7 @@ package manager_test
 
 import (
 	"image"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
@@ -98,4 +99,49 @@ func TestLayoutVim_SplitsTheNoticeIntoATitleAndADetail(t *testing.T) {
 	if texts[1].Bounds.Min.Y < texts[0].Bounds.Max.Y {
 		t.Fatalf("detail at %v overlaps the title at %v", texts[1].Bounds, texts[0].Bounds)
 	}
+}
+
+// TestLayoutVim_TurnsTheNoticeSpinnerWithItsStep pins that the waiting notice
+// moves. A backend redraws it with the next step on a timer, so what the
+// spinner draws has to change from one step to the next and come back after a
+// full turn.
+func TestLayoutVim_TurnsTheNoticeSpinnerWithItsStep(t *testing.T) {
+	const maxTurn = 64
+
+	spinner := func(step int) []image.Rectangle {
+		ops := manager.LayoutVim(manager.VimScene{
+			Region: image.Rect(0, 0, 1000, 800),
+			Notice: "Reading the screen",
+			Spin:   step,
+		}, manager.VimStyle{FontSize: 10, CursorColor: "#336699"}, measureEightPerRune)
+
+		var dots []image.Rectangle
+
+		for _, drawn := range ops {
+			if drawn.Kind == manager.VimOpRoundedRect &&
+				drawn.Bounds.Dx() == drawn.Bounds.Dy() &&
+				drawn.Radius*2 == float64(drawn.Bounds.Dx()) {
+				dots = append(dots, drawn.Bounds)
+			}
+		}
+
+		return dots
+	}
+
+	first := spinner(0)
+	if len(first) < 2 {
+		t.Fatalf("the notice drew %d spinner dots, want an arc of them", len(first))
+	}
+
+	if slices.Equal(spinner(1), first) {
+		t.Fatalf("the spinner drew the same dots at step 0 and step 1: %v", first)
+	}
+
+	for step := 2; step <= maxTurn; step++ {
+		if slices.Equal(spinner(step), first) {
+			return
+		}
+	}
+
+	t.Fatalf("the spinner never came back to its first step within %d steps", maxTurn)
 }

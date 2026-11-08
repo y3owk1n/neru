@@ -2,6 +2,7 @@ package manager
 
 import (
 	"image"
+	"math"
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
@@ -73,7 +74,7 @@ const (
 // LayoutVim lays a vim scene out as the shapes a backend paints, with
 // measure answering a text's width at the style's font family and the given
 // size. The macOS bridge lays out the same geometry with Core Animation
-// layers, where its notice spinner turns and this one is a still ring.
+// layers. Here the notice spinner is an arc drawn at scene.Spin's step.
 func LayoutVim(
 	scene VimScene,
 	style VimStyle,
@@ -320,15 +321,10 @@ func vimNotice(
 			Kind: VimOpRoundedRect, Bounds: card, Radius: vimNoticeRadius,
 			Fill: background, Border: accent, LineWidth: vimNoticeStroke,
 		},
-		{
-			Kind:      VimOpRoundedRect,
-			Bounds:    mark,
-			Radius:    vimNoticeMark / vimHalves,
-			Border:    accent,
-			LineWidth: vimCursorStroke,
-		},
 		text(title, titleBox, color, true),
 	}
+
+	ops = append(ops, vimSpinner(mark, scene.Spin, accent)...)
 
 	if detail != "" {
 		detailTop := titleBox.Max.Y + vimNoticeLineGap
@@ -346,6 +342,49 @@ func vimNotice(
 				false,
 			),
 		)
+	}
+
+	return ops
+}
+
+// vimSpinDots is how many dots ring the notice spinner, vimSpinLit how many
+// of them are lit, and vimSpinDotDivisor how many dot widths span the ring.
+// The dots overlap, so the lit ones draw one arc, three quarters of the ring
+// as on macOS.
+const (
+	vimSpinDots       = 12
+	vimSpinLit        = 9
+	vimSpinDotDivisor = 4
+)
+
+// vimSpinner draws the notice's arc in mark as overlapping dots that end at
+// step. Each redraw at the next step turns it.
+func vimSpinner(mark image.Rectangle, step int, accent uint32) []VimOp {
+	dot := max(mark.Dx()/vimSpinDotDivisor, 1)
+	center := mark.Min.Add(mark.Size().Div(vimHalves))
+	radius := float64(mark.Dx()-dot) / vimHalves
+
+	ops := make([]VimOp, 0, vimSpinLit)
+
+	for index := range vimSpinDots {
+		behind := ((step-index)%vimSpinDots + vimSpinDots) % vimSpinDots
+		if behind >= vimSpinLit {
+			continue
+		}
+
+		angle := float64(index)*2*math.Pi/vimSpinDots - math.Pi/vimHalves
+		dotCenter := image.Pt(
+			center.X+int(math.Round(radius*math.Cos(angle))),
+			center.Y+int(math.Round(radius*math.Sin(angle))),
+		)
+		corner := dotCenter.Sub(image.Pt(dot/vimHalves, dot/vimHalves))
+
+		ops = append(ops, VimOp{
+			Kind:   VimOpRoundedRect,
+			Bounds: image.Rectangle{Min: corner, Max: corner.Add(image.Pt(dot, dot))},
+			Radius: float64(dot) / vimHalves,
+			Fill:   accent,
+		})
 	}
 
 	return ops

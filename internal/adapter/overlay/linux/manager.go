@@ -74,6 +74,12 @@ type Manager struct {
 	// Cairo, X11 and Wayland calls are not thread-safe.
 	renderMu sync.Mutex
 
+	// vimScene and vimStyle are the vim frame last drawn, and vimSpin turns
+	// its notice spinner while it shows a notice. renderMu guards all three.
+	vimSpin  *manager.VimSpin
+	vimScene manager.VimScene
+	vimStyle manager.VimStyle
+
 	backend linuxOverlayBackend
 	x11     *x11Overlay
 	wlroots *wlrootsOverlay
@@ -184,6 +190,8 @@ func (m *Manager) Hide() {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	m.stopVimSpinLocked()
+
 	if m.x11 != nil {
 		m.x11.Hide()
 	} else if m.wlroots != nil {
@@ -216,6 +224,8 @@ func (m *Manager) Clear() {
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
+
+	m.stopVimSpinLocked()
 
 	if m.x11 != nil {
 		m.x11.Clear()
@@ -277,6 +287,7 @@ func (m *Manager) Destroy() {
 	// keyboardPoller goroutine, which takes renderMu every iteration, so
 	// holding renderMu here would deadlock.
 	m.renderMu.Lock()
+	m.stopVimSpinLocked()
 	x11 := m.x11
 	wlroots := m.wlroots
 	m.x11 = nil
@@ -1000,19 +1011,25 @@ func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	if m.x11 != nil {
-		m.x11.DrawVim(scene, style)
-
-		return nil
+	if m.x11 == nil && m.wlroots == nil {
+		return derrors.New(derrors.CodeNotSupported, "vim overlay not implemented on linux backend")
 	}
 
-	if m.wlroots != nil {
-		m.wlroots.DrawVim(scene, style)
+	m.vimScene, m.vimStyle = scene, style
+	m.drawVimLocked(scene)
 
-		return nil
+	switch {
+	case scene.Notice == "":
+		m.stopVimSpinLocked()
+	case m.vimSpin == nil:
+		m.vimSpin = manager.StartVimSpin(&m.renderMu, func(step int) {
+			spun := m.vimScene
+			spun.Spin = step
+			m.drawVimLocked(spun)
+		})
 	}
 
-	return derrors.New(derrors.CodeNotSupported, "vim overlay not implemented on linux backend")
+	return nil
 }
 
 // HideMonitorSelect hides the monitor_select overlay, clearing its panels.
@@ -1118,6 +1135,22 @@ func (m *Manager) HideIndicator(indicator ports.Indicator) {
 	case ports.VirtualPointerIndicator:
 		// Returned above.
 	}
+}
+
+// drawVimLocked paints scene with the last vim style on whichever backend is
+// up. The caller holds renderMu.
+func (m *Manager) drawVimLocked(scene manager.VimScene) {
+	if m.x11 != nil {
+		m.x11.DrawVim(scene, m.vimStyle)
+	} else if m.wlroots != nil {
+		m.wlroots.DrawVim(scene, m.vimStyle)
+	}
+}
+
+// stopVimSpinLocked stops the notice spinner. The caller holds renderMu.
+func (m *Manager) stopVimSpinLocked() {
+	m.vimSpin.Stop()
+	m.vimSpin = nil
 }
 
 // drawRegionGrid paints one region divided into cells on the shared surface,

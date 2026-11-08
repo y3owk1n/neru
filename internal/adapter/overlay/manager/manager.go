@@ -176,6 +176,9 @@ type VimScene struct {
 	Lens      [3]string
 	Labels    []VimLabel
 	Notice    string
+	// Spin is the notice spinner's step. A backend advances it while a notice
+	// shows (VimSpin).
+	Spin int
 }
 
 // VimLabel is a jump label in screen-local space.
