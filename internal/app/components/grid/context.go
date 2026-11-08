@@ -129,6 +129,19 @@ type Context struct {
 	baseContext
 
 	gridInstance **domainGrid.Grid
+	noSubgrid    bool
+}
+
+// SetNoSubgrid sets whether a full cell label completes the selection rather
+// than opening the subgrid.
+func (c *Context) SetNoSubgrid(noSubgrid bool) {
+	c.noSubgrid = noSubgrid
+}
+
+// NoSubgrid returns whether a full cell label completes the selection rather
+// than opening the subgrid.
+func (c *Context) NoSubgrid() bool {
+	return c.noSubgrid
 }
 
 // SetGridInstance sets the grid instance.
@@ -149,5 +162,6 @@ func (c *Context) GridInstance() **domainGrid.Grid {
 // Reset resets the grid context to its initial state.
 func (c *Context) Reset() {
 	c.gridInstance = nil
+	c.noSubgrid = false
 	c.baseContext.Reset()
 }

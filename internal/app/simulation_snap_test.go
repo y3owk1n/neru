@@ -225,43 +225,67 @@ func TestSimulation_SnapIsDroppedWhenTheSelectionMovesDuringTheScan(t *testing.T
 	}
 }
 
-// TestSimulation_SnapInsideAGridSubgridStaysInTheCell covers grid. Once a
-// subgrid is open, a snap searches the cell it sits in and ignores a nearer
-// element outside it.
-func TestSimulation_SnapInsideAGridSubgridStaysInTheCell(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), nil)
-
-	sim.pressHotkey(gridHotkey)
-	sim.waitMode(domain.ModeGrid)
-	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
-
-	cells := sim.overlay.lastGrid().Cells()
-	cell := cells[len(cells)/2]
-
-	sim.typeLabel(cell.Coordinate())
-	sim.waitFor("subgrid open", func() bool { return sim.overlay.subgridCount() == 1 })
-
-	bounds := cell.Bounds()
-	center := rectCenter(bounds)
-	// In the cell's corner, and just past its right edge, nearer its center.
-	inside := image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Min.X+4, bounds.Min.Y+4)
-	outside := image.Rect(bounds.Max.X, center.Y-2, bounds.Max.X+4, center.Y+2)
-	sim.ax.setElements([]*element.Element{
-		simElement(t, "inside", inside, "Inside"),
-		simElement(t, "outside", outside, "Outside"),
-	})
-
-	resp := sim.snap()
-	if !resp.Success {
-		t.Fatalf("snap failed: %s (%s)", resp.Message, resp.Code)
+// TestSimulation_SnapInsideASelectedGridCellStaysInTheCell covers grid. Once a
+// full label has picked a cell, whether it opened a subgrid there or completed
+// on the label with --no-subgrid, a snap searches that cell and ignores a
+// nearer element outside it.
+func TestSimulation_SnapInsideASelectedGridCellStaysInTheCell(t *testing.T) {
+	tests := []struct {
+		binding  string
+		subgrids int
+	}{
+		{binding: stepGrid, subgrids: 1},
+		{binding: "grid --no-subgrid", subgrids: 0},
 	}
 
-	if got, want := sim.cursor.position(), rectCenter(inside); got != want {
-		t.Errorf("cursor = %v after the snap, want %v, the element inside the cell", got, want)
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.binding, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[gridHotkey] = []string{testCase.binding}
+			sim := newSimHarness(t, cfg, nil)
 
-	if mode := sim.app.CurrentMode(); mode != domain.ModeGrid {
-		t.Errorf("mode = %v after the snap, want grid still open", mode)
+			sim.pressHotkey(gridHotkey)
+			sim.waitMode(domain.ModeGrid)
+			sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+			cells := sim.overlay.lastGrid().Cells()
+			cell := cells[len(cells)/2]
+
+			sim.typeLabel(cell.Coordinate())
+			// The cursor follows the selection by default, so it lands on the
+			// cell center once the label picks the cell.
+			sim.waitFor("cell selected", func() bool {
+				return sim.cursor.position() == cell.Center()
+			})
+
+			if got := sim.overlay.subgridCount(); got != testCase.subgrids {
+				t.Fatalf("subgrids opened = %d, want %d", got, testCase.subgrids)
+			}
+
+			bounds := cell.Bounds()
+			center := rectCenter(bounds)
+			// In the cell's corner, and just past its right edge, nearer its center.
+			inside := image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Min.X+4, bounds.Min.Y+4)
+			outside := image.Rect(bounds.Max.X, center.Y-2, bounds.Max.X+4, center.Y+2)
+			sim.ax.setElements([]*element.Element{
+				simElement(t, "inside", inside, "Inside"),
+				simElement(t, "outside", outside, "Outside"),
+			})
+
+			resp := sim.snap()
+			if !resp.Success {
+				t.Fatalf("snap failed: %s (%s)", resp.Message, resp.Code)
+			}
+
+			if got, want := sim.cursor.position(), rectCenter(inside); got != want {
+				t.Errorf("cursor = %v after the snap, want %v, the element inside the cell",
+					got, want)
+			}
+
+			if mode := sim.app.CurrentMode(); mode != domain.ModeGrid {
+				t.Errorf("mode = %v after the snap, want grid still open", mode)
+			}
+		})
 	}
 }
 

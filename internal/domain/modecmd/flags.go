@@ -67,6 +67,10 @@ const (
 	// FlagTargets supplies the targets hints mode labels, in place of a scan.
 	FlagTargets Flag = "targets"
 
+	// FlagNoSubgrid completes a grid selection as soon as a cell label is
+	// typed, without the subgrid.
+	FlagNoSubgrid Flag = "no-subgrid"
+
 	// FlagZoomToDepth auto-zooms recursive grid to a depth.
 	FlagZoomToDepth Flag = "zoom-to-depth"
 
@@ -130,6 +134,7 @@ const (
 	usageLabelDirection      = "Label order: normal (shorter labels first) or reverse (spread across the alphabet)"
 	usageSplitWord           = "Hint each word of detected text separately. Needs the vision strategy"
 	usageTargets             = "Label these targets instead of scanning, as JSON in the shape 'neru query hints --json' prints. Refuses the flags that decide what a scan collects, and --repeat"
+	usageNoSubgrid           = "Select a cell's center as soon as its label is typed, without opening the subgrid"
 	usageZoomToDepth         = "Open recursive grid already zoomed to this depth at the cursor"
 )
 
@@ -396,6 +401,9 @@ var (
 		domain.ModeBisect,
 	}
 
+	// gridOnly is the one flag about the subgrid.
+	gridOnly = []domain.Mode{domain.ModeGrid}
+
 	// recursiveGridOnly is the one flag about zooming.
 	recursiveGridOnly = []domain.Mode{domain.ModeRecursiveGrid}
 
@@ -604,6 +612,12 @@ var descriptors = []Descriptor{
 		func(activation *Activation) { activation.SplitWord = enabled() },
 		func(activation Activation) []string {
 			return renderPresence(FlagSplitWord, activation.SplitWord)
+		},
+	),
+	presenceFlag(FlagNoSubgrid, "", usageNoSubgrid, gridOnly,
+		func(activation *Activation) { activation.NoSubgrid = enabled() },
+		func(activation Activation) []string {
+			return renderPresence(FlagNoSubgrid, activation.NoSubgrid)
 		},
 	),
 	valueFlag(FlagZoomToDepth, "", usageZoomToDepth, msgZoomToDepthValue, recursiveGridOnly,

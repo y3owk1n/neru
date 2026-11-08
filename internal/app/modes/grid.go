@@ -83,6 +83,9 @@ func (h *handlerState) activateGridModeWithAction(activation modecmd.Activation)
 
 	applyGridFlags(h.grid.Context, activation, isRefresh)
 	h.grid.Context.SetCaptureScope(scope)
+	// Read the flag from the context rather than the activation, so a refresh
+	// that does not mention it keeps the value the session started with.
+	h.grid.Manager.SetSubgridEnabled(!h.grid.Context.NoSubgrid())
 
 	h.grid.Context.ClearSelectionPoint()
 	h.refreshGridVirtualPointer()
@@ -248,6 +251,10 @@ func applyGridFlags(ctx *grid.Context, activation modecmd.Activation, isRefresh 
 			ctx.SetCursorFollowSelection(*activation.CursorFollowSelection)
 		}
 
+		if activation.NoSubgrid != nil {
+			ctx.SetNoSubgrid(*activation.NoSubgrid)
+		}
+
 		return
 	}
 
@@ -255,6 +262,7 @@ func applyGridFlags(ctx *grid.Context, activation modecmd.Activation, isRefresh 
 	ctx.SetOnExit(activation.OnExit)
 	ctx.SetPendingModifier(activation.Modifier)
 	ctx.SetRepeat(activation.Repeat != nil && *activation.Repeat)
+	ctx.SetNoSubgrid(activation.NoSubgrid != nil && *activation.NoSubgrid)
 	ctx.SetCursorFollowSelection(
 		resolveCursorFollowSelection(activation.CursorFollowSelection),
 	)

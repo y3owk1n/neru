@@ -530,3 +530,66 @@ func TestManager_PrefixValidationRegression(t *testing.T) {
 		}
 	}
 }
+
+func TestManager_HandleInput_SubgridDisabled(t *testing.T) {
+	log := logger.Get()
+	testGrid := grid.NewGrid("abcdefghijklmnopqrstuvwxyz", image.Rect(0, 0, 1000, 1000), log)
+	cell := testGrid.Cells()[len(testGrid.Cells())/2]
+	label := cell.Coordinate()
+
+	subgridOpens := 0
+	manager := grid.NewManager(
+		testGrid,
+		domain.GridDimensions{Rows: 3, Cols: 3}, "asdfghjkl",
+		func(bool) {},
+		func(*grid.Cell) { subgridOpens++ },
+		log,
+	)
+	manager.SetSubgridEnabled(false)
+
+	var (
+		point    image.Point
+		complete bool
+	)
+
+	for i, key := range strings.Split(label, "") {
+		point, complete = manager.HandleInput(key)
+		if last := i == len(label)-1; complete != last {
+			t.Fatalf("key %d of %q: complete = %v, want %v", i+1, label, complete, last)
+		}
+	}
+
+	if point != cell.Center() {
+		t.Errorf("point = %v, want the cell center %v", point, cell.Center())
+	}
+
+	if subgridOpens != 0 {
+		t.Errorf("subgrid opened %d times, want 0", subgridOpens)
+	}
+
+	if got, picked := manager.SelectedCell(); !picked || got != cell {
+		t.Errorf("SelectedCell = %v, %v, want the labeled cell", got, picked)
+	}
+
+	if manager.CurrentInput() != label {
+		t.Errorf("input = %q, want the label %q kept for backspace", manager.CurrentInput(), label)
+	}
+
+	if _, moved := manager.MoveDirection(domain.DirectionRight, 1); moved {
+		t.Error("MoveDirection moved a cell with no subgrid open")
+	}
+
+	manager.HandleBackspace()
+
+	if manager.CurrentInput() != label[:len(label)-1] {
+		t.Errorf(
+			"input after backspace = %q, want %q",
+			manager.CurrentInput(),
+			label[:len(label)-1],
+		)
+	}
+
+	if _, picked := manager.SelectedCell(); picked {
+		t.Error("SelectedCell still reports a cell after backspace shortened the label")
+	}
+}

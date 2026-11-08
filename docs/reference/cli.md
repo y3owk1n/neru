@@ -479,6 +479,12 @@ Takes no value. Modes: `hints`.
 
 Hint each word of detected text separately. Needs the vision strategy.
 
+#### `--no-subgrid`
+
+Takes no value. Modes: `grid`.
+
+Select a cell's center as soon as its label is typed, without opening the subgrid.
+
 #### `--zoom-to-depth`
 
 Takes a value. Modes: `recursive_grid`.
