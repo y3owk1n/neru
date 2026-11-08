@@ -2,6 +2,7 @@ package modes
 
 import (
 	"context"
+	"image"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
@@ -94,5 +96,58 @@ func TestHandler_Snap_AXTreeNeverAsksForScreenCapturePermission(t *testing.T) {
 
 	if got := requests.Load(); got != 0 {
 		t.Errorf("permission dialog requested %d times, want 0 for axtree", got)
+	}
+}
+
+func TestHandler_Snap_ScansWithTheStrategyItCheckedWhenTheAppLookupRecovers(t *testing.T) {
+	var lookups, scans atomic.Int32
+
+	// The first lookup fails, so the permission check sees the root axtree
+	// strategy. A second lookup would find the app whose strategy captures.
+	accessibility := &portmocks.MockAccessibilityPort{
+		FocusedAppBundleIDFunc: func(context.Context) (string, error) {
+			if lookups.Add(1) == 1 {
+				return "", derrors.New(derrors.CodeAccessibilityFailed, "no focused app yet")
+			}
+
+			return "com.example.Captured", nil
+		},
+	}
+	vision := &portmocks.MockVisionPort{
+		DetectSegmentsFunc: func(
+			context.Context, image.Rectangle, configpkg.HintsSegmentConfig,
+		) ([]*element.Element, error) {
+			scans.Add(1)
+
+			return nil, nil
+		},
+	}
+	systemMock := &portmocks.MockSystemPort{
+		CheckScreenCapturePermissionFunc: func(context.Context) bool { return false },
+		RequestScreenCapturePermissionFunc: func(context.Context) ports.ScreenCaptureConsent {
+			return ports.ScreenCaptureCanceled
+		},
+	}
+	hints := configpkg.HintsConfig{
+		Enabled:  true,
+		Strategy: domain.StrategyAXTree,
+		AppConfigs: []configpkg.AppConfig{
+			{BundleID: "com.example.Captured", Strategy: domain.StrategySegment},
+		},
+	}
+
+	handler := newCaptureHintsHandler(domain.StrategyAXTree, systemMock, zap.NewNop(), func() {})
+	handler.config.Hints = hints
+	handler.actionService = services.NewActionService(
+		accessibility, &portmocks.MockOverlayPort{}, systemMock, zap.NewNop(),
+	)
+	handler.hintService = services.NewHintService(
+		accessibility, &portmocks.MockOverlayPort{}, systemMock, nil, hints, zap.NewNop(), vision,
+	)
+
+	_, _ = handler.Snap(context.Background(), SnapOptions{})
+
+	if n := scans.Load(); n != 0 {
+		t.Errorf("segment captured %d times after a check that saw axtree, want 0", n)
 	}
 }

@@ -82,6 +82,8 @@ func (h *Handler) Snap(ctx context.Context, opts SnapOptions) (element.Target, e
 	h.snapMu.Lock()
 	defer h.snapMu.Unlock()
 
+	scope := h.readSnapScope(opts.Bare)
+
 	bundleCtx, bundleCancel := context.WithTimeout(ctx, 1*time.Second)
 	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
 
@@ -91,13 +93,12 @@ func (h *Handler) Snap(ctx context.Context, opts SnapOptions) (element.Target, e
 		h.logger.Debug("Failed to get focused app bundle ID for snap", zap.Error(bundleIDErr))
 	}
 
-	if h.snapNeedsScreenCapturePermission(bundleID, opts.Strategy) {
+	strategy, blocked := h.snapStrategy(bundleID, opts.Strategy)
+	if blocked {
 		h.requestScreenCapturePermissionForSnap()
 
 		return element.Target{}, errSnapNeedsScreenCapture
 	}
-
-	scope := h.readSnapScope(opts.Bare)
 
 	origin := scope.selection
 	if !scope.fromSelection {
@@ -125,7 +126,7 @@ func (h *Handler) Snap(ctx context.Context, opts SnapOptions) (element.Target, e
 	elements, err := h.hintService.SnapCandidates(scanCtx, services.SnapScan{
 		Roles:        opts.Roles,
 		Text:         opts.Text,
-		Strategy:     opts.Strategy,
+		Strategy:     strategy,
 		Region:       captureRegion,
 		OverlayDrawn: scope.overlayDrawn,
 		BundleID:     bundleID,
@@ -176,11 +177,12 @@ var errSnapNeedsScreenCapture = derrors.New(
 	"screen recording is not permitted, so a capture strategy cannot scan",
 )
 
-// snapNeedsScreenCapturePermission reports whether a snap's strategy reads the
-// screen without the screen-recording permission, the check a hint activation
-// makes. The strategy is override when set, else the one configured for
-// bundleID.
-func (h *Handler) snapNeedsScreenCapturePermission(bundleID, override string) bool {
+// snapStrategy returns the strategy a snap scans with, override when set,
+// else the one configured for bundleID. It also reports whether that strategy
+// reads the screen without the screen-recording permission, the check a hint
+// activation makes. The scan uses the same strategy, so a later lookup of the
+// focused app cannot pick a capture strategy this check did not see.
+func (h *Handler) snapStrategy(bundleID, override string) (string, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -189,7 +191,7 @@ func (h *Handler) snapNeedsScreenCapturePermission(bundleID, override string) bo
 		strategy = override
 	}
 
-	return h.needsScreenCapturePermission(strategy)
+	return strategy, h.needsScreenCapturePermission(strategy)
 }
 
 // requestScreenCapturePermissionForSnap opens the permission dialog for a snap

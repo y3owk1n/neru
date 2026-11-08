@@ -872,6 +872,10 @@ type simAXPort struct {
 	// scanGate, when a journey sets it, runs before a scan answers, outside
 	// the port's lock, so the journey can hold a scan open.
 	scanGate func()
+
+	// focusGate, when a journey sets it, runs before the next focused-app
+	// lookup answers, outside the port's lock, and only for that one lookup.
+	focusGate func()
 }
 
 var _ ports.AccessibilityPort = (*simAXPort)(nil)
@@ -962,6 +966,15 @@ func (a *simAXPort) ReleaseHeldButtons(_ context.Context) error {
 
 func (a *simAXPort) FocusedAppBundleID(_ context.Context) (string, error) {
 	a.mu.Lock()
+	gate := a.focusGate
+	a.focusGate = nil
+	a.mu.Unlock()
+
+	if gate != nil {
+		gate()
+	}
+
+	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	a.focusedAppQueries++
@@ -986,6 +999,14 @@ func (a *simAXPort) setPrime(prime func(ctx context.Context, bundleID string) (b
 	defer a.mu.Unlock()
 
 	a.prime = prime
+}
+
+// setFocusGate makes the next focused-app lookup run gate before it answers.
+func (a *simAXPort) setFocusGate(gate func()) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.focusGate = gate
 }
 
 // setScanGate makes every scan run gate before it answers.
@@ -1216,7 +1237,33 @@ type simHarness struct {
 	// clipboard records what copy_text wrote.
 	clipboard *mocks.MockClipboardPort
 	desktop   *simDesktop
-	runDone   chan error
+	// screenCapture is the fixture desktop's screen-recording permission.
+	screenCapture *simScreenCapture
+	runDone       chan error
+}
+
+// simScreenCapture is the screen-recording permission the system port
+// reports. It starts granted. A journey that denies it answers the permission
+// dialog through consents, and a granted answer grants it, as macOS does.
+type simScreenCapture struct {
+	denied   atomic.Bool
+	requests atomic.Int32
+	consents chan ports.ScreenCaptureConsent
+}
+
+func (s *simScreenCapture) request(ctx context.Context) ports.ScreenCaptureConsent {
+	s.requests.Add(1)
+
+	select {
+	case consent := <-s.consents:
+		if consent == ports.ScreenCaptureGranted {
+			s.denied.Store(false)
+		}
+
+		return consent
+	case <-ctx.Done():
+		return ports.ScreenCaptureCanceled
+	}
 }
 
 // focusApp switches the fixture desktop to another application. The desktop
@@ -1481,6 +1528,8 @@ func buildSimHarness(
 	desktop := &simDesktop{}
 	desktop.set(displays)
 
+	screenCapture := &simScreenCapture{consents: make(chan ports.ScreenCaptureConsent)}
+
 	// The active screen is wherever the cursor currently is, matching how the
 	// real system port resolves it.
 	activeBounds := func() image.Rectangle {
@@ -1528,6 +1577,10 @@ func buildSimHarness(
 		CursorPositionFunc: func(_ context.Context) (image.Point, error) {
 			return cursor.position(), nil
 		},
+		CheckScreenCapturePermissionFunc: func(context.Context) bool {
+			return !screenCapture.denied.Load()
+		},
+		RequestScreenCapturePermissionFunc: screenCapture.request,
 	}
 
 	clipboard := &mocks.MockClipboardPort{}
@@ -1553,20 +1606,21 @@ func buildSimHarness(
 	}
 
 	sim := &simHarness{
-		t:          tb,
-		app:        application,
-		appearance: appearance,
-		overlay:    recorder,
-		ax:         axPort,
-		vision:     vision,
-		textInput:  textInput,
-		cursor:     cursor,
-		hotkeys:    hotkeys,
-		tap:        tap,
-		clipboard:  clipboard,
-		watcher:    watcher,
-		desktop:    desktop,
-		runDone:    make(chan error, 1),
+		t:             tb,
+		app:           application,
+		appearance:    appearance,
+		overlay:       recorder,
+		ax:            axPort,
+		vision:        vision,
+		textInput:     textInput,
+		cursor:        cursor,
+		hotkeys:       hotkeys,
+		tap:           tap,
+		clipboard:     clipboard,
+		watcher:       watcher,
+		desktop:       desktop,
+		screenCapture: screenCapture,
+		runDone:       make(chan error, 1),
 	}
 
 	// Subscribed before Run, so the ready event cannot be missed.
