@@ -557,13 +557,47 @@ func readFrameLines(
 		accurate = 1
 	}
 
-	result := C.NeruReadImageLines(frame.image, frame.bounds, accurate, nil, timeout)
+	cancel, stopWatching := watchForCancel(ctx)
+	defer stopWatching()
+
+	result := C.NeruReadImageLines(frame.image, frame.bounds, accurate, nil, timeout, cancel)
 	if result == nil {
+		if ctx.Err() != nil {
+			return nil, derrors.Wrap(
+				ctx.Err(),
+				derrors.CodeContextCanceled,
+				"text recognition was canceled",
+			)
+		}
+
 		return nil, derrors.New(derrors.CodeActionFailed, "failed to read the region's text")
 	}
 	defer C.NeruFreeTextResult(result)
 
 	return groupLines(linePiecesOf(result)), nil
+}
+
+// watchForCancel returns a flag NeruReadImageLines stops on once ctx is done,
+// and a func that ends the watch and frees the flag once the read returns.
+func watchForCancel(ctx context.Context) (*C.int, func()) {
+	flag := (*C.int)(C.calloc(1, C.size_t(unsafe.Sizeof(C.int(0)))))
+	stop := make(chan struct{})
+
+	var watcher sync.WaitGroup
+
+	watcher.Go(func() {
+		select {
+		case <-ctx.Done():
+			C.NeruCancelRead(flag)
+		case <-stop:
+		}
+	})
+
+	return flag, func() {
+		close(stop)
+		watcher.Wait()
+		C.free(unsafe.Pointer(flag))
+	}
 }
 
 // ReadLinesOnceChanged waits for region to change from what the last fast

@@ -52,7 +52,14 @@ func readLinesFromImage(img *image.RGBA, pixelsPerPoint int) []readPiece {
 			C.CGFloat(img.Rect.Dx()/pixelsPerPoint), C.CGFloat(img.Rect.Dy()/pixelsPerPoint),
 		)
 
-		result := C.NeruReadImageLines(cgImage, bounds, 1, nil, C.int64_t(readLinesTestTimeoutMS))
+		result := C.NeruReadImageLines(
+			cgImage,
+			bounds,
+			1,
+			nil,
+			C.int64_t(readLinesTestTimeoutMS),
+			nil,
+		)
 		if result == nil {
 			return
 		}
@@ -69,6 +76,33 @@ func readLinesFromImage(img *image.RGBA, pixelsPerPoint int) []readPiece {
 	})
 
 	return pieces
+}
+
+// readLinesFromImageCanceled reads img as readLinesFromImage does, with its
+// cancel flag set before the read starts, and reports whether the read
+// returned anything.
+func readLinesFromImageCanceled(img *image.RGBA, pixelsPerPoint int) bool {
+	returned := false
+
+	withCGImage(img, func(cgImage C.CGImageRef, _ C.CGColorSpaceRef) {
+		bounds := C.CGRectMake(
+			0, 0,
+			C.CGFloat(img.Rect.Dx()/pixelsPerPoint), C.CGFloat(img.Rect.Dy()/pixelsPerPoint),
+		)
+
+		cancel := C.int(1)
+
+		result := C.NeruReadImageLines(
+			cgImage, bounds, 1, nil, C.int64_t(readLinesTestTimeoutMS), &cancel,
+		)
+		if result != nil {
+			returned = true
+
+			C.NeruFreeTextResult(result)
+		}
+	})
+
+	return returned
 }
 
 // readLinesTestTimeoutMS bounds a test's read, which loads the accurate

@@ -9,6 +9,24 @@ import (
 	"testing"
 )
 
+// TestReadImageLines_StopsOnceCanceled pins that a read whose cancel flag is
+// set returns nothing, as a scroll that moved the screen on cancels the read
+// of the screen it left, and that the next read still reads.
+func TestReadImageLines_StopsOnceCanceled(t *testing.T) {
+	frame := loadFixtureFrame(
+		t,
+		filepath.Join("..", "platform", "testdata", "scripts", "cjk-16pt-2x.png"),
+	)
+
+	if readLinesFromImageCanceled(frame, 2) {
+		t.Fatal("a canceled read returned lines, want none")
+	}
+
+	if len(readLinesFromImage(frame, 2)) == 0 {
+		t.Fatal("the read after a canceled one read nothing")
+	}
+}
+
 // TestReadLines_PutsEachWideCharacterOverItsInk pins ReadLines on Chinese
 // and Japanese. With no language set the recognizer reads English
 // alone. The gaps inside a character such as 测 split it in two, and

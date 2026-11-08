@@ -260,6 +260,7 @@ func readImageLines(img *image.RGBA, header linesHeader) ([]linePiece, error) {
 			1,
 			language,
 			C.int64_t(max(header.TimeoutMS, 1)),
+			nil,
 		)
 		if result == nil {
 			return

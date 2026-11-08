@@ -1060,42 +1060,63 @@ static NSArray<VNRecognizedTextObservation *> *mergeWideLines(
 	return merged;
 }
 
+/// How often a read with a cancel flag looks at it.
+static const int64_t readCancelPollMS = 10;
+
+/// Waits for group by deadline, and reports whether it finished. With a cancel
+/// flag it wakes every readCancelPollMS to look at it, and gives up once set.
+static BOOL waitForRead(dispatch_group_t group, dispatch_time_t deadline, const int *cancel) {
+	if (!cancel)
+		return dispatch_group_wait(group, deadline) == 0;
+	while (!__atomic_load_n(cancel, __ATOMIC_ACQUIRE)) {
+		dispatch_time_t slice = dispatch_time(DISPATCH_TIME_NOW, readCancelPollMS * NSEC_PER_MSEC);
+		if (dispatch_group_wait(group, MIN(slice, deadline)) == 0)
+			return YES;
+		if (slice >= deadline)
+			return NO;
+	}
+	return NO;
+}
+
+void NeruCancelRead(int *flag) { __atomic_store_n(flag, 1, __ATOMIC_RELEASE); }
+
 /// Reads image's lines by deadline as NeruReadLines does, with captured as
-/// the global rect the image shows.
+/// the global rect the image shows. It stops once *cancel is set, when cancel
+/// is not NULL.
 static NeruTextResult *readLines(
-    CGImageRef image, CGRect captured, int accurate, NSString *languageOverride, dispatch_time_t deadline) {
+    CGImageRef image, CGRect captured, int accurate, NSString *languageOverride, dispatch_time_t deadline,
+    const int *cancel) {
 	@autoreleasepool {
+		VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] init];
+		request.recognitionLevel = accurate ? VNRequestTextRecognitionLevelAccurate : VNRequestTextRecognitionLevelFast;
+		// Off, since it rewrites paths, flags and identifiers into words.
+		request.usesLanguageCorrection = NO;
+		// Only the accurate level reads more than Latin script, and with no
+		// language set it reads English alone. Detecting the script reads
+		// Chinese, Japanese, Korean, Thai and the rest in any mix.
+		if (@available(macOS 13.0, *))
+			request.automaticallyDetectsLanguage = accurate != 0;
+		request.minimumTextHeight = 0;
+		NSMutableArray<VNRequest *> *requests = [NSMutableArray arrayWithObject:request];
+
+		// Detection picks one model per line, so a Chinese word in an English
+		// line reads as Latin noise. The user's own Chinese, Japanese or Korean
+		// model, with English, reads such lines whole.
+		VNRecognizeTextRequest *wide = nil;
+		NSString *language = accurate ? wideLanguage(languageOverride) : nil;
+		if (language) {
+			wide = [[VNRecognizeTextRequest alloc] init];
+			wide.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
+			wide.usesLanguageCorrection = NO;
+			wide.recognitionLanguages = @[ language, @"en-US" ];
+			wide.minimumTextHeight = 0;
+			[requests addObject:wide];
+		}
+
 		__block NSArray<VNRecognizedTextObservation *> *lines = nil;
 		dispatch_group_t group = dispatch_group_create();
 		CFRetain(image);
 		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
-			VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] init];
-			request.recognitionLevel =
-			    accurate ? VNRequestTextRecognitionLevelAccurate : VNRequestTextRecognitionLevelFast;
-			// Off, since it rewrites paths, flags and identifiers into words.
-			request.usesLanguageCorrection = NO;
-			// Only the accurate level reads more than Latin script, and with
-			// no language set it reads English alone. Detecting the script
-			// reads Chinese, Japanese, Korean, Thai and the rest in any mix.
-			if (@available(macOS 13.0, *))
-				request.automaticallyDetectsLanguage = accurate != 0;
-			request.minimumTextHeight = 0;
-			NSMutableArray<VNRequest *> *requests = [NSMutableArray arrayWithObject:request];
-
-			// Detection picks one model per line, so a Chinese word in an
-			// English line reads as Latin noise. The user's own Chinese,
-			// Japanese or Korean model, with English, reads such lines whole.
-			VNRecognizeTextRequest *wide = nil;
-			NSString *language = accurate ? wideLanguage(languageOverride) : nil;
-			if (language) {
-				wide = [[VNRecognizeTextRequest alloc] init];
-				wide.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
-				wide.usesLanguageCorrection = NO;
-				wide.recognitionLanguages = @[ language, @"en-US" ];
-				wide.minimumTextHeight = 0;
-				[requests addObject:wide];
-			}
-
 			VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:image options:@{}];
 			NSError *error = nil;
 			[handler performRequests:requests error:&error];
@@ -1103,8 +1124,13 @@ static NeruTextResult *readLines(
 				lines = wide ? mergeWideLines(request.results, wide.results) : request.results;
 			CGImageRelease(image);
 		});
-		BOOL finished = dispatch_group_wait(group, deadline) == 0;
-		if (!finished || !lines)
+		// A read given up on is canceled too, so Vision stops working on it.
+		if (!waitForRead(group, deadline, cancel)) {
+			for (VNRequest *pending in requests)
+				[pending cancel];
+			return NULL;
+		}
+		if (!lines)
 			return NULL;
 
 		NSMutableArray<NSDictionary *> *pieces = [NSMutableArray array];
@@ -1208,16 +1234,17 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 		if (!image)
 			return NULL;
 
-		NeruTextResult *result = readLines(image, captured, accurate, nil, deadline);
+		NeruTextResult *result = readLines(image, captured, accurate, nil, deadline, NULL);
 		CGImageRelease(image);
 		return result;
 	}
 }
 
 NeruTextResult *NeruReadImageLines(
-    CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS) {
+    CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS, const int *cancel) {
 	NSString *override = language && language[0] ? [NSString stringWithUTF8String:language] : nil;
-	return readLines(image, bounds, accurate, override, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC));
+	return readLines(
+	    image, bounds, accurate, override, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC), cancel);
 }
 
 int NeruImagesEqual(CGImageRef first, CGImageRef second) {
@@ -1229,9 +1256,9 @@ int NeruImagesEqual(CGImageRef first, CGImageRef second) {
 
 	CFDataRef firstData = CGDataProviderCopyData(CGImageGetDataProvider(first));
 	CFDataRef secondData = CGDataProviderCopyData(CGImageGetDataProvider(second));
-	int equal = firstData && secondData && CFDataGetLength(firstData) == CFDataGetLength(secondData) &&
-	            memcmp(CFDataGetBytePtr(firstData), CFDataGetBytePtr(secondData),
-	                   (size_t)CFDataGetLength(firstData)) == 0;
+	int equal =
+	    firstData && secondData && CFDataGetLength(firstData) == CFDataGetLength(secondData) &&
+	    memcmp(CFDataGetBytePtr(firstData), CFDataGetBytePtr(secondData), (size_t)CFDataGetLength(firstData)) == 0;
 	if (firstData)
 		CFRelease(firstData);
 	if (secondData)

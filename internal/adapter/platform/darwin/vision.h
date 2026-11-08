@@ -62,9 +62,13 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 // global rect, in points, the image shows. The helper process that reads text
 // lines accurately reads its image with it, and so do tests. An accurate read
 // also reads with language, such as "zh-Hans", or with the Chinese, Japanese
-// or Korean language the user prefers when it is empty or NULL.
+// or Korean language the user prefers when it is empty or NULL. When cancel is
+// not NULL, the read stops and returns NULL once *cancel is nonzero.
 NeruTextResult *NeruReadImageLines(
-    CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS);
+    CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS, const int *cancel);
+
+// NeruCancelRead sets flag, which stops the NeruReadImageLines it was passed to.
+void NeruCancelRead(int *flag);
 
 // Frees what NeruReadLines returned.
 void NeruFreeTextResult(NeruTextResult *result);
