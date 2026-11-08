@@ -459,7 +459,7 @@ func vimTypedLength(keys []string) (int, bool) {
 			if length < 0 {
 				return 0, false
 			}
-		case utf8.RuneCountInString(strings.TrimPrefix(key, "Shift+")) == 1:
+		case utf8.RuneCountInString(strings.TrimPrefix(name, "shift+")) == 1:
 			length++
 		default:
 			return 0, false

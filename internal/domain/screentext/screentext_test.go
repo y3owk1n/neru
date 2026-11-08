@@ -142,6 +142,9 @@ func TestKey_TranslatesTapKeysToVimNotation(t *testing.T) {
 		{key: "Shift+4", want: "$", ok: true},
 		{key: "Shift+;", want: ":", ok: true},
 		{key: "Ctrl+D", want: "<C-d>", ok: true},
+		{key: "shift+v", want: "V", ok: true},
+		{key: "shift+4", want: "$", ok: true},
+		{key: "ctrl+d", want: "<C-d>", ok: true},
 		{key: "Cmd+C", ok: false},
 	}
 

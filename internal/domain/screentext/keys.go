@@ -39,7 +39,7 @@ func Key(key string) (vim.Key, bool) {
 		return k, true
 	}
 
-	if base, ok := strings.CutPrefix(key, "Ctrl+"); ok {
+	if base, ok := cutModifier(key, "Ctrl+"); ok {
 		r, size := utf8.DecodeRuneInString(base)
 		if size == len(base) && unicode.IsLetter(r) {
 			return vim.Key("<C-" + string(unicode.ToLower(r)) + ">"), true
@@ -52,7 +52,7 @@ func Key(key string) (vim.Key, bool) {
 		return "", false
 	}
 
-	if base, ok := strings.CutPrefix(key, "Shift+"); ok {
+	if base, ok := cutModifier(key, "Shift+"); ok {
 		switch lower := strings.ToLower(base); {
 		case lower == "tab":
 			return "<S-Tab>", true
@@ -75,6 +75,16 @@ func Key(key string) (vim.Key, bool) {
 	}
 
 	return "", false
+}
+
+// cutModifier returns key without its leading modifier, matched in any case,
+// since Windows names a chord "shift+v" where the other taps say "Shift+v".
+func cutModifier(key, modifier string) (string, bool) {
+	if len(key) < len(modifier) || !strings.EqualFold(key[:len(modifier)], modifier) {
+		return key, false
+	}
+
+	return key[len(modifier):], true
 }
 
 // unshifted is the key Shift turns into each symbol on a US layout, the

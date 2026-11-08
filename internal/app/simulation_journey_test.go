@@ -4657,6 +4657,24 @@ func TestSimulation_VimDeleteLineStaysInTheField(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimShiftVSelectsLines covers V as the Windows tap names it,
+// "shift+v", with the modifier in lower case. It opens linewise visual mode,
+// and j takes the next line in.
+func TestSimulation_VimShiftVSelectsLines(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(100, 140, 160, 170),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "shift+v", "j")
+	vimFrameShows(sim, "both lines selected in linewise visual mode", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "V-LINE") && len(f.Selection) == 2
+	})
+}
+
 // TestSimulation_VimYankCopiesWithoutTouchingTheApp covers y. yiw copies the
 // word as it was read, says so, and sends the app nothing.
 func TestSimulation_VimYankCopiesWithoutTouchingTheApp(t *testing.T) {
