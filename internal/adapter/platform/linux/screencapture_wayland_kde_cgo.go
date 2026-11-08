@@ -25,7 +25,8 @@ import (
 // descriptor carries one frame, so KWin never streams the user's screen at a
 // daemon that is not reading. If the hider fails or ctx ends before the
 // handover, this function closes it instead. The frame budget is what is left
-// of ctx once the overlay is off.
+// of ctx once the overlay is off, and the overlay comes off, over region in
+// global pixels, only when hideOverlay is set.
 func pipewireCaptureNode(
 	ctx context.Context,
 	remoteFD int,
@@ -33,12 +34,14 @@ func pipewireCaptureNode(
 	crop image.Rectangle,
 	logicalWidth int,
 	logicalHeight int,
+	hideOverlay bool,
+	region image.Rectangle,
 ) (*image.RGBA, error) {
 	handedOver := false
 
 	// A new consumer gets a frame the compositor renders as it connects, so
 	// connecting with the overlay already off is what leaves it out.
-	img, err := withOwnWindowsHidden(func() (*image.RGBA, error) {
+	img, err := withOwnWindowsHidden(hideOverlay, region, func() (*image.RGBA, error) {
 		err := captureCanceled(ctx)
 		if err != nil {
 			return nil, err

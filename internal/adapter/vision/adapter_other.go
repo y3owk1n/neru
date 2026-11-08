@@ -52,6 +52,15 @@ func (a *Adapter) DetectSegments(
 	)
 }
 
+// DetectSegmentsAsRead reports CodeNotSupported, as DetectSegments does.
+func (a *Adapter) DetectSegmentsAsRead(
+	ctx context.Context,
+	region image.Rectangle,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
+	return a.DetectSegments(ctx, region, cfg)
+}
+
 // ReadLinesOnceChanged reports CodeNotSupported, as ReadLines does.
 func (a *Adapter) ReadLinesOnceChanged(
 	ctx context.Context,

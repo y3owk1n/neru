@@ -336,13 +336,13 @@ func (h *handlerState) vimScroll(scroll vimScrollKey) {
 	sideways := scroll.direction == services.ScrollDirectionLeft ||
 		scroll.direction == services.ScrollDirectionRight
 
-	step := int(float64(session.region.Dy()) * scroll.fraction)
+	step := int(float64(session.shown.Dy()) * scroll.fraction)
 
 	switch {
 	case sideways && scroll.columns > 0:
 		step = scroll.columns * text.CellWidth()
 	case sideways:
-		step = int(float64(session.region.Dx()) * scroll.fraction)
+		step = int(float64(session.shown.Dx()) * scroll.fraction)
 	case scroll.lines > 0:
 		box, _ := text.Box(session.host.Cursor())
 		step = scroll.lines * max(box.Dy()*vimLineSpacing/vimHalf, 1)
@@ -387,9 +387,11 @@ func (h *handlerState) vimScroll(scroll vimScrollKey) {
 	session.refined = nil
 	session.scrollSeq++
 
+	// The frame is drawn before the read starts, so its first capture already
+	// has the moved frame to leave out.
 	h.cancelYoungRefine()
-	h.readVimAfterScroll()
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
+	h.readVimAfterScroll()
 }
 
 // vimSelectAtCursor runs a click at the character under the cursor.

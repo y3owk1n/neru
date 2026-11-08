@@ -145,6 +145,15 @@ func (m *MockVisionPort) DetectContoursCallCount() int {
 	return m.contourN
 }
 
+// DetectSegmentsAsRead implements ports.VisionPort, as DetectSegments.
+func (m *MockVisionPort) DetectSegmentsAsRead(
+	ctx context.Context,
+	region image.Rectangle,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
+	return m.DetectSegments(ctx, region, cfg)
+}
+
 // DetectSegmentsCallCount reports how many times DetectSegments was called.
 func (m *MockVisionPort) DetectSegmentsCallCount() int {
 	m.mu.Lock()

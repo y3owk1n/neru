@@ -4,6 +4,8 @@ package linux
 
 import (
 	"image"
+	"math"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -86,12 +88,73 @@ type overlaySurface interface {
 // select another buffer, marks the surface changed, and a flush with no change
 // since the last one commits nothing. The caller holds the render lock, as for
 // every primitive. It also knows when the surface holds nothing, which is
-// when it was cleared and nothing was drawn on it since.
+// when it was cleared and nothing was drawn on it since, and where it was drawn
+// on since then.
 type changeTrackedSurface struct {
 	overlaySurface
 
 	changed bool
 	drawn   bool
+	// marks covers every pixel drawn since the last clear, in global pixels,
+	// or more. A clear of one rectangle leaves them, since covering too much
+	// only hides more of a capture from a comparison.
+	marks []image.Rectangle
+}
+
+const (
+	// maxMarks bounds the rectangles a surface keeps. Past it they fold into
+	// their union, which still covers every one.
+	maxMarks = 64
+	// textHalves splits a text mark's width either side of its center.
+	textHalves = 2
+)
+
+// mark records that bounds was drawn on.
+func (s *changeTrackedSurface) mark(bounds image.Rectangle) {
+	s.changed, s.drawn = true, true
+
+	if len(s.marks) < maxMarks {
+		s.marks = append(s.marks, bounds)
+
+		return
+	}
+
+	union := bounds
+	for _, marked := range s.marks {
+		union = union.Union(marked)
+	}
+
+	s.marks = append(s.marks[:0], union)
+}
+
+// markShape records a filled shape as its bounds, and an outline, such as
+// vim's border round a block of text, as its four edges, each as thick as the
+// stroke or the corner's curve, whichever is more. An outline marked whole
+// would cover everything inside it.
+func (s *changeTrackedSurface) markShape(
+	bounds image.Rectangle,
+	fill uint32,
+	radius, lineWidth float64,
+) {
+	edge := int(math.Ceil(lineWidth))
+	if fill>>alphaShift != 0 {
+		s.mark(bounds.Inset(-edge))
+
+		return
+	}
+
+	outer := bounds.Inset(-edge)
+	thick := edge + int(math.Ceil(radius))
+
+	s.mark(image.Rect(outer.Min.X, outer.Min.Y, outer.Max.X, outer.Min.Y+thick))
+	s.mark(image.Rect(outer.Min.X, outer.Max.Y-thick, outer.Max.X, outer.Max.Y))
+	s.mark(image.Rect(outer.Min.X, outer.Min.Y, outer.Min.X+thick, outer.Max.Y))
+	s.mark(image.Rect(outer.Max.X-thick, outer.Min.Y, outer.Max.X, outer.Max.Y))
+}
+
+// drawnOn returns where the surface was drawn on since it was last cleared.
+func (s *changeTrackedSurface) drawnOn() []image.Rectangle {
+	return slices.Clone(s.marks)
 }
 
 func (s *changeTrackedSurface) beginFrame() bool {
@@ -101,12 +164,12 @@ func (s *changeTrackedSurface) beginFrame() bool {
 }
 
 func (s *changeTrackedSurface) surfaceClear() {
-	s.changed, s.drawn = true, false
+	s.changed, s.drawn, s.marks = true, false, s.marks[:0]
 	s.overlaySurface.surfaceClear()
 }
 
 func (s *changeTrackedSurface) clearFrame() {
-	s.changed, s.drawn = true, false
+	s.changed, s.drawn, s.marks = true, false, s.marks[:0]
 	s.overlaySurface.clearFrame()
 }
 
@@ -115,15 +178,19 @@ func (s *changeTrackedSurface) surfaceClearRect(rect image.Rectangle) {
 	s.overlaySurface.surfaceClearRect(rect)
 }
 
-func (s *changeTrackedSurface) rectPrim(bounds image.Rectangle, fill, border uint32, lineWidth float64) {
-	s.changed, s.drawn = true, true
+func (s *changeTrackedSurface) rectPrim(
+	bounds image.Rectangle,
+	fill, border uint32,
+	lineWidth float64,
+) {
+	s.markShape(bounds, fill, 0, lineWidth)
 	s.overlaySurface.rectPrim(bounds, fill, border, lineWidth)
 }
 
 func (s *changeTrackedSurface) roundedRectPrim(
 	bounds image.Rectangle, radius float64, fill, border uint32, lineWidth float64,
 ) {
-	s.changed, s.drawn = true, true
+	s.markShape(bounds, fill, radius, lineWidth)
 	s.overlaySurface.roundedRectPrim(bounds, radius, fill, border, lineWidth)
 }
 
@@ -131,14 +198,23 @@ func (s *changeTrackedSurface) hintBadgePrim(
 	badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
 	fill, border uint32, lineWidth float64,
 ) {
-	s.changed, s.drawn = true, true
+	// The arrow reaches past the badge, by less than the badge is tall.
+	s.mark(badgeRect.Inset(-badgeRect.Dy() - int(math.Ceil(lineWidth))))
 	s.overlaySurface.hintBadgePrim(badgeRect, radius, edge, arrow, fill, border, lineWidth)
 }
 
 func (s *changeTrackedSurface) textPrim(
 	text, fontFamily string, centerX, centerY, fontSize float64, color uint32, bold bool,
 ) {
-	s.changed, s.drawn = true, true
+	// Glyphs reach past the measured width and the font size a little, so
+	// the mark is half a font size wider and twice as tall.
+	halfWidth := float64(
+		badge.TextWidth(text, fontFamily, fontSize, bold),
+	)/textHalves + fontSize/textHalves
+	s.mark(image.Rect(
+		int(math.Floor(centerX-halfWidth)), int(math.Floor(centerY-fontSize)),
+		int(math.Ceil(centerX+halfWidth)), int(math.Ceil(centerY+fontSize)),
+	))
 	s.overlaySurface.textPrim(text, fontFamily, centerX, centerY, fontSize, color, bold)
 }
 
@@ -365,6 +441,17 @@ func (o *sharedOverlay) showsNothing() bool {
 	tracked, ok := o.srf.(*changeTrackedSurface)
 
 	return ok && tracked.showsNothing()
+}
+
+// drawnOn returns where this overlay drew since its surface was last cleared,
+// in global pixels, or nil when the surface does not keep track.
+func (o *sharedOverlay) drawnOn() []image.Rectangle {
+	tracked, ok := o.srf.(*changeTrackedSurface)
+	if !ok {
+		return nil
+	}
+
+	return tracked.drawnOn()
 }
 
 func (o *sharedOverlay) Flush() {

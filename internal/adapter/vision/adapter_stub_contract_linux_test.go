@@ -309,7 +309,9 @@ func TestVisionAdapter_CaptureExcludesOwnWindowsOnceTheOverlayRegisters(t *testi
 		t.Error("CaptureExcludesOwnWindows() = true with no overlay to take off the screen")
 	}
 
-	platformlinux.SetOwnWindowsHider(func(capture func() error) error { return capture() })
+	platformlinux.SetOwnWindowsHider(func(_ image.Rectangle, capture func() error) error {
+		return capture()
+	})
 	t.Cleanup(func() { platformlinux.SetOwnWindowsHider(nil) })
 
 	if !adapter.CaptureExcludesOwnWindows() {

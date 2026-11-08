@@ -439,6 +439,13 @@ type OverlayPort interface {
 	// ports.TextInputFrame has always been fed this space.
 	HintSearchBounds(screen image.Rectangle) image.Rectangle
 
+	// VimStatusBar reports the strip vim mode's status bar covers at the
+	// bottom of region, in region's coordinates, so vim reads only the text
+	// above it. The text under the bar is hidden while vim is up, and leaving
+	// it out keeps a capture from having to take the bar off the screen. The
+	// overlay sizes the bar, so asking beats deriving it a second time.
+	VimStatusBar(region image.Rectangle) image.Rectangle
+
 	// UpdateGridMatches narrows the grid on screen to the cells whose label
 	// starts with prefix. With SetGridHideUnmatched it is the incremental
 	// half of grid mode. Both fire on every keystroke, over a grid already

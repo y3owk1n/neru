@@ -45,3 +45,54 @@ func TestBandOf_MatchesACaptureOfTheBandAlone(t *testing.T) {
 		t.Fatalf("band %v is not a strip inside region %v", band, region)
 	}
 }
+
+// TestMaskOut_LeavesTheOverlayOutOfTheBandComparison pins how the probes,
+// which leave the overlay up, compare with the last read's capture, taken with
+// it off. With what the overlay drew masked out the two match, at 1x and on a
+// HiDPI display, and a change of the page beside it still shows.
+func TestMaskOut_LeavesTheOverlayOutOfTheBandComparison(t *testing.T) {
+	band := image.Rect(100, 200, 500, 250)
+	cursor := image.Rect(240, 210, 260, 240)
+
+	for _, scale := range []int{1, 2} {
+		capture := func(overlay bool, changedAt image.Point) *image.RGBA {
+			img := image.NewRGBA(image.Rect(0, 0, band.Dx()*scale, band.Dy()*scale))
+			for row := range img.Rect.Dy() {
+				for col := range img.Rect.Dx() {
+					global := image.Pt(band.Min.X+col/scale, band.Min.Y+row/scale)
+					pixel := color.RGBA{R: uint8(global.X), G: uint8(global.Y), A: 0xFF}
+
+					if overlay && global.In(cursor) {
+						pixel = color.RGBA{R: 0xFF, B: 0xFF, A: 0xFF}
+					}
+
+					if global == changedAt {
+						pixel.B = 0x80
+					}
+
+					img.SetRGBA(col, row, pixel)
+				}
+			}
+
+			return img
+		}
+
+		before, probe := capture(false, image.Point{}), capture(true, image.Point{})
+		maskOut(before, band, []image.Rectangle{cursor})
+		maskOut(probe, band, []image.Rectangle{cursor})
+
+		if !sameFrame(before, probe) {
+			t.Fatalf(
+				"at %dx the probe with the cursor masked differs from the capture without it",
+				scale,
+			)
+		}
+
+		moved := capture(true, image.Pt(300, 220))
+		maskOut(moved, band, []image.Rectangle{cursor})
+
+		if sameFrame(before, moved) {
+			t.Fatalf("at %dx a change of the page beside the masked cursor went unseen", scale)
+		}
+	}
+}

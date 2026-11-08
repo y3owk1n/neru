@@ -7,6 +7,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/manager"
 	overlayHints "github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	overlayRecursiveGrid "github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
 	"github.com/y3owk1n/neru/internal/config"
@@ -274,6 +275,16 @@ func (a *Adapter) HideHintSearch() {
 	}
 
 	a.manager.HideHintSearchInput()
+}
+
+// VimStatusBar reports the strip vim's status bar covers at the bottom of
+// region, sized by the resolved vim style. A destroyed overlay draws no bar.
+func (a *Adapter) VimStatusBar(region image.Rectangle) image.Rectangle {
+	if a.released() {
+		return image.Rectangle{}
+	}
+
+	return manager.VimStatusBar(region, ResolvedStyle(a.styles).Vim)
 }
 
 // HintSearchBounds reports where the search input sits on a screen.

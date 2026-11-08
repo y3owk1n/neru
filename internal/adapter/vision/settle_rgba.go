@@ -6,10 +6,13 @@ import (
 	"bytes"
 	"context"
 	"image"
+	"math"
 	"time"
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -84,6 +87,62 @@ func bandOf(frame readFrame, region, band image.Rectangle) readFrame {
 	return copied
 }
 
+// maskEdge is how far past each rectangle maskOut clears, for the
+// antialiased edge of what the overlay drew.
+const maskEdge = 1
+
+// maskOut zeroes the pixels of frame, a capture of shown, that drawnOn covers,
+// in global pixels. A frame at another scale than shown maps them by that
+// scale.
+func maskOut(frame readFrame, shown image.Rectangle, drawnOn []image.Rectangle) {
+	if shown.Empty() {
+		return
+	}
+
+	scaleX := float64(frame.Rect.Dx()) / float64(shown.Dx())
+	scaleY := float64(frame.Rect.Dy()) / float64(shown.Dy())
+
+	for _, rect := range drawnOn {
+		rect = rect.Inset(-maskEdge).Intersect(shown)
+		if rect.Empty() {
+			continue
+		}
+
+		pixels := image.Rect(
+			frame.Rect.Min.X+int(math.Floor(float64(rect.Min.X-shown.Min.X)*scaleX)),
+			frame.Rect.Min.Y+int(math.Floor(float64(rect.Min.Y-shown.Min.Y)*scaleY)),
+			frame.Rect.Min.X+int(math.Ceil(float64(rect.Max.X-shown.Min.X)*scaleX)),
+			frame.Rect.Min.Y+int(math.Ceil(float64(rect.Max.Y-shown.Min.Y)*scaleY)),
+		).Intersect(frame.Rect)
+
+		for y := pixels.Min.Y; y < pixels.Max.Y; y++ {
+			clear(frame.Pix[frame.PixOffset(pixels.Min.X, y):frame.PixOffset(pixels.Max.X, y)])
+		}
+	}
+}
+
+// DetectSegmentsAsRead runs the segment detector on the frame the last fast
+// read of region captured, so it captures nothing, which on Linux is a
+// capture that takes the overlay off the screen. With no read of region it
+// captures, as DetectSegments does.
+func (a *Adapter) DetectSegmentsAsRead(
+	ctx context.Context,
+	region image.Rectangle,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
+	frame, _, remembered := a.lastRead.recall(region)
+	if !remembered {
+		return a.DetectSegments(ctx, region, cfg)
+	}
+
+	_, err := detectionRegion(ctx, region, "segment")
+	if err != nil {
+		return nil, err
+	}
+
+	return detectSegmentsIn(ctx, detectionFrameOf(frame, region), cfg)
+}
+
 // ReadLinesOnceChanged waits for region to change from what the last fast
 // read of it captured and to settle, then reads it fast. One that never
 // changes reads the last read's lines again. The watch captures only a band
@@ -106,9 +165,19 @@ func (a *Adapter) ReadLinesOnceChanged(
 		beforeBand = bandOf(before, region, band)
 	}
 
+	// The probes leave the overlay up, so what it drew is left out of each
+	// comparison, and before, captured with it off, compares the same way.
+	same := func(x, y readFrame) bool {
+		drawnOn := a.overlayDrawnOn()
+		maskOut(x, band, drawnOn)
+		maskOut(y, band, drawnOn)
+
+		return sameFrame(x, y)
+	}
+
 	_, unchanged, err := captureOnceChanged(ctx, beforeBand, remembered, settleFrames[readFrame]{
-		capture: func() (readFrame, error) { return a.captureRegion(ctx, band) },
-		same:    sameFrame,
+		capture: func() (readFrame, error) { return a.captureProbe(ctx, band) },
+		same:    same,
 		release: releaseFrame,
 	})
 	if err != nil {

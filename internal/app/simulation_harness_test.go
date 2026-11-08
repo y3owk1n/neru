@@ -192,6 +192,9 @@ type simOverlayPort struct {
 	// badge. The draw reports CodeNotSupported, the way the Linux overlay does
 	// for a search input no backend there implements.
 	refuseHintSearch bool
+	// vimStatusHeight is how tall the vim status bar it reports is. Zero
+	// reports none.
+	vimStatusHeight int
 
 	mu sync.Mutex
 	// visible is whether the overlay is on screen, and shows counts how many
@@ -331,6 +334,16 @@ func (m *simOverlayPort) DrawHintSearch(search ports.HintSearch) error {
 }
 
 func (m *simOverlayPort) HideHintSearch() {}
+
+// VimStatusBar reports a bar vimStatusHeight tall at the bottom of region,
+// or none.
+func (m *simOverlayPort) VimStatusBar(region image.Rectangle) image.Rectangle {
+	if m.vimStatusHeight <= 0 {
+		return image.Rectangle{}
+	}
+
+	return image.Rect(region.Min.X, region.Max.Y-m.vimStatusHeight, region.Max.X, region.Max.Y)
+}
 
 // HintSearchBounds reports a search box for a platform field to sit over. A
 // refusing overlay draws no box, so it reports none.

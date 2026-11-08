@@ -110,7 +110,10 @@ void neru_wayland_overlay_dispatch_pending(NeruWaylandOverlay *overlay);
 // without it. The surface stays mapped, so the overlay keeps the keyboard. It
 // returns the index of the buffer that was on screen, whose pixels nothing
 // touched, for neru_wayland_overlay_unblank to put back, or a NERU_BLANK_ code.
-int neru_wayland_overlay_blank(NeruWaylandOverlay *overlay, int timeout_ms);
+// With a width and height above zero it clears only that rectangle, in global
+// coordinates, and the rest of the overlay stays on screen.
+int neru_wayland_overlay_blank(
+    NeruWaylandOverlay *overlay, int timeout_ms, double x, double y, double width, double height);
 void neru_wayland_overlay_unblank(NeruWaylandOverlay *overlay, int saved);
 void neru_wayland_overlay_rect(
     NeruWaylandOverlay *overlay, double x, double y, double width, double height, unsigned int fill,

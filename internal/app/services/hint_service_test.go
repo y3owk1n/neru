@@ -950,6 +950,14 @@ func (m *mockVisionPort) DetectSegments(
 	return m.detectedElements, nil
 }
 
+func (m *mockVisionPort) DetectSegmentsAsRead(
+	ctx context.Context,
+	region image.Rectangle,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
+	return m.DetectSegments(ctx, region, cfg)
+}
+
 func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
 	return nil, derrors.New(derrors.CodeBridgeFailed, "capture screen not implemented")
 }

@@ -405,6 +405,11 @@ func (m *MockOverlayPort) HideHintSearch() {
 	}
 }
 
+// VimStatusBar implements ports.OverlayPort. It reports no bar.
+func (m *MockOverlayPort) VimStatusBar(image.Rectangle) image.Rectangle {
+	return image.Rectangle{}
+}
+
 // HintSearchBounds implements ports.OverlayPort.
 func (m *MockOverlayPort) HintSearchBounds(screen image.Rectangle) image.Rectangle {
 	if m.HintSearchBoundsFunc != nil {

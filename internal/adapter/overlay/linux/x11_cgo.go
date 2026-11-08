@@ -229,16 +229,21 @@ func (o *x11Overlay) textPrim(
 // left the overlay in captures under picom's xrender backend, 120 ms did not.
 const x11CompositorSettle = 120 * time.Millisecond
 
-// withBlanked runs capture with the window cleared, then paints back exactly
-// what it showed. A window that is not on screen has nothing to clear.
-func (o *x11Overlay) withBlanked(capture func() error) error {
+// withBlanked runs capture with the window cleared inside region, or all of
+// it when region is empty, then paints back exactly what it showed. A window
+// that is not on screen has nothing to clear.
+func (o *x11Overlay) withBlanked(region image.Rectangle, capture func() error) error {
 	if o == nil || o.raw == nil {
 		return capture()
 	}
 
 	var composited, failed C.int
 
-	saved := C.neru_x11_overlay_blank(o.raw, &composited, &failed)
+	saved := C.neru_x11_overlay_blank(
+		o.raw,
+		C.int(region.Min.X), C.int(region.Min.Y), C.int(region.Dx()), C.int(region.Dy()),
+		&composited, &failed,
+	)
 	if failed != 0 {
 		return derrors.New(
 			derrors.CodeOverlayFailed,

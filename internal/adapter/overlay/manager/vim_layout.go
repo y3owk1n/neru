@@ -71,6 +71,33 @@ const (
 	vimNoticeRowsWithDetail = 2
 )
 
+// VimStatusBar is the strip the status bar covers at the bottom of region. It
+// is one line of the style's font with vimStatusPad above and below. The macOS
+// bridge sizes its bar by the font's own line height, which is no taller.
+func VimStatusBar(region image.Rectangle, style VimStyle) image.Rectangle {
+	if region.Empty() {
+		return image.Rectangle{}
+	}
+
+	height := min(vimLineHeight(style)+vimStatusPad*vimSides, region.Dy())
+
+	return image.Rect(region.Min.X, region.Max.Y-height, region.Max.X, region.Max.Y)
+}
+
+// vimFontSize is the style's font size, or the default when it sets none.
+func vimFontSize(style VimStyle) float64 {
+	if style.FontSize <= 0 {
+		return vimDefaultFontSize
+	}
+
+	return float64(style.FontSize)
+}
+
+// vimLineHeight is the height of a line of the style's font.
+func vimLineHeight(style VimStyle) int {
+	return int(vimFontSize(style) * vimFontPadding)
+}
+
 // LayoutVim lays a vim scene out as the shapes a backend paints, with
 // measure answering a text's width at the style's font family and the given
 // size. The macOS bridge lays out the same geometry with Core Animation
@@ -80,14 +107,9 @@ func LayoutVim(
 	style VimStyle,
 	measure func(text string, fontSize float64, bold bool) int,
 ) []VimOp {
-	fontSize := float64(style.FontSize)
-	if fontSize <= 0 {
-		fontSize = vimDefaultFontSize
-	}
-
+	fontSize := vimFontSize(style)
 	width := func(text string, bold bool) int { return measure(text, fontSize, bold) }
-
-	lineHeight := int(fontSize * vimFontPadding)
+	lineHeight := vimLineHeight(style)
 	cursor := badge.ParseHexARGB(style.CursorColor)
 	match := badge.ParseHexARGB(style.MatchColor)
 	statusBackground := badge.ParseHexARGB(style.StatusBackgroundColor)
@@ -179,13 +201,7 @@ func LayoutVim(
 	}
 
 	if scene.Status != "" && !scene.Region.Empty() {
-		height := lineHeight + vimStatusPad*vimSides
-		bar := image.Rect(
-			scene.Region.Min.X,
-			scene.Region.Max.Y-height,
-			scene.Region.Max.X,
-			scene.Region.Max.Y,
-		)
+		bar := VimStatusBar(scene.Region, style)
 		left := bar.Min.X + vimStatusPad*vimSides
 		ops = append(
 			ops,

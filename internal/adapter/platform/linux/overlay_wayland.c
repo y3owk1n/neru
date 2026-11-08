@@ -964,7 +964,8 @@ static void neru_wait_frames(
 	}
 }
 
-int neru_wayland_overlay_blank(NeruWaylandOverlay *overlay, int timeout_ms) {
+int neru_wayland_overlay_blank(
+    NeruWaylandOverlay *overlay, int timeout_ms, double x, double y, double width, double height) {
 	if (!overlay || !overlay->display)
 		return NERU_BLANK_NOTHING_SHOWN;
 
@@ -989,7 +990,25 @@ int neru_wayland_overlay_blank(NeruWaylandOverlay *overlay, int timeout_ms) {
 		return NERU_BLANK_NO_BUFFER;
 
 	neru_wayland_overlay_select_buffer(overlay, spare);
-	neru_wayland_overlay_clear(overlay);
+	if (width > 0 && height > 0) {
+		// The spare takes what is on screen, and only the rectangle comes off.
+		for (int i = 0; i < overlay->nr_screens; i++) {
+			NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+			if (!scr->cairo_surface || current >= scr->num_buffers || !scr->cairo_surfaces[current])
+				continue;
+			cairo_surface_flush(scr->cairo_surfaces[current]);
+			size_t size = scr->shm_sizes[current] < scr->shm_size ? scr->shm_sizes[current] : scr->shm_size;
+			memcpy(scr->shm_data, scr->shm_datas[current], size);
+			cairo_surface_mark_dirty(scr->cairo_surface);
+		}
+		neru_wayland_overlay_clear_rect(overlay, x, y, width, height);
+		for (int i = 0; i < overlay->nr_screens; i++) {
+			if (overlay->screens[i].cairo_surface)
+				cairo_surface_flush(overlay->screens[i].cairo_surface);
+		}
+	} else {
+		neru_wayland_overlay_clear(overlay);
+	}
 
 	// One frame callback per output, because a capture can read any of them
 	// and each draws the cleared buffer on its own schedule.

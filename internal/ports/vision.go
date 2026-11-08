@@ -52,6 +52,18 @@ type VisionPort interface {
 		cfg config.HintsSegmentConfig,
 	) ([]*element.Element, error)
 
+	// DetectSegmentsAsRead runs the segment detector as DetectSegments does,
+	// on the frame the last fast read of region captured when there is one,
+	// so it looks at the screen that read looked at and captures nothing. A
+	// Linux capture takes the overlay off the screen, so this is what keeps a
+	// read's icon pass from blinking it. A platform whose read keeps a frame the
+	// detector cannot take captures afresh. So does a region with no read.
+	DetectSegmentsAsRead(
+		ctx context.Context,
+		region image.Rectangle,
+		cfg config.HintsSegmentConfig,
+	) ([]*element.Element, error)
+
 	// CaptureScreen returns the current screen image. Which screen "current"
 	// means is the platform's own answer. macOS captures the primary display,
 	// Linux the screen holding the cursor, because Wayland exposes no primary

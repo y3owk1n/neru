@@ -200,6 +200,15 @@ func (a *Adapter) DetectSegments(
 		return nil, err
 	}
 
+	return detectSegmentsIn(ctx, frame, cfg)
+}
+
+// detectSegmentsIn runs the segment detector on frame.
+func detectSegmentsIn(
+	ctx context.Context,
+	frame detectionFrame,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
 	rects, err := segment.Detect(ctx, frame.img, frame.scale, cfg.Targets)
 	if err != nil {
 		return nil, err
@@ -226,12 +235,17 @@ func (a *Adapter) captureDetectionFrame(
 		return detectionFrame{}, err
 	}
 
+	return detectionFrameOf(img, region), nil
+}
+
+// detectionFrameOf wraps img, a capture of region, for a detector.
+func detectionFrameOf(img *image.RGBA, region image.Rectangle) detectionFrame {
 	scale := 1.0
 	if img.Rect.Dy() > 0 {
 		scale = float64(img.Rect.Dy()) / float64(region.Dy())
 	}
 
-	return detectionFrame{img: img, origin: region.Min, region: region, scale: scale}, nil
+	return detectionFrame{img: img, origin: region.Min, region: region, scale: scale}
 }
 
 // Health reports whether the vision strategy can run on this machine, checking
@@ -294,6 +308,19 @@ func (a *Adapter) captureRegion(ctx context.Context, region image.Rectangle) (*i
 	)
 
 	return img, nil
+}
+
+// captureProbe captures region with the overlay left on the screen, for the
+// captures that watch the middle of a region settle. The overlay draws nothing
+// there that changes while they watch, and taking it off for each would blink
+// it every settleInterval.
+func (a *Adapter) captureProbe(ctx context.Context, region image.Rectangle) (*image.RGBA, error) {
+	return platformlinux.CaptureScreenRegionWithOverlay(ctx, a.backend(), region)
+}
+
+// overlayDrawnOn returns where the overlay drew, which the probes leave out.
+func (a *Adapter) overlayDrawnOn() []image.Rectangle {
+	return platformlinux.OwnWindowsDrawnOn()
 }
 
 // ReadText reports CodeNotSupported. tesseract already reads text accurately

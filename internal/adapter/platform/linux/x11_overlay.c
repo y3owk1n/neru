@@ -137,7 +137,8 @@ static int neru_x11_overlay_composited(NeruX11Overlay *overlay) {
 	return XGetSelectionOwner(overlay->display, selection) != None;
 }
 
-cairo_surface_t *neru_x11_overlay_blank(NeruX11Overlay *overlay, int *composited, int *failed) {
+cairo_surface_t *neru_x11_overlay_blank(
+    NeruX11Overlay *overlay, int x, int y, int width, int height, int *composited, int *failed) {
 	*composited = 0;
 	*failed = 0;
 	if (overlay == NULL) {
@@ -172,7 +173,10 @@ cairo_surface_t *neru_x11_overlay_blank(NeruX11Overlay *overlay, int *composited
 		return NULL;
 	}
 
-	neru_x11_overlay_clear(overlay);
+	if (width > 0 && height > 0)
+		neru_x11_overlay_clear_rect(overlay, x, y, width, height);
+	else
+		neru_x11_overlay_clear(overlay);
 	XSync(overlay->display, False);
 	*composited = neru_x11_overlay_composited(overlay);
 

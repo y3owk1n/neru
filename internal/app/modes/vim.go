@@ -45,6 +45,9 @@ type vimSession struct {
 	machine *vim.Machine
 	host    *screentext.Host
 	region  image.Rectangle // what was read, global
+	// shown is the region the overlay draws over, global. It is region with
+	// the strip the status bar covers below it, which vim does not read.
+	shown image.Rectangle
 
 	scope    string
 	follow   bool
@@ -188,7 +191,8 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 	h.setScreenBounds(screen)
 
 	scope := h.resolveCaptureScope(domain.ModeNameVim, activation, &h.config.Vim)
-	region := h.captureStart(domain.ModeNameVim, screen, scope)
+	shown := h.captureStart(domain.ModeNameVim, screen, scope)
+	region := h.vimReadRegion(shown)
 
 	text, lines, err := h.readVimText(region, ports.TextFast)
 	if err != nil {
@@ -218,6 +222,8 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 	} else {
 		h.vim = h.newVimSession(text, region)
 	}
+
+	h.vim.shown = shown
 
 	h.cancelScrolledRead()
 
@@ -283,6 +289,23 @@ func (h *handlerState) vimScreen() image.Rectangle {
 	}
 
 	return bounds
+}
+
+// vimReadRegion is what vim reads of shown, the region the overlay draws
+// over. It is all of shown above the strip the status bar covers. The bar
+// hides the text under it while vim is up, and leaving the bar out of the read
+// keeps a Linux capture from taking it off the screen.
+func (h *handlerState) vimReadRegion(shown image.Rectangle) image.Rectangle {
+	if h.overlayPort == nil {
+		return shown
+	}
+
+	bar := h.overlayPort.VimStatusBar(shown)
+	if bar.Empty() || bar.Min.Y <= shown.Min.Y {
+		return shown
+	}
+
+	return image.Rect(shown.Min.X, shown.Min.Y, shown.Max.X, bar.Min.Y)
 }
 
 // readVimText reads region at level, bounded the way a hint scan is, and
@@ -354,7 +377,7 @@ func (h *handlerState) startRefine() {
 
 		// Icons have no text, so the segment detector finds them in the same
 		// region. When it fails, the text is kept without icons.
-		icons, iconErr := vision.DetectSegments(ctx, region, vimIconTargets)
+		icons, iconErr := vision.DetectSegmentsAsRead(ctx, region, vimIconTargets)
 		if iconErr != nil {
 			icons = nil
 		}
@@ -366,8 +389,8 @@ func (h *handlerState) startRefine() {
 // cancelYoungRefine stops the accurate read in flight, for a screen that has
 // since changed, unless it has run past vimSlowRead. One that long is most
 // likely compiling a model for a new script, and stopping it would start the
-// compile over on the next read. Canceling stops a tesseract or Windows OCR
-// recognition, the macOS helper process and the icon pass.
+// compile over on the next read. Canceling stops a tesseract, Windows OCR or
+// macOS Vision recognition, the macOS helper process and the icon pass.
 func (h *handlerState) cancelYoungRefine() {
 	session := h.vim
 	if session.refining && time.Since(session.refineStarted) < vimSlowRead {
@@ -917,7 +940,7 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 
 	frame := ports.VimFrame{
 		Screen:  h.screenBounds,
-		Region:  session.region,
+		Region:  session.shown,
 		Pending: machine.Pending(),
 		Current: -1,
 	}
@@ -925,13 +948,6 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 	if session.typing {
 		frame.Status = "INSERT   typing into the app, Escape to stop"
 
-		return frame
-	}
-
-	// The text read is no longer where the app scrolled it, so nothing is
-	// drawn until the screen is read again. An empty overlay also needs no
-	// blanking for the captures that wait for the screen to settle.
-	if session.stale {
 		return frame
 	}
 
@@ -987,7 +1003,70 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 	frame.Status = vimStatus(session, frame.Current, len(frame.Matches))
 	frame.Lens = vimLens(text, cursor)
 
+	// The text read is still where it was before the app scrolled, so the
+	// frame moves with the scroll until vim reads the screen again, instead of
+	// clearing.
+	if session.stale {
+		moveVimFrame(&frame, session.staleNear.Sub(h.vimCursorPoint()), session.region)
+	}
+
 	return frame
+}
+
+// moveVimFrame moves what frame draws over the text by offset, keeping it in
+// region, what vim reads. The cursor stops at the region's edge, as the read
+// lands it on the edge line, and the rest is cut off at the edge.
+func moveVimFrame(frame *ports.VimFrame, offset image.Point, region image.Rectangle) {
+	moved := func(rect image.Rectangle) image.Rectangle {
+		return rect.Add(offset).Intersect(region)
+	}
+
+	if !frame.Cursor.Empty() {
+		cursor := frame.Cursor.Add(offset)
+		shift := image.Point{
+			X: min(max(cursor.Min.X, region.Min.X), region.Max.X-cursor.Dx()) - cursor.Min.X,
+			Y: min(max(cursor.Min.Y, region.Min.Y), region.Max.Y-cursor.Dy()) - cursor.Min.Y,
+		}
+		frame.Cursor = cursor.Add(shift)
+	}
+
+	frame.Container = moved(frame.Container)
+
+	var selection []image.Rectangle
+
+	for _, rect := range frame.Selection {
+		if rect = moved(rect); !rect.Empty() {
+			selection = append(selection, rect)
+		}
+	}
+
+	frame.Selection = selection
+
+	var matches []image.Rectangle
+
+	current := -1
+
+	for index, rect := range frame.Matches {
+		if rect = moved(rect); !rect.Empty() {
+			if index == frame.Current {
+				current = len(matches)
+			}
+
+			matches = append(matches, rect)
+		}
+	}
+
+	frame.Matches, frame.Current = matches, current
+
+	var labels []ports.VimLabel
+
+	for _, label := range frame.Labels {
+		if label.Bounds = moved(label.Bounds); !label.Bounds.Empty() {
+			labels = append(labels, label)
+		}
+	}
+
+	frame.Labels = labels
 }
 
 // vimSlowReadNotice is what the overlay says while an accurate read takes
@@ -1017,7 +1096,7 @@ func lineSegments(text *screentext.Text, start, end int) [][2]int {
 
 // vimStatus is the status bar: the mode, the command being typed or the
 // command line, the machine's message, a macro being recorded, where the
-// cursor is among the search matches, and whether the accurate read is
+// cursor is among the search matches, and whether a read of the screen is
 // still running.
 func vimStatus(session *vimSession, current, matches int) string {
 	machine := session.machine
@@ -1055,7 +1134,7 @@ func vimStatus(session *vimSession, current, matches int) string {
 		parts = append(parts, "["+at+"/"+strconv.Itoa(matches)+"]")
 	}
 
-	if session.reading {
+	if session.reading || session.stale {
 		parts = append(parts, "reading…")
 	}
 

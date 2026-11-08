@@ -147,6 +147,7 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 
 	if instance.x11 != nil || instance.wlroots != nil {
 		platformlinux.SetOwnWindowsHider(instance.hideForCapture)
+		platformlinux.SetOwnWindowsDrawnOn(instance.drawnOn)
 	}
 
 	return instance
@@ -281,6 +282,7 @@ func (m *Manager) SetActiveScreenOrigin(origin image.Point) {
 // Destroy cleans up the overlay Manager.
 func (m *Manager) Destroy() {
 	platformlinux.SetOwnWindowsHider(nil)
+	platformlinux.SetOwnWindowsDrawnOn(nil)
 
 	// Capture and nil the backend pointers under the lock, then release it
 	// before calling Destroy. The wlroots Destroy waits for the
@@ -1517,22 +1519,61 @@ func (m *Manager) syncSublayerKeysLocked(target *string) {
 	*target = m.GridOverlay().Config().SublayerKeys
 }
 
-// hideForCapture runs capture with the overlay cleared, then restores exactly
-// what it showed. It holds renderMu throughout, so no draw lands between the
-// clear and the capture. On Wayland the keyboard poller reads under the same
-// lock, so keys typed meanwhile are read once it ends. The click indicator
-// has its own surface and stays in the capture.
-func (m *Manager) hideForCapture(capture func() error) error {
+// drawnOn returns where the overlay drew since it was last cleared, in global
+// pixels, for the captures that leave it up.
+func (m *Manager) drawnOn() []image.Rectangle {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	if m.x11 != nil && !m.x11.showsNothing() {
-		return m.x11.withBlanked(capture)
+	if m.x11 != nil {
+		return m.x11.drawnOn()
 	}
 
-	if m.wlroots != nil && !m.wlroots.showsNothing() {
-		return m.wlroots.withBlanked(capture)
+	if m.wlroots != nil {
+		return m.wlroots.drawnOn()
+	}
+
+	return nil
+}
+
+// hideForCapture runs capture with the overlay cleared inside region, then
+// restores exactly what it showed. It clears nothing when nothing it drew is
+// inside region. It holds renderMu throughout, so no draw lands between the
+// clear and the capture. On Wayland the keyboard poller reads under the same
+// lock, so keys typed meanwhile are read once it ends. The click indicator
+// has its own surface and stays in the capture.
+func (m *Manager) hideForCapture(region image.Rectangle, capture func() error) error {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil && drawnInside(m.x11.showsNothing(), m.x11.drawnOn(), region) {
+		return m.x11.withBlanked(region, capture)
+	}
+
+	if m.wlroots != nil && drawnInside(m.wlroots.showsNothing(), m.wlroots.drawnOn(), region) {
+		return m.wlroots.withBlanked(region, capture)
 	}
 
 	return capture()
+}
+
+// drawnInside reports whether an overlay shows anything a capture of region
+// would see. It counts an overlay that keeps no record of where it drew as
+// showing something everywhere, unless it shows nothing at all.
+func drawnInside(showsNothing bool, drawnOn []image.Rectangle, region image.Rectangle) bool {
+	if showsNothing {
+		return false
+	}
+
+	if len(drawnOn) == 0 || region.Empty() {
+		return true
+	}
+
+	for _, drawn := range drawnOn {
+		if drawn.Overlaps(region) {
+			return true
+		}
+	}
+
+	return false
 }

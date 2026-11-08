@@ -271,6 +271,17 @@ func (a *Adapter) DetectSegments(
 	return targetElements(frame, rects, element.SourceSegment), nil
 }
 
+// DetectSegmentsAsRead captures afresh, as DetectSegments does. The read keeps
+// a frame at twice the size the detector was tuned on, and a macOS capture
+// leaves the overlay out, so reusing the frame would save nothing.
+func (a *Adapter) DetectSegmentsAsRead(
+	ctx context.Context,
+	region image.Rectangle,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
+	return a.DetectSegments(ctx, region, cfg)
+}
+
 // captureDetectionFrame captures screenBounds for a pixel detector.
 //
 // It captures just the region, clipped to the display that holds it, at its

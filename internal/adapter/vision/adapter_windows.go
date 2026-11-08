@@ -213,6 +213,15 @@ func (a *Adapter) DetectSegments(
 		return nil, err
 	}
 
+	return detectSegmentsIn(ctx, frame, cfg)
+}
+
+// detectSegmentsIn runs the segment detector on frame.
+func detectSegmentsIn(
+	ctx context.Context,
+	frame detectionFrame,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
 	dpi := platformwindows.DPIScaleAt(regionCenter(frame.region))
 
 	rects, err := segment.Detect(ctx, frame.img, dpi, cfg.Targets)
@@ -243,7 +252,12 @@ func (a *Adapter) captureDetectionFrame(
 		return detectionFrame{}, err
 	}
 
-	return detectionFrame{img: img, origin: region.Min, region: region, scale: 1}, nil
+	return detectionFrameOf(img, region), nil
+}
+
+// detectionFrameOf wraps img, a capture of region, for a detector.
+func detectionFrameOf(img *image.RGBA, region image.Rectangle) detectionFrame {
+	return detectionFrame{img: img, origin: region.Min, region: region, scale: 1}
 }
 
 // Health reports whether the vision strategy can run on this machine.
@@ -263,6 +277,15 @@ func (a *Adapter) Health(ctx context.Context) error {
 
 	return platformwindows.OCRHealth()
 }
+
+// captureProbe captures region for the captures that watch a region settle.
+// A Windows capture already leaves Neru's windows out, so it is captureRegion.
+func (a *Adapter) captureProbe(ctx context.Context, region image.Rectangle) (*image.RGBA, error) {
+	return a.captureRegion(ctx, region)
+}
+
+// overlayDrawnOn is nil, since the probes leave Neru's windows out.
+func (a *Adapter) overlayDrawnOn() []image.Rectangle { return nil }
 
 // captureRegion captures region, global top-left origin, Y down, unscaled
 // pixels, off the desktop. An empty rectangle means the whole active screen,

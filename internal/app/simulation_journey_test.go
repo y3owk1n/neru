@@ -5058,9 +5058,10 @@ func gateVimReads(sim *simHarness) *vimReadGate {
 }
 
 // TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn covers scrolling a
-// long page. Each Ctrl+D scrolls at once and nothing is drawn over the moved
-// text. The read of each screen scrolled past is canceled by the next scroll,
-// and only the screen the run ends on is read and refined.
+// long page. Each Ctrl+D scrolls at once and keeps the cursor where it is on
+// screen, so the overlay stays up as it was instead of blinking off and on
+// with each scroll. The next scroll cancels the read of each screen scrolled
+// past, so vim reads and refines only the screen the run ends on.
 func TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn(t *testing.T) {
 	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
 	gate := gateVimReads(sim)
@@ -5070,6 +5071,8 @@ func TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn(t *testing.T) {
 	vimFrameShows(sim, "the activation's accurate read landed", func(f ports.VimFrame) bool {
 		return !strings.Contains(f.Status, "reading")
 	})
+
+	before, _ := sim.overlay.lastVimFrame()
 
 	gate.armed.Store(true)
 
@@ -5082,9 +5085,14 @@ func TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn(t *testing.T) {
 		t.Fatalf("three spaced Ctrl+D scrolled %d times, want 3", scrolls)
 	}
 
-	vimFrameShows(sim, "nothing drawn over the moved text", func(f ports.VimFrame) bool {
-		return f.Status == "" && f.Cursor.Empty()
-	})
+	vimFrameShows(
+		sim,
+		"the overlay left in place while the page moves",
+		func(f ports.VimFrame) bool {
+			return strings.Contains(f.Status, "reading") && !f.Cursor.Empty() &&
+				f.Cursor == before.Cursor && f.Lens == before.Lens
+		},
+	)
 	sim.waitFor("the reads of the two screens scrolled past canceled", func() bool {
 		return gate.canceled.Load() == 2 && gate.started.Load() == 3
 	})
@@ -5101,6 +5109,88 @@ func TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn(t *testing.T) {
 	if n := gate.accurate.Load(); n != 2 {
 		t.Fatalf("read accurately %d times, want once for the activation and once after", n)
 	}
+}
+
+// TestSimulation_VimReadsOnlyAboveItsStatusBar covers the strip vim's status
+// bar covers at the bottom of the window. The bar is drawn over the whole
+// window, and vim reads only above it, so a capture never has to take the bar
+// off the screen and the text hidden under it is not read.
+func TestSimulation_VimReadsOnlyAboveItsStatusBar(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+	sim.overlay.vimStatusHeight = 30
+
+	var (
+		readMu sync.Mutex
+		read   []image.Rectangle
+	)
+
+	words := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if !region.Empty() {
+			readMu.Lock()
+
+			read = append(read, region)
+			readMu.Unlock()
+		}
+
+		return words(ctx, region, level)
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	frame, _ := sim.overlay.lastVimFrame()
+
+	readMu.Lock()
+	defer readMu.Unlock()
+
+	if len(read) == 0 {
+		t.Fatal("vim read nothing")
+	}
+
+	want := image.Rect(
+		frame.Region.Min.X,
+		frame.Region.Min.Y,
+		frame.Region.Max.X,
+		frame.Region.Max.Y-30,
+	)
+	for _, region := range read {
+		if region != want {
+			t.Fatalf(
+				"vim read %v, want %v, the window %v above its status bar",
+				region,
+				want,
+				frame.Region,
+			)
+		}
+	}
+}
+
+// TestSimulation_VimMovesTheOverlayWithALineScroll covers Ctrl+E, which
+// scrolls the text up a line under a cursor that stays on its word. Until the
+// screen is read again, the overlay moves up with the text rather than
+// blinking off.
+func TestSimulation_VimMovesTheOverlayWithALineScroll(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+	gate := gateVimReads(sim)
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	before, _ := sim.overlay.lastVimFrame()
+
+	gate.armed.Store(true)
+	sim.press("Ctrl+e")
+
+	vimFrameShows(sim, "the cursor moved up with its text", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "reading") &&
+			f.Cursor.Size() == before.Cursor.Size() &&
+			f.Cursor.Min.X == before.Cursor.Min.X && f.Cursor.Min.Y < before.Cursor.Min.Y
+	})
+
+	close(gate.release)
 }
 
 // TestSimulation_VimReadsFirstForAKeyAfterAScroll covers a motion right after

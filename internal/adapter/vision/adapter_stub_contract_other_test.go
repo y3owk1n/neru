@@ -99,6 +99,18 @@ func TestVisionAdapter_AllMethodsReportNotSupportedOffDarwin(t *testing.T) {
 			},
 		},
 		{
+			name: "DetectSegmentsAsRead",
+			call: func() error {
+				_, err := adapter.DetectSegmentsAsRead(
+					ctx,
+					image.Rect(0, 0, 100, 100),
+					config.DefaultConfig().Hints.Segment,
+				)
+
+				return err
+			},
+		},
+		{
 			name: "DetectSegments",
 			call: func() error {
 				_, err := adapter.DetectSegments(
