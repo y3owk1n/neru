@@ -4569,11 +4569,18 @@ func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
 // TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping covers
 // [vim.hotkeys]. A bound key runs its action and vim never sees it, so x here
 // leaves the mode instead of deleting a character. While vim types into the
-// app the same key types, as it would with nothing bound.
+// app the same key types, as it would with nothing bound, and a chord bound
+// globally too runs the global binding.
 func TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping(t *testing.T) {
+	const shared = "Primary+Shift+K"
+
 	cfg := simConfig()
 	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
-	cfg.Vim.Hotkeys = map[string]config.StringOrStringArray{"x": {config.CmdIdle}}
+	cfg.Hotkeys.Bindings[shared] = []string{"action left_click"}
+	cfg.Vim.Hotkeys = map[string]config.StringOrStringArray{
+		"x":    {config.CmdIdle},
+		shared: {config.CmdIdle},
+	}
 
 	sim := newSimHarness(t, cfg, nil)
 	simWords(t, sim, map[string]image.Rectangle{
@@ -4598,6 +4605,17 @@ func TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping(t *testing.T) {
 
 	if got := sim.app.CurrentMode(); got != domain.ModeVim {
 		t.Fatalf("mode after typing a bound key = %v, want vim", got)
+	}
+
+	clicks := len(sim.ax.recordedClicks())
+
+	sim.pressHotkey(shared)
+	sim.waitFor("the global binding clicked", func() bool {
+		return len(sim.ax.recordedClicks()) == clicks+1
+	})
+
+	if got := sim.app.CurrentMode(); got != domain.ModeVim {
+		t.Fatalf("mode after the shared chord while typing = %v, want vim", got)
 	}
 
 	sim.press("Escape")
@@ -5099,6 +5117,75 @@ func gateVimReads(sim *simHarness) *vimReadGate {
 
 	return gate
 }
+
+// TestSimulation_VimNeverRunsTwoReadsOfAScrolledScreenAtOnce covers a read
+// that keeps capturing for a moment after it is canceled, as a KDE capture
+// does while it holds the screen-cast session. The read the next scroll
+// starts and the read a key makes for itself both wait for it to stop.
+// Otherwise their capture would fail to take the session.
+func TestSimulation_VimNeverRunsTwoReadsOfAScrolledScreenAtOnce(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	var (
+		armed, inFlight, overlapped, finished atomic.Int32
+		release                               = make(chan struct{})
+	)
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level != ports.TextFast || region.Empty() || armed.Load() == 0 {
+			return read(ctx, region, level)
+		}
+
+		if inFlight.Add(1) > 1 {
+			overlapped.Add(1)
+		}
+
+		defer func() {
+			inFlight.Add(-1)
+			finished.Add(1)
+		}()
+
+		select {
+		case <-release:
+			return read(ctx, region, level)
+		case <-ctx.Done():
+			time.Sleep(vimLingeringCapture)
+
+			return nil, ctx.Err()
+		}
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	armed.Store(1)
+	sim.press("Ctrl+d")
+	time.Sleep(vimScrollGapForTest)
+	sim.press("Ctrl+d")
+	time.Sleep(vimScrollGapForTest)
+
+	// The key reads under the handler's lock, so the release comes from a
+	// timer, once the read it cancels has had time to linger.
+	time.AfterFunc(vimScrollGapForTest, func() { close(release) })
+	sim.press("w")
+	sim.waitFor("the reads of both scrolls and the key's own finished", func() bool {
+		return finished.Load() == 3
+	})
+
+	if n := overlapped.Load(); n != 0 {
+		t.Fatalf("%d reads of a scrolled screen started while another was still capturing", n)
+	}
+}
+
+// vimLingeringCapture is how long a canceled read keeps capturing in
+// TestSimulation_VimNeverRunsTwoReadsOfAScrolledScreenAtOnce.
+const vimLingeringCapture = 60 * time.Millisecond
 
 // TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn covers scrolling a
 // long page. Each Ctrl+D scrolls at once and keeps the cursor where it is on

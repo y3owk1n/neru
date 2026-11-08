@@ -100,14 +100,16 @@ type vimSession struct {
 	// a scroll until the screen is read again, staleNear is where the
 	// cursor's text went, and afterScroll is a j or k that scrolled at an
 	// edge and still has to move the cursor. scrollSeq tells the read of a
-	// scrolled screen whether another scroll came after it, and readCancel
-	// stops that read.
+	// scrolled screen whether another scroll came after it, readCancel
+	// stops that read, and readDone closes once it has stopped capturing and
+	// recognizing.
 	scrolled    time.Time
 	stale       bool
 	staleNear   image.Point
 	afterScroll vim.Key
 	scrollSeq   uint64
 	readCancel  context.CancelFunc
+	readDone    <-chan struct{}
 
 	jump *vimJump
 
@@ -194,6 +196,10 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 	shown := h.captureStart(domain.ModeNameVim, screen, scope)
 	region := h.vimReadRegion(shown)
 
+	if isRefresh {
+		h.stopScrolledRead()
+	}
+
 	text, lines, err := h.readVimText(region, ports.TextFast)
 	if err != nil {
 		if derrors.IsNotSupported(err) {
@@ -224,9 +230,6 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 	}
 
 	h.vim.shown = shown
-
-	h.cancelScrolledRead()
-
 	h.vim.scope = scope
 	h.vim.generation++
 	h.vim.reading = h.vision != nil
@@ -491,17 +494,26 @@ func (h *handlerState) rereadVim(near image.Point) {
 func (h *handlerState) readVimAfterScroll() {
 	session := h.vim
 
-	h.cancelScrolledRead()
+	previous := h.cancelScrolledRead()
 
 	vision, outer, region, seq := h.vision, h.outer, session.region, session.scrollSeq
 
 	ctx, cancel := context.WithTimeout(h.ctx, HintTimeout)
-	session.readCancel = cancel
+	done := make(chan struct{})
+	session.readCancel, session.readDone = cancel, done
 
 	go func() {
 		defer cancel()
 
+		// The read it replaces may still be capturing, and KDE's screen-cast
+		// session refuses a second capture meanwhile.
+		if previous != nil {
+			<-previous
+		}
+
 		lines, err := vision.ReadLinesOnceChanged(ctx, region)
+
+		close(done)
 		outer.applyScrolledVim(session, seq, lines, err)
 	}()
 }
@@ -531,7 +543,7 @@ func (h *Handler) applyScrolledVim(
 func (h *handlerState) readScrolledVim() {
 	session := h.vim
 
-	h.cancelScrolledRead()
+	h.stopScrolledRead()
 
 	ctx, cancel := context.WithTimeout(h.ctx, HintTimeout)
 	defer cancel()
@@ -570,12 +582,32 @@ func (h *handlerState) finishScrolledVim(lines [][]ports.TextPiece, err error) {
 	}
 }
 
-// cancelScrolledRead stops the read of a scrolled screen in flight.
-func (h *handlerState) cancelScrolledRead() {
-	if cancel := h.vim.readCancel; cancel != nil {
-		cancel()
+// cancelScrolledRead stops the read of a scrolled screen in flight. It returns
+// a channel that closes once the read has stopped capturing and recognizing,
+// or nil when none was running.
+func (h *handlerState) cancelScrolledRead() <-chan struct{} {
+	session := h.vim
+	if session.readCancel == nil {
+		return nil
+	}
 
-		h.vim.readCancel = nil
+	session.readCancel()
+
+	done := session.readDone
+	session.readCancel, session.readDone = nil, nil
+
+	return done
+}
+
+// stopScrolledRead cancels the read of a scrolled screen in flight and waits
+// for it to stop capturing, for a caller that captures next. A canceled
+// capture can still hold KDE's screen-cast session, which refuses a second
+// one. The wait is safe under h.mu, because the read closes readDone before it
+// takes h.mu to land. It lasts as long as the capture or recognition step the
+// read was in.
+func (h *handlerState) stopScrolledRead() {
+	if done := h.cancelScrolledRead(); done != nil {
+		<-done
 	}
 }
 

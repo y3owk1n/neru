@@ -80,7 +80,7 @@ func (m *VimMode) RefreshForScreenChange(_ context.Context) bool {
 // macros last one session.
 func (m *VimMode) Exit() {
 	if m.handler.vim != nil {
-		m.handler.cancelScrolledRead()
+		m.handler.stopScrolledRead()
 		m.handler.cancelYoungRefine()
 	}
 

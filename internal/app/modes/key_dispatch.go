@@ -221,7 +221,7 @@ func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.appState.CurrentMode() == domain.ModeIdle {
+	if h.appState.CurrentMode() == domain.ModeIdle || h.vimTyping() {
 		return nil, false
 	}
 
@@ -231,6 +231,13 @@ func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
 	}
 
 	return binding.Steps, true
+}
+
+// vimTyping reports whether vim is typing into the app. Every key is then the
+// app's, so a key bound in [vim.hotkeys] still types and only the global
+// chords answer. Caller must hold h.mu.
+func (h *handlerState) vimTyping() bool {
+	return h.appState.CurrentMode() == domain.ModeVim && h.vim != nil && h.vim.typing
 }
 
 // stripStickyModifiersFromKey removes any currently active sticky modifiers from the
@@ -294,9 +301,7 @@ func (h *handlerState) handleHotkey(key string) (
 
 	keymap, globalHotkeys := h.settledKeymaps()
 
-	// While vim types into the app, every key is the app's, so a key bound in
-	// [vim.hotkeys] still types. The global chords still answer.
-	if h.appState.CurrentMode() == domain.ModeVim && h.vim != nil && h.vim.typing {
+	if h.vimTyping() {
 		keymap = config.Keymap{}
 	}
 
