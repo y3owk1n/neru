@@ -319,16 +319,23 @@ func (o *sharedOverlay) DrawVim(scene manager.VimScene, style manager.VimStyle) 
 		return badge.TextWidth(text, style.FontFamily, fontSize*o.srf.surfaceScale(), bold)
 	}
 
-	for _, op := range manager.LayoutVim(scene, style, measure) {
-		bounds := o.offset(op.Bounds)
+	for _, vimOp := range manager.LayoutVim(scene, style, measure) {
+		bounds := o.offset(vimOp.Bounds)
 
-		switch op.Kind {
+		switch vimOp.Kind {
 		case manager.VimOpRect:
-			o.drawRect(bounds, op.Fill, op.Border, op.LineWidth)
+			o.drawRect(bounds, vimOp.Fill, vimOp.Border, vimOp.LineWidth)
 		case manager.VimOpRoundedRect:
-			o.drawRoundedRect(bounds, op.Radius, op.Fill, op.Border, op.LineWidth)
+			o.drawRoundedRect(bounds, vimOp.Radius, vimOp.Fill, vimOp.Border, vimOp.LineWidth)
 		case manager.VimOpText:
-			o.drawTextCentered(op.Text, bounds, op.Family, op.FontSize, op.Fill, op.Bold)
+			o.drawTextCentered(
+				vimOp.Text,
+				bounds,
+				vimOp.Family,
+				vimOp.FontSize,
+				vimOp.Fill,
+				vimOp.Bold,
+			)
 		}
 	}
 

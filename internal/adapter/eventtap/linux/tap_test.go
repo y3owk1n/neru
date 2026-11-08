@@ -290,19 +290,21 @@ func TestEventTap_YieldKeyboard_RefusesWhileTheOverlayHoldsTheKeyboard(t *testin
 	eventTap := NewEventTap(func(string) {}, nil)
 	defer eventTap.Destroy()
 
-	if err := eventTap.KeysReachApp(); err != nil {
+	err := eventTap.KeysReachApp()
+	if err != nil {
 		t.Fatalf("KeysReachApp with nothing captured = %v, want nil", err)
 	}
 
 	eventTap.overlayCapture.Store(true)
 
-	if err := eventTap.KeysReachApp(); !derrors.IsNotSupported(err) {
+	err = eventTap.KeysReachApp()
+	if !derrors.IsNotSupported(err) {
 		t.Fatalf("KeysReachApp under the overlay's capture = %v, want CodeNotSupported", err)
 	}
 
 	sent := false
 
-	err := eventTap.YieldKeyboard(func() error {
+	err = eventTap.YieldKeyboard(func() error {
 		sent = true
 
 		return nil

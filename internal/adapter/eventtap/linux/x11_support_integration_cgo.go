@@ -105,13 +105,17 @@ static void neru_test_x11_release_grabbed(Display *display, KeyCode key) {
 }
 // neru_test_x11_focused_window maps a window that selects key presses on a
 // connection of its own and gives it the input focus, as an app the user
-// types into. Returns NULL when the display is missing.
+// types into. Returns NULL when the display is missing. The window is
+// override-redirect, so the window manager never makes it _NET_ACTIVE_WINDOW,
+// which tests running beside this one read and would find closed.
 static Display *neru_test_x11_focused_window(Window *window) {
 	Display *display = XOpenDisplay(NULL);
 	if (!display)
 		return NULL;
 
-	*window = XCreateSimpleWindow(display, DefaultRootWindow(display), 0, 0, 64, 64, 0, 0, 0);
+	XSetWindowAttributes attributes = {.override_redirect = True};
+	*window = XCreateWindow(display, DefaultRootWindow(display), 0, 0, 64, 64, 0, CopyFromParent, InputOutput,
+	                        CopyFromParent, CWOverrideRedirect, &attributes);
 	XSelectInput(display, *window, KeyPressMask | StructureNotifyMask);
 	XMapRaised(display, *window);
 
