@@ -4566,6 +4566,49 @@ func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping covers
+// [vim.hotkeys]. A bound key runs its action and vim never sees it, so x here
+// leaves the mode instead of deleting a character. While vim types into the
+// app the same key types, as it would with nothing bound.
+func TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
+	cfg.Vim.Hotkeys = map[string]config.StringOrStringArray{"x": {config.CmdIdle}}
+
+	sim := newSimHarness(t, cfg, nil)
+	simWords(t, sim, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("0", "w", "c", "i", "w")
+	vimFrameShows(sim, "typing into the app", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "INSERT")
+	})
+
+	sim.press("x")
+	sim.waitFor("x typed into the app", func() bool {
+		keys := sim.keyFeed.FedKeys()
+
+		return len(keys) > 0 && keys[len(keys)-1] == "x"
+	})
+
+	if got := sim.app.CurrentMode(); got != domain.ModeVim {
+		t.Fatalf("mode after typing a bound key = %v, want vim", got)
+	}
+
+	sim.press("Escape")
+	vimFrameShows(sim, "back to normal mode", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL")
+	})
+
+	sim.press("x")
+	sim.waitMode(domain.ModeIdle)
+}
+
 // TestSimulation_VimEscapeLeavesTheCursorOnTheLastCharacterTyped covers the
 // cursor after typing, which goes where vim leaves it: on the last character
 // typed. The screen here does not change, so that is Edit's second character

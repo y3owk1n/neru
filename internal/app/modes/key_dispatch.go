@@ -293,6 +293,13 @@ func (h *handlerState) handleHotkey(key string) (
 	}
 
 	keymap, globalHotkeys := h.settledKeymaps()
+
+	// While vim types into the app, every key is the app's, so a key bound in
+	// [vim.hotkeys] still types. The global chords still answer.
+	if h.appState.CurrentMode() == domain.ModeVim && h.vim != nil && h.vim.typing {
+		keymap = config.Keymap{}
+	}
+
 	if keymap.Len() == 0 && globalHotkeys.Len() == 0 {
 		return nil, "", false
 	}

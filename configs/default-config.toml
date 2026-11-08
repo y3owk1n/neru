@@ -397,6 +397,12 @@ font_family = ""
 # cursor_color, selection_color, match_color, container_color,
 # status_background_color, status_text_color
 
+# A key bound here runs its action and vim never sees it, so every key stays
+# vim's until bound. Per-app bindings and capture scopes go in [[vim.app_configs]].
+[vim.hotkeys]
+# "Ctrl+c" = "idle"
+# "Ctrl+h" = "hints"
+
 # Virtual pointer
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#virtual_pointer
 [virtual_pointer.ui]

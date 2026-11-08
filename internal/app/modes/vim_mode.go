@@ -10,12 +10,13 @@ import (
 // Compile-time interface compliance checks: the core interface, then every
 // optional extension vim mode opts into (extensions.go).
 var (
-	_ Mode                 = (*VimMode)(nil)
-	_ cursorFollowSelector = (*VimMode)(nil)
-	_ exitStepReporter     = (*VimMode)(nil)
-	_ themeRefresher       = (*VimMode)(nil)
-	_ screenRefresher      = (*VimMode)(nil)
-	_ captureScopeReporter = (*VimMode)(nil)
+	_ Mode                   = (*VimMode)(nil)
+	_ cursorFollowSelector   = (*VimMode)(nil)
+	_ exitStepReporter       = (*VimMode)(nil)
+	_ themeRefresher         = (*VimMode)(nil)
+	_ screenRefresher        = (*VimMode)(nil)
+	_ captureScopeReporter   = (*VimMode)(nil)
+	_ hotkeyOverrideReporter = (*VimMode)(nil)
 )
 
 // VimMode implements the Mode interface for moving over the screen's text
@@ -132,4 +133,14 @@ func (m *VimMode) ActiveCaptureScope() string {
 	}
 
 	return m.handler.vim.scope
+}
+
+// HasAppHotkeyOverrides reports whether [[vim.app_configs]] binds any per-app
+// hotkey.
+func (m *VimMode) HasAppHotkeyOverrides() bool {
+	if m.handler.config == nil {
+		return false
+	}
+
+	return m.handler.config.Vim.HasAppHotkeyOverrides()
 }

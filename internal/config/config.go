@@ -343,6 +343,13 @@ type VimConfig struct {
 	// active screen.
 	CaptureScope string `json:"captureScope" toml:"capture_scope"`
 	UI           VimUI  `json:"ui"           toml:"ui"`
+
+	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
+
+	// Hotkeys binds keys to actions ahead of vim, so a bound key runs its
+	// action and vim never sees it. It ships empty, since vim answers every
+	// key it is given.
+	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
 }
 
 // VimUI is how vim mode draws: the cursor, the selection, the search matches,
@@ -890,8 +897,7 @@ func (c *Config) baseHotkeysForMode(modeName string) map[string]StringOrStringAr
 	case ModeNameMonitorSelect:
 		return c.MonitorSelect.Hotkeys
 	case ModeNameVim:
-		// Every key in vim mode is vim's own, so it has no table.
-		return nil
+		return c.Vim.Hotkeys
 	default:
 		// A name no built-in mode answers to is a declared one, or nothing.
 		// An undeclared name reads the zero value, whose table is nil.

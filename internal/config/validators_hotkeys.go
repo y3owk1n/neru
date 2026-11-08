@@ -84,6 +84,7 @@ func (c *Config) ValidateHotkeys() error {
 		// monitor_select binds keys like the other modes and dispatches them
 		// through the same executor, so its table is checked like theirs.
 		{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
+		{ModeNameVim, c.Vim.Hotkeys},
 	}, len(c.Modes))
 
 	for name, mode := range c.Modes {
@@ -157,6 +158,7 @@ func (c *Config) checkHotkeysConflicts() error {
 		{ModeNameBisect, c.Bisect.Hotkeys},
 		{ModeNameScroll, c.Scroll.Hotkeys},
 		{ModeNameMonitorSelect, c.MonitorSelect.Hotkeys},
+		{ModeNameVim, c.Vim.Hotkeys},
 	}, len(c.Modes))
 
 	for name, mode := range c.Modes {
@@ -198,6 +200,7 @@ func (c *Config) checkHotkeysConflicts() error {
 		{ModeNameRecursiveGrid, c.RecursiveGrid.AppConfigs},
 		{ModeNameBisect, c.Bisect.AppConfigs},
 		{ModeNameScroll, c.Scroll.AppConfigs},
+		{ModeNameVim, c.Vim.AppConfigs},
 	}
 
 	for _, mode := range appTables {

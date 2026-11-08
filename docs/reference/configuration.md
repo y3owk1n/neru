@@ -136,8 +136,8 @@ also accepts two-letter sequences such as `gg`. Neru refuses the file when:
   `"Ctrl+Space"` and `"Control+Space"`. `[hotkeys]` refuses this too. A key
   that matches a default this way replaces the default.
 
-Every built-in mode except `monitor_select` ships these, plus the defaults
-listed in its own section:
+Every built-in mode except `monitor_select` and `vim` ships these, plus the
+defaults listed in its own section:
 
 ```toml
 "Escape"    = "idle"
@@ -155,7 +155,7 @@ listed in its own section:
 ### Per-app hotkey overrides
 
 `[[<mode>.app_configs]]` overrides `[<mode>.hotkeys]` for `hints`, `grid`,
-`recursive_grid`, `bisect`, `scroll` and declared modes
+`recursive_grid`, `bisect`, `vim`, `scroll` and declared modes
 (`[[modes.<name>.app_configs]]`), under the same
 [merging rules](#merging-behavior).
 
@@ -1104,8 +1104,7 @@ accepted and do nothing.
 ## [vim]
 
 Settings for vim mode. How the mode behaves is in
-[`neru vim`](cli.md#neru-vim). Every key is vim's own, so the mode has no
-hotkey table and no per-app config.
+[`neru vim`](cli.md#neru-vim).
 
 ```toml
 [vim]
@@ -1113,6 +1112,9 @@ capture_scope = "screen"
 
 [vim.ui]
 cursor_color = "#FF8800AA"
+
+[vim.hotkeys]
+"Ctrl+c" = "idle"
 ```
 
 ### Vim options
@@ -1134,6 +1136,21 @@ cursor_color = "#FF8800AA"
 | `container_color`         | color  | derived | Outline of the container the cursor is in. A fully transparent color hides it               |
 | `status_background_color` | color  | derived | Background of the status bar and the lens                                                   |
 | `status_text_color`       | color  | derived | Text of the status bar and the lens                                                         |
+
+### Vim hotkeys
+
+`[vim.hotkeys]` ships empty, because every key in vim mode is vim's own. A key
+you bind there runs its action instead, and vim never sees it. Binding
+`"Escape"` means Escape no longer leaves visual mode either. A two-letter sequence such
+as `"jk"` takes its first key as the start of the sequence, so `j` on its own
+would no longer move. While vim types into the app, the keys bound here type
+as they would without vim. Otherwise the table follows
+[per-mode hotkeys](#per-mode-hotkeys).
+
+### Vim per-app config
+
+`[[vim.app_configs]]` takes `bundle_id`, `capture_scope` and
+[`hotkeys`](#per-app-hotkey-overrides), as in [grid](#grid).
 
 ## [scroll]
 

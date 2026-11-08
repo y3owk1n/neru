@@ -806,6 +806,11 @@ func defaultVim() VimConfig {
 			StatusBackgroundColor: Color{},
 			StatusTextColor:       Color{},
 		},
+		// AppConfigs ships empty, because per-app overrides are the user's.
+		AppConfigs: []AppConfig{},
+		// Hotkeys ships empty, because every key in vim mode is vim's until
+		// the user binds it to something else.
+		Hotkeys: map[string]StringOrStringArray{},
 	}
 }
 

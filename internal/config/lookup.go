@@ -33,7 +33,9 @@ func (c *Config) HotkeysForModeAndApp(
 		appConfig = c.Bisect.AppConfigForBundleID(bundleID)
 	case ModeNameScroll:
 		appConfig = c.Scroll.AppConfigForBundleID(bundleID)
-	case ModeNameMonitorSelect, ModeNameVim:
+	case ModeNameVim:
+		appConfig = c.Vim.AppConfigForBundleID(bundleID)
+	case ModeNameMonitorSelect:
 		return base
 	default:
 		appConfig = c.Modes[modeName].AppConfigForBundleID(bundleID)
@@ -375,10 +377,41 @@ func (c *ScrollConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 	return nil
 }
 
-// HasAppCaptureScopeOverrides reports false, since vim mode takes no per-app
-// configuration.
-func (c *VimConfig) HasAppCaptureScopeOverrides() bool { return false }
+// HasAppHotkeyOverrides reports whether any [[vim.app_configs]] entry binds a
+// hotkey.
+func (c *VimConfig) HasAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
 
-// CaptureScopeForApp returns the capture scope vim mode reads, which is the
-// same for every app.
-func (c *VimConfig) CaptureScopeForApp(string) string { return c.CaptureScope }
+	return false
+}
+
+// HasAppCaptureScopeOverrides reports whether any [[vim.app_configs]] entry
+// sets a capture scope, so an activation knows whether asking which
+// application is focused can change anything.
+func (c *VimConfig) HasAppCaptureScopeOverrides() bool {
+	return hasAppCaptureScopeOverrides(c.AppConfigs)
+}
+
+// CaptureScopeForApp returns what vim mode reads for the given bundle ID. It
+// is the app config's capture_scope when one is set, else the section's.
+func (c *VimConfig) CaptureScopeForApp(bundleID string) string {
+	return captureScopeForApp(c.AppConfigForBundleID(bundleID), c.CaptureScope)
+}
+
+// AppConfigForBundleID returns the matching vim app config for the given
+// bundle ID.
+func (c *VimConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
+
+	for idx := range c.AppConfigs {
+		if strings.ToLower(strings.TrimSpace(c.AppConfigs[idx].BundleID)) == lowerBundleID {
+			return &c.AppConfigs[idx]
+		}
+	}
+
+	return nil
+}

@@ -598,5 +598,9 @@ func (c *Config) ValidateVim() error {
 		)
 	}
 
-	return nil
+	return validateAppConfigsWithCallback(
+		ModeNameVim,
+		c.Vim.AppConfigs,
+		scopedAppConfigValidator(ModeNameVim),
+	)
 }
