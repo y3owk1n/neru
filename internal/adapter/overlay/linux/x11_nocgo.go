@@ -98,4 +98,6 @@ func (o *x11Overlay) setRenderMu(_ *sync.Mutex) {}
 // withBlanked runs capture as it is, because this build draws no overlay.
 func (o *x11Overlay) withBlanked(capture func() error) error { return capture() }
 
+func (o *x11Overlay) showsNothing() bool { return true }
+
 func (o *x11Overlay) DrawVim(manager.VimScene, manager.VimStyle) {}

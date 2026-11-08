@@ -1526,11 +1526,11 @@ func (m *Manager) hideForCapture(capture func() error) error {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	if m.x11 != nil {
+	if m.x11 != nil && !m.x11.showsNothing() {
 		return m.x11.withBlanked(capture)
 	}
 
-	if m.wlroots != nil {
+	if m.wlroots != nil && !m.wlroots.showsNothing() {
 		return m.wlroots.withBlanked(capture)
 	}
 

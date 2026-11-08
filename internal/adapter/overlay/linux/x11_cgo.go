@@ -48,7 +48,7 @@ func newX11Overlay(logger *zap.Logger) *x11Overlay {
 	}
 
 	overlay := &x11Overlay{raw: raw, logger: logger, scale: scale}
-	overlay.srf = overlay
+	overlay.srf = &changeTrackedSurface{overlaySurface: overlay}
 
 	return overlay
 }

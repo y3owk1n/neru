@@ -79,6 +79,84 @@ type overlaySurface interface {
 	textPrim(text, fontFamily string, centerX, centerY, fontSize float64, color uint32, bold bool)
 }
 
+// changeTrackedSurface commits only what changed. A mode's indicator tick
+// flushes the overlay sixty times a second, and every flush recommitted the
+// whole surface, so the compositor repainted a full-screen overlay at that
+// rate with nothing new on it. Every primitive that can change a pixel, or
+// select another buffer, marks the surface changed, and a flush with no change
+// since the last one commits nothing. The caller holds the render lock, as for
+// every primitive. It also knows when the surface holds nothing, which is
+// when it was cleared and nothing was drawn on it since.
+type changeTrackedSurface struct {
+	overlaySurface
+
+	changed bool
+	drawn   bool
+}
+
+func (s *changeTrackedSurface) beginFrame() bool {
+	s.changed, s.drawn = true, true
+
+	return s.overlaySurface.beginFrame()
+}
+
+func (s *changeTrackedSurface) surfaceClear() {
+	s.changed, s.drawn = true, false
+	s.overlaySurface.surfaceClear()
+}
+
+func (s *changeTrackedSurface) clearFrame() {
+	s.changed, s.drawn = true, false
+	s.overlaySurface.clearFrame()
+}
+
+func (s *changeTrackedSurface) surfaceClearRect(rect image.Rectangle) {
+	s.changed = true
+	s.overlaySurface.surfaceClearRect(rect)
+}
+
+func (s *changeTrackedSurface) rectPrim(bounds image.Rectangle, fill, border uint32, lineWidth float64) {
+	s.changed, s.drawn = true, true
+	s.overlaySurface.rectPrim(bounds, fill, border, lineWidth)
+}
+
+func (s *changeTrackedSurface) roundedRectPrim(
+	bounds image.Rectangle, radius float64, fill, border uint32, lineWidth float64,
+) {
+	s.changed, s.drawn = true, true
+	s.overlaySurface.roundedRectPrim(bounds, radius, fill, border, lineWidth)
+}
+
+func (s *changeTrackedSurface) hintBadgePrim(
+	badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
+	fill, border uint32, lineWidth float64,
+) {
+	s.changed, s.drawn = true, true
+	s.overlaySurface.hintBadgePrim(badgeRect, radius, edge, arrow, fill, border, lineWidth)
+}
+
+func (s *changeTrackedSurface) textPrim(
+	text, fontFamily string, centerX, centerY, fontSize float64, color uint32, bold bool,
+) {
+	s.changed, s.drawn = true, true
+	s.overlaySurface.textPrim(text, fontFamily, centerX, centerY, fontSize, color, bold)
+}
+
+func (s *changeTrackedSurface) surfaceFlush() {
+	if !s.changed {
+		return
+	}
+
+	s.changed = false
+	s.overlaySurface.surfaceFlush()
+}
+
+// showsNothing reports a surface whose last committed frame is empty, so a
+// capture has nothing of Neru's to leave out.
+func (s *changeTrackedSurface) showsNothing() bool {
+	return !s.drawn && !s.changed
+}
+
 // sharedOverlay is the backend-independent half of a Linux overlay: all
 // drawing, layout and animation state, the logic that drives the
 // overlaySurface primitives, and the exported methods the manager calls. X11
@@ -279,6 +357,16 @@ func (o *sharedOverlay) DrawBadge(
 }
 
 // Flush is the only delegate that reaches C.
+// showsNothing reports that nothing of this overlay is on screen. A screen
+// capture then needs no blanking around it, which on Wayland costs a buffer
+// swap and a compositor frame each time. A surface that does not track this
+// answers false.
+func (o *sharedOverlay) showsNothing() bool {
+	tracked, ok := o.srf.(*changeTrackedSurface)
+
+	return ok && tracked.showsNothing()
+}
+
 func (o *sharedOverlay) Flush() {
 	if !o.drawable() {
 		return

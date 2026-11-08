@@ -59,7 +59,7 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 		stopCh: make(chan struct{}),
 		doneCh: make(chan struct{}),
 	}
-	overlay.srf = overlay
+	overlay.srf = &changeTrackedSurface{overlaySurface: overlay}
 
 	return overlay
 }
