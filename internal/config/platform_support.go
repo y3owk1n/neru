@@ -24,8 +24,6 @@ const (
 		"and the hooks never run"
 	noteGridPrewarm = "only the darwin grid overlay prewarms its layers; the other backends " +
 		"draw on demand"
-	noteVimSurface = "Windows has no reader yet that places each character, nor an overlay " +
-		"that draws vim mode's surface"
 )
 
 // captureScopeOptions are the paths for capture_scope, which shadows the hints
@@ -109,7 +107,7 @@ func PlatformSupport() parity.Declaration {
 			"grid.prewarm_enabled",
 		),
 
-		parity.On(parity.KindOption, darwinAndLinux, noteVimSurface,
+		parity.Everywhere(parity.KindOption,
 			"vim.enabled",
 			"vim.capture_scope",
 			"vim.ui.font_size",

@@ -243,6 +243,50 @@ func drawGlyph(img *image.RGBA, box image.Rectangle) {
 	draw.Draw(img, box.Inset(2), image.NewUniform(color.White), image.Point{}, draw.Src)
 }
 
+func TestWordSymbols_GivesEachCharacterItsRunOfInk(t *testing.T) {
+	// "ab": a in two thin strokes a pixel apart, as an "m" or an "n" can
+	// read, and b four pixels after it. The pixel gap inside a merges, the
+	// wider one parts the two characters.
+	img := image.NewRGBA(image.Rect(0, 0, 60, 30))
+	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
+
+	for _, stroke := range []image.Rectangle{
+		image.Rect(10, 5, 12, 25), image.Rect(13, 5, 15, 25), image.Rect(19, 5, 21, 25),
+	} {
+		draw.Draw(img, stroke, image.NewUniform(color.Black), image.Point{}, draw.Src)
+	}
+
+	symbols := wordSymbols(img, "ab", image.Rect(8, 3, 32, 27), 0, 0)
+
+	if len(symbols) != 2 || symbols[0].text != "a" || symbols[1].text != "b" {
+		t.Fatalf("symbols = %v, want a and b", symbols)
+	}
+
+	if symbols[0].ink.Min.X != 10 || symbols[0].ink.Max.X != 15 ||
+		symbols[1].ink.Min.X != 19 || symbols[1].ink.Max.X != 21 {
+		t.Fatalf("a spans %v and b %v, want 10 to 15 and 19 to 21", symbols[0].ink, symbols[1].ink)
+	}
+}
+
+func TestWordSymbols_SplitsTouchingCharactersByTheirWidths(t *testing.T) {
+	// One unbroken run of ink holds three characters.
+	img := image.NewRGBA(image.Rect(0, 0, 60, 30))
+	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
+	draw.Draw(
+		img,
+		image.Rect(10, 5, 40, 25),
+		image.NewUniform(color.Black),
+		image.Point{},
+		draw.Src,
+	)
+
+	symbols := wordSymbols(img, "abc", image.Rect(10, 5, 40, 25), 0, 0)
+
+	if len(symbols) != 3 || symbols[1].ink.Min.X != 20 || symbols[1].ink.Max.X != 30 {
+		t.Fatalf("symbols = %v, want three of 10 pixels, b from 20 to 30", symbols)
+	}
+}
+
 func TestBackgroundOf_IsTheColorAroundTheBox(t *testing.T) {
 	img := image.NewRGBA(image.Rect(0, 0, 40, 40))
 	draw.Draw(

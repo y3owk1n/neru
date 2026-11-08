@@ -5,10 +5,9 @@ import "github.com/y3owk1n/neru/internal/domain"
 // VimCmd is the CLI vim command.
 var VimCmd = BuildModeCommand(ModeConfig{
 	Mode:  domain.ModeVim,
-	Short: "Activate vim mode over the screen's text (macOS, Linux)",
+	Short: "Activate vim mode over the screen's text",
 	Long: `Vim mode reads the text in the focused window, or the whole screen with
---capture-scope screen, and puts a cursor on it that vim's keys move. macOS
-and Linux.
+--capture-scope screen, and puts a cursor on it that vim's keys move.
 
 Motions, counts, text objects, search, marks, registers, macros and dot
 repeat work as they do in vim. Vim mode makes each edit in the app under the

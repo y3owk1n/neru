@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	platformwindows "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -43,6 +44,17 @@ func TestVisionAdapter_RecognitionAnswersOnWindows(t *testing.T) {
 		{
 			name: "Health",
 			call: func() error { return adapter.Health(ctx) },
+		},
+		{
+			name: "ReadLines",
+			call: func() error {
+				lines, err := adapter.ReadLines(ctx, image.Rect(0, 0, 100, 100), ports.TextFast)
+				if err != nil && lines != nil {
+					t.Errorf("ReadLines returned %d lines alongside its error", len(lines))
+				}
+
+				return err
+			},
 		},
 		{
 			name: "DetectElements",
@@ -236,13 +248,29 @@ func TestVisionAdapter_ReadTextDefersToThePassOnWindows(t *testing.T) {
 	}
 }
 
-// TestVisionAdapter_ReadLinesIsNotSupportedOnWindows pins that vim mode's line
-// reader is macOS only, so vim mode refuses here instead of opening on nothing.
-func TestVisionAdapter_ReadLinesIsNotSupportedOnWindows(t *testing.T) {
+// TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead pins the question
+// vim mode asks before it captures anything. An empty region answers
+// what the OCR engine answers where lines cannot be read, CodeNotSupported
+// naming the language pack on a machine with none, and CodeInvalidInput where
+// they can, never nothing at all.
+func TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead(t *testing.T) {
 	lines, err := vision.NewAdapter(nil).ReadLines(
-		context.Background(), image.Rect(0, 0, 100, 100), ports.TextAccurate,
+		context.Background(), image.Rectangle{}, ports.TextFast,
 	)
-	if !derrors.IsNotSupported(err) || lines != nil {
-		t.Fatalf("ReadLines = %v, %v, want nothing and CodeNotSupported", lines, err)
+	if lines != nil || err == nil {
+		t.Fatalf("ReadLines(empty) = %v, %v, want nothing and an error", lines, err)
+	}
+
+	engine := platformwindows.OCRHealth()
+	if engine != nil && derrors.GetCode(err) != derrors.GetCode(engine) {
+		t.Fatalf(
+			"ReadLines(empty) = %v with no OCR engine (%v), want the engine's answer",
+			err,
+			engine,
+		)
+	}
+
+	if engine == nil && derrors.GetCode(err) != derrors.CodeInvalidInput {
+		t.Fatalf("ReadLines(empty) = %v with an OCR engine, want CodeInvalidInput", err)
 	}
 }

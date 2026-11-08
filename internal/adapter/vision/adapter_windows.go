@@ -313,18 +313,92 @@ func scaleRects(rects []image.Rectangle, factor float64) []image.Rectangle {
 	return out
 }
 
+// linesFromWords lays the words Windows.Media.Ocr read off img, which shows
+// region, out as ReadLines pieces, a character at a time.
+func linesFromWords(
+	words []platformwindows.OCRWord,
+	img *image.RGBA,
+	region image.Rectangle,
+) [][]ports.TextPiece {
+	symbols := make([]lineSymbol, 0, len(words))
+
+	word, line := 0, -1
+
+	for _, found := range words {
+		if found.Line != line {
+			word, line = 0, found.Line
+		}
+
+		symbols = append(symbols,
+			wordSymbols(img, found.Text, found.Bounds.Add(img.Rect.Min), found.Line, word)...)
+		word++
+	}
+
+	return piecesFromSymbols(symbols, img, region)
+}
+
 // ReadText reports CodeNotSupported. Windows.Media.Ocr already reads text
 // accurately in the detection pass, so copy_text keeps the text the hint has.
 func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
 	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Windows")
 }
 
-// ReadLines reports CodeNotSupported. Only the macOS recognizer reads a line
-// a piece at a time, which vim mode needs.
+// ReadLines captures region and has Windows.Media.Ocr read it a word at a
+// time, in the user's profile languages, and splits each word into its
+// characters by their ink (wordSymbols). The engine has one level, so a fast
+// and an accurate read are the same read.
 func (a *Adapter) ReadLines(
-	_ context.Context,
-	_ image.Rectangle,
-	_ ports.TextLevel,
+	ctx context.Context,
+	region image.Rectangle,
+	level ports.TextLevel,
 ) ([][]ports.TextPiece, error) {
-	return nil, derrors.New(derrors.CodeNotSupported, "reading lines is only supported on macOS")
+	if region.Empty() {
+		err := platformwindows.OCRHealth()
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, derrors.New(
+			derrors.CodeInvalidInput,
+			"reading lines needs a region with an area",
+		)
+	}
+
+	img, err := a.captureRegion(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	timeoutMS := 0
+	if deadline, ok := ctx.Deadline(); ok {
+		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
+	}
+
+	words, stats, err := platformwindows.RecognizeText(ctx, img, platformwindows.OCRParams{
+		WordLevel: true,
+		TimeoutMS: timeoutMS,
+	})
+	if err != nil {
+		if derrors.IsNotSupported(err) {
+			return nil, err
+		}
+
+		return nil, derrors.Wrapf(
+			err,
+			derrors.GetCode(err),
+			"reading lines failed after %s (frame %dx%d)",
+			stats.Recognition,
+			img.Rect.Dx(),
+			img.Rect.Dy(),
+		)
+	}
+
+	lines := linesFromWords(words, img, region)
+
+	a.logger.Debug("Read lines",
+		zap.Bool("accurate", level == ports.TextAccurate),
+		zap.Int("line_count", len(lines)),
+		zap.Duration("recognition", stats.Recognition))
+
+	return lines, nil
 }

@@ -4461,9 +4461,9 @@ func vimFrameShows(sim *simHarness, what string, cond func(ports.VimFrame) bool)
 	})
 }
 
-// TestSimulation_VimRefusesWhereTheScreenCannotBeRead covers Linux and
-// Windows, whose vision port reads no lines. Vim mode never opens, and the
-// keyboard is free for the next mode.
+// TestSimulation_VimRefusesWhereTheScreenCannotBeRead covers a machine whose
+// vision port reads no lines, such as Linux without tesseract's language data.
+// Vim mode never opens, and the keyboard is free for the next mode.
 func TestSimulation_VimRefusesWhereTheScreenCannotBeRead(t *testing.T) {
 	cfg := simConfig()
 	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}

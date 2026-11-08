@@ -349,6 +349,28 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	return nil
 }
 
+// DrawVim paints vim mode's surface. The adapter has already brought the
+// window up, so this only draws.
+func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	m.ensureWinOverlayLocked()
+
+	if m.win == nil {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"vim overlay not drawn: the windows overlay has no window",
+		)
+	}
+
+	m.win.DrawVim(scene, style)
+
+	return nil
+}
+
+var _ manager.VimDrawer = (*Manager)(nil)
+
 // resolveHintBadgeOffset maps a configured placement onto the offset this
 // overlay draws it with. It is the one place the placement vocabulary is read
 // here, and every value config.HintPlacements() declares has a branch.

@@ -64,7 +64,7 @@ the footnotes below give the mechanism behind its limits.
 | **Secure input detection**    | private macOS API     | always false        | always false              | always false         | always false              |
 | **System cursor hide**        | `CGDisplayHideCursor` | none                | none                      | none                 | none                      |
 | **`monitor_select` mode**     | native panels         | Cairo panels        | Cairo panels              | Cairo panels         | layered panels            |
-| **`vim` mode**                | CALayers on the shared window | Cairo on the shared overlay | Cairo on the shared overlay | Cairo on the shared overlay | none |
+| **`vim` mode**                | CALayers on the shared window | Cairo on the shared overlay | Cairo on the shared overlay | Cairo on the shared overlay | the shared overlay window |
 | **Native hint-search field**  | text view in a key panel | XIM window ⁴        | layer-shell field ⁴       | layer-shell field ⁴  | `EDIT` control in a tool window ⁴ |
 | **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁵ | `BitBlt` ⁵        |
 | **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁶ | tesseract and contour ⁶ | tesseract and contour ⁶ | `Windows.Media.Ocr` and contour ⁶ |
@@ -381,7 +381,7 @@ Mode logic is shared. Only these rows differ, by rendering or element discovery.
 | **Hints**         | Label arrow / tail             | NSBezierPath            | Cairo triangle          | triangle |
 | **Scroll**        | Smooth scroll animation        | continuous              | continuous (X11: whole notches) | 120ths of a notch |
 | **Monitor select**| Whole mode                     | native panels           | Cairo panels            | one layered window per display |
-| **Vim**           | Whole mode                     | Vision line reads with per-character boxes, CALayers on the shared window | none | none |
+| **Vim**           | Whole mode                     | Vision line reads with per-character boxes, CALayers on the shared window | tesseract character boxes placed by their ink, Cairo on the shared overlay | Windows.Media.Ocr word boxes split into characters by their ink, the shared overlay window |
 
 On macOS vim mode's accurate read runs in a helper process. It is the same
 binary, started with the hidden `read-text-lines` command for each read, and

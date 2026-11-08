@@ -218,7 +218,8 @@ func WindowsCapabilities() PlatformCapabilities {
 		Vision: supportedCapability(
 			"vision element detection via Windows.Media.Ocr over a BitBlt screen " +
 				"capture, with button shapes from the contour detector over the same " +
-				"frame; text needs an OCR language pack for one of the account's languages",
+				"frame; text needs an OCR language pack for one of the account's languages, " +
+				"and vim mode splits each word it reads into characters by their ink",
 		),
 		KeyFeed: supportedCapability("key injection available via SendInput"),
 		Systray: supportedCapability(

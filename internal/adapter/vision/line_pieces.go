@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/clipperhouse/displaywidth"
+	"github.com/clipperhouse/uax29/v2/graphemes"
 
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -377,6 +378,95 @@ func textHasWide(text string) bool {
 	}
 
 	return false
+}
+
+// wordSymbols splits a word into one symbol per character for
+// piecesFromSymbols, when the recognizer gave a box for the whole word only.
+// box is in img's pixels. Each character takes a run of ink columns. The
+// narrowest gaps between runs merge until there is one run per character, as
+// macOS measures a word Vision gave no character boxes for. A word with fewer
+// runs than characters, such as one whose letters touch, splits by the
+// characters' widths.
+func wordSymbols(img *image.RGBA, text string, box image.Rectangle, line, word int) []lineSymbol {
+	var chars []string
+	for char := graphemes.FromString(text); char.Next(); {
+		chars = append(chars, char.Value())
+	}
+
+	symbol := func(char string, left, right int) lineSymbol {
+		return lineSymbol{
+			text: char, ink: image.Rect(left, box.Min.Y, right, box.Max.Y), line: line, word: word,
+		}
+	}
+
+	visible := box.Intersect(img.Rect)
+	if len(chars) <= 1 || visible.Empty() {
+		return []lineSymbol{symbol(text, box.Min.X, box.Max.X)}
+	}
+
+	runs := inkRuns(img, visible)
+
+	for len(runs) > len(chars) {
+		narrowest := 0
+
+		for index := 1; index+1 < len(runs); index++ {
+			if runs[index+1][0]-runs[index][1] < runs[narrowest+1][0]-runs[narrowest][1] {
+				narrowest = index
+			}
+		}
+
+		next := narrowest + 1
+		runs[narrowest][1] = runs[next][1]
+		runs = slices.Delete(runs, next, next+1)
+	}
+
+	symbols := make([]lineSymbol, len(chars))
+
+	if len(runs) == len(chars) {
+		for index, char := range chars {
+			symbols[index] = symbol(char, runs[index][0], runs[index][1])
+		}
+
+		return symbols
+	}
+
+	total := 0
+	for _, char := range chars {
+		total += max(displaywidth.String(char), 1)
+	}
+
+	left, cells := box.Min.X, 0
+
+	for index, char := range chars {
+		cells += max(displaywidth.String(char), 1)
+		right := box.Min.X + box.Dx()*cells/total
+		symbols[index] = symbol(char, left, right)
+		left = right
+	}
+
+	return symbols
+}
+
+// inkRuns is the runs of columns of box in img that have ink, each as its
+// first column and the one past its last.
+func inkRuns(img *image.RGBA, box image.Rectangle) [][2]int {
+	background := lumaOf(img, box)
+
+	var runs [][2]int
+
+	for column := box.Min.X; column < box.Max.X; column++ {
+		if !inkedColumn(img, column, box, background) {
+			continue
+		}
+
+		if len(runs) > 0 && runs[len(runs)-1][1] == column {
+			runs[len(runs)-1][1] = column + 1
+		} else {
+			runs = append(runs, [2]int{column, column + 1})
+		}
+	}
+
+	return runs
 }
 
 // leftToRight reports whether each character's ink in word starts and ends

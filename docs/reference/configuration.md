@@ -1103,7 +1103,7 @@ accepted and do nothing.
 
 ## [vim]
 
-Settings for vim mode, on macOS and Linux. How the mode behaves is in
+Settings for vim mode. How the mode behaves is in
 [`neru vim`](cli.md#neru-vim). Every key is vim's own, so the mode has no
 hotkey table and no per-app config.
 
