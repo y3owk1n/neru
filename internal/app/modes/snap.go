@@ -3,12 +3,16 @@ package modes
 import (
 	"context"
 	"image"
+	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/event"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // snapScope is what a snap searches from and within, read in one hold of
@@ -78,6 +82,21 @@ func (h *Handler) Snap(ctx context.Context, opts SnapOptions) (element.Target, e
 	h.snapMu.Lock()
 	defer h.snapMu.Unlock()
 
+	bundleCtx, bundleCancel := context.WithTimeout(ctx, 1*time.Second)
+	bundleID, bundleIDErr := h.actionService.FocusedAppBundleID(bundleCtx)
+
+	bundleCancel()
+
+	if bundleIDErr != nil {
+		h.logger.Debug("Failed to get focused app bundle ID for snap", zap.Error(bundleIDErr))
+	}
+
+	if h.snapNeedsScreenCapturePermission(bundleID, opts.Strategy) {
+		h.requestScreenCapturePermissionForSnap()
+
+		return element.Target{}, errSnapNeedsScreenCapture
+	}
+
 	scope := h.readSnapScope(opts.Bare)
 
 	origin := scope.selection
@@ -109,6 +128,7 @@ func (h *Handler) Snap(ctx context.Context, opts SnapOptions) (element.Target, e
 		Strategy:     opts.Strategy,
 		Region:       captureRegion,
 		OverlayDrawn: scope.overlayDrawn,
+		BundleID:     bundleID,
 	})
 	if err != nil {
 		return element.Target{}, h.unlessMovedOn(scope, err)
@@ -147,6 +167,55 @@ func (h *Handler) Snap(ctx context.Context, opts SnapOptions) (element.Target, e
 	})
 
 	return target, nil
+}
+
+// errSnapNeedsScreenCapture is the answer of a snap whose strategy reads the
+// screen while screen recording is not permitted.
+var errSnapNeedsScreenCapture = derrors.New(
+	derrors.CodeActionFailed,
+	"screen recording is not permitted, so a capture strategy cannot scan",
+)
+
+// snapNeedsScreenCapturePermission reports whether a snap's strategy reads the
+// screen without the screen-recording permission, the check a hint activation
+// makes. The strategy is override when set, else the one configured for
+// bundleID.
+func (h *Handler) snapNeedsScreenCapturePermission(bundleID, override string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	strategy := h.config.Hints.StrategyForApp(bundleID)
+	if override != "" {
+		strategy = override
+	}
+
+	return h.needsScreenCapturePermission(strategy)
+}
+
+// requestScreenCapturePermissionForSnap opens the permission dialog for a snap
+// that lacked the permission. The snap has already failed, because the IPC
+// client times out long before a person answers, so a grant lets the next snap
+// scan. Quit shuts Neru down, as it does from hints. It opens at most one
+// dialog at a time.
+func (h *Handler) requestScreenCapturePermissionForSnap() {
+	if !h.snapPermissionOpen.CompareAndSwap(false, true) {
+		return
+	}
+
+	go func() {
+		defer h.snapPermissionOpen.Store(false)
+
+		if h.system.RequestScreenCapturePermission(h.ctx) != ports.ScreenCaptureQuit {
+			return
+		}
+
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		if h.ctx.Err() == nil {
+			h.shutdown()
+		}
+	}()
 }
 
 // readSnapScope reads what a snap needs from the active mode.

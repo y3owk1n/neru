@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -74,6 +75,10 @@ type Handler struct {
 	// ordering is snapMu -> h.mu. Snap takes h.mu only for its own short
 	// holds, and nothing holding h.mu takes snapMu.
 	snapMu sync.Mutex
+
+	// snapPermissionOpen is true while a snap's screen-capture permission
+	// dialog is open. A held snap's repeats check it and open no second one.
+	snapPermissionOpen atomic.Bool
 }
 
 // handlerState carries every field of the mode handler and every method that
