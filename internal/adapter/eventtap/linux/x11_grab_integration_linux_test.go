@@ -73,8 +73,12 @@ func TestEventTap_X11_GrabsTheKeyboardOnceTheActivatingHotkeyIsReleased(t *testi
 	}
 }
 
-// x11NoKeyWait is how long the test waits to be sure the tap dispatched nothing.
-const x11NoKeyWait = 300 * time.Millisecond
+// x11NoKeyWait is how long the test waits to be sure the tap dispatched
+// nothing, and x11YieldedKeys how many keys it types with the tap aside.
+const (
+	x11NoKeyWait   = 300 * time.Millisecond
+	x11YieldedKeys = 40
+)
 
 // TestEventTap_X11_YieldKeyboard_SendsTypedKeysToTheFocusedWindow pins that a
 // key Neru types while a mode holds the keyboard reaches the app. X11 cannot
@@ -123,13 +127,18 @@ func TestEventTap_X11_YieldKeyboard_SendsTypedKeysToTheFocusedWindow(t *testing.
 
 	window.keyPresses()
 
-	err = eventTap.YieldKeyboard(func() error { return pressX11Keys(x11KeyQ) })
-	if err != nil {
-		t.Fatalf("typing a key with the tap stepped aside: %v", err)
+	// Back to back, as vim mode types a word, so a key can arrive while the
+	// tap takes the keyboard back from the one before.
+	for range x11YieldedKeys {
+		err = eventTap.YieldKeyboard(func() error { return pressX11Keys(x11KeyQ) })
+		if err != nil {
+			t.Fatalf("typing a key with the tap stepped aside: %v", err)
+		}
 	}
 
-	if got := window.keyPresses(); got != 1 {
-		t.Fatalf("the focused window received %d key presses, want the 1 Neru typed", got)
+	if got := window.keyPresses(); got != x11YieldedKeys {
+		t.Fatalf("the focused window received %d key presses, want the %d Neru typed",
+			got, x11YieldedKeys)
 	}
 
 	select {

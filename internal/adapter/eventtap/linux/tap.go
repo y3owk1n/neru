@@ -108,8 +108,8 @@ type EventTap struct {
 	// dropWarned limits a full dispatch channel to one warning until it drains.
 	dropWarned atomic.Bool
 
-	// x11Grabbed is true while the X11 tap holds the keyboard grab, and
-	// yieldCh is how YieldKeyboard asks it to step aside.
+	// x11Grabbed is true from the X11 tap's grab until its run ends,
+	// through a yield, and yieldCh is how YieldKeyboard asks it to step aside.
 	x11Grabbed atomic.Bool
 	yieldCh    chan x11Yield
 

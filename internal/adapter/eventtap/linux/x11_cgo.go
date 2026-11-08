@@ -287,8 +287,11 @@ func (et *EventTap) runX11() {
 // yieldX11Keyboard lets go of the keyboard for one YieldKeyboard request and
 // takes it back once the caller's keys are out. It reports false when the mode
 // ended meanwhile.
+//
+// x11Grabbed stays set throughout. A key that arrives before the grab is back
+// then waits for the tap, rather than going out during the re-grab, which
+// would catch it.
 func (et *EventTap) yieldX11Keyboard(display *C.Display, request x11Yield) bool {
-	et.x11Grabbed.Store(false)
 	C.neru_eventtap_ungrab_keyboard(display)
 	close(request.released)
 
@@ -298,13 +301,7 @@ func (et *EventTap) yieldX11Keyboard(display *C.Display, request x11Yield) bool 
 		return false
 	}
 
-	if !et.grabX11Keyboard(display) {
-		return false
-	}
-
-	et.x11Grabbed.Store(true)
-
-	return true
+	return et.grabX11Keyboard(display)
 }
 
 // x11ForgetReleasedKeys drops from down every key the server no longer reads
