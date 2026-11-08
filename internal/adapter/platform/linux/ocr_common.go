@@ -6,6 +6,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -155,10 +156,11 @@ var localeEnvVars = []string{"LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"}
 // tesseractTraditionalChinese is tesseract's name for Traditional Chinese.
 const tesseractTraditionalChinese = "chi_tra"
 
-// wideLanguages maps a locale's language, and for Chinese its region or
-// script, to the tesseract language that reads it. Traditional Chinese comes
+// localeScripts maps a locale's language, and for Chinese its region or
+// script, to the tesseract language that reads it, for the languages eng reads
+// as Latin noise: those written in another script. Traditional Chinese comes
 // first so zh_TW is not read as zh.
-var wideLanguages = []struct{ prefix, language string }{
+var localeScripts = []struct{ prefix, language string }{
 	{"zh_tw", tesseractTraditionalChinese},
 	{"zh_hk", tesseractTraditionalChinese},
 	{"zh_mo", tesseractTraditionalChinese},
@@ -167,36 +169,74 @@ var wideLanguages = []struct{ prefix, language string }{
 	{"zh", "chi_sim"},
 	{"ja", "jpn"},
 	{"ko", "kor"},
+	{"ru", "rus"},
+	{"uk", "ukr"},
+	{"be", "bel"},
+	{"bg", "bul"},
+	{"sr", "srp"},
+	{"mk", "mkd"},
+	{"kk", "kaz"},
+	{"el", "ell"},
+	{"he", "heb"},
+	{"yi", "yid"},
+	{"ar", "ara"},
+	{"fa", "fas"},
+	{"ur", "urd"},
+	{"hi", "hin"},
+	{"mr", "mar"},
+	{"ne", "nep"},
+	{"bn", "ben"},
+	{"pa", "pan"},
+	{"gu", "guj"},
+	{"ta", "tam"},
+	{"te", "tel"},
+	{"kn", "kan"},
+	{"ml", "mal"},
+	{"si", "sin"},
+	{"th", "tha"},
+	{"lo", "lao"},
+	{"km", "khm"},
+	{"my", "mya"},
+	{"ka", "kat"},
+	{"hy", "hye"},
+	{"am", "amh"},
 }
 
-// wideLanguage is the tesseract language for the first Chinese, Japanese or
-// Korean the locale names, or "" when it names none, as macOS takes the first
-// such language among the preferred ones.
-func wideLanguage(env func(string) string) string {
+// localeLanguages is the tesseract language for each language in another
+// script the locale names, in the order it names them, once each, as macOS
+// reads in the preferred languages.
+func localeLanguages(env func(string) string) []string {
+	var languages []string
+
 	for _, name := range localeEnvVars {
 		for tag := range strings.SplitSeq(env(name), ":") {
 			tag = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(tag), "-", "_"))
 
-			for _, wide := range wideLanguages {
-				rest, ok := strings.CutPrefix(tag, wide.prefix)
+			for _, script := range localeScripts {
+				rest, ok := strings.CutPrefix(tag, script.prefix)
 				if ok && (rest == "" || strings.ContainsRune("_.@", rune(rest[0]))) {
-					return wide.language
+					if !slices.Contains(languages, script.language) {
+						languages = append(languages, script.language)
+					}
+
+					break
 				}
 			}
 		}
 	}
 
-	return ""
+	return languages
 }
 
-// WideLanguage is the tesseract language for the Chinese, Japanese or Korean
-// the locale names, with eng, such as "chi_sim+eng", for a second read of
-// lines eng reads as Latin noise. It is "" with a nil error when the locale
-// names none, and "" with CodeNotSupported naming the file when its language
-// data is not installed beside eng's.
-func WideLanguage() (string, error) {
-	language := wideLanguage(os.Getenv)
-	if language == "" {
+// SecondLanguage is the tesseract language spec, such as "rus+eng", for a
+// second read of the text eng reads as Latin noise. It lists the languages in
+// other scripts the locale names, then eng. It is "" when the locale names
+// none whose data is installed beside eng's. When some data is missing, the
+// error is CodeNotSupported naming those files, and the spec still lists the
+// installed ones.
+func SecondLanguage() (string, error) {
+	languages := localeLanguages(os.Getenv)
+	if len(languages) == 0 {
 		return "", nil
 	}
 
@@ -205,22 +245,34 @@ func WideLanguage() (string, error) {
 		return "", err
 	}
 
-	data := language + ".traineddata"
+	var installed, missing []string
 
-	info, err := os.Stat(filepath.Join(dir, data))
-	if err != nil || info.IsDir() {
-		return "", derrors.Newf(
+	for _, language := range languages {
+		info, statErr := os.Stat(filepath.Join(dir, language+".traineddata"))
+		if statErr != nil || info.IsDir() {
+			missing = append(missing, language+".traineddata")
+		} else {
+			installed = append(installed, language)
+		}
+	}
+
+	spec := ""
+	if len(installed) > 0 {
+		spec = strings.Join(append(installed, ocrLanguage), "+")
+	}
+
+	if len(missing) > 0 {
+		return spec, derrors.Newf(
 			derrors.CodeNotSupported,
-			"the locale reads %s, and %s was not found in %s, so text in it reads as Latin; "+
+			"the locale reads %s, which was not found in %s, so text in it reads as Latin; "+
 				"install it beside %s",
-			language,
-			data,
+			strings.Join(missing, ", "),
 			dir,
 			ocrLanguageData,
 		)
 	}
 
-	return language + "+" + ocrLanguage, nil
+	return spec, nil
 }
 
 // resolveTessdataDir finds the directory holding the language data, or reports

@@ -144,7 +144,7 @@ func LinuxCapabilities() PlatformCapabilities {
 				"once), with button shapes from the contour detector over the same " +
 				"frame; text needs a cgo build and the tesseract eng language data installed, " +
 				"which vim mode also reads a character at a time, with a second read in the " +
-				"Chinese, Japanese or Korean the locale names when its data is installed",
+				"languages of other scripts the locale names when their data is installed",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via XTest on X11, and on Wayland a uinput virtual keyboard " +

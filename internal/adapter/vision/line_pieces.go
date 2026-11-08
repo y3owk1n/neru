@@ -5,6 +5,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/clipperhouse/displaywidth"
 	"github.com/clipperhouse/uax29/v2/graphemes"
@@ -708,17 +709,20 @@ func backgroundOf(img *image.RGBA, box image.Rectangle) uint32 {
 	return red<<16 | green<<8 | blue
 }
 
-// mergeWideLines is the eng lines, with the lines a second-language line
-// overlaps replaced by it when it has a wide character and none of them do,
-// which is a Chinese line eng read as Latin noise, sometimes in pieces. A line
-// eng read with wide characters stays. A wide line eng missed is added. Two
-// reads are the same line when their boxes overlap by at least half the
-// smaller box, as on macOS.
-func mergeWideLines(detected, wide [][]ports.TextPiece) [][]ports.TextPiece {
+// mergeSecondLines is the eng lines, with the lines a second-language line
+// overlaps replaced by it, when it is in another script and none of them are,
+// which is a line eng read as Latin noise, sometimes in pieces. A line is in
+// another script when it has a character taking two cells, as a Chinese word
+// in an English line does, or when most of its letters are outside Latin
+// script. A Russian read can give an English line a few Cyrillic lookalikes,
+// which do not count. A line eng read in another script stays, and a line
+// only the second read found joins the rest. Two reads are the same line when
+// their boxes overlap by at least half the smaller box, as on macOS.
+func mergeSecondLines(detected, second [][]ports.TextPiece) [][]ports.TextPiece {
 	merged := slices.Clone(detected)
 
-	for _, line := range wide {
-		if !lineHasWide(line) {
+	for _, line := range second {
+		if !lineInOtherScript(line) {
 			continue
 		}
 
@@ -731,7 +735,7 @@ func mergeWideLines(detected, wide [][]ports.TextPiece) [][]ports.TextPiece {
 		}
 
 		if slices.ContainsFunc(merged, func(other []ports.TextPiece) bool {
-			return overlaps(other) && lineHasWide(other)
+			return overlaps(other) && lineInOtherScript(other)
 		}) {
 			continue
 		}
@@ -742,12 +746,28 @@ func mergeWideLines(detected, wide [][]ports.TextPiece) [][]ports.TextPiece {
 	return merged
 }
 
-// lineHasWide reports whether a line has a character that takes two cells.
-func lineHasWide(line []ports.TextPiece) bool {
-	return slices.ContainsFunc(
-		line,
-		func(piece ports.TextPiece) bool { return textHasWide(piece.Text) },
-	)
+// lineInOtherScript reports whether a line has a character taking two cells,
+// or whether most of its letters are outside Latin script.
+func lineInOtherScript(line []ports.TextPiece) bool {
+	letters, other := 0, 0
+
+	for _, piece := range line {
+		if textHasWide(piece.Text) {
+			return true
+		}
+
+		for _, r := range piece.Text {
+			if unicode.IsLetter(r) {
+				letters++
+
+				if !unicode.Is(unicode.Latin, r) {
+					other++
+				}
+			}
+		}
+	}
+
+	return other > 0 && other*halfDivisor >= letters
 }
 
 // lineBounds is the box around a line's pieces.

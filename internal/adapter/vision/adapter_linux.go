@@ -296,10 +296,10 @@ func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error)
 }
 
 // ReadLines captures region and has tesseract read it a character at a time.
-// An accurate read also reads it in the Chinese, Japanese or Korean the locale
-// names, on an engine of its own, as macOS does, since eng reads a Chinese word
-// in an English line as Latin noise. The fast read, which a keystroke waits on,
-// stays eng alone.
+// An accurate read also reads it in the languages of other scripts the locale
+// names, on an engine of its own, as macOS reads in the preferred languages,
+// since eng reads them as Latin noise. The fast read, which a keystroke waits
+// on, stays eng alone.
 func (a *Adapter) ReadLines(
 	ctx context.Context,
 	region image.Rectangle,
@@ -345,49 +345,49 @@ func (a *Adapter) ReadLines(
 		)
 	}
 
-	wide := ""
+	second := ""
 	if level == ports.TextAccurate {
-		wide = a.wideLanguage()
+		second = a.secondLanguage()
 	}
 
-	if wide != "" {
-		params.Language = wide
+	if second != "" {
+		params.Language = second
 		if timeoutMS > 0 {
 			params.TimeoutMS = max(timeoutMS-int(stats.Recognition.Milliseconds()), 1)
 		}
 
-		wideLines, wideStats, wideErr := readLinePieces(
+		secondLines, secondStats, secondErr := readLinePieces(
 			atLeastTwoPixelsPerPoint(img, region), img, region, params,
 		)
-		if wideErr != nil {
+		if secondErr != nil {
 			a.logger.Debug("Second-language read failed, keeping the eng read",
-				zap.Duration("recognition", wideStats.Recognition), zap.Error(wideErr))
+				zap.Duration("recognition", secondStats.Recognition), zap.Error(secondErr))
 		} else {
-			lines = mergeWideLines(lines, wideLines)
-			stats.Recognition += wideStats.Recognition
+			lines = mergeSecondLines(lines, secondLines)
+			stats.Recognition += secondStats.Recognition
 		}
 	}
 
 	a.logger.Debug("Read lines",
 		zap.Bool("accurate", level == ports.TextAccurate),
-		zap.Bool("second_language", wide != ""),
+		zap.Bool("second_language", second != ""),
 		zap.Int("line_count", len(lines)),
 		zap.Duration("recognition", stats.Recognition))
 
 	return lines, nil
 }
 
-// wideLanguageWarned keeps a missing second language to one warning.
-var wideLanguageWarned sync.Once
+// secondLanguageWarned keeps missing language data to one warning.
+var secondLanguageWarned sync.Once
 
-// wideLanguage is the language an accurate read reads a second time in, or ""
-// for none. A locale naming one whose data is missing warns once and reads eng
-// alone.
-func (a *Adapter) wideLanguage() string {
-	language, err := platformlinux.WideLanguage()
+// secondLanguage is the languages an accurate read reads a second time in, or
+// "" for none. A locale naming one whose data is missing warns once and reads
+// in the rest.
+func (a *Adapter) secondLanguage() string {
+	language, err := platformlinux.SecondLanguage()
 	if err != nil {
-		wideLanguageWarned.Do(func() {
-			a.logger.Warn("Vim mode reads Latin script only", zap.Error(err))
+		secondLanguageWarned.Do(func() {
+			a.logger.Warn("Vim mode cannot read every language the locale names", zap.Error(err))
 		})
 	}
 

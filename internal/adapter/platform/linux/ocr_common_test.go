@@ -3,6 +3,7 @@
 package linux
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -163,55 +164,60 @@ type stubExists map[string]bool
 
 func (s stubExists) has(path string) bool { return s[path] }
 
-func TestWideLanguage_TakesTheFirstChineseJapaneseOrKoreanTheLocaleNames(t *testing.T) {
+func TestLocaleLanguages_NamesEachLanguageInAnotherScript(t *testing.T) {
 	const lang = "LANG"
 
 	tests := []struct {
 		name string
 		env  map[string]string
-		want string
+		want []string
 	}{
-		{name: "no locale", env: map[string]string{}, want: ""},
-		{name: "English", env: map[string]string{lang: "en_US.UTF-8"}, want: ""},
+		{name: "no locale", env: map[string]string{}, want: nil},
+		{name: "English", env: map[string]string{lang: "en_US.UTF-8"}, want: nil},
+		{name: "a Latin language", env: map[string]string{lang: "fr_FR.UTF-8"}, want: nil},
 		{
 			name: "Simplified Chinese",
 			env:  map[string]string{lang: "zh_CN.UTF-8"},
-			want: "chi_sim",
+			want: []string{"chi_sim"},
 		},
 		{
 			name: "Taiwan reads Traditional",
 			env:  map[string]string{lang: "zh_TW.UTF-8"},
-			want: "chi_tra",
+			want: []string{"chi_tra"},
 		},
 		{
 			name: "Hong Kong reads Traditional",
 			env:  map[string]string{"LC_ALL": "zh_HK"},
-			want: "chi_tra",
-		},
-		{name: "Japanese", env: map[string]string{"LC_MESSAGES": "ja_JP.UTF-8"}, want: "jpn"},
-		{name: "Korean", env: map[string]string{lang: "ko_KR.UTF-8"}, want: "kor"},
-		{
-			name: "a later LANGUAGE entry",
-			env:  map[string]string{"LANGUAGE": "en_US:ko_KR", lang: "en_US.UTF-8"},
-			want: "kor",
+			want: []string{"chi_tra"},
 		},
 		{
-			name: "LANGUAGE before LANG",
-			env:  map[string]string{"LANGUAGE": "ja", lang: "zh_CN.UTF-8"},
-			want: "jpn",
+			name: "Japanese",
+			env:  map[string]string{"LC_MESSAGES": "ja_JP.UTF-8"},
+			want: []string{"jpn"},
+		},
+		{name: "Russian", env: map[string]string{lang: "ru_RU.UTF-8"}, want: []string{"rus"}},
+		{
+			name: "every language LANGUAGE lists, in order",
+			env:  map[string]string{"LANGUAGE": "en_US:ru_RU:ko_KR", lang: "en_US.UTF-8"},
+			want: []string{"rus", "kor"},
+		},
+		{
+			name: "LANGUAGE before LANG, each once",
+			env:  map[string]string{"LANGUAGE": "ja", lang: "ja_JP.UTF-8"},
+			want: []string{"jpn"},
 		},
 		{
 			name: "a language merely starting with ja",
 			env:  map[string]string{lang: "jam_JM"},
-			want: "",
+			want: nil,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := wideLanguage(func(name string) string { return testCase.env[name] })
-			if got != testCase.want {
-				t.Fatalf("wideLanguage = %q, want %q", got, testCase.want)
+			got := localeLanguages(func(name string) string { return testCase.env[name] })
+			if !slices.Equal(got, testCase.want) {
+				t.Fatalf("localeLanguages = %q, want %q", got, testCase.want)
 			}
 		})
 	}

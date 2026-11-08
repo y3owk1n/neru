@@ -163,10 +163,12 @@ copies what the hints pass read. Linux and Windows always copy what the hints
 pass read, since their OCR reads small UI text word for word from the whole
 screen. `contour` and `segment` hints there have nothing to copy.
 
-¹⁶ **Linux vim mode reads Latin script, plus the Chinese, Japanese or Korean
+¹⁶ **Linux vim mode reads Latin script, plus the languages in other scripts
 the daemon's locale names** in `LANGUAGE`, `LC_ALL`, `LC_MESSAGES` or `LANG`,
-when that language's tesseract data is installed beside `eng.traineddata`. The
-accurate read reads it, so until that finishes a line in it shows as noise.
+such as Chinese or Russian, when their tesseract data is installed beside
+`eng.traineddata`. The accurate read reads them, so until that finishes a line
+in one shows as noise. Vim mode reads a line that mixes English with a word of
+Russian or Arabic as English.
 tesseract reads Korean less reliably than Chinese and Japanese, so a Korean
 line can come back in pieces. It reads 「 and 」 as Latin letters, and its
 `tessdata_fast` models misread more than the standard ones distributions ship. On niri, as on the other wlroots
@@ -230,9 +232,8 @@ A boundary is a requirement the platform imposes, not something Neru lacks.
 
 **Linux**: two gaps.
 
-- **Vim mode reads Latin script and one Chinese, Japanese or Korean**, the
-  one the locale names, with its tesseract language data installed. macOS
-  reads every script it knows.
+- **Vim mode reads Latin script and the languages the locale names**, with
+  their tesseract language data installed. macOS reads every script it knows.
 - **A Wayland monitor's resolution or scale change** needs a
   [daemon restart](../guide/troubleshooting.md#restart-the-daemon) before
   overlays fit it again. Plugging in or removing a monitor is tracked live.

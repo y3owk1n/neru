@@ -119,6 +119,7 @@ jobs:
                     libtesseract-dev \
                     tesseract-ocr-eng \
                     tesseract-ocr-chi-sim \
+                    tesseract-ocr-rus \
                     libpipewire-0.3-dev
 
             # oku installs go, golangci-lint, just, clang-format and clang-tidy

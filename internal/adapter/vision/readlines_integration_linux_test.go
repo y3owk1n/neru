@@ -29,7 +29,7 @@ func TestReadLinePieces_ReadsChineseInTheLocalesLanguage(t *testing.T) {
 
 	t.Setenv("LANG", "zh_CN.UTF-8")
 
-	language, err := platformlinux.WideLanguage()
+	language, err := platformlinux.SecondLanguage()
 	if err != nil || language == "" {
 		t.Skipf("skipping: no Chinese tesseract data (%v)", err)
 	}
@@ -50,7 +50,7 @@ func TestReadLinePieces_ReadsChineseInTheLocalesLanguage(t *testing.T) {
 		t.Fatalf("reading in %s: %v", language, err)
 	}
 
-	lines := mergeWideLines(detected, wide)
+	lines := mergeSecondLines(detected, wide)
 	slices.SortFunc(lines, func(a, b []ports.TextPiece) int {
 		return lineBounds(a).Min.Y - lineBounds(b).Min.Y
 	})
@@ -100,6 +100,62 @@ func TestReadLinePieces_ReadsChineseInTheLocalesLanguage(t *testing.T) {
 	if count > 0 && offsets/float64(count) > maxMeanInkOffset {
 		t.Errorf("boxes are %.2f points from their ink on average, want at most %.2f",
 			offsets/float64(count), maxMeanInkOffset)
+	}
+}
+
+// TestReadLinePieces_ReadsRussianInTheLocalesLanguage pins the second read in
+// another script than Chinese. eng reads the Russian line of
+// mixed-line-16pt-2x.png as Latin noise, and with a Russian locale the rus+eng
+// read replaces it, while the English line stays as eng read it.
+func TestReadLinePieces_ReadsRussianInTheLocalesLanguage(t *testing.T) {
+	for _, name := range []string{"LANGUAGE", "LC_ALL", "LC_MESSAGES"} {
+		t.Setenv(name, "")
+	}
+
+	t.Setenv("LANG", "ru_RU.UTF-8")
+
+	language, err := platformlinux.SecondLanguage()
+	if err != nil || language == "" {
+		t.Skipf("skipping: no Russian tesseract data (%v)", err)
+	}
+
+	img := loadLinuxFixture(
+		t,
+		filepath.Join("..", "platform", "testdata", "scripts", "mixed-line-16pt-2x.png"),
+	)
+	region := image.Rect(0, 0, img.Rect.Dx()/2, img.Rect.Dy()/2)
+
+	detected, _, err := readLinePieces(img, img, region, platformlinux.OCRParams{})
+	if err != nil {
+		t.Fatalf("reading in eng: %v", err)
+	}
+
+	second, _, err := readLinePieces(img, img, region, platformlinux.OCRParams{Language: language})
+	if err != nil {
+		t.Fatalf("reading in %s: %v", language, err)
+	}
+
+	merged := mergeSecondLines(detected, second)
+	texts := make([]string, 0, len(merged))
+
+	for _, line := range merged {
+		var text strings.Builder
+		for _, piece := range line {
+			text.WriteString(piece.Text)
+		}
+
+		texts = append(texts, text.String())
+	}
+
+	if !slices.Contains(texts, "Русскийтекстдляпроверки") {
+		t.Fatalf("lines read %q, want the Russian line read in Russian", texts)
+	}
+
+	if !slices.ContainsFunc(
+		texts,
+		func(text string) bool { return strings.HasPrefix(text, "Variousversions") },
+	) {
+		t.Fatalf("lines read %q, want the English line kept as eng read it", texts)
 	}
 }
 

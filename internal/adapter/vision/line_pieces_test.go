@@ -198,27 +198,32 @@ func TestPiecesFromSymbols_KeepsWideWordsApartAtTheirSpace(t *testing.T) {
 	}
 }
 
-//nolint:gosmopolitan // The fixtures are Chinese and Korean text.
-func TestMergeWideLines_ReplacesOnlyLinesReadAsLatinNoise(t *testing.T) {
+//nolint:gosmopolitan // The fixtures are Chinese, Korean and Russian text.
+func TestMergeSecondLines_ReplacesOnlyLinesReadAsLatinNoise(t *testing.T) {
 	piece := func(text string, left, top int) ports.TextPiece {
 		return ports.TextPiece{Text: text, Bounds: image.Rect(left, top, left+20, top+20)}
 	}
 
-	// eng read the second line as noise in two pieces.
+	// eng read the second line as noise in two pieces and the fourth as
+	// Latin, and the Russian read gave the last English line a lookalike.
 	detected := [][]ports.TextPiece{
 		{piece("hello", 0, 0)},
 		{piece("G", 0, 40)},
 		{piece("E", 20, 40)},
 		{piece("한", 0, 80)},
+		{piece("Pycckuit", 0, 160)},
+		{piece("Various", 0, 200)},
 	}
-	wide := [][]ports.TextPiece{
+	second := [][]ports.TextPiece{
 		{piece("hello", 0, 0)},
 		{piece("括", 0, 40), piece("号", 20, 40)},
 		{piece("韓", 0, 80)},
 		{piece("新", 0, 120)},
+		{piece("Русский", 0, 160)},
+		{piece("Vаrious", 0, 200)},
 	}
 
-	merged := mergeWideLines(detected, wide)
+	merged := mergeSecondLines(detected, second)
 
 	texts := make([]string, 0, len(merged))
 	for _, line := range merged {
@@ -230,7 +235,7 @@ func TestMergeWideLines_ReplacesOnlyLinesReadAsLatinNoise(t *testing.T) {
 		texts = append(texts, text.String())
 	}
 
-	want := []string{"hello", "한", "括号", "新"}
+	want := []string{"hello", "한", "Various", "括号", "新", "Русский"}
 	if !slices.Equal(texts, want) {
 		t.Fatalf("merged lines = %q, want %q", texts, want)
 	}

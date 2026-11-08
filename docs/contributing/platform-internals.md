@@ -146,14 +146,16 @@ snap refuses those strategies while a mode is open.
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing
 `eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. A vim accurate
-read reads the frame a second time in the Chinese, Japanese or Korean the
-locale names. That read runs on an engine with a lock of its own, so the fast
-read a keystroke waits on never queues behind it. Its line replaces eng's
-where eng's has no wide character. tesseract's boxes for those characters
-drift by most of a character, so a run of them becomes one word, cut into
-cells of even pitch at blank columns where it can be. The second read scales
-the frame to two pixels a point, because at one tesseract keeps eng's reading
-of small Chinese.
+read reads the frame a second time in the languages of other scripts the
+locale names, such as Chinese or Russian. That read runs on an engine with a
+lock of its own, so the fast read a keystroke waits on never queues behind it.
+Its line replaces eng's where it has a wide character or mostly non-Latin
+letters and eng's has neither. A few Cyrillic lookalikes that a Russian read
+puts in an English line do not count. tesseract's boxes for Chinese and Japanese
+characters drift by most of a character, so a run of them becomes one word,
+cut into cells of even pitch at blank columns where it can be. The second read
+scales the frame to two pixels a point, because at one tesseract keeps eng's
+reading of small Chinese.
 Windows uses
 `Windows.Media.Ocr`, which reports no per-word confidence. On both, the
 contour detector finds rectangles in the same frame, with its shipped
