@@ -433,27 +433,6 @@ func (o *sharedOverlay) DrawBadge(
 }
 
 // Flush is the only delegate that reaches C.
-// showsNothing reports that nothing of this overlay is on screen. A screen
-// capture then needs no blanking around it, which on Wayland costs a buffer
-// swap and a compositor frame each time. A surface that does not track this
-// answers false.
-func (o *sharedOverlay) showsNothing() bool {
-	tracked, ok := o.srf.(*changeTrackedSurface)
-
-	return ok && tracked.showsNothing()
-}
-
-// drawnOn returns where this overlay drew since its surface was last cleared,
-// in global pixels, or nil when the surface does not keep track.
-func (o *sharedOverlay) drawnOn() []image.Rectangle {
-	tracked, ok := o.srf.(*changeTrackedSurface)
-	if !ok {
-		return nil
-	}
-
-	return tracked.drawnOn()
-}
-
 func (o *sharedOverlay) Flush() {
 	if !o.drawable() {
 		return
@@ -563,6 +542,27 @@ func (o *sharedOverlay) HideHintSearchInput(painted image.Rectangle) {
 	}
 
 	o.hideHintSearchInput(painted)
+}
+
+// showsNothing reports that nothing of this overlay is on screen. A screen
+// capture then needs no blanking around it, which on Wayland costs a buffer
+// swap and a compositor frame each time. A surface that does not track this
+// answers false.
+func (o *sharedOverlay) showsNothing() bool {
+	tracked, ok := o.srf.(*changeTrackedSurface)
+
+	return ok && tracked.showsNothing()
+}
+
+// drawnOn returns where this overlay drew since its surface was last cleared,
+// in global pixels, or nil when the surface does not keep track.
+func (o *sharedOverlay) drawnOn() []image.Rectangle {
+	tracked, ok := o.srf.(*changeTrackedSurface)
+	if !ok {
+		return nil
+	}
+
+	return tracked.drawnOn()
 }
 
 // setRenderMu wires the mutex that serializes rendering on this surface. On

@@ -4,6 +4,7 @@ package linux
 
 import (
 	"image"
+	"slices"
 	"testing"
 )
 
@@ -90,13 +91,7 @@ func TestSharedOverlay_DrawnOn_CoversWhatWasDrawnUntilAClear(t *testing.T) {
 	overlay.srf.roundedRectPrim(container, 6, 0, 0xFF000000, 2)
 
 	covered := func(want image.Rectangle) bool {
-		for _, drawn := range overlay.drawnOn() {
-			if want.In(drawn) {
-				return true
-			}
-		}
-
-		return false
+		return slices.ContainsFunc(overlay.drawnOn(), want.In)
 	}
 
 	edges := []image.Rectangle{
