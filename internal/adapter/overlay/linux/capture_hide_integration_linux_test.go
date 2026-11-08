@@ -16,8 +16,9 @@ import (
 
 const magenta = 0xFFFF00FF
 
-// paintRect puts one filled rectangle on the overlay, through the same
-// primitives every draw ends in, and gives the compositor time to show it.
+// paintRect puts one filled rectangle on the overlay and gives the compositor
+// time to show it. It draws through the surface every real draw goes through,
+// which records what was drawn, so the hider knows to take it off.
 func paintRect(t *testing.T, mgr *Manager, rect image.Rectangle) {
 	t.Helper()
 
@@ -25,9 +26,9 @@ func paintRect(t *testing.T, mgr *Manager, rect image.Rectangle) {
 
 	switch {
 	case mgr.x11 != nil:
-		srf = mgr.x11
+		srf = mgr.x11.srf
 	case mgr.wlroots != nil:
-		srf = mgr.wlroots
+		srf = mgr.wlroots.srf
 	default:
 		t.Skip("skipping: no overlay backend on this display")
 	}
