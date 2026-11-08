@@ -4566,6 +4566,30 @@ func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimEscapeLeavesTheCursorOnTheLastCharacterTyped covers the
+// cursor after typing, which goes where vim leaves it: on the last character
+// typed. The screen here does not change, so that is Edit's second character
+// after two typed over its first.
+func TestSimulation_VimEscapeLeavesTheCursorOnTheLastCharacterTyped(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("0", "w", "c", "i", "w")
+	vimFrameShows(sim, "typing into the app", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "INSERT")
+	})
+
+	sim.press("a", "b", "Escape")
+	vimFrameShows(sim, "the cursor on Edit's second character", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL") && f.Cursor.Min.X == 215
+	})
+}
+
 // TestSimulation_VimRefusesChangesWhereTypedKeysCannotReachTheApp covers a
 // Linux Wayland session without the keyboard proxy, where Neru holds the
 // keyboard through its own overlay and every key it typed would come back to

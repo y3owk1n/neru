@@ -68,7 +68,7 @@ type vimSession struct {
 
 	// typing is insert mode: keys go to the app, until Escape.
 	typing bool
-	// typedAt is where typing began, which is where the cursor goes after.
+	// typedAt is where typing began, which places the cursor after it.
 	typedAt image.Point
 	// eraseOnEscape is a change whose text is still selected in the app.
 	// The first key typed replaces it, and Escape before any erases it.

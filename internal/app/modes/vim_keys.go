@@ -396,7 +396,16 @@ func (h *handlerState) handleVimTypingKey(key string) {
 		}
 
 		session.edits, session.edited = nil, false
+
+		generation := session.generation
 		h.rereadVim(session.typedAt)
+
+		if h.vim == session && session.generation != generation {
+			session.host.SetCursor(
+				vimCursorAfterTyping(session.host.Screen(), session.typedAt, session.typedKeys),
+			)
+			h.redrawFrame(h.vimFrame(), "update vim overlay")
+		}
 
 		return
 	}
@@ -405,6 +414,59 @@ func (h *handlerState) handleVimTypingKey(key string) {
 	session.typedKeys = append(session.typedKeys, key)
 
 	h.vimFeed(key)
+}
+
+// vimCursorAfterTyping is where vim's cursor goes when typing that began at
+// caret ends: on the last character typed, as vim leaves it. When a key other
+// than a character, Space or Backspace moved the app's caret in a way vim
+// mode cannot follow, it is the first character typed.
+func vimCursorAfterTyping(text *screentext.Text, caret image.Point, keys []string) int {
+	// caret is between two characters, so the first one typed is just right.
+	first := text.Nearest(caret.Add(image.Pt(1, 0)))
+
+	length, known := vimTypedLength(keys)
+	if !known || length == 0 {
+		return first
+	}
+
+	end := first
+	for end < text.Len() && text.Slice(end, end+1) != "\n" {
+		end++
+	}
+
+	chars := screentext.Characters(text.Slice(first, end))
+
+	pos := first
+	for _, char := range chars[:min(length, len(chars))-1] {
+		pos += len(char)
+	}
+
+	return pos
+}
+
+// vimTypedLength is how many characters typing keys left after where it
+// began, when every key is a character, Space or Backspace. Any other key,
+// or a Backspace past where typing began, reports false.
+func vimTypedLength(keys []string) (int, bool) {
+	length := 0
+
+	for _, key := range keys {
+		switch name := configpkg.NormalizeKeyForComparison(key); {
+		case name == configpkg.KeyNameSpace:
+			length++
+		case name == configpkg.KeyNameDelete:
+			length--
+			if length < 0 {
+				return 0, false
+			}
+		case utf8.RuneCountInString(strings.TrimPrefix(key, "Shift+")) == 1:
+			length++
+		default:
+			return 0, false
+		}
+	}
+
+	return length, true
 }
 
 // vimStartTyping hands the keyboard to the app at caret, clicking there
