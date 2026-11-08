@@ -23,6 +23,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/heldmotion"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -4562,6 +4563,46 @@ func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
 
 	if got := sim.app.CurrentMode(); got != domain.ModeVim {
 		t.Fatalf("mode after Escape from typing = %v, want vim", got)
+	}
+}
+
+// TestSimulation_VimRefusesChangesWhereTypedKeysCannotReachTheApp covers a
+// Linux Wayland session without the keyboard proxy, where Neru holds the
+// keyboard through its own overlay and every key it typed would come back to
+// it. A change, insert and undo are each refused before anything is clicked
+// or typed, and the status line says why.
+func TestSimulation_VimRefusesChangesWhereTypedKeysCannotReachTheApp(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	const reason = "typed keys cannot reach the app"
+
+	sim.keyFeed.ReachesAppFunc = func() error {
+		return derrors.New(derrors.CodeNotSupported, reason)
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	for _, keys := range [][]string{{"0", "w", "c", "i", "w"}, {"i"}, {"u"}} {
+		sim.press(keys...)
+		vimFrameShows(
+			sim,
+			strings.Join(keys, "")+" refused in normal mode",
+			func(f ports.VimFrame) bool {
+				return strings.HasPrefix(f.Status, "NORMAL") && strings.Contains(f.Status, reason)
+			},
+		)
+	}
+
+	if fed := sim.keyFeed.FedKeys(); len(fed) != 0 {
+		t.Fatalf("refused changes typed %v into the app", fed)
+	}
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
+		t.Fatalf("refused changes clicked the app: %v", clicks)
 	}
 }
 

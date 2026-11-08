@@ -38,6 +38,9 @@ func (et *EventTap) runWayland() {
 	if capture, ok := mgr.(overlaymanager.KeyboardCaptureController); ok {
 		capture.SetKeyboardCaptureEnabled(true)
 		defer capture.SetKeyboardCaptureEnabled(false)
+
+		et.overlayCapture.Store(true)
+		defer et.overlayCapture.Store(false)
 	}
 
 	for {

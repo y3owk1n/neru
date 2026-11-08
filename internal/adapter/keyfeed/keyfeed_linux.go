@@ -6,6 +6,7 @@ import (
 	nativelinux "github.com/y3owk1n/neru/internal/adapter/accessibility/native/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // postKey injects an already-normalized key into the focused application.
@@ -20,5 +21,13 @@ func postKey(normalized string) error {
 		return nativelinux.FeedKeyX11(normalized)
 	}
 
-	return linux.FeedKey(normalized)
+	return nativelinux.YieldKeyboard(func() error { return linux.FeedKey(normalized) })
 }
+
+// ReachesApp implements ports.KeyFeedGate. A key fed while the Wayland
+// fallback holds the keyboard through Neru's overlay would come back to Neru.
+func (a *Adapter) ReachesApp() error {
+	return nativelinux.KeysReachApp()
+}
+
+var _ ports.KeyFeedGate = (*Adapter)(nil)

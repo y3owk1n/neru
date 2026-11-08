@@ -174,8 +174,10 @@ compositors under [wlroots compositors](../guide/linux-desktops.md#wlroots-compo
 a tiled window gives no bounds, and vim mode reads the whole screen. Floating
 the window reads just the window. On Wayland, edits and typing need the
 keyboard proxy, which needs a readable `/dev/input` and a writable
-`/dev/uinput`. Without it Neru takes the keyboard through its own overlay, and
-the keys vim mode types come back to Neru instead of reaching the app.
+`/dev/uinput`. Without it Neru holds the keyboard through its own overlay
+while a mode is open, where a key it typed would come back to it. So there,
+while a mode is open, vim mode refuses each edit and says why in its status
+line, and `action feed` is refused too.
 
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.

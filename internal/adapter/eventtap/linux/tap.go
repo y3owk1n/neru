@@ -12,6 +12,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
@@ -111,6 +112,10 @@ type EventTap struct {
 	// yieldCh is how YieldKeyboard asks it to step aside.
 	x11Grabbed atomic.Bool
 	yieldCh    chan x11Yield
+
+	// overlayCapture is true while the Wayland fallback holds the keyboard
+	// through Neru's own overlay surface.
+	overlayCapture atomic.Bool
 }
 
 // NewEventTap creates a new EventTap.
@@ -364,6 +369,11 @@ type x11Yield struct {
 // goes to the focused window. With no grab held, as on Wayland or with no mode
 // open, send runs as is.
 func (et *EventTap) YieldKeyboard(send func() error) error {
+	err := et.KeysReachApp()
+	if err != nil {
+		return err
+	}
+
 	if !et.x11Grabbed.Load() {
 		return send()
 	}
@@ -385,6 +395,24 @@ func (et *EventTap) YieldKeyboard(send func() error) error {
 	<-request.released
 
 	return send()
+}
+
+// errTypedKeysComeBack refuses a typed key while the Wayland fallback holds
+// the keyboard, where it would come straight back to Neru.
+var errTypedKeysComeBack = derrors.New(
+	derrors.CodeNotSupported,
+	"typing into the app needs a readable /dev/input and a writable /dev/uinput",
+)
+
+// KeysReachApp reports whether a key typed now would reach the focused app.
+// It refuses while the Wayland fallback holds the keyboard through Neru's own
+// overlay, since a typed key would come back to Neru.
+func (et *EventTap) KeysReachApp() error {
+	if et.overlayCapture.Load() {
+		return errTypedKeysComeBack
+	}
+
+	return nil
 }
 
 // IsEnabled returns whether interception is active.

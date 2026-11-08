@@ -38,6 +38,9 @@ type Host struct {
 	OnApply func(edits []vim.Edit, label string) error
 	// OnUndo takes u, and OnRedo takes <C-r>. Nil leaves nothing to undo.
 	OnUndo, OnRedo func()
+	// CanEdit, when set, can refuse every change, undo and redo included, as
+	// when the keys that would make it cannot reach the app.
+	CanEdit func() error
 }
 
 // NewHost puts the cursor at pos. onYank receives yanked text, and may be
@@ -97,11 +100,12 @@ func (h *Host) SetCursor(pos int) { h.cursor = pos }
 // the machine's reading of the text after them is right until the screen is
 // read again.
 func (h *Host) Apply(edits []vim.Edit, label string) error {
-	if h.OnApply == nil {
-		return ErrReadOnly
+	err := h.Editable()
+	if err != nil {
+		return err
 	}
 
-	err := h.OnApply(edits, label)
+	err = h.OnApply(edits, label)
 	if err != nil {
 		return err
 	}
@@ -111,10 +115,15 @@ func (h *Host) Apply(edits []vim.Edit, label string) error {
 	return nil
 }
 
-// Editable refuses insert and replace mode when no OnApply makes edits.
+// Editable refuses insert and replace mode when no OnApply makes edits, or
+// when CanEdit refuses.
 func (h *Host) Editable() error {
 	if h.OnApply == nil {
 		return ErrReadOnly
+	}
+
+	if h.CanEdit != nil {
+		return h.CanEdit()
 	}
 
 	return nil
@@ -126,6 +135,13 @@ func (h *Host) Undo() (int, int, error) {
 		return 0, 0, vim.ErrNoStep
 	}
 
+	if h.CanEdit != nil {
+		err := h.CanEdit()
+		if err != nil {
+			return 0, 0, err
+		}
+	}
+
 	h.OnUndo()
 
 	return h.cursor, h.cursor, nil
@@ -135,6 +151,13 @@ func (h *Host) Undo() (int, int, error) {
 func (h *Host) Redo() (int, int, error) {
 	if h.OnRedo == nil {
 		return 0, 0, vim.ErrNoStep
+	}
+
+	if h.CanEdit != nil {
+		err := h.CanEdit()
+		if err != nil {
+			return 0, 0, err
+		}
 	}
 
 	h.OnRedo()

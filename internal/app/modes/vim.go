@@ -606,6 +606,12 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 		return nil
 	}
 
+	// Where a typed key cannot reach the app, every change is refused before
+	// anything is clicked or typed, and the machine says why.
+	if gate, ok := h.keyFeed.(ports.KeyFeedGate); ok {
+		session.host.CanEdit = gate.ReachesApp
+	}
+
 	session.host.OnUndo = func() { session.act = func() { h.vimUndo(vimKeyUndo) } }
 	session.host.OnRedo = func() { session.act = func() { h.vimUndo(vimKeyRedo) } }
 

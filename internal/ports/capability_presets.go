@@ -149,7 +149,8 @@ func LinuxCapabilities() PlatformCapabilities {
 		KeyFeed: supportedCapability(
 			"key injection via XTest on X11, and on Wayland a uinput virtual keyboard " +
 				"when /dev/uinput is writable (wlroots, KWin, and cosmic-comp), falling back to " +
-				"zwp_virtual_keyboard_v1 on wlroots compositors and cosmic-comp",
+				"zwp_virtual_keyboard_v1 on wlroots compositors and cosmic-comp; refused while a " +
+				"mode holds the keyboard through the overlay, where the key would come back to Neru",
 		),
 		Systray: supportedCapability(
 			"tray icon available via the D-Bus StatusNotifierItem + dbusmenu protocols",

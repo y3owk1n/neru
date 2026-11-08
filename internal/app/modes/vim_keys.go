@@ -2,6 +2,7 @@ package modes
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"image"
 	"slices"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/services"
 	configpkg "github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/screentext"
 )
 
@@ -150,7 +152,8 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 		return
 	}
 
-	if session.yank != "" {
+	// A refused change copies nothing, and its notice says why.
+	if session.yank != "" && session.notice == "" {
 		h.vimYank(session.yank)
 	}
 
@@ -314,10 +317,17 @@ func (h *handlerState) feedVim(key vim.Key) bool {
 		}()
 
 		// The error can quote the search pattern, which is never logged. The
-		// machine shows it as its message.
+		// machine shows it as its message. A refusal from vim mode itself,
+		// such as a change too big to make, is a domain error the machine
+		// does not show, so the status line says it.
 		err := h.vim.machine.Feed(key)
 		if err != nil {
 			h.logger.Debug("Vim key failed")
+
+			if _, refused := errors.AsType[*derrors.Error](err); refused &&
+				h.vim.machine.Message() == "" {
+				h.vim.notice = derrors.Message(err)
+			}
 		}
 	}()
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
@@ -278,5 +279,39 @@ func TestEventTap_Destroy_WaitsForAnInFlightKeyDispatch(t *testing.T) {
 	case <-destroyReturned:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Destroy never returned: the dispatcher is parked on a lock Destroy holds")
+	}
+}
+
+// TestEventTap_YieldKeyboard_RefusesWhileTheOverlayHoldsTheKeyboard pins the
+// Wayland fallback's answer. With the keyboard taken through Neru's own
+// overlay, a typed key would come back to Neru, so the tap says keys do not
+// reach the app and never sends one.
+func TestEventTap_YieldKeyboard_RefusesWhileTheOverlayHoldsTheKeyboard(t *testing.T) {
+	eventTap := NewEventTap(func(string) {}, nil)
+	defer eventTap.Destroy()
+
+	if err := eventTap.KeysReachApp(); err != nil {
+		t.Fatalf("KeysReachApp with nothing captured = %v, want nil", err)
+	}
+
+	eventTap.overlayCapture.Store(true)
+
+	if err := eventTap.KeysReachApp(); !derrors.IsNotSupported(err) {
+		t.Fatalf("KeysReachApp under the overlay's capture = %v, want CodeNotSupported", err)
+	}
+
+	sent := false
+
+	err := eventTap.YieldKeyboard(func() error {
+		sent = true
+
+		return nil
+	})
+	if !derrors.IsNotSupported(err) || sent {
+		t.Fatalf(
+			"YieldKeyboard under the overlay's capture = %v and sent = %v, want CodeNotSupported unsent",
+			err,
+			sent,
+		)
 	}
 }

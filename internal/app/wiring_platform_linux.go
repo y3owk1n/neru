@@ -52,10 +52,11 @@ func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 	nativelinux.SetSyntheticModifierSink(sink)
 }
 
-// registerKeyboardYielder hands the live tap's yield to X11 key feeding, so a
-// key Neru types while a mode holds the keyboard reaches the focused window
-// instead of coming back to the tap. A nil tap releases the slot. It is wired
-// on Wayland too, where it is inert because only X11 key feeding asks.
+// registerKeyboardYielder hands the live tap's yield to key feeding, so a key
+// Neru types while a mode holds the keyboard reaches the focused window instead
+// of coming back to the tap. On X11 the tap steps aside for it, and on the
+// Wayland overlay-keyboard fallback, where it cannot, a typed key is refused.
+// A nil tap releases the slot.
 func registerKeyboardYielder(built tap.Tap, logger *zap.Logger) {
 	if built == nil {
 		nativelinux.SetKeyboardYielder(nil)

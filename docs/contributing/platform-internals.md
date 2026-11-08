@@ -267,8 +267,10 @@ the grab for each key, sends it through XTest, and grabs again once the server
 has handled it. A key the user presses in that moment goes to the app. The
 Wayland evdev proxy never grabs Neru's own devices, and macOS and Windows tag
 injected keys. The wl-keyboard fallback takes the keyboard through Neru's own
-overlay surface, where typed keys also come back to Neru, so vim mode cannot
-edit there.
+overlay surface, where typed keys also come back to Neru. A key sent through
+uinput or the compositor gives no sign of when it has gone to the app, so
+nothing can step aside for it. There the tap answers that keys do not reach
+the app, and vim mode refuses each edit before it clicks or types.
 
 **One key, one name.** Every backend names a key by the character it types,
 or by keysym name when it types none, so `Shift+;` has one name everywhere. On

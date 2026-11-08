@@ -48,17 +48,34 @@ func FeedKeyX11(key string) error {
 		return err
 	}
 
-	send := func() error { return x11FeedKey(modifiers, keycode) }
+	return YieldKeyboard(func() error { return x11FeedKey(modifiers, keycode) })
+}
 
-	keyboardYielderMu.RLock()
-
-	yielder := keyboardYielder
-
-	keyboardYielderMu.RUnlock()
-
+// YieldKeyboard runs send inside the wired tap's tap.KeyboardYielder, or as
+// is when no tap is wired.
+func YieldKeyboard(send func() error) error {
+	yielder := wiredKeyboardYielder()
 	if yielder == nil {
 		return send()
 	}
 
 	return yielder.YieldKeyboard(send)
+}
+
+// KeysReachApp asks the wired tap whether a key typed now would reach the
+// focused app. With no tap wired nothing holds the keyboard, so it would.
+func KeysReachApp() error {
+	yielder := wiredKeyboardYielder()
+	if yielder == nil {
+		return nil
+	}
+
+	return yielder.KeysReachApp()
+}
+
+func wiredKeyboardYielder() tap.KeyboardYielder {
+	keyboardYielderMu.RLock()
+	defer keyboardYielderMu.RUnlock()
+
+	return keyboardYielder
 }
