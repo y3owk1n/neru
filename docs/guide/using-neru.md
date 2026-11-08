@@ -100,6 +100,10 @@ labels to read.
 
 Grid suits coarse jumps across large monitors. `Space` starts over.
 
+`neru grid --no-subgrid` skips step 3. The label alone selects the cell's
+center, so `neru grid --no-subgrid --action move_mouse` saves a key on every
+jump. Bind it to a second hotkey to keep the subgrid on the first.
+
 ## Scroll
 
 `Primary+Shift+S`, or `neru scroll`.

@@ -279,9 +279,10 @@ it with a second key:
 
 Snap searches only the region you zoomed into and leaves the mode open, so
 `Shift+L` still clicks afterwards. The same lines work in `[grid.hotkeys]`
-once a subgrid is open, and in `[bisect.hotkeys]` after a cut. When snap
-finds nothing, `Shift+Tab` still clicks, at the grid's selection, so the key
-works the same with or without an element to snap to. To skip the click
+once a full label picks a cell, with or without the subgrid, and in
+`[bisect.hotkeys]` after a cut. When snap finds nothing, `Shift+Tab` still
+clicks, at the grid's selection, so the key works the same with or without an
+element to snap to. To skip the click
 instead, write `"action snap --bail-on-error"`.
 
 ### Walk from element to element

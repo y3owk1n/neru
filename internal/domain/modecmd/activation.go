@@ -65,6 +65,10 @@ type Activation struct {
 	// true follows the selection, false holds it still.
 	CursorFollowSelection *bool
 
+	// NoSubgrid completes a grid selection at the cell's center as soon as
+	// its label is typed, without opening the subgrid.
+	NoSubgrid *bool
+
 	// ZoomToDepth auto-zooms recursive grid to a depth.
 	ZoomToDepth *int
 

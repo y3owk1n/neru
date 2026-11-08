@@ -200,6 +200,12 @@ func flagCases() map[modecmd.Flag]flagCase {
 			applied: func(a modecmd.Activation) bool { return a.SplitWord != nil && *a.SplitWord },
 			build:   func(a *modecmd.Activation) { a.SplitWord = new(true) },
 		},
+		modecmd.FlagNoSubgrid: {
+			mode:    domain.ModeGrid,
+			args:    []string{"--no-subgrid"},
+			applied: func(a modecmd.Activation) bool { return a.NoSubgrid != nil && *a.NoSubgrid },
+			build:   func(a *modecmd.Activation) { a.NoSubgrid = new(true) },
+		},
 		modecmd.FlagZoomToDepth: {
 			mode:    domain.ModeRecursiveGrid,
 			args:    []string{"--zoom-to-depth=3"},

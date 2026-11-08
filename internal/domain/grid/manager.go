@@ -19,7 +19,10 @@ type Manager struct {
 	onUpdate      func(redraw bool) // redraw is only used for exiting subgrid
 	onShowSub     func(cell *Cell)
 	inSubgrid     bool
-	selectedCell  *Cell
+	// subgridOff completes a selection at the cell's center as soon as its
+	// label is typed, rather than opening the subgrid.
+	subgridOff   bool
+	selectedCell *Cell
 	// Subgrid configuration
 	subDims domain.GridDimensions
 	subKeys string
@@ -110,14 +113,21 @@ func (m *Manager) CurrentGrid() *Grid {
 	return m.grid
 }
 
-// SubgridCell returns the cell an open subgrid sits in, and false when no
-// subgrid is open.
-func (m *Manager) SubgridCell() (*Cell, bool) {
-	if !m.inSubgrid || m.selectedCell == nil {
+// SelectedCell returns the selected cell. That is the cell an open subgrid
+// divides, or the cell a full label picked with the subgrid off. It reports
+// false while the label is still being typed.
+func (m *Manager) SelectedCell() (*Cell, bool) {
+	if m.selectedCell == nil {
 		return nil, false
 	}
 
 	return m.selectedCell, true
+}
+
+// SetSubgridEnabled decides what a full cell label does. On, it opens the
+// subgrid. Off, it completes the selection at the cell's center.
+func (m *Manager) SetSubgridEnabled(enabled bool) {
+	m.subgridOff = !enabled
 }
 
 // Reset resets the input state and triggers a redraw via the onUpdate callback.
@@ -163,6 +173,12 @@ func (m *Manager) UpdateSubKeys(subKeys string) {
 func (m *Manager) HandleBackspace() (image.Point, bool) {
 	if len(m.CurrentInput()) > 0 {
 		m.SetCurrentInput(m.CurrentInput()[:len(m.CurrentInput())-1])
+
+		// With the subgrid off the input is the label of the selected cell,
+		// so removing a character clears the selected cell.
+		if !m.inSubgrid {
+			m.selectedCell = nil
+		}
 
 		if m.onUpdate != nil {
 			m.onUpdate(false)
@@ -286,8 +302,19 @@ func (m *Manager) handleLabelLengthReached() (image.Point, bool) {
 		return image.Point{}, false
 	}
 
-	m.inSubgrid = true
 	m.selectedCell = cell
+
+	if m.subgridOff {
+		// The label stays typed, so the overlay keeps the cell highlighted
+		// and backspace edits it.
+		if m.onUpdate != nil {
+			m.onUpdate(false)
+		}
+
+		return cell.center, true
+	}
+
+	m.inSubgrid = true
 	// Save the main grid input for restoring after subgrid
 	m.mainGridInput = m.CurrentInput()
 	m.SetCurrentInput("")

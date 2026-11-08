@@ -37,6 +37,7 @@ const (
 // Steps more than one journey binds.
 const (
 	stepScroll            = "scroll"
+	stepGrid              = "grid"
 	stepHintsRepeatClicks = "hints left_click --repeat"
 )
 
@@ -362,6 +363,122 @@ func TestSimulation_GridSelectionUpdatesTheSurfaceOnce(t *testing.T) {
 	if !drawn || !pointer.Visible {
 		t.Errorf("selection pointer = %+v (drawn = %v), want it on screen with the subgrid",
 			pointer, drawn)
+	}
+}
+
+// TestSimulation_GridNoSubgridJourney covers --no-subgrid. A full label
+// completes the selection at the cell's center on its last key, so a pending
+// action runs and the mode exits without a subgrid ever opening, and --repeat
+// reopens grid still without one.
+func TestSimulation_GridNoSubgridJourney(t *testing.T) {
+	tests := []struct {
+		name    string
+		binding string
+		rounds  int
+		repeat  bool
+	}{
+		{name: "action exits", binding: "grid --no-subgrid --action left_click", rounds: 1},
+		{
+			name:    "repeat keeps the flag",
+			binding: "grid --no-subgrid --action left_click --repeat",
+			rounds:  2,
+			repeat:  true,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := simConfig()
+			cfg.Hotkeys.Bindings[gridHotkey] = []string{testCase.binding}
+			sim := newSimHarness(t, cfg, nil)
+
+			sim.pressHotkey(gridHotkey)
+			sim.waitMode(domain.ModeGrid)
+			sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+			cells := sim.overlay.lastGrid().Cells()
+			cell := cells[len(cells)/2]
+
+			for round := 1; round <= testCase.rounds; round++ {
+				drawsBefore := sim.overlay.gridDrawCount()
+				sim.typeLabel(cell.Coordinate())
+
+				sim.waitFor("click recorded", func() bool {
+					return len(sim.ax.recordedClicks()) == round
+				})
+
+				if testCase.repeat {
+					sim.waitFor("grid reopened by --repeat", func() bool {
+						return sim.overlay.gridDrawCount() > drawsBefore
+					})
+				}
+			}
+
+			for _, click := range sim.ax.recordedClicks() {
+				if click.point != cell.Center() {
+					t.Errorf("click at %v, want the cell center %v", click.point, cell.Center())
+				}
+			}
+
+			if got := sim.overlay.subgridCount(); got != 0 {
+				t.Errorf("subgrids opened = %d, want 0 with --no-subgrid", got)
+			}
+
+			if !testCase.repeat {
+				sim.waitMode(domain.ModeIdle)
+			} else if mode := sim.app.CurrentMode(); mode != domain.ModeGrid {
+				t.Errorf("mode = %v after a repeat click, want grid", mode)
+			}
+		})
+	}
+}
+
+// TestSimulation_GridNoSubgridWithoutActionKeepsTheLabel covers --no-subgrid
+// with no action. The full label selects the cell and the mode stays open with
+// the label still typed, so backspace edits it rather than leaving a subgrid.
+func TestSimulation_GridNoSubgridWithoutActionKeepsTheLabel(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[gridHotkey] = []string{"grid --no-subgrid"}
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	cells := sim.overlay.lastGrid().Cells()
+	cell := cells[len(cells)/2]
+	label := strings.ToUpper(cell.Coordinate())
+
+	sim.typeLabel(label)
+	sim.waitFor("cell highlighted by the full label", func() bool {
+		prefix, _ := sim.overlay.lastMatchPrefix()
+
+		return prefix == label
+	})
+
+	// The cursor follows the selection by default, so its position is the
+	// selection.
+	if got := sim.cursor.position(); got != cell.Center() {
+		t.Errorf("cursor = %v, want the cell center %v", got, cell.Center())
+	}
+
+	sim.press("Backspace")
+	sim.waitFor("backspace edits the label", func() bool {
+		prefix, _ := sim.overlay.lastMatchPrefix()
+
+		return prefix == label[:len(label)-1]
+	})
+
+	if got := sim.overlay.subgridCount(); got != 0 {
+		t.Errorf("subgrids opened = %d, want 0 with --no-subgrid", got)
+	}
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
+		t.Errorf("clicks = %v, want none without --action", clicks)
+	}
+
+	if mode := sim.app.CurrentMode(); mode != domain.ModeGrid {
+		t.Errorf("mode = %v, want grid still open", mode)
 	}
 }
 

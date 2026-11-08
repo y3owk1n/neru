@@ -122,15 +122,16 @@ func (m *GridMode) SelectionWrites() uint64 {
 	return m.handler.grid.Context.SelectionWrites()
 }
 
-// SelectionRegion reports the cell an open subgrid sits in. Before a cell is
-// picked the grid covers the whole screen and has narrowed nothing.
+// SelectionRegion reports the selected cell. That is the cell an open subgrid
+// divides, or the cell a full label picked with --no-subgrid. Before a cell is picked
+// the grid covers the whole screen and has narrowed nothing.
 func (m *GridMode) SelectionRegion() (image.Rectangle, bool) {
 	if m.handler.grid == nil || m.handler.grid.Manager == nil {
 		return image.Rectangle{}, false
 	}
 
-	cell, open := m.handler.grid.Manager.SubgridCell()
-	if !open {
+	cell, picked := m.handler.grid.Manager.SelectedCell()
+	if !picked {
 		return image.Rectangle{}, false
 	}
 
