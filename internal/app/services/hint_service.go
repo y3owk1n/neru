@@ -644,7 +644,8 @@ func (s *HintService) resolveDetectionBounds(
 }
 
 // scopeBounds is the window or screen capture_scope names, as
-// resolveDetectionBounds describes.
+// resolveDetectionBounds describes. When no screen shows the focused window,
+// hints scan the whole screen, as grid does.
 func (s *HintService) scopeBounds(
 	ctx context.Context,
 	captureScope string,
@@ -653,15 +654,20 @@ func (s *HintService) scopeBounds(
 		windowBounds, found, boundsErr := s.system.FocusedWindowBounds(ctx)
 
 		switch {
-		case boundsErr == nil && found:
-			return windowBounds, true
 		case boundsErr != nil:
 			s.logger.Warn(
 				"Could not read the focused window, scanning the whole screen instead",
 				zap.Error(boundsErr),
 			)
-		default:
+		case !found:
 			s.logger.Debug("No focused window, scanning the whole screen")
+		default:
+			onScreen, visible := s.clipToScreens(ctx, windowBounds)
+			if visible {
+				return onScreen, true
+			}
+
+			s.logger.Debug("Focused window is on no screen, scanning the whole screen")
 		}
 	}
 
@@ -673,6 +679,37 @@ func (s *HintService) scopeBounds(
 	}
 
 	return screenBounds, true
+}
+
+// clipToScreens is the smallest rectangle covering the parts of window that a
+// screen shows. visible is false when no screen shows any of it.
+//
+// The Linux capture backends refuse a region that runs past a screen's edge,
+// even by a window manager's 1px frame, rather than clip it. The clip is per
+// screen rather than to the box around all screens. wlroots and the portal
+// capture one output at a time, and on monitors of different sizes that box
+// includes strips no output covers. The detectors offset what they find by the
+// region's top-left, so hints from a clipped region keep their screen
+// coordinates. When the screens cannot be listed, clipToScreens returns the
+// window unchanged.
+func (s *HintService) clipToScreens(
+	ctx context.Context,
+	window image.Rectangle,
+) (image.Rectangle, bool) {
+	screens, err := s.system.Screens(ctx)
+	if err != nil || len(screens) == 0 {
+		s.logger.Debug("Could not list the screens, scanning the focused window uncut",
+			zap.Error(err))
+
+		return window, true
+	}
+
+	var onScreen image.Rectangle
+	for _, screen := range screens {
+		onScreen = onScreen.Union(window.Intersect(screen.Bounds))
+	}
+
+	return onScreen, !onScreen.Empty()
 }
 
 // notifyVisionUnavailable tells the user, once, that the vision strategy

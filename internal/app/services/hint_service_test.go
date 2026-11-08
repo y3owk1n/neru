@@ -341,6 +341,105 @@ func TestHintService_ProbeHints_ReturnsAFailedCaptureDetection(t *testing.T) {
 	}
 }
 
+// TestHintService_GenerateHints_ScansOnlyWhatTheScreensShow pins the region a
+// capture strategy scans when the focused window runs past a screen (#1925).
+// The Linux capture backends refuse any region that runs past the screen, so
+// a window one pixel past the edge got no hints at all. The layout is the one
+// from the report, a 2880x1920 laptop beside a taller 5120x2160 monitor. That
+// leaves a strip under the laptop that no screen covers.
+func TestHintService_GenerateHints_ScansOnlyWhatTheScreensShow(t *testing.T) {
+	laptop := image.Rect(0, 0, 2880, 1920)
+	monitor := image.Rect(2880, 0, 8000, 2160)
+	layout := []ports.Screen{
+		{Name: "eDP", Bounds: laptop},
+		{Name: "DisplayPort-1", Bounds: monitor},
+	}
+
+	tests := []struct {
+		name       string
+		window     image.Rectangle
+		screens    []ports.Screen
+		screensErr error
+		want       image.Rectangle
+	}{
+		{
+			name:    "window one pixel past the desktop's right edge",
+			window:  image.Rect(2881, 38, 8001, 2111),
+			screens: layout,
+			want:    image.Rect(2881, 38, 8000, 2111),
+		},
+		{
+			name:    "window hanging into the strip no screen covers",
+			window:  image.Rect(100, 100, 1000, 2000),
+			screens: layout,
+			want:    image.Rect(100, 100, 1000, 1920),
+		},
+		{
+			name:    "window across the seam keeps both halves",
+			window:  image.Rect(2000, 100, 4000, 1000),
+			screens: layout,
+			want:    image.Rect(2000, 100, 4000, 1000),
+		},
+		{
+			name:    "window on no screen scans the screen",
+			window:  image.Rect(9000, 0, 9500, 500),
+			screens: layout,
+			want:    monitor,
+		},
+		{
+			name:       "screens that cannot be listed leave the window uncut",
+			window:     image.Rect(2881, 38, 8001, 2111),
+			screensErr: derrors.New(derrors.CodeNotSupported, "no screen list"),
+			want:       image.Rect(2881, 38, 8001, 2111),
+		},
+		{
+			name:   "no screens listed leaves the window uncut",
+			window: image.Rect(2881, 38, 8001, 2111),
+			want:   image.Rect(2881, 38, 8001, 2111),
+		},
+	}
+
+	for _, strategy := range []string{domain.StrategyVision, domain.StrategyContour, domain.StrategySegment} {
+		for _, test := range tests {
+			t.Run(strategy+"/"+test.name, func(t *testing.T) {
+				mockSystem := &mocks.MockSystemPort{}
+				mockSystem.FocusedWindowBoundsFunc = func(context.Context) (image.Rectangle, bool, error) {
+					return test.window, true, nil
+				}
+				mockSystem.ScreensFunc = func(context.Context) ([]ports.Screen, error) {
+					return test.screens, test.screensErr
+				}
+				mockSystem.ScreenBoundsFunc = func(context.Context) (image.Rectangle, error) {
+					return monitor, nil
+				}
+
+				vision := &mockVisionPort{}
+				generator, _ := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
+				service := services.NewHintService(
+					&mocks.MockAccessibilityPort{},
+					&mocks.MockOverlayPort{},
+					mockSystem,
+					generator,
+					config.HintsConfig{},
+					logger.Get(),
+					vision,
+				)
+
+				_, err := service.GenerateHints(
+					context.Background(), nil, nil, "com.example.app", strategy, "", "", false,
+				)
+				if err != nil {
+					t.Fatalf("GenerateHints() unexpected error: %v", err)
+				}
+
+				if vision.region != test.want {
+					t.Errorf("scanned %v, want %v", vision.region, test.want)
+				}
+			})
+		}
+	}
+}
+
 // TestHintService_GenerateHintsVisionNoticeSurvivesTheActivationContext is the
 // regression test for the way this notification is easiest to lose.
 //
@@ -804,14 +903,18 @@ func mustNewElement(id string, bounds image.Rectangle) *element.Element {
 type mockVisionPort struct {
 	detectedElements []*element.Element
 	detectErr        error
+	// region is the last region a detector was asked to scan.
+	region image.Rectangle
 }
 
 func (m *mockVisionPort) DetectElements(
-	context.Context,
-	image.Rectangle,
-	config.HintsVisionConfig,
-	bool,
+	_ context.Context,
+	region image.Rectangle,
+	_ config.HintsVisionConfig,
+	_ bool,
 ) ([]*element.Element, error) {
+	m.region = region
+
 	if m.detectErr != nil {
 		return nil, m.detectErr
 	}
@@ -820,10 +923,12 @@ func (m *mockVisionPort) DetectElements(
 }
 
 func (m *mockVisionPort) DetectContours(
-	context.Context,
-	image.Rectangle,
-	config.HintsContourConfig,
+	_ context.Context,
+	region image.Rectangle,
+	_ config.HintsContourConfig,
 ) ([]*element.Element, error) {
+	m.region = region
+
 	if m.detectErr != nil {
 		return nil, m.detectErr
 	}
@@ -832,10 +937,12 @@ func (m *mockVisionPort) DetectContours(
 }
 
 func (m *mockVisionPort) DetectSegments(
-	context.Context,
-	image.Rectangle,
-	config.HintsSegmentConfig,
+	_ context.Context,
+	region image.Rectangle,
+	_ config.HintsSegmentConfig,
 ) ([]*element.Element, error) {
+	m.region = region
+
 	if m.detectErr != nil {
 		return nil, m.detectErr
 	}
