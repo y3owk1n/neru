@@ -151,6 +151,7 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 	}
 
 	line := session.host.Screen().LineOf(session.host.Cursor())
+	bare := vimBareKey(machine)
 	session.edited, session.edits, session.yank, session.notice = false, nil, "", ""
 	session.commandKeys = append(session.commandKeys, vimKey)
 
@@ -186,7 +187,7 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 		return
 	}
 
-	if h.vimScrollAtEdge(vimKey, line) {
+	if bare && h.vimScrollAtEdge(vimKey, line) {
 		return
 	}
 
@@ -763,6 +764,16 @@ func (h *handlerState) vimScrollAtEdge(key vim.Key, lineBefore int) bool {
 	}
 
 	return true
+}
+
+// vimBareKey reports whether the next key is a command on its own, with at
+// most a count before it, in normal or visual mode. A j or k typed on the
+// command line, or after f, is text rather than a move, so it never scrolls.
+func vimBareKey(machine *vim.Machine) bool {
+	mode := machine.Mode()
+
+	return (mode == vim.Normal || mode == vim.Visual) && !machine.Pending() &&
+		strings.TrimFunc(machine.Shown(), unicode.IsDigit) == ""
 }
 
 // vimEdgeScroll is the scroll a j or k makes while the text is stale from

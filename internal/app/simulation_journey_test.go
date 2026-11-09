@@ -4972,6 +4972,25 @@ func TestSimulation_VimScrollsTheApp(t *testing.T) {
 	sim.waitFor("the screen read again", func() bool { return reads.Load() >= 2 })
 }
 
+// TestSimulation_VimTypesJAndKOnTheCommandLine covers j and k on the one
+// line read, where they scroll the app as a motion. Typed on the command
+// line they are text, so they scroll nothing.
+func TestSimulation_VimTypesJAndKOnTheCommandLine(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("Shift+;", "j", "k")
+	vimFrameShows(sim, "j and k on the command line", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, ":jk")
+	})
+
+	if scrolls := sim.ax.recordedScrolls(); len(scrolls) != 0 {
+		t.Fatalf("typing on the command line scrolled the app %v", scrolls)
+	}
+}
+
 // TestSimulation_VimScrollsTheAppSideways covers zl. It scrolls the app right
 // by eight characters without a count and by the count with one, and touches
 // nothing up or down.
