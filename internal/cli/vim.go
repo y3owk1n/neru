@@ -22,8 +22,10 @@ Shift+Right and typing, then reads the screen again:
   u Ctrl+R            the app's own undo and redo
   .                   repeat the last change, with what was typed into the app
   y{motion}           copy the text as read, without touching the app
-  Return              click the character under the cursor
-  gc gr gm {motion}   left, right or middle click, as gciw
+  Return gc           left click the character under the cursor, as many
+                      times as the count up to three, so 2gc double clicks.
+                      Vim mode stays open and reads the screen again
+  gr gm               right or middle click there, the same way
   gs{motion}          drag across the text, so the app selects it, then leave
   s{chars}{label}     jump to a match of any number of characters by its
                       label, or to the nearest with Return
@@ -40,7 +42,12 @@ Shift+Right and typing, then reads the screen again:
                       count, or half the width read
   zz                  scroll the app until the cursor's line is in the middle
   Ctrl+L              read the screen again
-  :q :click           leave, click at the cursor
+  :q                  leave
+  :leftclick [n]      left click at the cursor n times, and :rightclick and
+                      :middleclick the other buttons
+  :leftdown :leftup   press or release at the cursor, so a motion between
+                      them drags, and :rightdown :rightup :middledown
+                      :middleup the other buttons
   Escape              cancel what is pending, then leave
 
 Vim mode groups the words of a column, a sidebar or a card into a container,
@@ -64,8 +71,7 @@ and a wide character, as in Chinese, takes two columns.
 Examples:
   neru vim                            # Read the focused window
   neru vim --capture-scope screen     # Read the whole screen
-  neru vim --cursor-selection-mode hold   # Keep the pointer still until a click
-  neru vim --repeat                   # Read the screen again after each click`,
+  neru vim --cursor-selection-mode hold   # Keep the pointer still until a click`,
 })
 
 func init() {

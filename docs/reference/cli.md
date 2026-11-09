@@ -385,25 +385,25 @@ replaces its earlier value unless its entry says it can be repeated.
 
 #### `--action`
 
-Shorthand `-a`. Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `vim`.
+Shorthand `-a`. Takes a value. Modes: `hints` · `grid` · `recursive_grid`.
 
 Action to run on the selection: left_click, right_click, middle_click, left_mouse_down, left_mouse_up, right_mouse_down, right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, right_mouse_toggle, middle_mouse_toggle, move_mouse. move_mouse only leaves the cursor there. Chain with commas, as in left_click,left_click. In hints, copy_text copies the hint's text instead, and takes no chain.
 
 #### `--modifier`
 
-Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `vim`.
+Takes a value. Modes: `hints` · `grid` · `recursive_grid`.
 
 Modifiers to hold during the action, comma-separated: cmd, super, meta, shift, alt, option, ctrl. Needs --action.
 
 #### `--on-exit`
 
-Takes a value, and can be repeated. Modes: `hints` · `grid` · `recursive_grid` · `vim`.
+Takes a value, and can be repeated. Modes: `hints` · `grid` · `recursive_grid`.
 
 Step to run after the action, written as in a hotkey binding. Repeat for more steps. Needs --action and refuses --repeat. Does not run if the mode is canceled. Exec steps see the selection as NERU_X, NERU_Y, NERU_MODE and NERU_ACTION.
 
 #### `--repeat`
 
-Shorthand `-r`. Takes no value. Modes: `hints` · `grid` · `recursive_grid` · `vim`.
+Shorthand `-r`. Takes no value. Modes: `hints` · `grid` · `recursive_grid`.
 
 Reopen the mode after the action runs. Needs --action.
 
@@ -662,8 +662,7 @@ reads the screen again.
 | `u`, `Ctrl+R` | The app's own undo and redo |
 | `.` | Repeat the last change. A change typed into the app repeats with what was typed |
 | `y` + motion | Copy the text as read, without touching the app. The copied text flashes and the status bar says how much |
-| `Return` | Click the character under the cursor, or with `--action` run that action there |
-| `gc`, `gr`, `gm` + motion | Left, right or middle click the middle of what the motion covers, as `gciw` |
+| `Return`, `gc`, `gr`, `gm` | Click the character under the cursor, left with `Return` or `gc`, right with `gr` and middle with `gm`. A count clicks that many times, up to three, so `2gc` or `2` `Return` double clicks. Vim mode stays open and reads the screen again |
 | `gs` + motion, or `Return` in visual mode | Drag across the text so the app selects it, then leave. Works on text that cannot be edited |
 | `s` + characters + label | Type any number of characters to find, then a match's label to jump there, or `Return` for the nearest. `Backspace` takes back a character. A label is never the character after a match, so typing more of the text never jumps |
 | `]i`, `[i` | Move to the next or the previous icon, with a count to skip |
@@ -674,7 +673,9 @@ reads the screen again.
 | `zh`, `zl`, `zH`, `zL` | Scroll the app left or right eight characters, or the count with one, or half the width read with `zH` and `zL` |
 | `zz` | Scroll the app until the cursor's line is in the middle of the region read, or line n of the text read with a count |
 | `Ctrl+L` | Read the screen again, keeping registers, macros and the last search |
-| `:q`, `:click`, `:rightclick`, `:middleclick` | Leave, or click at the cursor |
+| `:q` | Leave |
+| `:leftclick`, `:rightclick`, `:middleclick` + optional number | Click at the cursor that many times, once without one, as `:leftclick 2` |
+| `:leftdown`, `:leftup`, `:rightdown`, `:rightup`, `:middledown`, `:middleup` | Press or release the button at the cursor, so a motion between them drags. Leaving the mode releases a button still held |
 | `Escape` | Cancel what is pending, then leave |
 
 Vim mode groups the words of a column, a sidebar or a card into a container,

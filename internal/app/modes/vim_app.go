@@ -396,25 +396,21 @@ func (h *handlerState) vimScroll(scroll vimScrollKey) {
 	h.readVimAfterScroll()
 }
 
-// vimSelectAtCursor runs a click at the character under the cursor.
-func (h *handlerState) vimSelectAtCursor(operator string) {
-	h.vimSelect(h.vimCursorPoint(), operator)
-}
+// vimMouseAtCursor runs a mouse action, such as a click, at the character
+// under the cursor as many times as times, at most vimMaxClicks, so two
+// clicks are a double click. The mode stays open and reads the screen again,
+// since the action most likely changed it. A press only redraws. The screen
+// changes on its release, and reading it while the button is down shows the
+// overlay again, which ends the app's drag.
+func (h *handlerState) vimMouseAtCursor(name action.Name, times int) {
+	clicks := slices.Repeat([]string{string(name)}, min(max(times, 1), vimMaxClicks))
+	chain := strings.Join(clicks, ",")
 
-// vimSelect runs the click an operator names at point, or with no operator the
-// activation's --action, or a left click. It ends the mode as a hint
-// selection does, or reads the screen again with --repeat.
-func (h *handlerState) vimSelect(point image.Point, operator string) {
-	session := h.vim
-
-	actionName := string(action.NameLeftClick)
-	if named, ok := vimOperatorActions[operator]; ok {
-		actionName = named
-	} else if session.action != nil {
-		actionName = *session.action
+	after := func() { h.startVim(h.vimSessionActivation()) }
+	if name == action.NameLeftMouseDown || name == action.NameRightMouseDown ||
+		name == action.NameMiddleMouseDown {
+		after = func() { h.redrawFrame(h.vimFrame(), "update vim overlay") }
 	}
 
-	h.moveCursorAndHandleAction(point, &actionName, session.modifier, session.repeat, func() {
-		h.startVim(h.vimSessionActivation())
-	})
+	h.moveCursorAndHandleAction(h.vimCursorPoint(), &chain, nil, true, after)
 }

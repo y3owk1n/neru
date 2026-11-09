@@ -4343,13 +4343,15 @@ func simWords(t *testing.T, sim *simHarness, words map[string]image.Rectangle) {
 const (
 	vimWordFile      = "File"
 	vimWordEdit      = "Edit"
+	vimWordExit      = "Exit"
+	vimKeyReturn     = "Return"
 	vimKeyExtend     = "Shift+Right"
 	vimKeyExtendBack = "Shift+Left"
 )
 
 // TestSimulation_VimJourney covers vim mode. The screen's words are read as
 // text, 0 and w move the cursor over them, a search highlights its matches,
-// and Return clicks the character under the cursor.
+// and Return clicks the character under the cursor and stays in vim mode.
 func TestSimulation_VimJourney(t *testing.T) {
 	cfg := simConfig()
 	cfg.Hotkeys.Bindings[vimHotkey] = []string{domain.ModeNameVim}
@@ -4358,7 +4360,7 @@ func TestSimulation_VimJourney(t *testing.T) {
 	simWords(t, sim, map[string]image.Rectangle{
 		vimWordFile: image.Rect(100, 100, 160, 130),
 		vimWordEdit: image.Rect(200, 100, 260, 130),
-		"Exit":      image.Rect(100, 200, 160, 230),
+		vimWordExit: image.Rect(100, 200, 160, 230),
 	})
 
 	cursorOn := func(want image.Rectangle) func() bool {
@@ -4395,7 +4397,114 @@ func TestSimulation_VimJourney(t *testing.T) {
 		t.Fatalf("click landed at %v, want the x of Exit at %v", got, want)
 	}
 
-	sim.waitMode(domain.ModeIdle)
+	if got := sim.app.CurrentMode(); got != domain.ModeVim {
+		t.Fatalf("mode after the click = %v, want vim", got)
+	}
+}
+
+// TestSimulation_VimClicks covers the clicks at the cursor. Return, gc, gr and
+// the click ex commands click there, and a count clicks that many times, so
+// 2gc is a double click, up to three. After each, vim mode stays open and
+// reads the screen again. :leftdown and :leftup press and release, so a
+// motion between them drags, and only the release reads the screen.
+func TestSimulation_VimClicks(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordExit: image.Rect(100, 200, 160, 230),
+	})
+
+	var reads atomic.Int32
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextFast {
+			reads.Add(1)
+		}
+
+		return read(ctx, region, level)
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "0")
+	vimFrameShows(sim, "cursor on the F of File", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 100, 115, 130)
+	})
+
+	onFile, onExit := image.Pt(107, 115), image.Pt(107, 215)
+
+	clicks := func(what string, keys []string, want ...simClick) {
+		t.Helper()
+
+		before, readsBefore := len(sim.ax.recordedClicks()), reads.Load()
+
+		sim.press(keys...)
+		sim.waitFor(what, func() bool {
+			return len(sim.ax.recordedClicks()) == before+len(want) && reads.Load() > readsBefore
+		})
+
+		for index, got := range sim.ax.recordedClicks()[before:] {
+			if got.action != want[index].action || got.point != want[index].point {
+				t.Fatalf("%s: click %d = %v at %v, want %v at %v", what, index,
+					got.action, got.point, want[index].action, want[index].point)
+			}
+		}
+
+		if got := sim.app.CurrentMode(); got != domain.ModeVim {
+			t.Fatalf("%s: mode after = %v, want vim", what, got)
+		}
+	}
+
+	left := simClick{action: action.TypeLeftClick, point: onFile}
+	right := simClick{action: action.TypeRightClick, point: onFile}
+
+	clicks("Return clicks once", []string{vimKeyReturn}, left)
+	clicks("2gc double clicks", []string{"2", "g", "c"}, left, left)
+	clicks("3 Return triple clicks", []string{"3", vimKeyReturn}, left, left, left)
+	clicks("5gc clicks three times", []string{"5", "g", "c"}, left, left, left)
+	clicks("gr right clicks", []string{"g", "r"}, right)
+	clicks(":leftclick 2 double clicks", vimExKeys("leftclick 2"), left, left)
+	clicks(":rightclick right clicks once", vimExKeys("rightclick"), right)
+	// A press reads nothing, since the screen changes on its release.
+	readsBefore := reads.Load()
+
+	sim.press(vimExKeys("leftdown")...)
+	sim.waitFor(":leftdown presses", func() bool {
+		recorded := sim.ax.recordedClicks()
+		last := recorded[len(recorded)-1]
+
+		return last.action == action.TypeLeftMouseDown && last.point == onFile
+	})
+
+	sim.press("j")
+	vimFrameShows(sim, "cursor on the E of Exit", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 200, 115, 230)
+	})
+
+	if got := reads.Load(); got != readsBefore {
+		t.Fatalf("a press read the screen %d times, want none", got-readsBefore)
+	}
+
+	clicks(":leftup releases where the cursor moved", vimExKeys("leftup"),
+		simClick{action: action.TypeLeftMouseUp, point: onExit})
+}
+
+// vimExKeys are the keys that type line on vim's command line and run it.
+func vimExKeys(line string) []string {
+	keys := []string{"Shift+;"}
+
+	for _, r := range line {
+		if r == ' ' {
+			keys = append(keys, "Space")
+		} else {
+			keys = append(keys, string(r))
+		}
+	}
+
+	return append(keys, vimKeyReturn)
 }
 
 // TestSimulation_VimEscapeCancelsThenLeaves covers Escape in vim mode: it
@@ -4411,7 +4520,7 @@ func TestSimulation_VimEscapeCancelsThenLeaves(t *testing.T) {
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
 
-	sim.press("g", "c")
+	sim.press("y")
 	sim.waitFor("operator pending", func() bool {
 		frame, ok := sim.overlay.lastVimFrame()
 
@@ -4881,7 +4990,7 @@ func TestSimulation_VimJumpByLabel(t *testing.T) {
 	sim := vimHarness(t, map[string]image.Rectangle{
 		vimWordFile: image.Rect(100, 100, 160, 130),
 		vimWordEdit: image.Rect(200, 100, 260, 130),
-		"Exit":      image.Rect(100, 200, 160, 230),
+		vimWordExit: image.Rect(100, 200, 160, 230),
 	})
 
 	sim.pressHotkey(vimHotkey)

@@ -187,7 +187,6 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 	},
 	domain.ModeVim: {
 		extensionCursorFollow,
-		extensionExitSteps,
 		extensionHotkeyOverrides,
 		extensionThemeRefresh,
 		extensionScreenRefresh,

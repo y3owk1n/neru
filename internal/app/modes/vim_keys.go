@@ -17,6 +17,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/screentext"
 )
 
@@ -134,6 +135,14 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 		if h.handleVimIdleKey(vimKey) {
 			return
 		}
+	}
+
+	if button, count, ok := vimClickKey(machine, vimKey); ok {
+		if h.feedVim(vimEscape) {
+			h.vimMouseAtCursor(button, count)
+		}
+
+		return
 	}
 
 	if machine.Mode() == vim.Visual && vimKey == vimReturn {
@@ -268,6 +277,32 @@ func vimPendingCount(machine *vim.Machine) (int, bool) {
 	return count, err == nil
 }
 
+// vimClickKey reports the click key finishes and how many times it clicks.
+// That is Return after a count, as 2 Return double clicks, or c, r or m
+// after g, as 2gc does. A missing count clicks once.
+func vimClickKey(machine *vim.Machine, key vim.Key) (action.Name, int, bool) {
+	if key == vimReturn {
+		count, ok := vimPendingCount(machine)
+
+		return action.NameLeftClick, count, ok
+	}
+
+	button, ok := vimClickKeys[key]
+	digits, isG := strings.CutSuffix(machine.Shown(), "g")
+
+	if !ok || !isG || machine.Mode() != vim.Normal || machine.Pending() ||
+		strings.TrimFunc(digits, unicode.IsDigit) != "" {
+		return "", 0, false
+	}
+
+	count, err := strconv.Atoi(digits)
+	if err != nil {
+		count = 1
+	}
+
+	return button, count, true
+}
+
 // vimCountKeys returns the keys that type count, or none for zero.
 func vimCountKeys(count int) []vim.Key {
 	if count <= 0 {
@@ -390,7 +425,7 @@ func (h *handlerState) handleVimIdleKey(key vim.Key) bool {
 	case vimEscape:
 		h.exitMode()
 	case vimReturn:
-		h.vimSelectAtCursor("")
+		h.vimMouseAtCursor(action.NameLeftClick, 1)
 	case "<C-l>":
 		h.startVim(h.vimSessionActivation())
 	case "s":

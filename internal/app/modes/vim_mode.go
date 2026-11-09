@@ -12,7 +12,6 @@ import (
 var (
 	_ Mode                   = (*VimMode)(nil)
 	_ cursorFollowSelector   = (*VimMode)(nil)
-	_ exitStepReporter       = (*VimMode)(nil)
 	_ themeRefresher         = (*VimMode)(nil)
 	_ screenRefresher        = (*VimMode)(nil)
 	_ captureScopeReporter   = (*VimMode)(nil)
@@ -115,15 +114,6 @@ func (m *VimMode) ApplyCursorFollowSelection(desired *bool) (bool, bool) {
 	m.handler.followVimCursor()
 
 	return session.follow, true
-}
-
-// ExitSteps reports the --on-exit steps this session was activated with.
-func (m *VimMode) ExitSteps() []string {
-	if m.handler.vim == nil {
-		return nil
-	}
-
-	return m.handler.vim.onExit
 }
 
 // ActiveCaptureScope reports the scope the open session read.

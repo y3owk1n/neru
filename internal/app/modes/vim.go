@@ -49,12 +49,8 @@ type vimSession struct {
 	// the strip the status bar covers below it, which vim does not read.
 	shown image.Rectangle
 
-	scope    string
-	follow   bool
-	action   *string
-	modifier *string
-	repeat   bool
-	onExit   []string
+	scope  string
+	follow bool
 
 	// What a key asked of the app, done once Feed returns, since the machine
 	// is still in the middle of the key when it calls back.
@@ -773,22 +769,6 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 	session.host = screentext.NewHost(text, pos, func(s string) { session.yank = s })
 	session.machine = screentext.NewMachine(session.host)
 
-	clickOperator := func(name string) {
-		session.machine.Operator(name, 0,
-			func(_ vim.Text, start, end int, _ bool, _ []string) []vim.Edit {
-				if p, ok := rangeCenter(session.host.Screen(), start, end); ok {
-					session.lastInsert = nil
-					session.act = func() { h.vimSelect(p, name) }
-				}
-
-				return nil
-			})
-	}
-
-	clickOperator(vimOperatorClick)
-	clickOperator(vimOperatorRightClick)
-	clickOperator(vimOperatorMiddleClick)
-
 	session.machine.Operator(vimOperatorDrag, 0,
 		func(_ vim.Text, start, end int, _ bool, _ []string) []vim.Edit {
 			session.act = func() {
@@ -800,18 +780,42 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 		})
 
 	session.host.Ex = func(line string) error {
-		switch strings.TrimSpace(strings.TrimPrefix(line, ":")) {
-		case "q", "quit":
+		command, arg, _ := strings.Cut(strings.TrimSpace(strings.TrimPrefix(line, ":")), " ")
+		arg = strings.TrimSpace(arg)
+
+		if command == "q" || command == "quit" {
+			if arg != "" {
+				return screentext.ErrNotACommand
+			}
+
 			session.act = h.exitMode
-		case "click":
-			session.act = func() { h.vimSelectAtCursor(vimOperatorClick) }
-		case "rightclick":
-			session.act = func() { h.vimSelectAtCursor(vimOperatorRightClick) }
-		case "middleclick":
-			session.act = func() { h.vimSelectAtCursor(vimOperatorMiddleClick) }
-		default:
+
+			return nil
+		}
+
+		if press, ok := vimExPresses[command]; ok && arg == "" {
+			session.act = func() { h.vimMouseAtCursor(press, 1) }
+
+			return nil
+		}
+
+		button, ok := vimExClicks[command]
+		if !ok {
 			return screentext.ErrNotACommand
 		}
+
+		times := 1
+
+		if arg != "" {
+			n, err := strconv.Atoi(arg)
+			if err != nil || n < 1 {
+				return errVimClickCount
+			}
+
+			times = n
+		}
+
+		session.act = func() { h.vimMouseAtCursor(button, times) }
 
 		return nil
 	}
@@ -852,6 +856,12 @@ var (
 	// errVimTooBig refuses an edit that would take the app seconds to make,
 	// with the keyboard held all the while.
 	errVimTooBig = derrors.New(derrors.CodeInvalidInput, "too much to change at once")
+	// errVimClickCount refuses a click command whose argument is not a
+	// number of clicks.
+	errVimClickCount = derrors.New(
+		derrors.CodeInvalidInput,
+		"a click takes a number, as :leftclick 2",
+	)
 )
 
 const (
@@ -872,19 +882,39 @@ func vimEditRunes(text *screentext.Text, edits []vim.Edit) int {
 	return count
 }
 
-// The operators vim mode adds, which act on the screen rather than the text.
-const (
-	vimOperatorClick       = "gc"
-	vimOperatorRightClick  = "gr"
-	vimOperatorMiddleClick = "gm"
-	vimOperatorDrag        = "gs"
-)
+// vimOperatorDrag is the operator vim mode adds, which drags across the text
+// on screen rather than changing it.
+const vimOperatorDrag = "gs"
 
-// vimOperatorActions is the mouse action each click operator runs.
-var vimOperatorActions = map[string]string{
-	vimOperatorClick:       string(action.NameLeftClick),
-	vimOperatorRightClick:  string(action.NameRightClick),
-	vimOperatorMiddleClick: string(action.NameMiddleClick),
+// vimMaxClicks is the most times a count repeats a click, which a triple
+// click needs. A larger count clicks this many times.
+const vimMaxClicks = 3
+
+// vimClickKeys are the keys after g that click at the cursor, as c in gc, and
+// the button each clicks.
+var vimClickKeys = map[vim.Key]action.Name{
+	"c": action.NameLeftClick,
+	"r": action.NameRightClick,
+	"m": action.NameMiddleClick,
+}
+
+// vimExClicks are the ex commands that click at the cursor, as :leftclick 2
+// double clicks, and the button each clicks.
+var vimExClicks = map[string]action.Name{
+	"leftclick":   action.NameLeftClick,
+	"rightclick":  action.NameRightClick,
+	"middleclick": action.NameMiddleClick,
+}
+
+// vimExPresses are the ex commands that press or release a button at the
+// cursor, so a motion between them drags, and the action each runs.
+var vimExPresses = map[string]action.Name{
+	"leftdown":   action.NameLeftMouseDown,
+	"leftup":     action.NameLeftMouseUp,
+	"rightdown":  action.NameRightMouseDown,
+	"rightup":    action.NameRightMouseUp,
+	"middledown": action.NameMiddleMouseDown,
+	"middleup":   action.NameMiddleMouseUp,
 }
 
 // applyVimActivation keeps what the activation asked for. A refresh keeps
@@ -895,16 +925,6 @@ func (h *handlerState) applyVimActivation(activation modecmd.Activation, isRefre
 	if !isRefresh || activation.CursorFollowSelection != nil {
 		session.follow = resolveCursorFollowSelection(activation.CursorFollowSelection)
 	}
-
-	if !isRefresh || activation.Action != nil {
-		session.action = activation.Action
-		session.modifier = activation.Modifier
-		session.onExit = activation.OnExit
-	}
-
-	if activation.Repeat != nil {
-		session.repeat = *activation.Repeat
-	}
 }
 
 // vimSessionActivation is the activation that reads the screen again for the
@@ -913,16 +933,6 @@ func (h *handlerState) vimSessionActivation() modecmd.Activation {
 	scope := h.vim.scope
 
 	return modecmd.Activation{Mode: domain.ModeVim, CaptureScope: &scope}
-}
-
-// rangeCenter is the middle of the first line of [start, end).
-func rangeCenter(text *screentext.Text, start, end int) (image.Point, bool) {
-	r, ok := lineRect(text, start, max(end, start+1))
-	if !ok {
-		return image.Point{}, false
-	}
-
-	return r.Min.Add(r.Size().Div(vimHalf)), true
 }
 
 // lineRect covers the bytes of [start, end) on start's line.

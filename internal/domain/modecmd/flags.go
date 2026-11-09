@@ -362,9 +362,10 @@ func matchesForm(arg, form string) bool {
 // The modes each group of flags belongs to.
 var (
 	// selectionModes make a selection the user then acts on, so they take the
-	// flags that describe what happens to it.
+	// flags that describe what happens to it. Vim clicks with keys of its own
+	// and stays open after, so it takes none of them.
 	selectionModes = []domain.Mode{
-		domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid, domain.ModeVim,
+		domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid,
 	}
 
 	// enterableModes are the modes a user enters. Every mode except idle,
