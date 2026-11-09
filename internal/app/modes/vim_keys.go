@@ -149,9 +149,9 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 		}
 	}
 
-	if button, count, ok := vimClickKey(machine, vimKey); ok {
+	if name, count, ok := vimMouseKey(machine, vimKey); ok {
 		if h.feedVim(vimEscape) {
-			h.vimMouseAtCursor(button, count)
+			h.vimMouseAtCursor(name, count)
 		}
 
 		return
@@ -289,17 +289,18 @@ func vimPendingCount(machine *vim.Machine) (int, bool) {
 	return count, err == nil
 }
 
-// vimClickKey reports the click key finishes and how many times it clicks.
-// That is Return after a count, as 2 Return double clicks, or c, r or m
-// after g, as 2gc does. A missing count clicks once.
-func vimClickKey(machine *vim.Machine, key vim.Key) (action.Name, int, bool) {
+// vimMouseKey reports the mouse action key finishes and how many times it
+// runs. That is a click for Return after a count, as 2 Return double clicks,
+// or the action of a key in vimMouseKeys after g, as 2gc runs. A missing
+// count runs it once.
+func vimMouseKey(machine *vim.Machine, key vim.Key) (action.Name, int, bool) {
 	if key == vimReturn {
 		count, ok := vimPendingCount(machine)
 
 		return action.NameLeftClick, count, ok
 	}
 
-	button, ok := vimClickKeys[key]
+	name, ok := vimMouseKeys[key]
 	digits, isG := strings.CutSuffix(machine.Shown(), "g")
 
 	if !ok || !isG || machine.Mode() != vim.Normal || machine.Pending() ||
@@ -312,7 +313,7 @@ func vimClickKey(machine *vim.Machine, key vim.Key) (action.Name, int, bool) {
 		count = 1
 	}
 
-	return button, count, true
+	return name, count, true
 }
 
 // vimCountKeys returns the keys that type count, or none for zero.

@@ -604,6 +604,14 @@ func (h *handlerState) vimScroll(scroll vimScrollKey) {
 // changes on its release, and reading it while the button is down shows the
 // overlay again, which ends the app's drag.
 func (h *handlerState) vimMouseAtCursor(name action.Name, times int) {
+	// A move changes nothing on screen, so it needs neither the action chain
+	// nor a read.
+	if name == action.NameMoveMouse {
+		h.moveToVimCursor()
+
+		return
+	}
+
 	clicks := slices.Repeat([]string{string(name)}, min(max(times, 1), vimMaxClicks))
 	chain := strings.Join(clicks, ",")
 

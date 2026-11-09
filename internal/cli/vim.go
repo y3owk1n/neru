@@ -26,6 +26,8 @@ Shift+Right and typing, then reads the screen again:
                       times as the count up to three, so 2gc double clicks.
                       Vim mode stays open and reads the screen again
   gr gm               right or middle click there, the same way
+  gh                  move the real cursor there without a click, for a
+                      session that holds it still
   gs{motion}          drag across the text, so the app selects it, then leave
   s{chars}{label}     jump to a match of any number of characters by its
                       label, or to the nearest with Return
@@ -50,6 +52,7 @@ Shift+Right and typing, then reads the screen again:
   :leftdown :leftup   press or release at the cursor, so a motion between
                       them drags, and :rightdown :rightup :middledown
                       :middleup the other buttons
+  :movemouse          move the real cursor to the vim cursor, as gh does
   Tab Shift+Tab       on the : line, cycle through the commands that start
                       with the name typed
   Escape              cancel what is pending, then leave

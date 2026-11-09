@@ -4537,6 +4537,57 @@ func TestSimulation_VimCompletesExCommands(t *testing.T) {
 	)
 }
 
+// TestSimulation_VimMovesTheHeldCursorWithGH covers gh in a session that
+// holds the real cursor still. Motions leave it where it was, and gh moves it
+// to the character under the vim cursor without a click, as :movemouse does.
+func TestSimulation_VimMovesTheHeldCursorWithGH(t *testing.T) {
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[vimHotkey] = []string{"vim --cursor-selection-mode hold"}
+
+	sim := newSimHarness(t, cfg, nil)
+	simWords(t, sim, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	held := sim.cursor.position()
+
+	sim.press("0", "w")
+	vimFrameShows(sim, "cursor on the E of Edit", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(200, 100, 215, 130)
+	})
+
+	if got := sim.cursor.position(); got != held {
+		t.Fatalf("w moved the held cursor to %v, want it at %v", got, held)
+	}
+
+	sim.press("g", "h")
+	sim.waitFor("the real cursor on the E of Edit", func() bool {
+		return sim.cursor.position() == image.Pt(207, 115)
+	})
+
+	sim.press("0")
+	vimFrameShows(sim, "cursor on the F of File", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 100, 115, 130)
+	})
+
+	sim.press(vimExKeys("movemouse")...)
+	sim.waitFor("the real cursor on the F of File", func() bool {
+		return sim.cursor.position() == image.Pt(107, 115)
+	})
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
+		t.Fatalf("moving the cursor clicked %v", clicks)
+	}
+
+	if got := sim.app.CurrentMode(); got != domain.ModeVim {
+		t.Fatalf("mode after the moves = %v, want vim", got)
+	}
+}
+
 // vimExKeys are the keys that type line on vim's command line and run it.
 func vimExKeys(line string) []string {
 	keys := []string{"Shift+;"}

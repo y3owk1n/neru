@@ -663,6 +663,7 @@ reads the screen again.
 | `.` | Repeat the last change. A change typed into the app repeats with what was typed |
 | `y` + motion | Copy the text as read, without touching the app. The copied text flashes and the status bar says how much |
 | `Return`, `gc`, `gr`, `gm` | Click the character under the cursor, left with `Return` or `gc`, right with `gr` and middle with `gm`. A count clicks that many times, up to three, so `2gc` or `2` `Return` double clicks. Vim mode stays open and reads the screen again |
+| `gh`, `:movemouse` | Move the real cursor to the character under the cursor without a click, gliding when `smooth_cursor.move_mouse_enabled` is on, for a session opened with `--cursor-selection-mode hold`. Motions after it leave the real cursor where it is |
 | `gs` + motion, or `Return` in visual mode | Drag across the text so the app selects it, then leave. Works on text that cannot be edited |
 | `s` + characters + label | Type any number of characters to find, then a match's label to jump there, or `Return` for the nearest. `Backspace` takes back a character. A label is never the character after a match, so typing more of the text never jumps |
 | `]i`, `[i` | Move to the next or the previous icon, with a count to skip |

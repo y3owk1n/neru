@@ -798,8 +798,8 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 			return nil
 		}
 
-		if press, ok := vimExPresses[command]; ok && arg == "" {
-			session.act = func() { h.vimMouseAtCursor(press, 1) }
+		if name, ok := vimExMouse[command]; ok && arg == "" {
+			session.act = func() { h.vimMouseAtCursor(name, 1) }
 
 			return nil
 		}
@@ -895,12 +895,13 @@ const vimOperatorDrag = "gs"
 // click needs. A larger count clicks this many times.
 const vimMaxClicks = 3
 
-// vimClickKeys are the keys after g that click at the cursor, as c in gc, and
-// the button each clicks.
-var vimClickKeys = map[vim.Key]action.Name{
+// vimMouseKeys are the keys after g that act at the cursor, and the action
+// each runs: c, r and m click, as gc does, and h moves the real cursor there.
+var vimMouseKeys = map[vim.Key]action.Name{
 	"c": action.NameLeftClick,
 	"r": action.NameRightClick,
 	"m": action.NameMiddleClick,
+	"h": action.NameMoveMouse,
 }
 
 // vimExClicks are the ex commands that click at the cursor, as :leftclick 2
@@ -911,9 +912,11 @@ var vimExClicks = map[string]action.Name{
 	"middleclick": action.NameMiddleClick,
 }
 
-// vimExPresses are the ex commands that press or release a button at the
-// cursor, so a motion between them drags, and the action each runs.
-var vimExPresses = map[string]action.Name{
+// vimExMouse are the ex commands that act once at the cursor, and the action
+// each runs. They press or release a button, so a motion between them drags,
+// or move the real cursor there.
+var vimExMouse = map[string]action.Name{
+	"movemouse":  action.NameMoveMouse,
 	"leftdown":   action.NameLeftMouseDown,
 	"leftup":     action.NameLeftMouseUp,
 	"rightdown":  action.NameRightMouseDown,
@@ -931,7 +934,7 @@ func vimExNames() []string {
 		names = append(names, name)
 	}
 
-	for name := range vimExPresses {
+	for name := range vimExMouse {
 		names = append(names, name)
 	}
 
@@ -996,10 +999,14 @@ func (h *handlerState) vimCursorPoint() image.Point {
 // followVimCursor moves the real cursor onto the vim cursor when the session
 // follows it.
 func (h *handlerState) followVimCursor() {
-	if !h.vim.follow {
-		return
+	if h.vim.follow {
+		h.moveToVimCursor()
 	}
+}
 
+// moveToVimCursor moves the real cursor onto the vim cursor, without a click,
+// as gh does in a session that holds the real cursor still.
+func (h *handlerState) moveToVimCursor() {
 	err := h.actionService.MoveCursorToPoint(h.ctx, h.vimCursorPoint())
 	if err != nil {
 		h.logger.Debug("Failed to move the cursor to the vim cursor", zap.Error(err))
