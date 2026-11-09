@@ -3,6 +3,7 @@
 package vision
 
 /*
+#include "../platform/darwin/process.h"
 #include "../platform/darwin/vision.h"
 #include <stdlib.h>
 #include <string.h>
@@ -14,11 +15,12 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"image"
 	"io"
 	"math"
 	"os"
-	"os/exec"
+	"syscall"
 	"time"
 	"unsafe"
 
@@ -115,21 +117,14 @@ func (a *Adapter) readLinesInHelper(
 		return nil, err
 	}
 
-	var stdout bytes.Buffer
-
-	helper := exec.CommandContext(ctx, executable, a.linesHelper)
-	helper.Stdin = request
-	helper.Stdout = &stdout
-	helper.WaitDelay = helperWaitDelay
-
-	err = helper.Run()
+	stdout, err := runHelper(ctx, executable, a.linesHelper, request)
 	if err != nil {
-		return nil, derrors.Wrap(err, derrors.CodeActionFailed, "the text reading helper failed")
+		return nil, err
 	}
 
 	var pieces []linePiece
 
-	err = json.Unmarshal(stdout.Bytes(), &pieces)
+	err = json.Unmarshal(stdout, &pieces)
 	if err != nil {
 		return nil, derrors.Wrap(
 			err,
@@ -139,6 +134,129 @@ func (a *Adapter) readLinesInHelper(
 	}
 
 	return groupLines(pieces), nil
+}
+
+// runHelper runs executable with arg, writes request to its stdin and returns
+// what it wrote to stdout, killing it when ctx ends. It starts it with
+// posix_spawn rather than os/exec, which forks. A fork shares every page of
+// the daemon with the child copy-on-write, and macOS goes on counting those
+// pages after Go gives them back, so each read would leave the screen it
+// copied counted against the daemon until the system ran short of memory.
+func runHelper(ctx context.Context, executable, arg string, request io.Reader) ([]byte, error) {
+	// os.Pipe marks both ends close-on-exec under the lock os/exec forks
+	// with, so no other child takes one along. posix_spawn hands the child
+	// its ends as stdin and stdout.
+	stdinRead, stdinWrite, err := os.Pipe()
+	if err != nil {
+		return nil, derrors.Wrap(
+			err,
+			derrors.CodeActionFailed,
+			"failed to open the text reading helper's stdin",
+		)
+	}
+
+	stdoutRead, stdoutWrite, err := os.Pipe()
+	if err != nil {
+		_ = stdinRead.Close()
+		_ = stdinWrite.Close()
+
+		return nil, derrors.Wrap(
+			err,
+			derrors.CodeActionFailed,
+			"failed to open the text reading helper's stdout",
+		)
+	}
+
+	cPath, cArg := C.CString(executable), C.CString(arg)
+
+	var pid C.int
+
+	spawnErr := C.NeruSpawnPiped(cPath, cArg, C.int(stdinRead.Fd()), C.int(stdoutWrite.Fd()), &pid)
+
+	C.free(unsafe.Pointer(cPath))
+	C.free(unsafe.Pointer(cArg))
+
+	_ = stdinRead.Close()
+	_ = stdoutWrite.Close()
+
+	if spawnErr != 0 {
+		_ = stdinWrite.Close()
+		_ = stdoutRead.Close()
+
+		return nil, derrors.Wrap(
+			syscall.Errno(spawnErr),
+			derrors.CodeActionFailed,
+			"failed to start the text reading helper",
+		)
+	}
+
+	defer func() { _ = stdoutRead.Close() }()
+
+	// FindProcess cannot fail on Unix. It names the child for Wait and Kill.
+	helper, _ := os.FindProcess(int(pid))
+
+	go func() {
+		_, _ = io.Copy(stdinWrite, request)
+		_ = stdinWrite.Close()
+	}()
+
+	type output struct {
+		data []byte
+		err  error
+	}
+
+	read := make(chan output, 1)
+
+	go func() {
+		data, err := io.ReadAll(stdoutRead)
+		read <- output{data, err}
+	}()
+
+	exited := make(chan error, 1)
+
+	go func() {
+		state, err := helper.Wait()
+		if err == nil && !state.Success() {
+			err = derrors.New(
+				derrors.CodeActionFailed,
+				"the text reading helper exited with "+state.String(),
+			)
+		}
+
+		exited <- err
+	}()
+
+	select {
+	case err = <-exited:
+	case <-ctx.Done():
+		_ = helper.Kill()
+		err = errors.Join(ctx.Err(), <-exited)
+	}
+
+	// A child of the helper could hold its stdout open past its exit, so
+	// what it wrote is waited for only so long.
+	var out output
+
+	select {
+	case out = <-read:
+	case <-time.After(helperWaitDelay):
+		_ = stdoutRead.Close()
+		out = <-read
+	}
+
+	if err != nil {
+		return nil, derrors.Wrap(err, derrors.CodeActionFailed, "the text reading helper failed")
+	}
+
+	if out.err != nil {
+		return nil, derrors.Wrap(
+			out.err,
+			derrors.CodeActionFailed,
+			"failed to read the text reading helper's answer",
+		)
+	}
+
+	return out.data, nil
 }
 
 // encodeLinesRequest writes the request for img, showing the global rect
