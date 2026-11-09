@@ -2,6 +2,7 @@ package modes
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"slices"
 	"strconv"
@@ -166,7 +167,7 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 	// A platform that cannot read lines refuses before the permission is
 	// asked for, or the user grants screen sharing for a mode that can never
 	// open. An empty region answers without capturing anything.
-	_, _, probeErr := h.readVimText(image.Rectangle{}, ports.TextFast)
+	_, _, probeErr := h.readVimText(image.Rectangle{})
 	if derrors.IsNotSupported(probeErr) {
 		h.logger.Warn("Vim mode cannot read the screen here", zap.Error(probeErr))
 		h.activationRefusal = probeErr
@@ -201,7 +202,7 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 		h.stopScrolledRead()
 	}
 
-	text, lines, err := h.readVimText(region, ports.TextFast)
+	text, lines, err := h.readVimText(region)
 	if err != nil {
 		if derrors.IsNotSupported(err) {
 			h.logger.Warn("Vim mode cannot read the screen here", zap.Error(err))
@@ -312,11 +313,10 @@ func (h *handlerState) vimReadRegion(shown image.Rectangle) image.Rectangle {
 	return image.Rect(shown.Min.X, shown.Min.Y, shown.Max.X, bar.Min.Y)
 }
 
-// readVimText reads region at level, bounded the way a hint scan is, and
-// returns the text with the lines it was made from.
+// readVimText reads region with the fast recognizer, bounded the way a hint
+// scan is, and returns the text with the lines it was made from.
 func (h *handlerState) readVimText(
 	region image.Rectangle,
-	level ports.TextLevel,
 ) (*screentext.Text, [][]ports.TextPiece, error) {
 	if h.vision == nil {
 		return nil, nil, derrors.New(
@@ -328,7 +328,7 @@ func (h *handlerState) readVimText(
 	ctx, cancel := context.WithTimeout(h.ctx, HintTimeout)
 	defer cancel()
 
-	lines, err := h.vision.ReadLines(ctx, region, level)
+	lines, err := h.vision.ReadLines(ctx, region, ports.TextFast)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -614,7 +614,7 @@ func (h *handlerState) stopScrolledRead() {
 
 // readVimAgain reads the screen again with the cursor nearest near.
 func (h *handlerState) readVimAgain(near image.Point) {
-	text, lines, err := h.readVimText(h.vim.region, ports.TextFast)
+	text, lines, err := h.readVimText(h.vim.region)
 	h.applyVimRead(near, text, lines, err)
 }
 
@@ -1061,6 +1061,15 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 				)
 			}
 		}
+	} else if machine.Substituting() {
+		// The :s being typed shows what it would change, before Return.
+		changes, _ := machine.Preview(0, text.Len())
+
+		for _, change := range changes {
+			if r, ok := lineRect(text, change.Start, max(change.End, change.Start+1)); ok {
+				frame.Matches = append(frame.Matches, r)
+			}
+		}
 	} else {
 		current, _, typing := machine.Incremental()
 
@@ -1175,6 +1184,16 @@ func lineSegments(text *screentext.Text, start, end int) [][2]int {
 	return segs
 }
 
+// vimChangeCount says how many places the :s being typed would change, and
+// when that is more than one command may change, that Return will refuse it.
+func vimChangeCount(changes int) string {
+	if changes > vimMaxEdits {
+		return fmt.Sprintf("%d to change, more than %d at once", changes, vimMaxEdits)
+	}
+
+	return strconv.Itoa(changes) + " to change"
+}
+
 // vimCompletion is Tab cycling through the ex commands that start with the
 // name typed. at is the match on the line, or len(matches) when the name
 // typed is back on it.
@@ -1254,7 +1273,10 @@ func vimStatus(session *vimSession, current, matches int) string {
 		parts = append(parts, "recording @"+string(r))
 	}
 
-	if matches > 0 {
+	switch {
+	case matches > 0 && machine.Substituting():
+		parts = append(parts, vimChangeCount(matches))
+	case matches > 0:
 		at := "-"
 		if current >= 0 {
 			at = strconv.Itoa(current + 1)

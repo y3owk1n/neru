@@ -42,6 +42,8 @@ Shift+Right and typing, then reads the screen again:
                       count, or half the width read
   zz                  scroll the app until the cursor's line is in the middle
   Ctrl+L              read the screen again
+  :s/a/b/             replace as in vim, highlighting each place it changes
+                      while it is typed, at most 64 at once
   :q                  leave
   :leftclick [n]      left click at the cursor n times, and :rightclick and
                       :middleclick the other buttons

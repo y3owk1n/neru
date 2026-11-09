@@ -4720,6 +4720,130 @@ func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimSubstitutes covers :s. While it is typed, each place it
+// would change is highlighted and the status bar counts them. On Return it
+// clicks the caret into the last change on the line only, and reaches the
+// one before it with arrow keys, so the pointer does not jump to each.
+func TestSimulation_VimSubstitutes(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	keys := vimExKeys("s/i/I/g")
+
+	sim.press(keys[:len(keys)-1]...)
+	vimFrameShows(sim, "both i highlighted and counted", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "2 to change") &&
+			slices.Equal(f.Matches, []image.Rectangle{
+				image.Rect(115, 100, 130, 130), image.Rect(230, 100, 245, 130),
+			})
+	})
+
+	// Back over the I typed, the le, the gap read as three spaces and the Ed.
+	back := slices.Repeat([]string{"Left"}, 8)
+
+	sim.press(vimKeyReturn)
+	sim.waitFor("both i typed over", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(),
+			slices.Concat([]string{vimKeyExtend, "I"}, back, []string{vimKeyExtendBack, "I"}))
+	})
+
+	clicks := sim.ax.recordedClicks()
+	if len(clicks) != 1 || clicks[0].point != image.Pt(230, 115) {
+		t.Fatalf("the substitute clicked %v, want once before the i of Edit", clicks)
+	}
+}
+
+// vimSubstituteHarness opens vim mode over two lines, what and whom, whose
+// screen shows whom changed to zom once landed is set.
+func vimSubstituteHarness(t *testing.T, landed *atomic.Bool) *simHarness {
+	t.Helper()
+
+	first, second := image.Rect(100, 100, 160, 130), image.Rect(100, 200, 160, 230)
+
+	sim := vimHarness(t, map[string]image.Rectangle{"what": first, "whom": second})
+	sim.vision.ReadLinesFunc = func(
+		context.Context, image.Rectangle, ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		changed := "whom"
+		if landed.Load() {
+			changed = "zom"
+		}
+
+		return [][]ports.TextPiece{
+			{{Text: "what", Bounds: first}},
+			{{Text: changed, Bounds: second}},
+		}, nil
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	return sim
+}
+
+// TestSimulation_VimSubstituteWaitsForEachLineToShow covers :s across lines.
+// It changes the last line first, and clicks the line above only once the
+// screen shows the last one changed, since an app such as a browser can take
+// a click ahead of the keys typed before it.
+func TestSimulation_VimSubstituteWaitsForEachLineToShow(t *testing.T) {
+	var landed atomic.Bool
+
+	sim := vimSubstituteHarness(t, &landed)
+
+	// The screen shows whom changed a while after its keys are typed, and
+	// the key that runs :s is still being handled meanwhile.
+	clicksBeforeLanding := make(chan int, 1)
+
+	go func() {
+		for len(sim.keyFeed.FedKeys()) < 3 {
+			time.Sleep(5 * time.Millisecond)
+		}
+
+		time.Sleep(200 * time.Millisecond)
+
+		clicksBeforeLanding <- len(sim.ax.recordedClicks())
+
+		landed.Store(true)
+	}()
+
+	sim.press(vimExKeys("1,2s/wh/z/")...)
+	sim.waitFor("what typed over once whom showed", func() bool {
+		return len(sim.keyFeed.FedKeys()) == 6
+	})
+
+	if got := <-clicksBeforeLanding; got != 1 {
+		t.Fatalf("%d clicks before the screen showed whom changed, want 1", got)
+	}
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 2 || clicks[1].point.Y != 115 {
+		t.Fatalf("clicks %v, want the second on the line of what", clicks)
+	}
+}
+
+// TestSimulation_VimSubstituteStopsWhenTheScreenNeverShows covers :s across
+// lines in an app that never shows a change. It stops after the first line
+// and says how many places it left, rather than click ahead of its keys.
+func TestSimulation_VimSubstituteStopsWhenTheScreenNeverShows(t *testing.T) {
+	var landed atomic.Bool
+
+	sim := vimSubstituteHarness(t, &landed)
+
+	sim.press(vimExKeys("1,2s/wh/z/")...)
+	vimFrameShows(sim, "the status says it stopped", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status, "stopped with 1 left")
+	})
+
+	if clicks, keys := sim.ax.recordedClicks(), sim.keyFeed.FedKeys(); len(clicks) != 1 ||
+		len(keys) != 3 {
+		t.Fatalf("clicks %v and keys %v, want the second line's only", clicks, keys)
+	}
+}
+
 // TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping covers
 // [vim.hotkeys]. A bound key runs its action and vim never sees it, so x here
 // leaves the mode instead of deleting a character. While vim types into the

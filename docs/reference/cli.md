@@ -673,6 +673,7 @@ reads the screen again.
 | `zh`, `zl`, `zH`, `zL` | Scroll the app left or right eight characters, or the count with one, or half the width read with `zH` and `zL` |
 | `zz` | Scroll the app until the cursor's line is in the middle of the region read, or line n of the text read with a count |
 | `Ctrl+L` | Read the screen again, keeping registers, macros and the last search |
+| `:s` | Replace as in vim. While it is typed, each place it would change is highlighted and the status bar counts them. One command changes at most 64 places, and the changes on one line take one click. Across lines it waits for the screen to show each line changed before it clicks the next, and stops with what it left in the status bar when the screen does not show it within a second |
 | `:q` | Leave |
 | `:leftclick`, `:rightclick`, `:middleclick` + optional number | Click at the cursor that many times, once without one, as `:leftclick 2` |
 | `:leftdown`, `:leftup`, `:rightdown`, `:rightup`, `:middledown`, `:middleup` | Press or release the button at the cursor, so a motion between them drags. Leaving the mode releases a button still held |
