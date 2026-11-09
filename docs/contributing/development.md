@@ -29,7 +29,7 @@ Neru rather than develop it, see [installation](../guide/installation.md).
 
 ### Prerequisites
 
-- **Go 1.26+**, **Just** and **golangci-lint**, from oku or by hand (below)
+- **Go 1.27+**, **Just** and **golangci-lint**, from oku or by hand (below)
 - **Xcode Command Line Tools** (macOS): `xcode-select --install`
 - **Build dependencies** (Linux): see [Build dependencies](#build-dependencies)
 - **A POSIX shell and Bash** (Windows): `just` runs recipes with `sh` by

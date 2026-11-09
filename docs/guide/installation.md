@@ -195,17 +195,9 @@ Service options per module:
 - **Completions:** the packages install bash, zsh and fish completions on
   macOS only. On Linux, add them with [Shell completions](#shell-completions).
 - **Updating:** run `nix flake update neru`, then rebuild.
-- **Older Go in nixpkgs:** `pkgs.neru-source` needs the Go version in `go.mod`
-  (1.26.5). Lower it if your nixpkgs is older:
-
-  ```nix
-  services.neru.package = pkgs.neru-source.overrideAttrs (_: {
-    postPatch = ''
-      substituteInPlace go.mod --replace-fail "go 1.26.5" "go 1.25.5"
-    '';
-  });
-  ```
-
+- **Older Go in nixpkgs:** `pkgs.neru-source` needs Go 1.27, which nixpkgs
+  26.05 and unstable provide. Neru's code uses Go 1.27 language features, so an
+  older Go cannot build it. On an older nixpkgs, use the prebuilt `pkgs.neru`.
 - **Codesigning `pkgs.neru-source` on macOS:** `pkgs.neru` is pre-signed.
   `pkgs.neru-source` has only the Go linker's signature, without the hardened
   runtime entitlements. Sign it after activation with the bundled
@@ -232,7 +224,7 @@ Service options per module:
 
 | Platform | Needs                                                                                               |
 | :------- | :-------------------------------------------------------------------------------------------------- |
-| All      | Go 1.26+ and [just](https://github.com/casey/just)                                                  |
+| All      | Go 1.27+ and [just](https://github.com/casey/just)                                                  |
 | macOS    | Xcode Command Line Tools (`xcode-select --install`) for the Objective-C bridge                      |
 | Linux    | A C compiler and the `-dev`/`-devel` packages the CGO build links against, listed in [Development setup](../contributing/development.md#development-setup) |
 | Windows  | Git for Windows, whose `sh` runs the `just` recipes. The build has CGO off, so no C compiler        |

@@ -3109,7 +3109,7 @@ void NeruDrawIncrementHints(
 				// Apply font, re-creating it only when family or size changed
 				BOOL hintFamilyChanged =
 				    (fontFamily != controller.overlayView.cachedHintFontFamily &&
-				     ![fontFamily isEqualToString:controller.overlayView.cachedHintFontFamily]);
+					 ![fontFamily isEqualToString:controller.overlayView.cachedHintFontFamily]);
 				if (hintFamilyChanged || fontSize != controller.overlayView.cachedHintFontSize) {
 					NSFont *font = nil;
 					if (fontFamily && [fontFamily length] > 0) {
@@ -3326,7 +3326,7 @@ void NeruDrawGridCells(OverlayWindow window, GridCell *cells, int count, GridCel
 				// Apply font, re-creating it only when family or size changed
 				BOOL gridFamilyChanged =
 				    (fontFamily != controller.overlayView.cachedGridFontFamily &&
-				     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+					 ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
 				if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
 					NSFont *font = nil;
 					if (fontFamily && [fontFamily length] > 0) {
@@ -3477,7 +3477,7 @@ void NeruAnimateRecursiveGridTransition(
 			@autoreleasepool {
 				BOOL gridFamilyChanged =
 				    (fontFamily != controller.overlayView.cachedGridFontFamily &&
-				     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+					 ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
 				if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
 					NSFont *font = nil;
 					if (fontFamily && [fontFamily length] > 0) {
@@ -3714,7 +3714,7 @@ void NeruDrawIncrementGrid(
 				// Apply font, re-creating it only when family or size changed
 				BOOL gridFamilyChanged =
 				    (fontFamily != controller.overlayView.cachedGridFontFamily &&
-				     ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
+					 ![fontFamily isEqualToString:controller.overlayView.cachedGridFontFamily]);
 				if (gridFamilyChanged || fontSize != controller.overlayView.cachedGridFontSize) {
 					NSFont *font = nil;
 					if (fontFamily && [fontFamily length] > 0) {

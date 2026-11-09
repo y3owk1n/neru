@@ -655,7 +655,7 @@ test-linux:
     set -euo pipefail
     echo "Building the Linux CI-equivalent image (cached after first run)..."
     docker build -q -t neru-linux-ci - >/dev/null <<'DOCKERFILE'
-    FROM golang:1.26
+    FROM golang:1.27
     RUN apt-get update -qq && apt-get install -y -qq \
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
         libxrender-dev libxext-dev libxfixes-dev libxkbcommon-dev \
@@ -675,7 +675,7 @@ test-linux-nocgo:
     @echo "Running the Linux test suite in a container (CGO off)..."
     docker run --rm -v "$PWD":/src -w /src \
         -e CGO_ENABLED=0 -e GOCACHE=/tmp/gocache -e GOMODCACHE=/tmp/gomod \
-        golang:1.26 go test -count=1 -timeout 600s ./...
+        golang:1.27 go test -count=1 -timeout 600s ./...
     @echo "✓ Linux no-cgo test suite passed"
 
 # Compile every package *and its test binary* for Windows.
@@ -705,7 +705,7 @@ test-windows-compile:
 # linux- or windows-tagged source is invisible locally and first appears as a
 # red CI job. Reproducing it needs the Linux toolchain (CGO on, native dev
 # headers), so this runs in the same container image the Linux CI job uses, with
-# the golangci-lint version pinned in .github/workflows/ci.yml.
+# the golangci-lint version that oku.lock pins.
 #
 # Requires a running Docker daemon.
 [doc('Lint the Linux and Windows builds in a Docker container.')]
@@ -714,7 +714,7 @@ lint-cross:
     set -euo pipefail
     echo "Building the Linux lint image (cached after first run)..."
     docker build -q -t neru-linux-ci - >/dev/null <<'BASE'
-    FROM golang:1.26
+    FROM golang:1.27
     RUN apt-get update -qq && apt-get install -y -qq \
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
         libxrender-dev libxext-dev libxfixes-dev libxkbcommon-dev \
@@ -724,7 +724,7 @@ lint-cross:
     BASE
     docker build -q -t neru-linux-lint - >/dev/null <<'LINT'
     FROM neru-linux-ci
-    RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.2
+    RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.15.0
     LINT
     echo "Linting for linux/amd64 (CGO on)..."
     docker run --rm -v "$PWD":/src -w /src \
@@ -753,13 +753,13 @@ check-cross: vet-cross test-windows-compile
 # build-tagged. A vulnerable Windows-only dependency is invisible from a macOS
 # run, so CI runs this natively on all three platforms.
 #
-# The tool is fetched at @latest rather than pinned, because its value is knowing about
-# vulnerabilities published after the pin would have been written, and the
-# vulnerability database is fetched at run time regardless.
+# Pinning the tool makes a run reproducible. It still reports vulnerabilities
+# published after the pin, because it fetches the vulnerability database at run
+# time.
 [doc('Scan the dependencies for known vulnerabilities with govulncheck.')]
 vuln:
     @echo "Scanning for known vulnerabilities..."
-    go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
+    go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
     @echo "✓ No known vulnerabilities"
 
 # Run unit tests with coverage and print the total.
