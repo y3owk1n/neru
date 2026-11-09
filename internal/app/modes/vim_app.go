@@ -51,6 +51,11 @@ const (
 	vimLandRows  = 2
 )
 
+// vimGlideLimit is how long a click at the cursor waits for the real cursor's
+// glide, since smooth_cursor.max_duration has no ceiling and the wait holds
+// the handler.
+const vimGlideLimit = time.Second
+
 // The chords vim mode sends the app for u and Ctrl+R, and to copy and paste.
 const (
 	vimKeyUndo  = "Primary+z"
@@ -621,5 +626,18 @@ func (h *handlerState) vimMouseAtCursor(name action.Name, times int) {
 		after = func() { h.redrawFrame(h.vimFrame(), "update vim overlay") }
 	}
 
-	h.moveCursorAndHandleAction(h.vimCursorPoint(), &chain, nil, true, after)
+	// The real cursor glides there first when smooth_cursor asks for it, and
+	// the action waits for it to land, as an action hotkey's does. A held
+	// cursor would otherwise jump, since the click warps it.
+	point := h.vimCursorPoint()
+	ctx, cancel := context.WithTimeout(h.ctx, vimGlideLimit)
+
+	err := h.actionService.MoveCursorToPointAndWait(ctx, point)
+	if err != nil {
+		h.logger.Debug("Vim cursor glide did not land", zap.Error(err))
+	}
+
+	cancel()
+
+	h.executeActionAtPoint(&chain, nil, point, true, after)
 }
