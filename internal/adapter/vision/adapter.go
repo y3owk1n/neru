@@ -52,3 +52,6 @@ func NewAdapter(logger *zap.Logger, opts ...Option) ports.VisionPort {
 // the `other` slot with CodeNotSupported stubs (adapter_other.go), so this
 // assertion holds on every target and catches a signature drift in any of them.
 var _ ports.VisionPort = (*Adapter)(nil)
+
+// ForgetLastRead implements ports.VisionPort.
+func (a *Adapter) ForgetLastRead() { a.lastRead.forget() }

@@ -138,3 +138,25 @@ func TestLastRead_RememberAndRecall_AreSafeAcrossGoroutines(t *testing.T) {
 
 	writers.Wait()
 }
+
+// TestLastRead_Forget_LeavesNothingToRecall covers ForgetLastRead, which
+// vim mode calls on leaving so a whole screen's frame is not kept until the
+// next read.
+func TestLastRead_Forget_LeavesNothingToRecall(t *testing.T) {
+	var memory lastRead
+
+	region := image.Rect(0, 0, 10, 10)
+
+	var zero readFrame
+
+	memory.remember(region, zero, [][]ports.TextPiece{{{Text: "a"}}})
+	memory.forget()
+
+	if frame, lines, ok := memory.recall(region); ok {
+		releaseFrame(frame)
+		t.Fatalf("recalled %v after forget, want nothing", lines)
+	}
+
+	// Forgetting with nothing remembered gives back nothing.
+	memory.forget()
+}

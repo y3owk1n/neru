@@ -112,6 +112,20 @@ func (r *lastRead) recall(region image.Rectangle) (readFrame, [][]ports.TextPiec
 	return retainFrame(r.frame), r.lines, true
 }
 
+// forget gives back the frame it held, so nothing is remembered.
+func (r *lastRead) forget() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.ok {
+		releaseFrame(r.frame)
+	}
+
+	var zero readFrame
+
+	r.region, r.frame, r.lines, r.ok = image.Rectangle{}, zero, nil, false
+}
+
 // remember keeps frame and lines as the last read of region, and gives back
 // the frame it held.
 func (r *lastRead) remember(region image.Rectangle, frame readFrame, lines [][]ports.TextPiece) {

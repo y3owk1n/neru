@@ -966,6 +966,8 @@ func (m *mockVisionPort) CaptureExcludesOwnWindows() bool { return false }
 
 func (m *mockVisionPort) AccurateReadDiffers() bool { return true }
 
+func (m *mockVisionPort) ForgetLastRead() {}
+
 func (m *mockVisionPort) ReadLinesOnceChanged(
 	ctx context.Context, region image.Rectangle,
 ) ([][]ports.TextPiece, error) {

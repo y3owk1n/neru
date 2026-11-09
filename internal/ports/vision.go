@@ -118,6 +118,12 @@ type VisionPort interface {
 	// the screen takes the old labels off first, or it reads them back as
 	// targets.
 	CaptureExcludesOwnWindows() bool
+
+	// ForgetLastRead lets go of the frame the last fast line read captured,
+	// which ReadLinesOnceChanged keeps to tell a change from, for a caller
+	// done reading the screen for now. A whole screen's frame is tens of
+	// megabytes.
+	ForgetLastRead()
 }
 
 // TextLevel is how carefully ReadLines reads.

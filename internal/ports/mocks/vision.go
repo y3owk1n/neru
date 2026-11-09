@@ -177,6 +177,9 @@ func (m *MockVisionPort) ReadLinesOnceChanged(
 // AccurateReadDiffers implements ports.VisionPort.
 func (m *MockVisionPort) AccurateReadDiffers() bool { return !m.AccurateReadSame }
 
+// ForgetLastRead implements ports.VisionPort. It remembers nothing to forget.
+func (m *MockVisionPort) ForgetLastRead() {}
+
 // ReadText implements ports.VisionPort. Without ReadTextFunc it reports
 // CodeNotSupported, as Linux and Windows do.
 func (m *MockVisionPort) ReadText(ctx context.Context, rect image.Rectangle) (string, error) {

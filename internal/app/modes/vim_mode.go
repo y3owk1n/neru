@@ -3,6 +3,7 @@ package modes
 import (
 	"context"
 	"image"
+	"runtime/debug"
 
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
@@ -76,11 +77,20 @@ func (m *VimMode) RefreshForScreenChange(_ context.Context) bool {
 }
 
 // Exit tears vim mode down. The machine goes with it, so registers and
-// macros last one session.
+// macros last one session. A read of a whole screen copies its pixels several
+// times, so Exit has the vision port forget the frame it kept, and gives the
+// memory the session freed back to the system at once, off the lock. The
+// runtime would otherwise take minutes.
 func (m *VimMode) Exit() {
 	if m.handler.vim != nil {
 		m.handler.stopScrolledRead()
 		m.handler.cancelYoungRefine()
+
+		if m.handler.vision != nil {
+			m.handler.vision.ForgetLastRead()
+		}
+
+		go debug.FreeOSMemory()
 	}
 
 	m.handler.vim = nil
