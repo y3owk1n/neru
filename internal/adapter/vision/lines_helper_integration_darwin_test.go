@@ -222,9 +222,7 @@ func logSampleDiagnosis(t *testing.T, img *image.RGBA, pieces []linePiece) {
 	}
 
 	hindi, err := readSampleWith(img, "hi-IN")
-	if err != nil {
-		t.Logf("reading with hi-IN failed: %v", err)
-	}
+	t.Logf("read with hi-IN: %d pieces, err %v", len(hindi), err)
 
 	for _, piece := range hindi {
 		t.Logf("read with hi-IN, line %d: %q", piece.Line, piece.Text)
