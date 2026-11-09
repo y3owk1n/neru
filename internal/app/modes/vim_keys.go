@@ -25,6 +25,10 @@ import (
 const (
 	vimReturn vim.Key = "<CR>"
 	vimEscape vim.Key = "<Esc>"
+	// vimTab and vimShiftTab cycle through the ex commands on the command
+	// line.
+	vimTab      vim.Key = "\t"
+	vimShiftTab vim.Key = "<S-Tab>"
 )
 
 // vimControlKeys are the Ctrl chords vim reads, held back from the focused
@@ -112,6 +116,14 @@ func (h *handlerState) handleVimKey(key string) {
 func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 	session := h.vim
 	machine := session.machine
+
+	if vimKey == vimTab || vimKey == vimShiftTab {
+		if h.vimCompleteEx(vimKey == vimShiftTab) {
+			return
+		}
+	}
+
+	session.completion = nil
 
 	if h.handleVimZKey(vimKey) {
 		return
@@ -797,6 +809,56 @@ func (h *handlerState) vimScrollAtEdge(key vim.Key, lineBefore int) bool {
 	if session.stale {
 		session.afterScroll = key
 	}
+
+	return true
+}
+
+// vimCompleteEx puts the next ex command that starts with the name typed on
+// the command line, or the one before it with back. After the last match it
+// puts back the name typed. It takes the key only on the : line while only a
+// name is typed, and reports whether it did.
+func (h *handlerState) vimCompleteEx(back bool) bool {
+	session := h.vim
+	machine := session.machine
+	completion := session.completion
+
+	if completion == nil {
+		typed, ok := strings.CutPrefix(machine.Line(), ":")
+		if !ok || machine.Mode() != vim.Cmdline || strings.TrimFunc(typed, unicode.IsLetter) != "" {
+			return false
+		}
+
+		completion = &vimCompletion{typed: typed}
+
+		for _, name := range vimExNames() {
+			if strings.HasPrefix(name, typed) {
+				completion.matches = append(completion.matches, name)
+			}
+		}
+
+		// No command starts with it, so Tab does nothing, as in vim.
+		if len(completion.matches) == 0 {
+			return true
+		}
+
+		completion.at = len(completion.matches)
+		session.completion = completion
+	}
+
+	slots := len(completion.matches) + 1
+	if back {
+		completion.at = (completion.at + slots - 1) % slots
+	} else {
+		completion.at = (completion.at + 1) % slots
+	}
+
+	line := completion.typed
+	if completion.at < len(completion.matches) {
+		line = completion.matches[completion.at]
+	}
+
+	machine.SetLine(line)
+	h.redrawFrame(h.vimFrame(), "update vim overlay")
 
 	return true
 }

@@ -48,6 +48,8 @@ Shift+Right and typing, then reads the screen again:
   :leftdown :leftup   press or release at the cursor, so a motion between
                       them drags, and :rightdown :rightup :middledown
                       :middleup the other buttons
+  Tab Shift+Tab       on the : line, cycle through the commands that start
+                      with the name typed
   Escape              cancel what is pending, then leave
 
 Vim mode groups the words of a column, a sidebar or a card into a container,

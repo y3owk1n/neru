@@ -3,6 +3,7 @@ package modes
 import (
 	"context"
 	"image"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -51,6 +52,10 @@ type vimSession struct {
 
 	scope  string
 	follow bool
+
+	// completion is Tab cycling through the ex commands on the command line,
+	// nil once any other key is typed.
+	completion *vimCompletion
 
 	// What a key asked of the app, done once Feed returns, since the machine
 	// is still in the middle of the key when it calls back.
@@ -917,6 +922,30 @@ var vimExPresses = map[string]action.Name{
 	"middleup":   action.NameMiddleMouseUp,
 }
 
+// vimExNames are the ex commands Tab completes, vim mode's own and the
+// machine's, sorted. Commands named with symbols, such as &&, are left out.
+func vimExNames() []string {
+	names := []string{"q", "quit"}
+
+	for name := range vimExClicks {
+		names = append(names, name)
+	}
+
+	for name := range vimExPresses {
+		names = append(names, name)
+	}
+
+	for _, command := range vim.Commands() {
+		if strings.TrimFunc(command.Name, unicode.IsLetter) == "" {
+			names = append(names, command.Name)
+		}
+	}
+
+	slices.Sort(names)
+
+	return slices.Compact(names)
+}
+
 // applyVimActivation keeps what the activation asked for. A refresh keeps
 // what the session had for anything it leaves out.
 func (h *handlerState) applyVimActivation(activation modecmd.Activation, isRefresh bool) {
@@ -1146,6 +1175,50 @@ func lineSegments(text *screentext.Text, start, end int) [][2]int {
 	return segs
 }
 
+// vimCompletion is Tab cycling through the ex commands that start with the
+// name typed. at is the match on the line, or len(matches) when the name
+// typed is back on it.
+type vimCompletion struct {
+	typed   string
+	matches []string
+	at      int
+}
+
+// vimCompletionShown is how many matches the status bar lists at once.
+const vimCompletionShown = 8
+
+// vimCompletionList lists the page of matches that holds the one on the
+// line, which it puts in brackets. A < or > marks more matches before or
+// after the page.
+func vimCompletionList(completion *vimCompletion) string {
+	start := 0
+	if completion.at < len(completion.matches) {
+		start = completion.at / vimCompletionShown * vimCompletionShown
+	}
+
+	end := min(start+vimCompletionShown, len(completion.matches))
+	shown := make([]string, 0, vimCompletionShown)
+
+	if start > 0 {
+		shown = append(shown, "<")
+	}
+
+	for index := start; index < end; index++ {
+		name := completion.matches[index]
+		if index == completion.at {
+			name = "[" + name + "]"
+		}
+
+		shown = append(shown, name)
+	}
+
+	if end < len(completion.matches) {
+		shown = append(shown, ">")
+	}
+
+	return strings.Join(shown, " ")
+}
+
 // vimStatus is the status bar: the mode, the command being typed or the
 // command line, the machine's message, a macro being recorded, where the
 // cursor is among the search matches, and whether a read of the screen is
@@ -1161,6 +1234,10 @@ func vimStatus(session *vimSession, current, matches int) string {
 		line := machine.Line()
 		at := min(max(machine.LineCursor(), 0), len(line))
 		parts = append(parts, line[:at]+"▏"+line[at:])
+
+		if session.completion != nil {
+			parts = append(parts, vimCompletionList(session.completion))
+		}
 	case machine.Message() != "":
 		parts = append(parts, machine.Message())
 	case session.notice != "":

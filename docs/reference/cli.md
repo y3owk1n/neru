@@ -676,6 +676,7 @@ reads the screen again.
 | `:q` | Leave |
 | `:leftclick`, `:rightclick`, `:middleclick` + optional number | Click at the cursor that many times, once without one, as `:leftclick 2` |
 | `:leftdown`, `:leftup`, `:rightdown`, `:rightup`, `:middledown`, `:middleup` | Press or release the button at the cursor, so a motion between them drags. Leaving the mode releases a button still held |
+| `Tab`, `Shift+Tab` | On the `:` line, cycle forward or back through the commands that start with the name typed. The status bar lists them, and after the last the name typed comes back |
 | `Escape` | Cancel what is pending, then leave |
 
 Vim mode groups the words of a column, a sidebar or a card into a container,

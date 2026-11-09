@@ -4492,6 +4492,51 @@ func TestSimulation_VimClicks(t *testing.T) {
 		simClick{action: action.TypeLeftMouseUp, point: onExit})
 }
 
+// TestSimulation_VimCompletesExCommands covers Tab on the command line. It
+// cycles through the commands that start with the name typed, listing them
+// in the status bar, Shift+Tab goes back, and after the last it puts back the
+// name typed.
+func TestSimulation_VimCompletesExCommands(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	status := func(what, want string, keys ...string) {
+		t.Helper()
+
+		sim.press(keys...)
+		vimFrameShows(sim, what, func(f ports.VimFrame) bool {
+			return strings.Contains(f.Status, want)
+		})
+	}
+
+	status(
+		"the first match",
+		":leftclick▏   [leftclick] leftdown leftup",
+		"Shift+;",
+		"l",
+		"e",
+		"f",
+		"Tab",
+	)
+	status("the next match", ":leftdown▏   leftclick [leftdown] leftup", "Tab")
+	status("back a match", ":leftclick▏   [leftclick] leftdown leftup", "Shift+Tab")
+	status(
+		"the name typed after the last",
+		":lef▏   leftclick leftdown leftup",
+		"Tab",
+		"Tab",
+		"Tab",
+	)
+
+	sim.press("Tab", vimKeyReturn)
+	sim.waitFor(
+		"the completed command clicked",
+		func() bool { return len(sim.ax.recordedClicks()) == 1 },
+	)
+}
+
 // vimExKeys are the keys that type line on vim's command line and run it.
 func vimExKeys(line string) []string {
 	keys := []string{"Shift+;"}
