@@ -43,7 +43,7 @@ fonts-dejavu = { apt = "fonts-dejavu-core", dnf = "dejavu-sans-fonts", pacman = 
 # together.
 [build]
 needs = ["git"]
-deps = [{ ref = "./.oku/go.toml", version = "~1.26" }]
+deps = [{ ref = "./.oku/go.toml", version = "~1.27" }]
 source = { git = "https://github.com/y3owk1n/neru", tag = "{{tag}}" }
 
 [[build.step]]

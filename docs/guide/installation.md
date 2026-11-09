@@ -195,17 +195,9 @@ Service options per module:
 - **Completions:** the packages install bash, zsh and fish completions on
   macOS only. On Linux, add them with [Shell completions](#shell-completions).
 - **Updating:** run `nix flake update neru`, then rebuild.
-- **Older Go in nixpkgs:** `pkgs.neru-source` needs the Go version in `go.mod`
-  (1.26.5). Lower it if your nixpkgs is older:
-
-  ```nix
-  services.neru.package = pkgs.neru-source.overrideAttrs (_: {
-    postPatch = ''
-      substituteInPlace go.mod --replace-fail "go 1.26.5" "go 1.25.5"
-    '';
-  });
-  ```
-
+- **Older Go in nixpkgs:** `pkgs.neru-source` needs Go 1.27, which nixpkgs
+  26.05 and unstable provide. Neru's code uses Go 1.27 language features, so an
+  older Go cannot build it. On an older nixpkgs, use the prebuilt `pkgs.neru`.
 - **Codesigning `pkgs.neru-source` on macOS:** `pkgs.neru` is pre-signed.
   `pkgs.neru-source` has only the Go linker's signature, without the hardened
   runtime entitlements. Sign it after activation with the bundled
