@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"image"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -157,23 +158,9 @@ func TestReadTextSample_ReadsEveryScriptWithAModelOfItsOwn(t *testing.T) {
 		t.Fatalf("draw the sample: %v", err)
 	}
 
-	request, err := encodeLinesRequest(img, img.Rect, prepareTimeout.Milliseconds(), "")
+	pieces, err := readSampleWith(img, "")
 	if err != nil {
-		t.Fatalf("encode the request: %v", err)
-	}
-
-	var out bytes.Buffer
-
-	err = ServeTextLines(context.Background(), request, &out)
-	if err != nil {
-		t.Fatalf("serve the request: %v", err)
-	}
-
-	var pieces []linePiece
-
-	err = json.Unmarshal(out.Bytes(), &pieces)
-	if err != nil {
-		t.Fatalf("the answer is not JSON pieces: %v", err)
+		t.Fatalf("read the sample: %v", err)
 	}
 
 	for _, script := range []struct {
@@ -195,4 +182,56 @@ func TestReadTextSample_ReadsEveryScriptWithAModelOfItsOwn(t *testing.T) {
 			t.Errorf("the sample read no %s text", script.name)
 		}
 	}
+
+	if t.Failed() {
+		logSampleDiagnosis(t, img, pieces)
+	}
+}
+
+// readSampleWith reads img through the helper's request, with language as the
+// request's second language, or the user's when it is empty.
+func readSampleWith(img *image.RGBA, language string) ([]linePiece, error) {
+	request, err := encodeLinesRequest(img, img.Rect, prepareTimeout.Milliseconds(), language)
+	if err != nil {
+		return nil, err
+	}
+
+	var out bytes.Buffer
+
+	err = ServeTextLines(context.Background(), request, &out)
+	if err != nil {
+		return nil, err
+	}
+
+	var pieces []linePiece
+
+	err = json.Unmarshal(out.Bytes(), &pieces)
+
+	return pieces, err
+}
+
+// logSampleDiagnosis says what the sample read, whether Vision reads
+// Devanagari at all when Hindi is asked for by name, and which machine this
+// is. The sample is fixed text, so logging what was read of it logs nothing
+// of the user's.
+func logSampleDiagnosis(t *testing.T, img *image.RGBA, pieces []linePiece) {
+	t.Helper()
+
+	for _, piece := range pieces {
+		t.Logf("read line %d: %q", piece.Line, piece.Text)
+	}
+
+	hindi, err := readSampleWith(img, "hi-IN")
+	if err != nil {
+		t.Logf("reading with hi-IN failed: %v", err)
+	}
+
+	for _, piece := range hindi {
+		t.Logf("read with hi-IN, line %d: %q", piece.Line, piece.Text)
+	}
+
+	machine, err := exec.CommandContext(
+		t.Context(), "sysctl", "-n", "hw.model", "kern.osversion", "machdep.cpu.brand_string",
+	).Output()
+	t.Logf("machine: %q, err %v", strings.TrimSpace(string(machine)), err)
 }
