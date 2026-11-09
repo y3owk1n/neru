@@ -190,6 +190,12 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 		return
 	}
 
+	h.vimCursorMoved()
+}
+
+// vimCursorMoved moves the real cursor to the machine's cursor, then swaps in
+// an accurate read that is waiting, or redraws the overlay when none is.
+func (h *handlerState) vimCursorMoved() {
 	h.followVimCursor()
 
 	if !h.swapInRefinedVimText() {
@@ -652,14 +658,20 @@ func vimJumpLabelBox(text *screentext.Text, match [2]int) (image.Rectangle, bool
 	return last.Add(image.Pt(last.Dx(), 0)), ok
 }
 
-// vimJumpTo puts the cursor on target and ends the jump.
+// vimJumpTo ends the jump and moves the cursor to target with go, the
+// machine's own motion to a byte, so the machine remembers the column as it
+// does after j. The count skips the cap on a typed count, since a byte offset
+// can need more digits.
 func (h *handlerState) vimJumpTo(target int) {
-	session := h.vim
-	session.jump = nil
-	session.host.SetCursor(target)
+	h.vim.jump = nil
 
-	h.followVimCursor()
-	h.redrawFrame(h.vimFrame(), "update vim overlay")
+	for _, key := range append(vimCountKeys(target+1), "g", "o") {
+		if !h.feedVim(key) {
+			return
+		}
+	}
+
+	h.vimCursorMoved()
 }
 
 // vimScrollKey is how a scroll key scrolls the app: which way, how far as a

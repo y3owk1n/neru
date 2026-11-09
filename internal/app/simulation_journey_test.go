@@ -4875,7 +4875,8 @@ func TestSimulation_VimSaysWhenAnAccurateReadIsSlow(t *testing.T) {
 // TestSimulation_VimJumpByLabel covers s. It takes any number of
 // characters, labels each match over the character after it, and a label
 // jumps there. Return jumps to the nearest match, and Backspace takes back a
-// character.
+// character. The machine makes the move, as it does for j, so j and k
+// after a jump keep the jump's column.
 func TestSimulation_VimJumpByLabel(t *testing.T) {
 	sim := vimHarness(t, map[string]image.Rectangle{
 		vimWordFile: image.Rect(100, 100, 160, 130),
@@ -4907,6 +4908,13 @@ func TestSimulation_VimJumpByLabel(t *testing.T) {
 	})
 	sim.press("Escape")
 
+	// k leaves the machine remembering the first column, which the jump
+	// below has to replace.
+	sim.press("k")
+	vimFrameShows(sim, "cursor on the F of File", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 100, 115, 130)
+	})
+
 	sim.press("s", "i", "t", "x", "Backspace")
 	vimFrameShows(sim, "a label on each it", func(f ports.VimFrame) bool {
 		return len(f.Labels) == 2 && len(f.Matches) == 2
@@ -4920,6 +4928,16 @@ func TestSimulation_VimJumpByLabel(t *testing.T) {
 	}
 
 	vimFrameShows(sim, "cursor on the i of Edit", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(230, 100, 245, 130)
+	})
+
+	sim.press("j")
+	vimFrameShows(sim, "cursor on the t of Exit, a shorter line", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(145, 200, 160, 230)
+	})
+
+	sim.press("k")
+	vimFrameShows(sim, "cursor back on the i of Edit", func(f ports.VimFrame) bool {
 		return f.Cursor == image.Rect(230, 100, 245, 130)
 	})
 }
