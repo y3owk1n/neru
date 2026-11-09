@@ -262,6 +262,67 @@ func runHelper(ctx context.Context, executable, arg string, request io.Reader) (
 	return out.data, nil
 }
 
+// prepareTimeout bounds the sample read that compiles Vision's models, which
+// took 56 seconds on an M5 with nothing compiled.
+const prepareTimeout = 3 * time.Minute
+
+// accurateReadPreparation is readTextSample when accurate reads run in the
+// helper, and nil when they run here, as in tests.
+func (a *Adapter) accurateReadPreparation() func() error {
+	if a.linesHelper == "" {
+		return nil
+	}
+
+	return a.readTextSample
+}
+
+// readTextSample has the helper read the text sample through the request
+// every accurate read makes, so Vision compiles its models for this read
+// rather than a later one.
+func (a *Adapter) readTextSample() error {
+	executable, err := os.Executable()
+	if err != nil {
+		return derrors.Wrap(
+			err,
+			derrors.CodeInternal,
+			"failed to find the executable to read text with",
+		)
+	}
+
+	img, err := textSample()
+	if err != nil {
+		return err
+	}
+
+	request, err := encodeLinesRequest(img, img.Rect, prepareTimeout.Milliseconds(), "")
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), prepareTimeout+helperWaitDelay)
+	defer cancel()
+
+	_, err = runHelper(ctx, executable, a.linesHelper, request)
+
+	return err
+}
+
+// textSample draws the lines readTextSample reads.
+func textSample() (*image.RGBA, error) {
+	sample := C.NeruTextSampleImage()
+	if uintptr(sample) == 0 {
+		return nil, derrors.New(
+			derrors.CodeActionFailed,
+			"failed to draw the text recognition sample",
+		)
+	}
+
+	img, err := cgImageToRGBA(sample)
+	C.CGImageRelease(sample)
+
+	return img, err
+}
+
 // encodeLinesRequest writes the request for img, showing the global rect
 // shows, in points, to be read within timeoutMS.
 func encodeLinesRequest(

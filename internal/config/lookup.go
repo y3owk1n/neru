@@ -1,9 +1,28 @@
 package config
 
 import (
+	"errors"
 	"math/bits"
 	"strings"
 )
+
+// errModeBound stops BindsMode's walk at the first binding it finds.
+var errModeBound = errors.New("mode bound")
+
+// BindsMode reports whether any action the configuration can dispatch opens
+// the mode named modeName: a global or per-mode binding, a per-app override of
+// one, a hook or a macro body.
+func (c *Config) BindsMode(modeName string) bool {
+	err := c.eachBindingAction(func(_, actionStr string) error {
+		if fields := strings.Fields(actionStr); len(fields) > 0 && fields[0] == modeName {
+			return errModeBound
+		}
+
+		return nil
+	})
+
+	return errors.Is(err, errModeBound)
+}
 
 // HotkeysForModeAndApp returns the effective per-mode hotkeys map for the given mode
 // and focused app bundle ID. For modes without app-specific overrides, it returns the

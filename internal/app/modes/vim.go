@@ -25,9 +25,8 @@ import (
 )
 
 const (
-	// vimRefineTimeout bounds the accurate read that follows an activation.
-	// One that meets a script for the first time compiles its model, which
-	// takes seconds.
+	// vimRefineTimeout bounds the accurate read that follows an activation,
+	// counted from once the vision port has prepared it.
 	vimRefineTimeout = 30 * time.Second
 	// vimSettleDelay is how long the app gets to redraw after vim mode acted
 	// on it, before the screen is read again.
@@ -36,10 +35,11 @@ const (
 	vimHalf = 2
 )
 
-// vimSlowRead is how long an accurate read runs before the overlay says it is
-// slow. A warm one takes well under a second. A variable so tests need not
-// wait it out.
-var vimSlowRead = 1500 * time.Millisecond
+// vimRefineLetFinish is how long an accurate read runs before a newer screen
+// stops canceling it. A warm read takes well under a second. One running
+// longer is allowed to finish, so a screen that never stops changing still
+// gets an accurate read.
+const vimRefineLetFinish = 1500 * time.Millisecond
 
 // vimSession is an open vim mode: the text read off the screen, the machine
 // moving a cursor over it, and what the activation asked for.
@@ -89,10 +89,10 @@ type vimSession struct {
 	refined    *screentext.Text
 	fastLines  [][]ports.TextPiece
 	// refining is an accurate read in flight. One runs at a time, and a read
-	// asked for meanwhile waits for it. slowRead is set once it has taken
-	// longer than vimSlowRead, for the overlay to say why.
-	refining bool
-	slowRead bool
+	// asked for meanwhile waits for it. preparing is set while it waits for
+	// the vision port to prepare accurate reads, and the overlay says so.
+	refining  bool
+	preparing bool
 	// refineCancel stops the accurate read in flight, which began at
 	// refineStarted.
 	refineCancel  context.CancelFunc
@@ -364,24 +364,47 @@ func (h *handlerState) startRefine() {
 	vision, parent, outer := h.vision, h.ctx, h.outer
 	generation, region, fastLines := session.generation, session.region, session.fastLines
 
-	ctx, cancel := context.WithTimeout(parent, vimRefineTimeout)
+	ctx, cancel := context.WithCancel(parent)
 	session.refineCancel = cancel
 
-	// A read still going after vimSlowRead is most likely compiling the
-	// model for a script it has not met before, so the overlay says so.
-	time.AfterFunc(vimSlowRead, func() { outer.markVimReadSlow(session, generation) })
+	ready := vision.PrepareAccurateRead()
+	select {
+	case <-ready:
+		session.preparing = false
+	default:
+		session.preparing = true
+
+		h.redrawFrame(h.vimFrame(), "update vim overlay")
+	}
+
+	waits := session.preparing
 
 	go func() {
 		defer cancel()
 
+		select {
+		case <-ready:
+		case <-ctx.Done():
+			outer.applyVimRefine(session, generation, region, nil, nil, ctx.Err())
+
+			return
+		}
+
+		if waits {
+			outer.endVimRefineWait(session, generation)
+		}
+
+		readCtx, stop := context.WithTimeout(ctx, vimRefineTimeout)
+		defer stop()
+
 		lines, err := fastLines, error(nil)
 		if vision.AccurateReadDiffers() {
-			lines, err = vision.ReadLines(ctx, region, ports.TextAccurate)
+			lines, err = vision.ReadLines(readCtx, region, ports.TextAccurate)
 		}
 
 		// Icons have no text, so the segment detector finds them in the same
 		// region. When it fails, the text is kept without icons.
-		icons, iconErr := vision.DetectSegmentsAsRead(ctx, region, vimIconTargets)
+		icons, iconErr := vision.DetectSegmentsAsRead(readCtx, region, vimIconTargets)
 		if iconErr != nil {
 			icons = nil
 		}
@@ -391,28 +414,31 @@ func (h *handlerState) startRefine() {
 }
 
 // cancelYoungRefine stops the accurate read in flight, for a screen that has
-// since changed, unless it has run past vimSlowRead. One that long is most
-// likely compiling a model for a new script, and stopping it would start the
-// compile over on the next read. Canceling stops a tesseract, Windows OCR or
-// macOS Vision recognition, the macOS helper process and the icon pass.
+// since changed, while it is still waiting for the vision port to prepare or
+// has run less than vimRefineLetFinish. Canceling the wait leaves the
+// preparation running. Canceling stops a tesseract, Windows OCR or macOS
+// Vision recognition, the macOS helper process and the icon pass.
 func (h *handlerState) cancelYoungRefine() {
 	session := h.vim
-	if session.refining && time.Since(session.refineStarted) < vimSlowRead {
+	if session.refining &&
+		(session.preparing || time.Since(session.refineStarted) < vimRefineLetFinish) {
 		session.refineCancel()
 	}
 }
 
-// markVimReadSlow shows the slow read notice for the session's accurate read
-// of generation, when it has not landed yet.
-func (h *Handler) markVimReadSlow(session *vimSession, generation uint64) {
+// endVimRefineWait takes the notice down once the session's accurate read of
+// generation has stopped waiting for the vision port, and restarts the read's
+// age, so cancelYoungRefine judges it by how long it has been reading.
+func (h *Handler) endVimRefineWait(session *vimSession, generation uint64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.vim != session || session.generation != generation || !session.reading {
+	if h.vim != session || session.generation != generation || !session.preparing {
 		return
 	}
 
-	session.slowRead = true
+	session.preparing = false
+	session.refineStarted = time.Now()
 
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
 }
@@ -436,7 +462,7 @@ func (h *Handler) applyVimRefine(
 		return
 	}
 
-	session.refining, session.refineCancel = false, nil
+	session.refining, session.preparing, session.refineCancel = false, false, nil
 
 	if session.generation != generation {
 		if !session.stale {
@@ -446,7 +472,7 @@ func (h *Handler) applyVimRefine(
 		return
 	}
 
-	session.reading, session.slowRead = false, false
+	session.reading = false
 
 	if err != nil {
 		h.logger.Debug("Accurate vim read failed", zap.Error(err))
@@ -1094,8 +1120,8 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 		}
 	}
 
-	if session.reading && session.slowRead {
-		frame.Notice = vimSlowReadNotice
+	if session.reading && session.preparing {
+		frame.Notice = vimPreparingNotice
 	}
 
 	frame.Selection = append(frame.Selection, session.flash...)
@@ -1168,10 +1194,12 @@ func moveVimFrame(frame *ports.VimFrame, offset image.Point, region image.Rectan
 	frame.Labels = labels
 }
 
-// vimSlowReadNotice is what the overlay says while an accurate read takes
-// long, which on macOS is a model compiling for a script met the first time.
-const vimSlowReadNotice = "Preparing text recognition\n" +
-	"First time for this language, up to 15 seconds. Moving around works meanwhile."
+// vimPreparingNotice is what the overlay says while the accurate read waits
+// for the vision port to prepare it, which on macOS is Vision compiling its
+// models after an install or a macOS update.
+const vimPreparingNotice = "Preparing text recognition\n" +
+	"Happens once after an install or a macOS update and takes about a minute. " +
+	"Moving around works meanwhile."
 
 // lineSegments splits [start, end) at line breaks.
 func lineSegments(text *screentext.Text, start, end int) [][2]int {

@@ -86,13 +86,24 @@ type VisionPort interface {
 	// screen content and must never be logged.
 	ReadText(ctx context.Context, rect image.Rectangle) (string, error)
 
+	// PrepareAccurateRead starts, the first time it is called, whatever makes
+	// the first ReadLines at TextAccurate as fast as the ones after it, and
+	// returns a channel closed once that is done. It never blocks. On macOS,
+	// Vision compiles its recognition models the first time an app reads
+	// with them after an install or a macOS update, which takes up to a
+	// minute, so there the adapter reads a sample of every script Vision
+	// reads. An accurate read started before the channel
+	// closes would compile the same models a second time, so callers wait
+	// for it first. Where nothing compiles, the channel comes back closed.
+	PrepareAccurateRead() <-chan struct{}
+
 	// ReadLines captures region, in global coordinates, and returns its text
 	// a line at a time, top to bottom, each line's whitespace-separated words
 	// with their bounds. An accurate read spells small text right where a
-	// fast one misreads it, and its first use loads a model that can take
-	// seconds, during which other reads in the process wait. The caller
-	// bounds the read with ctx. The text is screen content and must never be
-	// logged. Platforms without it report CodeNotSupported, for any region.
+	// fast one misreads it, and on macOS its first use compiles a model, which
+	// PrepareAccurateRead does ahead of time. The caller bounds the read with
+	// ctx. The text is screen content and must never be logged. Platforms
+	// without it report CodeNotSupported, for any region.
 	// An empty region captures nothing, so it asks whether lines can be read
 	// at all: CodeNotSupported where they cannot, CodeInvalidInput where they
 	// can.

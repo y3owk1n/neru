@@ -444,3 +444,7 @@ func (a *Adapter) readFrameLines(
 
 	return lines, nil
 }
+
+// accurateReadPreparation is nil. Windows.Media.Ocr compiles nothing on first use, so
+// there is nothing to prepare.
+func (a *Adapter) accurateReadPreparation() func() error { return nil }

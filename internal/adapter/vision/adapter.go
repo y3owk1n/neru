@@ -1,6 +1,9 @@
 package vision
 
 import (
+	"sync/atomic"
+	"time"
+
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/ports"
@@ -22,6 +25,9 @@ type Adapter struct {
 	// lastRead is the last fast line read, which ReadLinesOnceChanged waits
 	// for the screen to change from.
 	lastRead lastRead
+	// accurateReady is the channel PrepareAccurateRead returns, set by its
+	// first call.
+	accurateReady atomic.Pointer[chan struct{}]
 }
 
 // Option configures an Adapter.
@@ -55,3 +61,48 @@ var _ ports.VisionPort = (*Adapter)(nil)
 
 // ForgetLastRead implements ports.VisionPort.
 func (a *Adapter) ForgetLastRead() { a.lastRead.forget() }
+
+// PrepareAccurateRead implements ports.VisionPort. The first call starts the
+// platform's preparation (accurateReadPreparation) on a goroutine of its own,
+// and every call returns the channel it closes. A platform with nothing to
+// prepare gets a closed channel back from the first call on.
+func (a *Adapter) PrepareAccurateRead() <-chan struct{} {
+	if ready := a.accurateReady.Load(); ready != nil {
+		return *ready
+	}
+
+	prepare := a.accurateReadPreparation()
+
+	ready := make(chan struct{})
+	if prepare == nil {
+		close(ready)
+	}
+
+	if !a.accurateReady.CompareAndSwap(nil, &ready) {
+		return *a.accurateReady.Load()
+	}
+
+	if prepare != nil {
+		go a.prepareAccurateRead(ready, prepare)
+	}
+
+	return ready
+}
+
+// prepareAccurateRead runs prepare and closes ready. A preparation that
+// fails leaves the first accurate read to compile what it needs, as it would
+// with none.
+func (a *Adapter) prepareAccurateRead(ready chan struct{}, prepare func() error) {
+	defer close(ready)
+
+	started := time.Now()
+
+	err := prepare()
+	if err != nil {
+		a.logger.Warn("Failed to prepare text recognition", zap.Error(err))
+
+		return
+	}
+
+	a.logger.Debug("Prepared text recognition", zap.Duration("duration", time.Since(started)))
+}

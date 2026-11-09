@@ -391,7 +391,14 @@ binary, started with the hidden `read-text-lines` command for each read, and
 the daemon sends it the captured pixels through a pipe. The first time Vision
 meets a script, it compiles a model for it, which takes seconds, and every
 other read in the process waits for the compile. So the daemon itself runs
-only fast reads.
+only fast reads. Vision keeps what it compiled in a cache keyed by the app's
+bundle ID, or its executable's name, and the macOS build, so the compile comes
+back after an install, a macOS update or a renamed binary, not after a
+rebuild. The vision adapter has the helper read a sample of Latin, Arabic,
+Devanagari and Chinese text, which compiles all of it. That starts at launch
+when the configuration can open vim mode, and otherwise at the first vim
+session, and vim mode's accurate reads wait for it rather than compile the
+same models in a second process.
 
 Everything else is the same on all three, including label placement, the
 search badge, label sizing, virtual pointer indicators, transition animations,

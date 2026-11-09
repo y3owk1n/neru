@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"unicode"
 )
 
 // TestServeTextLines_ReadsTheRequestedImage pins the helper the daemon reads
@@ -141,6 +142,57 @@ func TestServeTextLines_ReadsAWideWordInALatinLine(t *testing.T) {
 			func(line string) bool { return strings.Contains(line, want) },
 		) {
 			t.Errorf("no line read has %q: %q", want, read)
+		}
+	}
+}
+
+// TestReadTextSample_ReadsEveryScriptWithAModelOfItsOwn pins the sample the
+// daemon reads to have Vision compile its models before the first vim
+// session. Arabic and Devanagari each have a model compiled only once a read
+// meets them, so a sample that drew either as missing glyphs would leave its
+// compile to a later read.
+func TestReadTextSample_ReadsEveryScriptWithAModelOfItsOwn(t *testing.T) {
+	img, err := textSample()
+	if err != nil {
+		t.Fatalf("draw the sample: %v", err)
+	}
+
+	request, err := encodeLinesRequest(img, img.Rect, prepareTimeout.Milliseconds(), "")
+	if err != nil {
+		t.Fatalf("encode the request: %v", err)
+	}
+
+	var out bytes.Buffer
+
+	err = ServeTextLines(context.Background(), request, &out)
+	if err != nil {
+		t.Fatalf("serve the request: %v", err)
+	}
+
+	var pieces []linePiece
+
+	err = json.Unmarshal(out.Bytes(), &pieces)
+	if err != nil {
+		t.Fatalf("the answer is not JSON pieces: %v", err)
+	}
+
+	for _, script := range []struct {
+		name  string
+		table *unicode.RangeTable
+	}{
+		{"Latin", unicode.Latin},
+		{"Arabic", unicode.Arabic},
+		{"Devanagari", unicode.Devanagari},
+		{"Han", unicode.Han},
+	} {
+		found := slices.ContainsFunc(pieces, func(piece linePiece) bool {
+			return strings.ContainsFunc(
+				piece.Text,
+				func(r rune) bool { return unicode.Is(script.table, r) },
+			)
+		})
+		if !found {
+			t.Errorf("the sample read no %s text", script.name)
 		}
 	}
 }

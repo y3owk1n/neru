@@ -5293,12 +5293,138 @@ func TestSimulation_VimDropsAnAccurateReadFromAClosedSession(t *testing.T) {
 	})
 }
 
-// TestSimulation_VimSaysWhenAnAccurateReadIsSlow covers an accurate read that
-// takes long, which on macOS is a model compiling for a script met the first
-// time. Past a second and a half a card says so, and it goes once the read
-// lands.
-func TestSimulation_VimSaysWhenAnAccurateReadIsSlow(t *testing.T) {
+// TestSimulation_VimPreparesTextRecognitionWhenBound covers a configuration
+// that binds vim mode. The vision port prepares accurate reads as the daemon
+// starts, before any activation, so on macOS the first session after an
+// install or an update does not wait on Vision compiling its models. One that
+// never opens vim mode prepares nothing.
+func TestSimulation_VimPreparesTextRecognitionWhenBound(t *testing.T) {
+	bound := vimHarness(t, nil)
+	if n := bound.vision.PrepareCallCount(); n != 1 {
+		t.Fatalf("a config binding vim prepared accurate reads %d times at start, want 1", n)
+	}
+
+	unbound := newSimHarness(t, simConfig(), nil)
+	if n := unbound.vision.PrepareCallCount(); n != 0 {
+		t.Fatalf(
+			"a config that never opens vim prepared accurate reads %d times at start, want 0",
+			n,
+		)
+	}
+}
+
+// TestSimulation_VimSaysWhileTextRecognitionPrepares covers an activation
+// before the vision port has prepared accurate reads, which on macOS is
+// Vision compiling its models. A card says so, the accurate read waits for
+// the preparation rather than compiling a second time, and the card goes the
+// moment the preparation ends, while that read is still running.
+func TestSimulation_VimSaysWhileTextRecognitionPrepares(t *testing.T) {
 	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	var accurate atomic.Int32
+
+	release := make(chan struct{})
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextAccurate {
+			accurate.Add(1)
+
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+
+		return read(ctx, region, level)
+	}
+
+	preparing := make(chan struct{})
+	sim.vision.Preparing = preparing
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+	vimFrameShows(sim, "the preparation said on screen", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Notice, "Preparing text recognition")
+	})
+
+	if n := accurate.Load(); n != 0 {
+		t.Fatalf("%d accurate reads started before text recognition was prepared", n)
+	}
+
+	close(preparing)
+	vimFrameShows(sim, "the notice gone while the read runs", func(f ports.VimFrame) bool {
+		return f.Notice == "" && strings.Contains(f.Status, "reading")
+	})
+
+	close(release)
+	vimFrameShows(sim, "the read landed", func(f ports.VimFrame) bool {
+		return !strings.Contains(f.Status, "reading")
+	})
+
+	if n := accurate.Load(); n != 1 {
+		t.Fatalf("got %d accurate reads once text recognition was prepared, want 1", n)
+	}
+}
+
+// TestSimulation_VimScrollWhilePreparingReadsOnlyTheNewScreen covers a scroll
+// while the accurate read waits for the vision port to prepare. The wait is
+// canceled without reading, the read of the scrolled screen waits in its
+// place, and once the preparation ends only that one reads.
+func TestSimulation_VimScrollWhilePreparingReadsOnlyTheNewScreen(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	var accurate atomic.Int32
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level == ports.TextAccurate {
+			accurate.Add(1)
+		}
+
+		return read(ctx, region, level)
+	}
+
+	preparing := make(chan struct{})
+	sim.vision.Preparing = preparing
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	asked := sim.vision.PrepareCallCount()
+
+	sim.press("Ctrl+d")
+	sim.waitFor("the scrolled screen's read waiting on the preparation", func() bool {
+		return sim.vision.PrepareCallCount() > asked
+	})
+	vimFrameShows(sim, "the preparation still said on screen", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Notice, "Preparing text recognition")
+	})
+
+	close(preparing)
+	vimFrameShows(sim, "the read landed", func(f ports.VimFrame) bool {
+		return f.Notice == "" && !strings.Contains(f.Status, "reading")
+	})
+	time.Sleep(vimScrollGapForTest)
+
+	if n := accurate.Load(); n != 1 {
+		t.Fatalf("got %d accurate reads, want only the scrolled screen's", n)
+	}
+}
+
+// TestSimulation_VimSaysNothingOfASlowAccurateRead covers an accurate read
+// that takes long with text recognition already prepared, as on a busy
+// machine. Nothing is compiling, so no card claims anything, however long
+// the read takes.
+func TestSimulation_VimSaysNothingOfASlowAccurateRead(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	var accurate atomic.Int32
 
 	release := make(chan struct{})
 
@@ -5306,6 +5432,8 @@ func TestSimulation_VimSaysWhenAnAccurateReadIsSlow(t *testing.T) {
 		ctx context.Context, _ image.Rectangle, level ports.TextLevel,
 	) ([][]ports.TextPiece, error) {
 		if level == ports.TextAccurate {
+			accurate.Add(1)
+
 			select {
 			case <-release:
 			case <-ctx.Done():
@@ -5320,15 +5448,23 @@ func TestSimulation_VimSaysWhenAnAccurateReadIsSlow(t *testing.T) {
 
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
-	vimFrameShows(sim, "the slow read said on screen", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Notice, "Preparing text recognition")
-	})
+	sim.waitFor("the accurate read started", func() bool { return accurate.Load() == 1 })
+	time.Sleep(vimSlowReadForTest)
+
+	frame, ok := sim.overlay.lastVimFrame()
+	if !ok || frame.Notice != "" {
+		t.Fatalf("a slow accurate read with nothing compiling showed the notice %q", frame.Notice)
+	}
 
 	close(release)
-	vimFrameShows(sim, "the notice gone once the read lands", func(f ports.VimFrame) bool {
-		return f.Notice == "" && !strings.Contains(f.Status, "reading")
+	vimFrameShows(sim, "the read landed", func(f ports.VimFrame) bool {
+		return !strings.Contains(f.Status, "reading")
 	})
 }
+
+// vimSlowReadForTest outlasts how long vim mode lets an accurate read run
+// before a newer screen stops canceling it (vimRefineLetFinish).
+const vimSlowReadForTest = 1600 * time.Millisecond
 
 // TestSimulation_VimJumpByLabel covers s. It takes any number of
 // characters, labels each match over the character after it, and a label
@@ -5934,9 +6070,9 @@ func TestSimulation_VimCancelsAnAccurateReadOfAScreenScrolledAway(t *testing.T) 
 	})
 }
 
-// TestSimulation_VimLetsASlowAccurateReadFinish covers an accurate read past
-// the point the overlay calls it slow, which on macOS is a model compiling
-// for a new script. Canceling it would start the compile over, so a scroll
+// TestSimulation_VimLetsASlowAccurateReadFinish covers an accurate read that
+// has run past the point a newer screen cancels one. A screen that never stops
+// changing would otherwise cancel every read before it lands, so a scroll
 // leaves it running, and the read for the scrolled screen follows it.
 func TestSimulation_VimLetsASlowAccurateReadFinish(t *testing.T) {
 	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
@@ -5964,15 +6100,14 @@ func TestSimulation_VimLetsASlowAccurateReadFinish(t *testing.T) {
 
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
-	vimFrameShows(sim, "the slow read said on screen", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Notice, "Preparing text recognition")
-	})
+	sim.waitFor("the accurate read started", func() bool { return accurate.Load() == 1 })
+	time.Sleep(vimSlowReadForTest)
 
 	sim.press("Ctrl+d")
 	time.Sleep(vimScrollGapForTest)
 
 	if n := canceled.Load(); n != 0 {
-		t.Fatal("a scroll canceled an accurate read past the slow mark")
+		t.Fatal("a scroll canceled an accurate read past the point it is let finish")
 	}
 
 	close(release)

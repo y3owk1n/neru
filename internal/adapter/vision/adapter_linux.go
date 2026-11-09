@@ -490,3 +490,7 @@ func readLinePieces(
 
 	return piecesFromSymbols(symbols, img, region), stats, nil
 }
+
+// accurateReadPreparation is nil. tesseract compiles nothing on first use, so
+// there is nothing to prepare.
+func (a *Adapter) accurateReadPreparation() func() error { return nil }

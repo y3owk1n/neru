@@ -69,6 +69,12 @@ NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t t
 NeruTextResult *NeruReadImageLines(
     CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS, const int *cancel);
 
+// Draws a line each of Latin, Arabic, Devanagari and Chinese text, black on
+// white. Reading it accurately has Vision compile every recognition model a
+// later read can need. Returns NULL when it cannot draw. Caller releases the
+// image.
+CF_RETURNS_RETAINED CGImageRef NeruTextSampleImage(void);
+
 // NeruCancelRead sets flag, which stops the NeruReadImageLines it was passed to.
 void NeruCancelRead(int *flag);
 

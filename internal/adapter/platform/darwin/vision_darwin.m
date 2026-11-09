@@ -1,6 +1,7 @@
 #import "vision.h"
 
 #import <CoreGraphics/CoreGraphics.h>
+#import <CoreText/CoreText.h>
 #import <Foundation/Foundation.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import <Vision/Vision.h>
@@ -1372,6 +1373,52 @@ NeruTextResult *NeruReadImageLines(
 	NSString *override = language && language[0] ? [NSString stringWithUTF8String:language] : nil;
 	return readLines(
 	    image, bounds, accurate, override, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC), cancel);
+}
+
+CGImageRef NeruTextSampleImage(void) {
+	@autoreleasepool {
+		// One line per model Vision compiles on first use. Latin text also
+		// brings in the models Cyrillic, Thai, Chinese, Japanese and Korean
+		// read with, and Arabic and Devanagari each have one of their own.
+		NSArray<NSString *> *lines = @[ @"Neru reads text", @"مرحبا بالعالم", @"नमस्ते दुनिया", @"你好世界" ];
+		const size_t width = 900, lineHeight = 90, height = lineHeight * lines.count;
+		CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+		CGContextRef context =
+		    CGBitmapContextCreate(NULL, width, height, 8, 0, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+		CGColorSpaceRelease(space);
+		if (!context)
+			return NULL;
+
+		CGContextSetRGBFillColor(context, 1, 1, 1, 1);
+		CGContextFillRect(context, CGRectMake(0, 0, width, height));
+
+		// CoreText falls back to a font that has each script's glyphs.
+		CTFontRef font = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, 48, NULL);
+		if (!font) {
+			CGContextRelease(context);
+			return NULL;
+		}
+		CGColorRef black = CGColorCreateGenericGray(0, 1);
+		NSDictionary *attributes = @{
+			(__bridge NSString *)kCTFontAttributeName : (__bridge id)font,
+			(__bridge NSString *)kCTForegroundColorAttributeName : (__bridge id)black,
+		};
+		for (NSUInteger index = 0; index < lines.count; index++) {
+			NSAttributedString *text = [[NSAttributedString alloc] initWithString:lines[index] attributes:attributes];
+			CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)text);
+			// The context's origin is its bottom left, so the first line is
+			// drawn highest.
+			CGContextSetTextPosition(context, 20, (CGFloat)(height - (index + 1) * lineHeight + 25));
+			CTLineDraw(line, context);
+			CFRelease(line);
+		}
+		CGColorRelease(black);
+		CFRelease(font);
+
+		CGImageRef image = CGBitmapContextCreateImage(context);
+		CGContextRelease(context);
+		return image;
+	}
 }
 
 int NeruImagesEqual(CGImageRef first, CGImageRef second) {

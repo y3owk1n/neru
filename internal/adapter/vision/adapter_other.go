@@ -108,3 +108,7 @@ func (a *Adapter) ReadLines(
 ) ([][]ports.TextPiece, error) {
 	return nil, derrors.New(derrors.CodeNotSupported, "reading lines is only supported on macOS")
 }
+
+// accurateReadPreparation is nil. This slot reads nothing, so there is
+// nothing to prepare.
+func (a *Adapter) accurateReadPreparation() func() error { return nil }

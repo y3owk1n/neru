@@ -33,12 +33,16 @@ type MockVisionPort struct {
 	// AccurateReadSame makes AccurateReadDiffers answer false. The zero value
 	// has the accurate read differ, as on macOS.
 	AccurateReadSame bool
+	// Preparing is what PrepareAccurateRead returns. Nil has it return a
+	// closed channel, as where nothing compiles.
+	Preparing chan struct{}
 
 	mu       sync.Mutex
 	detectN  int
 	captureN int
 	contourN int
 	segmentN int
+	prepareN int
 }
 
 // Health implements ports.VisionPort.
@@ -176,6 +180,32 @@ func (m *MockVisionPort) ReadLinesOnceChanged(
 
 // AccurateReadDiffers implements ports.VisionPort.
 func (m *MockVisionPort) AccurateReadDiffers() bool { return !m.AccurateReadSame }
+
+// PrepareAccurateRead implements ports.VisionPort. It returns Preparing, or
+// a closed channel when that is nil.
+func (m *MockVisionPort) PrepareAccurateRead() <-chan struct{} {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.prepareN++
+
+	if m.Preparing != nil {
+		return m.Preparing
+	}
+
+	prepared := make(chan struct{})
+	close(prepared)
+
+	return prepared
+}
+
+// PrepareCallCount reports how many times PrepareAccurateRead was called.
+func (m *MockVisionPort) PrepareCallCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.prepareN
+}
 
 // ForgetLastRead implements ports.VisionPort. It remembers nothing to forget.
 func (m *MockVisionPort) ForgetLastRead() {}

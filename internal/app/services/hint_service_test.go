@@ -968,6 +968,13 @@ func (m *mockVisionPort) AccurateReadDiffers() bool { return true }
 
 func (m *mockVisionPort) ForgetLastRead() {}
 
+func (m *mockVisionPort) PrepareAccurateRead() <-chan struct{} {
+	prepared := make(chan struct{})
+	close(prepared)
+
+	return prepared
+}
+
 func (m *mockVisionPort) ReadLinesOnceChanged(
 	ctx context.Context, region image.Rectangle,
 ) ([][]ports.TextPiece, error) {
