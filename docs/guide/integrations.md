@@ -102,7 +102,7 @@ after the command name.
 go get github.com/y3owk1n/neru/client
 ```
 
-It needs Go 1.26.5, the version Neru's `go.mod` declares, and a daemon from
+It needs Go 1.27, the version Neru's `go.mod` declares, and a daemon from
 the release that added the package or later. An older daemon refuses its
 requests.
 

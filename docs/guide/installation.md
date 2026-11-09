@@ -232,7 +232,7 @@ Service options per module:
 
 | Platform | Needs                                                                                               |
 | :------- | :-------------------------------------------------------------------------------------------------- |
-| All      | Go 1.26+ and [just](https://github.com/casey/just)                                                  |
+| All      | Go 1.27+ and [just](https://github.com/casey/just)                                                  |
 | macOS    | Xcode Command Line Tools (`xcode-select --install`) for the Objective-C bridge                      |
 | Linux    | A C compiler and the `-dev`/`-devel` packages the CGO build links against, listed in [Development setup](../contributing/development.md#development-setup) |
 | Windows  | Git for Windows, whose `sh` runs the `just` recipes. The build has CGO off, so no C compiler        |
