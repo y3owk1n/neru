@@ -295,6 +295,160 @@ func columns() []screentext.Word {
 	}
 }
 
+// row is words of reader line line, each ten pixels a character, starting
+// at the x positions given, on the top row.
+func row(line int, xs ...int) []screentext.Word {
+	words := make([]screentext.Word, 0, len(xs))
+	for _, x := range xs {
+		words = append(words, screentext.Word{
+			Text: "aa", Bounds: image.Rect(x, 0, x+20, 10), Line: line,
+		})
+	}
+
+	return words
+}
+
+func TestNew_GroupsWordsIntoContainers(t *testing.T) {
+	const page, other = 0xF0F0F0, 0x303030
+
+	word := func(text string, bounds image.Rectangle, background uint32) screentext.Word {
+		return screentext.Word{Text: text, Bounds: bounds, Background: background}
+	}
+
+	tests := []struct {
+		name  string
+		words []screentext.Word
+		want  int
+	}{
+		{
+			name: "a word a paragraph break below and off to the side stays apart",
+			words: []screentext.Word{
+				word("Logo", image.Rect(0, 0, 40, 10), 0),
+				word("Text", image.Rect(50, 25, 90, 35), 0),
+			},
+			want: 2,
+		},
+		{
+			name: "a tall heading joins the text a paragraph break under it",
+			words: []screentext.Word{
+				word("Title", image.Rect(0, 0, 50, 30), 0),
+				word("text", image.Rect(0, 45, 40, 55), 0),
+			},
+			want: 1,
+		},
+		{
+			name: "text a paragraph break above a heading stays apart from it",
+			words: []screentext.Word{
+				word("menu", image.Rect(0, 0, 40, 10), 0),
+				word("Title", image.Rect(0, 20, 50, 50), 0),
+			},
+			want: 2,
+		},
+		{
+			name:  "two evenly spaced lines on one row stay apart across a gutter",
+			words: slices.Concat(row(1, 0, 30, 60, 90), row(2, 140, 170, 200, 230)),
+			want:  2,
+		},
+		{
+			name:  "two short lines on one row join across the same gap",
+			words: slices.Concat(row(1, 0, 30), row(2, 80, 110)),
+			want:  1,
+		},
+		{
+			name: "a line cannot reach past the line under it to a heading",
+			words: []screentext.Word{
+				word("Quote", image.Rect(60, 0, 110, 18), 0),
+				word("middleline", image.Rect(60, 22, 200, 38), 0),
+				word("Title", image.Rect(0, 60, 90, 87), 0),
+			},
+			want: 2,
+		},
+		{
+			name: "the end of an evenly spaced line does not step down across a gutter",
+			words: slices.Concat(row(1, 0, 25, 50, 75), []screentext.Word{
+				{Text: "aa", Bounds: image.Rect(125, 12, 145, 22), Line: 2},
+				{Text: "aa", Bounds: image.Rect(150, 12, 170, 22), Line: 2},
+			}),
+			want: 2,
+		},
+		{
+			name: "two blocks whose corners touch a paragraph break apart stay apart",
+			words: []screentext.Word{
+				word("upper", image.Rect(100, 0, 150, 18), 0),
+				word("lowerline", image.Rect(0, 40, 103, 58), 0),
+			},
+			want: 2,
+		},
+		{
+			name: "icons between two blocks do not join them",
+			words: []screentext.Word{
+				word("aaaa", image.Rect(0, 0, 40, 10), 0),
+				screentext.Icon(image.Rect(0, 14, 12, 26)),
+				screentext.Icon(image.Rect(0, 28, 12, 36)),
+				word("bbbb", image.Rect(0, 40, 40, 50), 0),
+			},
+			want: 3,
+		},
+		{
+			name: "an icon joins the label beside it",
+			words: []screentext.Word{
+				screentext.Icon(image.Rect(0, 0, 10, 10)),
+				word("Save", image.Rect(14, 0, 54, 10), 0),
+			},
+			want: 1,
+		},
+		{
+			name: "a word on another background inside a paragraph is part of it",
+			words: []screentext.Word{
+				word("the", image.Rect(0, 0, 30, 10), page),
+				word("code", image.Rect(40, 0, 80, 10), other),
+				word("here", image.Rect(90, 0, 130, 10), page),
+				word("more", image.Rect(0, 12, 40, 22), page),
+				word("words", image.Rect(50, 12, 100, 22), page),
+				word("below", image.Rect(110, 12, 160, 22), page),
+			},
+			want: 1,
+		},
+		{
+			name: "a block on another background barely overlapping stays apart",
+			words: []screentext.Word{
+				word("aaaa", image.Rect(0, 0, 40, 10), page),
+				word("bbbbbbbbbb", image.Rect(0, 12, 100, 22), page),
+				word("cccc", image.Rect(95, 20, 135, 30), other),
+			},
+			want: 2,
+		},
+		{
+			// One and Six are too far apart to join without Two.
+			name: "a list's highlighted item joins the items around it",
+			words: []screentext.Word{
+				word("One", image.Rect(0, 0, 30, 10), page),
+				word("Two", image.Rect(0, 18, 30, 28), other),
+				word("Six", image.Rect(0, 36, 30, 46), page),
+			},
+			want: 1,
+		},
+		{
+			name: "rows striped in two backgrounds are one table",
+			words: []screentext.Word{
+				word("rowa", image.Rect(0, 0, 40, 10), page),
+				word("rowb", image.Rect(0, 18, 40, 28), other),
+				word("rowc", image.Rect(0, 36, 40, 46), page),
+				word("rowd", image.Rect(0, 54, 40, 64), other),
+			},
+			want: 1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := screentext.New(test.words).Containers(); len(got) != test.want {
+				t.Fatalf("%d containers %v, want %d", len(got), got, test.want)
+			}
+		})
+	}
+}
+
 func TestNew_LaysEachContainerOutAsItsOwnBlock(t *testing.T) {
 	got := screentext.New(columns()).String()
 	if want := "Menu\nHome\n\nArticle\nbody\n\nFooter"; got != want {
@@ -384,6 +538,35 @@ func TestHost_CtrlW_MovesBetweenContainers(t *testing.T) {
 				t.Fatalf("cursor at %v, want %v", got, test.point)
 			}
 		})
+	}
+}
+
+func TestHost_CtrlW_ReachesAContainerInsideTheBoundsOfAnother(t *testing.T) {
+	// The line under the left column runs on under the right one, so the
+	// left container's bounds take in the right one's.
+	text := screentext.New([]screentext.Word{
+		{Text: "Left", Bounds: image.Rect(0, 0, 40, 10)},
+		{Text: "item", Bounds: image.Rect(0, 12, 40, 22)},
+		{Text: "more", Bounds: image.Rect(0, 24, 40, 34)},
+		{Text: "Side", Bounds: image.Rect(200, 0, 240, 10)},
+		{Text: "aaaa", Bounds: image.Rect(0, 40, 40, 50)},
+		{Text: "bbbb", Bounds: image.Rect(50, 40, 90, 50)},
+		{Text: "cccc", Bounds: image.Rect(100, 40, 140, 50)},
+		{Text: "dddd", Bounds: image.Rect(150, 40, 190, 50)},
+		{Text: "eeee", Bounds: image.Rect(200, 40, 240, 50)},
+	})
+	host := screentext.NewHost(text, 0, nil)
+	machine := screentext.NewMachine(host)
+
+	for _, key := range vim.Keys("<C-w>l") {
+		err := machine.Feed(key)
+		if err != nil {
+			t.Fatalf("feed %q: %v", key, err)
+		}
+	}
+
+	if got, _ := text.Point(host.Cursor()); got != image.Pt(205, 5) {
+		t.Fatalf("cursor at %v, want on Side at (205,5)", got)
 	}
 }
 

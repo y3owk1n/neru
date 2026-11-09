@@ -652,7 +652,7 @@ func (h *handlerState) applyVimRead(
 func vimWords(lines [][]ports.TextPiece, region image.Rectangle) []screentext.Word {
 	var words []screentext.Word
 
-	for _, line := range lines {
+	for index, line := range lines {
 		var word *screentext.Word
 
 		exact, number := true, -1
@@ -668,7 +668,11 @@ func vimWords(lines [][]ports.TextPiece, region image.Rectangle) []screentext.Wo
 					words = append(words, finishVimWord(*word, exact))
 				}
 
-				word = &screentext.Word{Bounds: piece.Bounds, Background: piece.Background}
+				word = &screentext.Word{
+					Bounds:     piece.Bounds,
+					Background: piece.Background,
+					Line:       index + 1,
+				}
 				exact, number = true, piece.Word
 			}
 

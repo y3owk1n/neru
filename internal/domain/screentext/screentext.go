@@ -41,6 +41,11 @@ type Word struct {
 	Bounds     image.Rectangle
 	Boxes      []image.Rectangle
 	Background uint32
+	// Line is the line the reader read the word on, counted from 1, or 0
+	// when unknown. A reader splits a line at a column's gutter, so words
+	// of two lines on one row join only across a gap their own spacing
+	// allows.
+	Line int
 
 	icon bool
 }

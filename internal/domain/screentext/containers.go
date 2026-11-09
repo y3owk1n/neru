@@ -16,10 +16,27 @@ const (
 	// start where that text does.
 	gutterGapColumns = 2
 	gutterTextLines  = 2
+	// lineSpacings is how many of a line's usual gaps between words one gap
+	// may span to join a word of another line beside or under it, and
+	// spacingWords how many words a line needs for its usual gap to count.
+	lineSpacings = 2
+	spacingWords = 4
 	// containerGapLines is the tallest gap, in the taller word's heights,
 	// between two stacked words of the same container. It spans a paragraph
 	// break, and a wider one is space between blocks.
 	containerGapLines = 2
+	// iconGapColumns is the widest gap, in characters, between an icon and
+	// the text it joins. An icon joins only text beside it on its row, as a
+	// button's icon sits by its label. It has no background to tell it
+	// apart, so a looser rule lets the pattern on a chat's wallpaper join
+	// every bubble.
+	iconGapColumns = 2
+	// headingGrowth limits how much taller a line may be than the line a
+	// paragraph break above it and still join it, by one part in this many,
+	// so 2 allows half again. A taller line is a heading and starts a new
+	// block. The margin leaves room for letters that reach above or below
+	// the line.
+	headingGrowth = 2
 	// backgroundTolerance is how far apart two backgrounds may be, in any
 	// channel, and still be one.
 	backgroundTolerance = 0x18
@@ -29,11 +46,13 @@ const (
 
 // findContainers groups words into containers, in reading order. Two words
 // belong together when they sit on the same background and are near: on one
-// line with a gap no wider than a few characters, or stacked, no further
-// apart side to side than an indent, with a gap no taller than a paragraph
-// break. A line-number gutter is a container of its own, so a line's number
-// is not part of its text. Groups whose bounds overlap are one container,
-// since their text would interleave.
+// row, or on the next line down, with a gap no wider than a few characters,
+// or stacked a paragraph break apart and sharing a character's width side
+// to side. An icon joins only the text beside it on its row. A list's
+// highlighted item joins the items around it. A line-number gutter is a
+// container of its own, so a line's number is not part of its text. A group
+// mostly inside another is one container with it, since their text would
+// interleave.
 func findContainers(words []Word, cell int) [][]Word {
 	gutter := lineNumberGutter(words, cell)
 
@@ -51,14 +70,22 @@ func findContainers(words []Word, cell int) [][]Word {
 		return index
 	}
 
-	for a := range words {
-		for b := a + 1; b < len(words); b++ {
-			if gutter[a] == gutter[b] &&
-				sameBackground(words[a].Background, words[b].Background) &&
-				near(words[a], words[b], cell) {
-				parent[root(a)] = root(b)
+	spacing := lineSpacing(words)
+
+	for first := range words {
+		for second := first + 1; second < len(words); second++ {
+			if gutter[first] == gutter[second] &&
+				sameBackground(words[first].Background, words[second].Background) &&
+				near(words[first], words[second], cell, spacing) &&
+				!wordBetween(words, words[first].Bounds, words[second].Bounds) {
+				parent[root(first)] = root(second)
 			}
 		}
+	}
+
+	for _, run := range highlightedItems(words, gutter, cell) {
+		parent[root(run[0])] = root(run[1])
+		parent[root(run[1])] = root(run[2])
 	}
 
 	byRoot := map[int][]Word{}
@@ -84,7 +111,7 @@ func findContainers(words []Word, cell int) [][]Word {
 		}
 	}
 
-	groups = append(mergeOverlapping(groups), gutters...)
+	groups = append(mergeNested(groups), gutters...)
 
 	slices.SortFunc(groups, func(a, b []Word) int {
 		boundsA, boundsB := boundsOf(a), boundsOf(b)
@@ -189,18 +216,168 @@ func distance(a, b int) int {
 	return max(a-b, b-a)
 }
 
-// near reports whether two words sit close enough to read as one block.
-func near(a, b Word, cell int) bool {
-	boxA, boxB := a.Bounds, b.Bounds
-	overlapY := min(boxA.Max.Y, boxB.Max.Y) - max(boxA.Min.Y, boxB.Min.Y)
-	gapX := max(boxA.Min.X, boxB.Min.X) - min(boxA.Max.X, boxB.Max.X)
-	gapY := -overlapY
+// lineSpacing maps each line the reader read to the median gap between its
+// words, for lines with at least spacingWords words.
+func lineSpacing(words []Word) map[int]int {
+	edges := map[int][][2]int{}
 
-	if overlapY*halfDivisor >= min(boxA.Dy(), boxB.Dy()) {
-		return gapX <= containerGapColumns*cell
+	for _, word := range words {
+		if word.Line > 0 {
+			edges[word.Line] = append(
+				edges[word.Line],
+				[2]int{word.Bounds.Min.X, word.Bounds.Max.X},
+			)
+		}
 	}
 
-	return gapX <= containerGapColumns*cell && gapY <= containerGapLines*max(boxA.Dy(), boxB.Dy())
+	spacing := map[int]int{}
+
+	for line, spans := range edges {
+		if len(spans) < spacingWords {
+			continue
+		}
+
+		slices.SortFunc(spans, func(a, b [2]int) int { return a[0] - b[0] })
+
+		gaps := make([]int, 0, len(spans)-1)
+		for index := 1; index < len(spans); index++ {
+			gaps = append(gaps, spans[index][0]-spans[index-1][1])
+		}
+
+		slices.Sort(gaps)
+		spacing[line] = gaps[len(gaps)/halfDivisor]
+	}
+
+	return spacing
+}
+
+// near reports whether two words sit close enough to read as one block.
+// spacing, when known, narrows how far apart words of two lines may be.
+func near(first, second Word, cell int, spacing map[int]int) bool {
+	boxFirst, boxSecond := first.Bounds, second.Bounds
+	overlapY := min(boxFirst.Max.Y, boxSecond.Max.Y) - max(boxFirst.Min.Y, boxSecond.Min.Y)
+	gapX := max(boxFirst.Min.X, boxSecond.Min.X) - min(boxFirst.Max.X, boxSecond.Max.X)
+	gapY := -overlapY
+
+	shorter := min(boxFirst.Dy(), boxSecond.Dy())
+
+	switch {
+	case first.icon != second.icon:
+		return overlapY*halfDivisor >= shorter && gapX <= iconGapColumns*cell
+	case overlapY*halfDivisor >= shorter:
+		return gapX <= rowGap(first, second, cell, spacing, false)
+	case gapY*halfDivisor <= shorter:
+		return gapX <= rowGap(first, second, cell, spacing, true)
+	default:
+		upper, lower := boxFirst, boxSecond
+		if lower.Min.Y < upper.Min.Y {
+			upper, lower = lower, upper
+		}
+
+		// Corners that touch are not overlap. The words must share a
+		// character's width, or all of the narrower word.
+		overlap := min(cell, upper.Dx(), lower.Dx())
+
+		return gapX <= -overlap && gapY <= containerGapLines*max(upper.Dy(), lower.Dy()) &&
+			lower.Dy()*headingGrowth <= upper.Dy()*(headingGrowth+1)
+	}
+}
+
+// highlightedItems finds a list's highlighted item, a word whose background
+// sets it apart from the items right above and below it, which share one.
+// Each run is the word above, the item and the word below, all starting in
+// the same column. A first or last item has no such run, since a header or
+// footer bar on its own background looks the same.
+func highlightedItems(words []Word, gutter map[int]bool, cell int) [][3]int {
+	var runs [][3]int
+
+	for item := range words {
+		var above, below []int
+
+		for other := range words {
+			if other == item || gutter[other] != gutter[item] ||
+				!leftAligned(words[other].Bounds, words[item].Bounds, cell) ||
+				!near(words[other], words[item], cell, nil) {
+				continue
+			}
+
+			if words[other].Bounds.Max.Y <= words[item].Bounds.Min.Y {
+				above = append(above, other)
+			} else {
+				below = append(below, other)
+			}
+		}
+
+		for _, up := range above {
+			for _, down := range below {
+				if sameBackground(words[up].Background, words[down].Background) &&
+					!sameBackground(words[up].Background, words[item].Background) {
+					runs = append(runs, [3]int{up, item, down})
+				}
+			}
+		}
+	}
+
+	return runs
+}
+
+// wordBetween reports whether a word lies between two stacked words, in the
+// columns both cover. Two lines a line apart join through the one between
+// them or not at all, so a wide line cannot reach past it to a heading.
+func wordBetween(words []Word, first, second image.Rectangle) bool {
+	upper, lower := first, second
+	if lower.Min.Y < upper.Min.Y {
+		upper, lower = lower, upper
+	}
+
+	left, right := max(upper.Min.X, lower.Min.X), min(upper.Max.X, lower.Max.X)
+	if upper.Max.Y > lower.Min.Y || left >= right {
+		return false
+	}
+
+	return slices.ContainsFunc(words, func(word Word) bool {
+		box := word.Bounds
+
+		return box.Min.Y >= upper.Max.Y && box.Max.Y <= lower.Min.Y &&
+			box.Min.X < right && box.Max.X > left
+	})
+}
+
+// rowGap is the widest gap two words on one row, or on lines one under the
+// other, may have between them and join. Words the reader put on two lines
+// join across lineSpacings of the narrower line's spacing at most, so a
+// gutter between two columns of text keeps them apart. On one row, both
+// lines must have a measured spacing, since a line of one or two words,
+// such as a list's number, sits close to the text beside it. For lines one
+// under the other, one measured line is enough, so the end of a line cannot
+// step down across a gutter to a short line of the next column.
+func rowGap(first, second Word, cell int, spacing map[int]int, stacked bool) int {
+	limit := containerGapColumns * cell
+	if first.Line == second.Line {
+		return limit
+	}
+
+	spacingFirst, knownFirst := spacing[first.Line]
+	spacingSecond, knownSecond := spacing[second.Line]
+
+	switch {
+	case knownFirst && knownSecond:
+		return min(limit, lineSpacings*min(spacingFirst, spacingSecond))
+	case stacked && knownFirst:
+		return min(limit, lineSpacings*spacingFirst)
+	case stacked && knownSecond:
+		return min(limit, lineSpacings*spacingSecond)
+	default:
+		return limit
+	}
+}
+
+// leftAligned reports whether two words are stacked and start in the same
+// column.
+func leftAligned(a, b image.Rectangle, cell int) bool {
+	stacked := min(a.Max.Y, b.Max.Y) <= max(a.Min.Y, b.Min.Y)
+
+	return stacked && distance(a.Min.X, b.Min.X)*halfDivisor <= cell
 }
 
 // sameBackground reports whether two backgrounds are one. An unknown one,
@@ -220,14 +397,14 @@ func sameBackground(first, second uint32) bool {
 	return true
 }
 
-// mergeOverlapping joins groups whose bounds overlap until none do.
-func mergeOverlapping(groups [][]Word) [][]Word {
+// mergeNested joins groups until none lies mostly inside another.
+func mergeNested(groups [][]Word) [][]Word {
 	for merged := true; merged; {
 		merged = false
 
 		for a := 0; a < len(groups) && !merged; a++ {
 			for b := a + 1; b < len(groups); b++ {
-				if boundsOf(groups[a]).Overlaps(boundsOf(groups[b])) {
+				if nested(groups[a], groups[b]) {
 					groups[a] = append(groups[a], groups[b]...)
 					groups = slices.Delete(groups, b, b+1)
 					merged = true
@@ -239,6 +416,54 @@ func mergeOverlapping(groups [][]Word) [][]Word {
 	}
 
 	return groups
+}
+
+// nested reports whether the smaller of two groups lies mostly inside the
+// larger and the larger's words surround it, as a paragraph does a word of
+// inline code. A sidebar inside the bounds of a block beside it has none of
+// that block's words on its far side, so it stays apart.
+func nested(first, second []Word) bool {
+	inner, outer := boundsOf(first), boundsOf(second)
+	outerWords := second
+
+	if area(inner) > area(outer) {
+		inner, outer, outerWords = outer, inner, first
+	}
+
+	return mostlyInside(inner, outer) && surrounded(inner, outerWords)
+}
+
+// surrounded reports whether words lie on both sides of bounds, above and
+// below within its columns or left and right within its rows.
+func surrounded(bounds image.Rectangle, words []Word) bool {
+	var above, below, left, right bool
+
+	for _, word := range words {
+		box := word.Bounds
+		columns := box.Min.X < bounds.Max.X && box.Max.X > bounds.Min.X
+		rows := box.Min.Y < bounds.Max.Y && box.Max.Y > bounds.Min.Y
+
+		above = above || columns && box.Max.Y <= bounds.Min.Y
+		below = below || columns && box.Min.Y >= bounds.Max.Y
+		left = left || rows && box.Max.X <= bounds.Min.X
+		right = right || rows && box.Min.X >= bounds.Max.X
+	}
+
+	return above && below || left && right
+}
+
+// area is how many pixels bounds covers.
+func area(bounds image.Rectangle) int { return bounds.Dx() * bounds.Dy() }
+
+// mostlyInside reports whether the smaller of two bounds lies at least half
+// inside the larger.
+func mostlyInside(first, second image.Rectangle) bool {
+	overlap := first.Intersect(second)
+	if overlap.Empty() {
+		return false
+	}
+
+	return area(overlap)*halfDivisor >= min(area(first), area(second))
 }
 
 // boundsOf covers every word of a group.
@@ -292,7 +517,49 @@ func (t *Text) neighbor(from int, key string) (int, bool) {
 		}
 	}
 
-	return 0, false
+	// When bounds overlap, as when a line under one block widens it past
+	// the block beside it, no container lies wholly that way. Then the
+	// nearest one whose center lies that way is next.
+	return t.centerToward(from, key)
+}
+
+// centerToward returns the container nearest from whose center lies the way
+// key points from from's center.
+func (t *Text) centerToward(from int, key string) (int, bool) {
+	centerOf := func(bounds image.Rectangle) image.Point {
+		return bounds.Min.Add(bounds.Size().Div(halfDivisor))
+	}
+
+	origin := centerOf(t.containers[from].Bounds)
+	best, bestDistance := -1, 0
+
+	for index, container := range t.containers {
+		offset := centerOf(container.Bounds).Sub(origin)
+
+		var ahead int
+
+		switch key {
+		case "h":
+			ahead = -offset.X
+		case "l":
+			ahead = offset.X
+		case "k":
+			ahead = -offset.Y
+		default:
+			ahead = offset.Y
+		}
+
+		if index == from || ahead <= 0 {
+			continue
+		}
+
+		distance := offset.X*offset.X + offset.Y*offset.Y
+		if best < 0 || distance < bestDistance {
+			best, bestDistance = index, distance
+		}
+	}
+
+	return best, best >= 0
 }
 
 // facingTolerance is how far a container may reach back over the facing edge
