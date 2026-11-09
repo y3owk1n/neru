@@ -648,15 +648,16 @@ neru vim [flags]
 
 Read the text in the focused window, or the whole screen with
 `--capture-scope screen`, and move a cursor over it with vim's keys. Motions,
-counts, text objects, search, marks, registers, macros and `.` work as in
-vim. Vim mode makes each edit in the app under the cursor, by clicking the
-caret into place, selecting with Shift+Right and typing, then reads the screen
-again.
+counts, text objects, search, registers, macros and `.` work as in vim. Marks
+do not, because every scroll and edit reads the screen again and a mark would
+point at other text. Vim mode makes each edit in the app under the cursor, by
+clicking the caret into place, selecting with Shift+Right and typing, then
+reads the screen again.
 
 | Keys | Does |
 | :--- | :--- |
 | `i`, `a`, `I`, `A`, `o`, `O` | Click the app's caret into place, then type into the app until `Escape` |
-| `c`, `d`, `x`, `s`, `r`, `J` and the rest | Select the text, then erase it or type over it |
+| `c`, `d`, `x`, `r`, `J` and the rest | Select the text, then erase it or type over it |
 | `p`, `P` | Click into place and paste |
 | `u`, `Ctrl+R` | The app's own undo and redo |
 | `.` | Repeat the last change. A change typed into the app repeats with what was typed |

@@ -2,9 +2,11 @@ package screentext
 
 import (
 	"errors"
+	"maps"
 	"math"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/y3owk1n/fude/vim"
 )
@@ -52,10 +54,14 @@ func NewHost(text *Text, pos int, onYank func(string)) *Host {
 // Screen returns the text the host holds.
 func (h *Host) Screen() *Text { return h.text }
 
-// Replace swaps in text read again, with the cursor at pos. Marks keep their
-// offsets, which may now point elsewhere.
+// Replace swaps in text read again, with the cursor at pos. It drops the
+// marks a user can jump to, such as the last jump and the visual marks,
+// since their offsets point into the text read before. The machine's own
+// marks stay.
 func (h *Host) Replace(text *Text, pos int) {
 	h.text, h.cursor = text, pos
+
+	maps.DeleteFunc(h.marks, func(name rune, _ int) bool { return name < vim.OwnMarks })
 }
 
 // Unhandled moves between containers on a Ctrl+W key, and runs any other
@@ -165,8 +171,15 @@ func (h *Host) Redo() (int, int, error) {
 	return h.cursor, h.cursor, nil
 }
 
-// SetMark keeps a mark. The text never changes, so marks never move.
-func (h *Host) SetMark(name rune, pos int) { h.marks[name] = pos }
+// SetMark keeps a mark, except a lettered one, which the next scroll or edit
+// would leave on other text. So m sets nothing and ' finds no mark.
+func (h *Host) SetMark(name rune, pos int) {
+	if name < vim.OwnMarks && unicode.IsLetter(name) {
+		return
+	}
+
+	h.marks[name] = pos
+}
 
 // Mark returns a mark. A mark past the end of the text, left by a read of a
 // longer screen, is unset.

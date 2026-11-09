@@ -136,7 +136,7 @@ type vimSession struct {
 
 // startVim reads the screen and opens vim mode over it. Activated again while
 // open, it reads the screen again and keeps the machine, so registers,
-// macros, marks and the last search carry over, with the cursor put back
+// macros and the last search carry over, with the cursor put back
 // nearest where it was.
 func (h *handlerState) startVim(activation modecmd.Activation) {
 	isRefresh := h.appState.CurrentMode() == domain.ModeVim && h.vim != nil

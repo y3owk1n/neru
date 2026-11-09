@@ -9,14 +9,15 @@ var VimCmd = BuildModeCommand(ModeConfig{
 	Long: `Vim mode reads the text in the focused window, or the whole screen with
 --capture-scope screen, and puts a cursor on it that vim's keys move.
 
-Motions, counts, text objects, search, marks, registers, macros and dot
-repeat work as they do in vim. Vim mode makes each edit in the app under the
-cursor, by clicking the caret into place, selecting with Shift+Right and
-typing, then reads the screen again:
+Motions, counts, text objects, search, registers, macros and dot repeat work
+as they do in vim. Marks do not, because every scroll and edit reads the
+screen again and a mark would point at other text. Vim mode makes each edit
+in the app under the cursor, by clicking the caret into place, selecting with
+Shift+Right and typing, then reads the screen again:
 
   i a I A o O         click the caret into place, then type into the app
                       until Escape
-  c d x s r J ...     select the text, then erase it or type over it
+  c d x r J ...       select the text, then erase it or type over it
   p P                 click into place and paste
   u Ctrl+R            the app's own undo and redo
   .                   repeat the last change, with what was typed into the app

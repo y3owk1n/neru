@@ -62,6 +62,33 @@ func TestHost_J_KeepsTheScreenColumn(t *testing.T) {
 	}
 }
 
+func TestHost_Marks_AreNeverKeptAcrossAReadOrByLetter(t *testing.T) {
+	text := screentext.New(screen())
+	host := screentext.NewHost(text, 0, nil)
+	machine := screentext.NewMachine(host)
+
+	for _, key := range []vim.Key{"m", "a", "w", "'", "a"} {
+		_ = machine.Feed(key)
+	}
+
+	if got := machine.Message(); got != "mark not set" {
+		t.Fatalf("'a after ma says %q, want mark not set", got)
+	}
+
+	// G sets '', which a read of the screen drops.
+	_ = machine.Feed("G")
+
+	host.Replace(text, 0)
+
+	for _, key := range []vim.Key{"'", "'"} {
+		_ = machine.Feed(key)
+	}
+
+	if got := machine.Message(); got != "mark not set" {
+		t.Fatalf("'' after a read says %q, want mark not set", got)
+	}
+}
+
 func TestHost_Keys_MoveTheCursorOverTheScreen(t *testing.T) {
 	tests := []struct {
 		name  string
