@@ -4895,6 +4895,105 @@ func TestSimulation_VimSubstituteStopsWhenTheScreenNeverShows(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimOpensALineBelowAnIndentedOne covers o on a line read with
+// padding before it. The new line gets no typed indent, since the padding is
+// not text the app has, and Escape after typing leaves insert mode for good:
+// the next key moves the cursor rather than typing into the app.
+func TestSimulation_VimOpensALineBelowAnIndentedOne(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordExit: image.Rect(145, 200, 205, 230),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("G", "o")
+	vimFrameShows(sim, "typing into the app", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "INSERT")
+	})
+
+	sim.press("x", "Escape")
+	vimFrameShows(sim, "back in normal mode", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL") && !strings.Contains(f.Status, "one edit")
+	})
+
+	sim.press("w")
+	vimFrameShows(sim, "still in normal mode after w", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL")
+	})
+
+	if got, want := sim.keyFeed.FedKeys(), []string{vimKeyReturn, "x"}; !slices.Equal(got, want) {
+		t.Fatalf(
+			"typed %v, want %v: a new line and what was typed on it, with no indent",
+			got,
+			want,
+		)
+	}
+}
+
+// TestSimulation_VimTypesOnTheLineOOpens covers o and O, which type into a
+// line the screen does not show until vim reads it again. After o, the cursor
+// lands on the last character typed on the new line below. O's line break
+// leaves the app's caret on the line it pushed down, so it goes back onto the
+// new line above before anything is typed.
+func TestSimulation_VimTypesOnTheLineOOpens(t *testing.T) {
+	file, exit, typed := image.Rect(
+		100,
+		100,
+		160,
+		130,
+	), image.Rect(
+		100,
+		145,
+		160,
+		175,
+	), image.Rect(
+		100,
+		190,
+		130,
+		220,
+	)
+
+	t.Run("o", func(t *testing.T) {
+		sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: file, vimWordExit: exit})
+		sim.vision.ReadLinesFunc = func(
+			context.Context, image.Rectangle, ports.TextLevel,
+		) ([][]ports.TextPiece, error) {
+			lines := [][]ports.TextPiece{
+				{{Text: vimWordFile, Bounds: file}},
+				{{Text: vimWordExit, Bounds: exit}},
+			}
+			if slices.Contains(sim.keyFeed.FedKeys(), "y") {
+				lines = append(lines, []ports.TextPiece{{Text: "xy", Bounds: typed}})
+			}
+
+			return lines, nil
+		}
+
+		sim.pressHotkey(vimHotkey)
+		sim.waitMode(domain.ModeVim)
+
+		sim.press("G", "o", "x", "y", "Escape")
+		vimFrameShows(sim, "cursor on the y typed on the new line", func(f ports.VimFrame) bool {
+			return strings.HasPrefix(f.Status, "NORMAL") &&
+				f.Cursor == image.Rect(115, 190, 130, 220)
+		})
+	})
+
+	t.Run("O", func(t *testing.T) {
+		sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: file, vimWordExit: exit})
+
+		sim.pressHotkey(vimHotkey)
+		sim.waitMode(domain.ModeVim)
+
+		sim.press("G", "O", "x", "y")
+		sim.waitFor("typed onto the new line above", func() bool {
+			return slices.Equal(sim.keyFeed.FedKeys(), []string{vimKeyReturn, "Left", "x", "y"})
+		})
+	})
+}
+
 // TestSimulation_VimLeavesTheLineBreakWhenDeletingPadding covers dw from
 // column 0 of an indented line. Column 0 is the padding that stands for the
 // indent on screen, so dw deletes only that, which the app does not have.

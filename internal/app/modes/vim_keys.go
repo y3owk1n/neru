@@ -482,6 +482,13 @@ func (h *handlerState) handleVimTypingKey(key string) {
 		session.typing, session.eraseOnEscape = false, false
 		session.lastInsert = &vimInsert{command: session.insertCommand, typed: session.typedKeys}
 
+		// The command that started the typing made this key's edit. Escape
+		// can make one of its own, as when it drops an autoindent the machine
+		// believes nothing was typed after, and a refused edit would leave
+		// the machine in insert mode. Its edit is dropped below, since the
+		// screen is read again instead.
+		session.edits, session.edited = nil, false
+
 		if !h.feedVim(vimEscape) {
 			return
 		}

@@ -235,6 +235,29 @@ const (
 // vimCaretLike are the characters a fast read can see the app's caret as.
 const vimCaretLike = "il1"
 
+// vimWithoutIndent is text to type without the indent around its line
+// breaks: the blanks after each break, and the blanks before the first one
+// when nothing else is. The machine copies a line's indent onto the line o or
+// O opens, and an indent read off the screen is the padding before the line's
+// first character, which the app does not have as text. The app indents the
+// new line itself, as it does for Return.
+func vimWithoutIndent(text string) string {
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+
+	lines := strings.Split(text, "\n")
+	if strings.TrimLeft(lines[0], " \t") == "" {
+		lines[0] = ""
+	}
+
+	for index := 1; index < len(lines); index++ {
+		lines[index] = strings.TrimLeft(lines[index], " \t")
+	}
+
+	return strings.Join(lines, "\n")
+}
+
 // vimTypeOver types keys over the selected text of edit, or erases it when
 // edit has none.
 func (h *handlerState) vimTypeOver(edit vim.Edit, keys []string) {
@@ -354,7 +377,7 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 	var lineEdits []vim.Edit
 
 	for index, edit := range slices.Backward(edits) {
-		keys, typeable := screentext.FeedKeys(edit.Text)
+		keys, typeable := screentext.FeedKeys(vimWithoutIndent(edit.Text))
 		if !put && !typeable {
 			h.logger.Debug("Vim edit has text that cannot be typed")
 
@@ -423,7 +446,7 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 	}
 
 	if session.machine.Mode() == vim.Insert {
-		h.vimStartTyping(anchor, false)
+		h.vimStartTyping(h.vimTypingStart(before, edits[0], anchor), false)
 
 		return
 	}
@@ -431,6 +454,37 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 	session.lastInsert = nil
 
 	h.rereadVim(anchor)
+}
+
+// vimTypingStart is where typing begins after the edit that started insert
+// mode, which is anchor unless the edit typed a line break. Then the machine's
+// cursor is on a line the screen does not show yet: below for o, or above for
+// O, whose break leaves the app's caret on the line it pushed down, so the
+// caret goes back over what follows the cursor. Typing begins at the start
+// of that line, a line height below anchor for each break before the cursor.
+func (h *handlerState) vimTypingStart(
+	before *screentext.Text,
+	edit vim.Edit,
+	anchor image.Point,
+) image.Point {
+	if !strings.Contains(edit.Text, "\n") {
+		return anchor
+	}
+
+	cursor := min(max(h.vim.host.Cursor()-edit.Start, 0), len(edit.Text))
+
+	// The x keeps the text after the cursor from being read as an indent.
+	back := utf8.RuneCountInString(vimWithoutIndent("x"+edit.Text[cursor:])) - 1
+	h.vimFeed(slices.Repeat([]string{vimKeyLeft}, back)...)
+
+	box, found := before.Box(before.AppStart(before.LineStart(before.LineOf(edit.Start))))
+	if !found {
+		return anchor
+	}
+
+	breaks := strings.Count(edit.Text[:cursor], "\n")
+
+	return image.Pt(box.Min.X-1, anchor.Y+breaks*box.Dy()*vimLineSpacing/vimHalf)
 }
 
 // vimIsPut reports whether a command's keys are a put, p or P after any
