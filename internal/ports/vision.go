@@ -145,4 +145,10 @@ type TextPiece struct {
 	// Background is the color behind its word, as 0xRRGGBB, or zero when
 	// the platform does not say.
 	Background uint32
+	// BorderAbove and BorderBelow are how far the nearest border above and
+	// below its word is from the word's box, or zero when the reader found
+	// none within a few lines. A border is a line across the word's whole
+	// line that is no text, as a card's edge, an input's outline or a rule
+	// between sections draws.
+	BorderAbove, BorderBelow int
 }

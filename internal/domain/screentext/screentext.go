@@ -46,6 +46,11 @@ type Word struct {
 	// of two lines on one row join only across a gap their own spacing
 	// allows.
 	Line int
+	// BorderAbove and BorderBelow are how far the nearest border above and
+	// below the word is from Bounds, or zero for none. A word never joins
+	// one across a border, so a card or an input is a container of its own
+	// even on a background that barely differs from the page's.
+	BorderAbove, BorderBelow int
 
 	icon bool
 }

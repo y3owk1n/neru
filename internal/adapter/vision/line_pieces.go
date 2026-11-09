@@ -2,6 +2,7 @@ package vision
 
 import (
 	"image"
+	"image/color"
 	"math"
 	"slices"
 	"strings"
@@ -53,6 +54,7 @@ func piecesFromSymbols(
 	var lines [][]ports.TextPiece
 
 	placed := placeWideRuns(symbols, img)
+	spans := lineSpans(symbols)
 
 	for start := 0; start < len(symbols); {
 		end := start + 1
@@ -73,14 +75,27 @@ func piecesFromSymbols(
 			lines = append(lines, nil)
 		}
 
+		above, below := bordersOf(img, box, spans[line])
+		above, below = toRegionLength(
+			above,
+			img.Rect,
+			region,
+		), toRegionLength(
+			below,
+			img.Rect,
+			region,
+		)
+
 		if allPlaced(placed, start, end) {
 			for index, symbol := range word {
 				place := placed[start+index]
 				lines[line] = append(lines[line], ports.TextPiece{
-					Text:       fullwidthPunctuation(symbol.text),
-					Bounds:     toRegion(place.cell, img.Rect, region),
-					Word:       place.word,
-					Background: backgroundOf(img, place.cell),
+					Text:        fullwidthPunctuation(symbol.text),
+					Bounds:      toRegion(place.cell, img.Rect, region),
+					Word:        place.word,
+					Background:  backgroundOf(img, place.cell),
+					BorderAbove: above,
+					BorderBelow: below,
 				})
 			}
 
@@ -98,10 +113,12 @@ func piecesFromSymbols(
 			}
 
 			lines[line] = append(lines[line], ports.TextPiece{
-				Text:       text.String(),
-				Bounds:     toRegion(box, img.Rect, region),
-				Word:       word[0].word,
-				Background: background,
+				Text:        text.String(),
+				Bounds:      toRegion(box, img.Rect, region),
+				Word:        word[0].word,
+				Background:  background,
+				BorderAbove: above,
+				BorderBelow: below,
 			})
 			start = end
 
@@ -113,10 +130,12 @@ func piecesFromSymbols(
 		for index, symbol := range word {
 			cell := image.Rect(cells[index][0], box.Min.Y, cells[index][1], box.Max.Y)
 			lines[line] = append(lines[line], ports.TextPiece{
-				Text:       symbol.text,
-				Bounds:     toRegion(cell, img.Rect, region),
-				Word:       symbol.word,
-				Background: background,
+				Text:        symbol.text,
+				Bounds:      toRegion(cell, img.Rect, region),
+				Word:        symbol.word,
+				Background:  background,
+				BorderAbove: above,
+				BorderBelow: below,
 			})
 		}
 
@@ -658,6 +677,158 @@ func toRegion(rect, pixels, region image.Rectangle) image.Rectangle {
 		scale(rect.Max.X, pixels.Min.X, region.Min.X, pixels.Dx(), region.Dx()),
 		scale(rect.Max.Y, pixels.Min.Y, region.Min.Y, pixels.Dy(), region.Dy()),
 	)
+}
+
+// toRegionLength scales a vertical length in img's pixels to region's units,
+// as toRegion scales a box. Zero stays zero, and any other length stays at
+// least one, since zero means no border.
+func toRegionLength(length int, pixels, region image.Rectangle) int {
+	if length == 0 || pixels.Dy() == 0 {
+		return length
+	}
+
+	return max(length*region.Dy()/pixels.Dy(), 1)
+}
+
+// lineSpans is each line's columns, from its first character's ink to its
+// last's.
+func lineSpans(symbols []lineSymbol) map[int][2]int {
+	spans := map[int][2]int{}
+
+	for _, symbol := range symbols {
+		span, seen := spans[symbol.line]
+		if !seen {
+			span = [2]int{symbol.ink.Min.X, symbol.ink.Max.X}
+		}
+
+		spans[symbol.line] = [2]int{min(span[0], symbol.ink.Min.X), max(span[1], symbol.ink.Max.X)}
+	}
+
+	return spans
+}
+
+// bordersOf looks borderReachLines times a word's height above and below it.
+// A row is a border when at least borderCoverPercent of the samples across
+// the line differ from the word's background by more than borderContrast in a
+// channel, and lie within borderContrast of each other, which a line of text
+// never does. borderSamples is how many samples a row gets.
+const (
+	borderReachLines   = 3
+	borderCoverPercent = 90
+	borderContrast     = 12
+	borderSamples      = 64
+	// borderPercent is the scale borderCoverPercent is on.
+	borderPercent = 100
+)
+
+// bordersOf is how far above and below box, a word in img, the nearest
+// border runs across span, the word's line's columns, in pixels, or zero for
+// none within reach. Comparing a whole line keeps a link's underline or the
+// ink of the line above from reading as one.
+func bordersOf(img *image.RGBA, box image.Rectangle, span [2]int) (int, int) {
+	background, found := rawBackgroundOf(img, box)
+	if !found || span[1] <= span[0] {
+		return 0, 0
+	}
+
+	reach := borderReachLines * box.Dy()
+	above, below := 0, 0
+
+	for y := box.Min.Y - 1; y >= max(img.Rect.Min.Y, box.Min.Y-reach); y-- {
+		if borderRow(img, y, span, background) {
+			above = box.Min.Y - y
+
+			break
+		}
+	}
+
+	for y := box.Max.Y; y < min(img.Rect.Max.Y, box.Max.Y+reach); y++ {
+		if borderRow(img, y, span, background) {
+			below = y - box.Max.Y + 1
+
+			break
+		}
+	}
+
+	return above, below
+}
+
+// borderRow reports whether row of img is a border across span.
+func borderRow(img *image.RGBA, row int, span [2]int, background color.RGBA) bool {
+	left, right := max(span[0], img.Rect.Min.X), min(span[1], img.Rect.Max.X)
+	if right <= left {
+		return false
+	}
+
+	step := max((right-left)/borderSamples, 1)
+	samples, covered := 0, 0
+
+	var first color.RGBA
+
+	seen := false
+
+	for x := left; x < right; x += step {
+		samples++
+
+		pixel := img.RGBAAt(x, row)
+		if !contrasts(pixel, background) {
+			continue
+		}
+
+		if !seen {
+			first, seen = pixel, true
+		}
+
+		if !contrasts(pixel, first) {
+			covered++
+		}
+	}
+
+	return samples > 0 && covered*borderPercent >= samples*borderCoverPercent
+}
+
+// contrasts reports whether two colors differ by more than borderContrast
+// in a channel.
+func contrasts(a, b color.RGBA) bool {
+	differ := func(x, y uint8) bool { return max(x, y)-min(x, y) > borderContrast }
+
+	return differ(a.R, b.R) || differ(a.G, b.G) || differ(a.B, b.B)
+}
+
+// rawBackgroundOf is the most common exact color along the edges of box in
+// img, the color a border has to stand apart from.
+func rawBackgroundOf(img *image.RGBA, box image.Rectangle) (color.RGBA, bool) {
+	box = box.Inset(-1).Intersect(img.Rect)
+	if box.Empty() {
+		return color.RGBA{}, false
+	}
+
+	counts := map[color.RGBA]int{}
+
+	for x := box.Min.X; x < box.Max.X; x++ {
+		counts[img.RGBAAt(x, box.Min.Y)]++
+		counts[img.RGBAAt(x, box.Max.Y-1)]++
+	}
+
+	for y := box.Min.Y; y < box.Max.Y; y++ {
+		counts[img.RGBAAt(box.Min.X, y)]++
+		counts[img.RGBAAt(box.Max.X-1, y)]++
+	}
+
+	var best color.RGBA
+
+	for pixel, count := range counts {
+		if count > counts[best] || (count == counts[best] && pixelLess(pixel, best)) {
+			best = pixel
+		}
+	}
+
+	return best, true
+}
+
+// pixelLess orders colors, so a tie between two picks the same one each time.
+func pixelLess(a, b color.RGBA) bool {
+	return uint32(a.R)<<16|uint32(a.G)<<8|uint32(a.B) < uint32(b.R)<<16|uint32(b.G)<<8|uint32(b.B)
 }
 
 // backgroundChannelBits is how many high bits of each channel the background

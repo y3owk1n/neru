@@ -743,6 +743,123 @@ static NeruPixels pixelsOf(CGImageRef image) {
 	return px;
 }
 
+// bordersOf looks borderReachLines times a word's height above and below it.
+// A row is a border when at least borderCoverPercent of the samples across the
+// word's line differ from its background by more than borderContrast in a
+// channel and lie within borderContrast of each other, which a line of text
+// never does. line_pieces.go does the same in Go.
+static const int borderReachLines = 3;
+static const int borderCoverPercent = 90;
+static const int borderContrast = 12;
+static const int borderSamples = 64;
+
+static const uint8_t *pixelAt(NeruPixels px, size_t x, size_t y) { return px.data + y * px.stride + x * 4; }
+
+static BOOL contrasts(const uint8_t *a, const uint8_t *b) {
+	for (int channel = 0; channel < 3; channel++) {
+		if (abs((int)a[channel] - (int)b[channel]) > borderContrast)
+			return YES;
+	}
+	return NO;
+}
+
+enum { rawBackgroundSlots = 64 };
+
+/// Counts color once among the first rawBackgroundSlots colors seen.
+static void tallyColor(uint32_t color, uint32_t *colors, int *counts, int *used) {
+	for (int i = 0; i < *used; i++) {
+		if (colors[i] == color) {
+			counts[i]++;
+			return;
+		}
+	}
+	if (*used < rawBackgroundSlots) {
+		colors[*used] = color;
+		counts[*used] = 1;
+		(*used)++;
+	}
+}
+
+static uint32_t colorAt(NeruPixels px, long x, long y) {
+	const uint8_t *p = pixelAt(px, (size_t)x, (size_t)y);
+	return (uint32_t)p[0] << 16 | (uint32_t)p[1] << 8 | p[2];
+}
+
+/// The most common exact color along the edges of box, as RGB in out.
+static BOOL rawBackgroundOf(NeruPixels px, CGRect box, uint8_t out[3]) {
+	long left = MAX((long)floor(box.origin.x) - 1, 0), top = MAX((long)floor(box.origin.y) - 1, 0);
+	long right = MIN((long)ceil(CGRectGetMaxX(box)) + 1, (long)px.width);
+	long bottom = MIN((long)ceil(CGRectGetMaxY(box)) + 1, (long)px.height);
+	if (!px.data || right <= left || bottom <= top)
+		return NO;
+
+	uint32_t colors[rawBackgroundSlots];
+	int counts[rawBackgroundSlots];
+	int used = 0;
+	for (long x = left; x < right; x++) {
+		tallyColor(colorAt(px, x, top), colors, counts, &used);
+		tallyColor(colorAt(px, x, bottom - 1), colors, counts, &used);
+	}
+	for (long y = top; y < bottom; y++) {
+		tallyColor(colorAt(px, left, y), colors, counts, &used);
+		tallyColor(colorAt(px, right - 1, y), colors, counts, &used);
+	}
+	int best = 0;
+	for (int i = 1; i < used; i++) {
+		if (counts[i] > counts[best] || (counts[i] == counts[best] && colors[i] < colors[best]))
+			best = i;
+	}
+	out[0] = colors[best] >> 16 & 0xFF;
+	out[1] = colors[best] >> 8 & 0xFF;
+	out[2] = colors[best] & 0xFF;
+	return YES;
+}
+
+static BOOL borderRow(NeruPixels px, long y, long left, long right, const uint8_t background[3]) {
+	left = MAX(left, 0);
+	right = MIN(right, (long)px.width);
+	if (right <= left)
+		return NO;
+	long step = MAX((right - left) / borderSamples, 1);
+	int samples = 0, covered = 0;
+	const uint8_t *first = NULL;
+	for (long x = left; x < right; x += step) {
+		samples++;
+		const uint8_t *p = pixelAt(px, (size_t)x, (size_t)y);
+		if (!contrasts(p, background))
+			continue;
+		if (!first)
+			first = p;
+		if (!contrasts(p, first))
+			covered++;
+	}
+	return samples > 0 && covered * 100 >= samples * borderCoverPercent;
+}
+
+/// How far above and below box, a word, the nearest border runs across the
+/// columns left to right of its line, in pixels, or zero for none within reach.
+static void bordersOf(NeruPixels px, CGRect box, long left, long right, double *above, double *below) {
+	*above = 0;
+	*below = 0;
+	uint8_t background[3];
+	if (right <= left || !rawBackgroundOf(px, box, background))
+		return;
+	long top = (long)floor(box.origin.y), bottom = (long)ceil(CGRectGetMaxY(box));
+	long reach = borderReachLines * (bottom - top);
+	for (long y = top - 1; y >= MAX(0, top - reach); y--) {
+		if (borderRow(px, y, left, right, background)) {
+			*above = top - y;
+			break;
+		}
+	}
+	for (long y = bottom; y < MIN((long)px.height, bottom + reach); y++) {
+		if (borderRow(px, y, left, right, background)) {
+			*below = y - bottom + 1;
+			break;
+		}
+	}
+}
+
 /// The luma of the pixel at x, y, top-left origin, from 0 to 255.
 static int lumaAt(NeruPixels px, size_t x, size_t y) {
 	const uint8_t *p = px.data + y * px.stride + x * 4;
@@ -1143,6 +1260,10 @@ static NeruTextResult *readLines(
 			if (!top || top.string.length == 0)
 				continue;
 
+			CGRect lineBox = observation.boundingBox;  // normalized, bottom-left origin
+			long lineLeft = (long)floor(lineBox.origin.x * imageW);
+			long lineRight = (long)ceil(CGRectGetMaxX(lineBox) * imageW);
+
 			NSArray<NSValue *> *words = tokenRanges(top.string);
 			for (NSUInteger wordIndex = 0; wordIndex < words.count; wordIndex++) {
 				NSRange range = words[wordIndex].rangeValue;
@@ -1170,6 +1291,8 @@ static NeruTextResult *readLines(
 				if (isRightToLeft(word))
 					glyphs = nil;
 				uint32_t background = backgroundOf(px, pixel);
+				double borderAbove = 0, borderBelow = 0;
+				bordersOf(px, pixel, lineLeft, lineRight, &borderAbove, &borderBelow);
 				if (ink.location != NSNotFound) {
 					pixel.origin.x = ink.location;
 					pixel.size.width = ink.length;
@@ -1189,6 +1312,8 @@ static NeruTextResult *readLines(
 						@"line" : @(lineIndex),
 						@"word" : @(wordIndex),
 						@"background" : @(background),
+						@"borderAbove" : @(borderAbove * toPointsY),
+						@"borderBelow" : @(borderBelow * toPointsY),
 					}];
 				}
 			}
@@ -1219,6 +1344,8 @@ static NeruTextResult *readLines(
 			    .line = [piece[@"line"] intValue],
 			    .word = [piece[@"word"] intValue],
 			    .background = [piece[@"background"] unsignedIntValue],
+			    .borderAbove = [piece[@"borderAbove"] doubleValue],
+			    .borderBelow = [piece[@"borderBelow"] doubleValue],
 			};
 		}
 		return result;

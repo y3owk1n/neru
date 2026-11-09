@@ -317,3 +317,96 @@ func TestBackgroundOf_IsTheColorAroundTheBox(t *testing.T) {
 		t.Fatalf("background outside the image = %06x, want 0", got)
 	}
 }
+
+// TestBordersOf_FindsALineAcrossTheLineButNotText covers the borders a word
+// is kept from joining across: a line across its whole line counts, and the
+// ink of other text or a link's underline under one word does not.
+func TestBordersOf_FindsALineAcrossTheLineButNotText(t *testing.T) {
+	white, gray, ink := color.RGBA{
+		255,
+		255,
+		255,
+		255,
+	}, color.RGBA{
+		0xD2,
+		0xD2,
+		0xD0,
+		255,
+	}, color.RGBA{
+		20,
+		20,
+		20,
+		255,
+	}
+
+	fill := func(img *image.RGBA, rect image.Rectangle, c color.RGBA) {
+		for y := rect.Min.Y; y < rect.Max.Y; y++ {
+			for x := rect.Min.X; x < rect.Max.X; x++ {
+				img.SetRGBA(x, y, c)
+			}
+		}
+	}
+
+	page := func() *image.RGBA {
+		img := image.NewRGBA(image.Rect(0, 0, 200, 120))
+		fill(img, img.Rect, white)
+
+		return img
+	}
+
+	upper, lower := image.Rect(20, 20, 60, 30), image.Rect(20, 60, 60, 70)
+	span := [2]int{20, 160}
+
+	tests := []struct {
+		name         string
+		draw         func(*image.RGBA)
+		box          image.Rectangle
+		above, below int
+	}{
+		{
+			name:  "a border between two lines, from the line above",
+			draw:  func(img *image.RGBA) { fill(img, image.Rect(0, 45, 200, 46), gray) },
+			box:   upper,
+			below: 16,
+		},
+		{
+			name:  "a border between two lines, from the line below",
+			draw:  func(img *image.RGBA) { fill(img, image.Rect(0, 45, 200, 46), gray) },
+			box:   lower,
+			above: 15,
+		},
+		{
+			name: "an underline under one word is no border",
+			draw: func(img *image.RGBA) { fill(img, image.Rect(20, 32, 60, 33), ink) },
+			box:  upper,
+		},
+		{
+			name: "the line of text above is no border",
+			draw: func(img *image.RGBA) {
+				for x := 20; x < 160; x += 9 {
+					fill(img, image.Rect(x, 20, x+5, 30), ink)
+				}
+			},
+			box: lower,
+		},
+		{name: "a plain page has none", draw: func(*image.RGBA) {}, box: upper},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			img := page()
+			test.draw(img)
+
+			above, below := bordersOf(img, test.box, span)
+			if above != test.above || below != test.below {
+				t.Fatalf(
+					"borders = %d above, %d below, want %d, %d",
+					above,
+					below,
+					test.above,
+					test.below,
+				)
+			}
+		})
+	}
+}

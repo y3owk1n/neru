@@ -44,6 +44,8 @@ typedef struct {
 	int line;             // index of the line it was read on
 	int word;             // index of the whitespace-separated word it is part of, in its line
 	uint32_t background;  // the color behind its word, 0xRRGGBB
+	double borderAbove;   // points from its word up to the nearest border, 0 for none
+	double borderBelow;   // points from its word down to the nearest border, 0 for none
 } NeruTextPiece;
 
 typedef struct {

@@ -670,9 +670,11 @@ func vimWords(lines [][]ports.TextPiece, region image.Rectangle) []screentext.Wo
 				}
 
 				word = &screentext.Word{
-					Bounds:     piece.Bounds,
-					Background: piece.Background,
-					Line:       index + 1,
+					Bounds:      piece.Bounds,
+					Background:  piece.Background,
+					Line:        index + 1,
+					BorderAbove: piece.BorderAbove,
+					BorderBelow: piece.BorderBelow,
 				}
 				exact, number = true, piece.Word
 			}

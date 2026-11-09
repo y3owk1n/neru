@@ -71,6 +71,9 @@ type linePiece struct {
 	Line       int     `json:"line"`
 	Word       int     `json:"word"`
 	Background uint32  `json:"background"`
+	// BorderAbove and BorderBelow are in points, as ports.TextPiece's are.
+	BorderAbove float64 `json:"borderAbove"`
+	BorderBelow float64 `json:"borderBelow"`
 }
 
 // helperWaitDelay bounds the wait for the helper's pipes once it is killed.
@@ -402,14 +405,16 @@ func linePiecesOf(result *C.NeruTextResult) []linePiece {
 
 	for _, piece := range native {
 		pieces = append(pieces, linePiece{
-			Text:       C.GoString(piece.text),
-			X:          float64(piece.x),
-			Y:          float64(piece.y),
-			W:          float64(piece.width),
-			H:          float64(piece.height),
-			Line:       int(piece.line),
-			Word:       int(piece.word),
-			Background: uint32(piece.background),
+			Text:        C.GoString(piece.text),
+			X:           float64(piece.x),
+			Y:           float64(piece.y),
+			W:           float64(piece.width),
+			H:           float64(piece.height),
+			Line:        int(piece.line),
+			Word:        int(piece.word),
+			Background:  uint32(piece.background),
+			BorderAbove: float64(piece.borderAbove),
+			BorderBelow: float64(piece.borderBelow),
 		})
 	}
 
@@ -433,12 +438,24 @@ func groupLines(pieces []linePiece) [][]ports.TextPiece {
 				int(math.Round(piece.X+piece.W)),
 				int(math.Round(piece.Y+piece.H)),
 			),
-			Word:       piece.Word,
-			Background: piece.Background,
+			Word:        piece.Word,
+			Background:  piece.Background,
+			BorderAbove: borderLength(piece.BorderAbove),
+			BorderBelow: borderLength(piece.BorderBelow),
 		})
 	}
 
 	return lines
+}
+
+// borderLength rounds a border's distance to whole points, keeping a border
+// found at least one away, since zero means none.
+func borderLength(points float64) int {
+	if points <= 0 {
+		return 0
+	}
+
+	return max(int(math.Round(points)), 1)
 }
 
 // withCGImage hands use img as a CGImage, with the color space it was made

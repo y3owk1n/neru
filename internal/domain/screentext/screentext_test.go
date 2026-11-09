@@ -314,6 +314,9 @@ func row(line int, xs ...int) []screentext.Word {
 	return words
 }
 
+// wordTodo is a task line's first word in the border cases.
+const wordTodo = "todo"
+
 func TestNew_GroupsWordsIntoContainers(t *testing.T) {
 	const page, other = 0xF0F0F0, 0x303030
 
@@ -333,6 +336,30 @@ func TestNew_GroupsWordsIntoContainers(t *testing.T) {
 				word("Text", image.Rect(50, 25, 90, 35), 0),
 			},
 			want: 2,
+		},
+		{
+			name: "a line stays apart from the one under it across a border below it",
+			words: []screentext.Word{
+				{Text: "Tasks", Bounds: image.Rect(0, 0, 40, 10), BorderBelow: 2},
+				{Text: wordTodo, Bounds: image.Rect(0, 14, 40, 24)},
+			},
+			want: 2,
+		},
+		{
+			name: "a line stays apart from the one over it across a border above it",
+			words: []screentext.Word{
+				{Text: "Tasks", Bounds: image.Rect(0, 0, 40, 10)},
+				{Text: wordTodo, Bounds: image.Rect(0, 14, 40, 24), BorderAbove: 2},
+			},
+			want: 2,
+		},
+		{
+			name: "a border past the line above leaves two lines in one box together",
+			words: []screentext.Word{
+				{Text: wordTodo, Bounds: image.Rect(0, 30, 40, 40)},
+				{Text: "done", Bounds: image.Rect(0, 44, 40, 54), BorderAbove: 20},
+			},
+			want: 1,
 		},
 		{
 			name: "a tall heading joins the text a paragraph break under it",

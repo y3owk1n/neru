@@ -2,6 +2,7 @@ package screentext
 
 import (
 	"image"
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -75,11 +76,13 @@ func findContainers(words []Word, cell int) [][]Word {
 	}
 
 	spacing := lineSpacing(words)
+	borders := bordersOf(words)
 	shaped := lineTall(words, cell)
 
 	for first := range shaped {
 		for second := first + 1; second < len(shaped); second++ {
 			if gutter[first] == gutter[second] &&
+				!borders.between(first, second) &&
 				sameBackground(shaped[first].Background, shaped[second].Background) &&
 				near(shaped[first], shaped[second], cell, spacing) &&
 				!wordBetween(shaped, shaped[first].Bounds, shaped[second].Bounds) {
@@ -128,6 +131,54 @@ func findContainers(words []Word, cell int) [][]Word {
 	})
 
 	return groups
+}
+
+// wordBorders is where each word's nearest border above and below is, as a
+// y, or as far as a y goes for none.
+type wordBorders struct {
+	bounds       []image.Rectangle
+	above, below []int
+}
+
+// bordersOf places each word's borders on screen, from the bounds it was
+// read with, before lineTall makes it as tall as its line.
+func bordersOf(words []Word) wordBorders {
+	borders := wordBorders{
+		bounds: make([]image.Rectangle, len(words)),
+		above:  make([]int, len(words)),
+		below:  make([]int, len(words)),
+	}
+
+	for index, word := range words {
+		borders.bounds[index] = word.Bounds
+		borders.above[index], borders.below[index] = math.MinInt, math.MaxInt
+
+		if word.BorderAbove > 0 {
+			borders.above[index] = word.Bounds.Min.Y - word.BorderAbove
+		}
+
+		if word.BorderBelow > 0 {
+			borders.below[index] = word.Bounds.Max.Y + word.BorderBelow
+		}
+	}
+
+	return borders
+}
+
+// between reports whether a border runs between two words, one above the
+// other: the upper word's border below, or the lower word's border above,
+// lies in the gap between them.
+func (b wordBorders) between(first, second int) bool {
+	upper, lower := first, second
+	if b.bounds[lower].Min.Y < b.bounds[upper].Min.Y {
+		upper, lower = lower, upper
+	}
+
+	if b.bounds[lower].Min.Y < b.bounds[upper].Max.Y {
+		return false
+	}
+
+	return b.below[upper] <= b.bounds[lower].Min.Y || b.above[lower] >= b.bounds[upper].Max.Y
 }
 
 // lineNumberGutter reports which words are line numbers in a gutter. An editor

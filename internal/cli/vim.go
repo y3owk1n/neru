@@ -58,8 +58,9 @@ Shift+Right and typing, then reads the screen again:
   Escape              cancel what is pending, then leave
 
 Vim mode groups the words of a column, a sidebar or a card into a container,
-using the gaps between words and the color behind them. It lays each
-container out as its own block, so j, k, w and search stay inside the one you
+using the gaps between words, the color behind them and the borders between
+them, such as a card's edge or an input's outline. It lays each container
+out as its own block, so j, k, w and search stay inside the one you
 are reading, and it outlines the one the cursor is in. Containers nest, so a
 card sits in a column and the column in the page, and the block around the
 cursor's container is outlined fainter.
