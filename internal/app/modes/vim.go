@@ -988,7 +988,13 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 	}
 
 	if index, ok := text.ContainerAt(cursor); ok && len(text.Containers()) > 1 {
-		frame.Container = text.Containers()[index].Bounds
+		container := text.Containers()[index]
+		frame.Container = container.Bounds
+
+		// The root is the whole screen, which needs no outline.
+		if container.Parent > 0 {
+			frame.Block = text.Tree()[container.Parent].Bounds
+		}
 	}
 
 	if r, ok := text.Box(cursor); ok {

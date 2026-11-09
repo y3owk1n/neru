@@ -667,9 +667,9 @@ reads the screen again.
 | `gs` + motion, or `Return` in visual mode | Drag across the text so the app selects it, then leave. Works on text that cannot be edited |
 | `s` + characters + label | Type any number of characters to find, then a match's label to jump there, or `Return` for the nearest. `Backspace` takes back a character. A label is never the character after a match, so typing more of the text never jumps |
 | `]i`, `[i` | Move to the next or the previous icon, with a count to skip |
-| `Ctrl+W` + `h`, `j`, `k`, `l` | Move to the container left, below, above or right |
+| `Ctrl+W` + `h`, `j`, `k`, `l` | Move to the container left, below, above or right, within the block the cursor is in until that block ends |
 | `Ctrl+W` + `w`, `W` | Move to the next or the previous container |
-| `ic`, `ac` | The container's text, or with the blank line after it, as `yic` copies a card |
+| `ic`, `ac` | The container's text, or with the blank line after it, as `yic` copies a card. A count takes the block around it, as `y2ic` copies the column the card is in |
 | `Ctrl+D`, `Ctrl+U`, `Ctrl+F`, `Ctrl+B`, `Ctrl+E`, `Ctrl+Y` | Scroll the app at once. The overlay stays up while the page moves and the status bar says `reading…`, and vim reads the screen again once it stops, so a run of scrolls reads only the screen it ends on. `j` and `k` past the edge scroll too |
 | `zh`, `zl`, `zH`, `zL` | Scroll the app left or right eight characters, or the count with one, or half the width read with `zH` and `zL` |
 | `zz` | Scroll the app until the cursor's line is in the middle of the region read, or line n of the text read with a count |
@@ -680,7 +680,10 @@ reads the screen again.
 Vim mode groups the words of a column, a sidebar or a card into a container,
 using the gaps between words and the color behind them. It lays each container
 out as its own block, so `j`, `k`, `w` and search stay inside the one you are
-reading, and it outlines the one the cursor is in.
+reading, and it outlines the one the cursor is in. Containers nest, cut apart
+at the gaps that run all the way across the screen, so a card sits in a column
+and the column in the page. The block around the cursor's container is
+outlined fainter.
 
 Vim mode reads the screen twice. A fast read opens the mode at once, and an
 accurate read replaces it when it finishes. The status bar says `reading…`

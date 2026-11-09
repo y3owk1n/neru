@@ -41,6 +41,11 @@ const (
 	vimContainerInsetY = 4
 	vimContainerRadius = 6
 	vimContainerStroke = 1.5
+	// The block around the container is outlined further out, at a third of
+	// the container outline's opacity.
+	vimBlockInsetX     = 12
+	vimBlockInsetY     = 10
+	vimBlockFade       = 3
 	vimCursorOutset    = 1
 	vimCursorStroke    = 2
 	vimMatchUnderline  = 2
@@ -123,6 +128,21 @@ func LayoutVim(
 	}
 
 	var ops []VimOp
+
+	if !scene.Block.Empty() {
+		border := badge.ParseHexARGB(style.ContainerColor)
+
+		ops = append(ops, VimOp{
+			Kind: VimOpRoundedRect,
+			Bounds: image.Rect(
+				scene.Block.Min.X-vimBlockInsetX, scene.Block.Min.Y-vimBlockInsetY,
+				scene.Block.Max.X+vimBlockInsetX, scene.Block.Max.Y+vimBlockInsetY,
+			),
+			Radius:    vimContainerRadius,
+			Border:    border&vimAlphaMask | (border>>24/vimBlockFade)<<24,
+			LineWidth: vimContainerStroke,
+		})
+	}
 
 	if !scene.Container.Empty() {
 		ops = append(ops, VimOp{

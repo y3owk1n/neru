@@ -225,22 +225,26 @@ func (h *Host) moveContainer(key string, count int) error {
 	}
 
 	point, _ := h.text.Point(h.cursor)
-	target := from
+	cursor, moved := h.cursor, false
 
 	for range max(count, 1) {
-		next, found := h.text.neighbor(target, key)
+		next, found := h.text.neighbor(from, key)
 		if !found {
 			break
 		}
 
-		target = next
+		cursor, moved = h.text.NearestIn(next, point), true
+
+		if from, found = h.text.ContainerAt(cursor); !found {
+			break
+		}
 	}
 
-	if target == from {
+	if !moved {
 		return ErrNoContainer
 	}
 
-	h.cursor = h.text.NearestIn(target, point)
+	h.cursor = cursor
 
 	return nil
 }
@@ -274,28 +278,16 @@ func NewMachine(host *Host) *vim.Machine {
 }
 
 // containerObject finds the container under the cursor as a text object: its
-// text, and with around the blank line after it too.
+// text, and with around the blank line after it too. A count, or the object
+// again in visual mode, widens it to the block around it, as 2ic is the
+// container's parent.
 func containerObject(around bool) func(vim.Text, int, int) (int, int, bool) {
-	return func(text vim.Text, start, _ int) (int, int, bool) {
+	return func(text vim.Text, start, end int) (int, int, bool) {
 		screen, found := text.(*Text)
 		if !found {
 			return 0, 0, false
 		}
 
-		index, found := screen.ContainerAt(start)
-		if !found {
-			return 0, 0, false
-		}
-
-		container := screen.containers[index]
-		if !around {
-			return container.Start, container.End, true
-		}
-
-		if index+1 < len(screen.containers) {
-			return container.Start, screen.containers[index+1].Start, true
-		}
-
-		return container.Start, screen.Len(), true
+		return screen.enclosing(start, end, around)
 	}
 }

@@ -382,6 +382,7 @@ typedef struct {
 	int matchCount;       ///< Number of matches
 	int currentMatch;     ///< Index of the match under the cursor, or -1
 	CGRect container;     ///< The container the cursor is in (empty = none)
+	CGRect block;         ///< The block the container sits in, outlined fainter (empty = none)
 	char *status;         ///< Status bar text (empty = no bar)
 	char *lensBefore;     ///< Lens text before the cursor's character
 	char *lensAt;         ///< The cursor's character (empty = no lens)

@@ -28,9 +28,11 @@ Shift+Right and typing, then reads the screen again:
   s{chars}{label}     jump to a match of any number of characters by its
                       label, or to the nearest with Return
   ]i [i               move to the next or the previous icon
-  Ctrl+W h j k l      move to the container left, below, above or right
+  Ctrl+W h j k l      move to the container left, below, above or right,
+                      within the block the cursor is in until it ends
   Ctrl+W w W          move to the next or the previous container
-  ic ac               the container's text, as yic copies a card
+  ic ac               the container's text, as yic copies a card, and with
+                      a count the block around it, as y2ic copies the column
   Ctrl+D Ctrl+U       scroll the app half a page
   Ctrl+F Ctrl+B       scroll the app a page
   Ctrl+E Ctrl+Y       scroll the app two lines, as j and k do past the edge
@@ -44,7 +46,9 @@ Shift+Right and typing, then reads the screen again:
 Vim mode groups the words of a column, a sidebar or a card into a container,
 using the gaps between words and the color behind them. It lays each
 container out as its own block, so j, k, w and search stay inside the one you
-are reading, and it outlines the one the cursor is in.
+are reading, and it outlines the one the cursor is in. Containers nest, so a
+card sits in a column and the column in the page, and the block around the
+cursor's container is outlined fainter.
 
 Vim mode reads the screen twice. A fast read opens the mode at once, and an
 accurate read replaces it when it finishes. The status bar says "reading…"

@@ -31,6 +31,10 @@ const (
 	// apart, so a looser rule lets the pattern on a chat's wallpaper join
 	// every bubble.
 	iconGapColumns = 2
+	// lineCellsTimesTwo is the least height of a line, in halves of a
+	// character's width. Five halves is about what macOS's reader gives a
+	// line, and the floor matters for readers that measure only ink.
+	lineCellsTimesTwo = 5
 	// headingGrowth limits how much taller a line may be than the line a
 	// paragraph break above it and still join it, by one part in this many,
 	// so 2 allows half again. A taller line is a heading and starts a new
@@ -71,19 +75,20 @@ func findContainers(words []Word, cell int) [][]Word {
 	}
 
 	spacing := lineSpacing(words)
+	shaped := lineTall(words, cell)
 
-	for first := range words {
-		for second := first + 1; second < len(words); second++ {
+	for first := range shaped {
+		for second := first + 1; second < len(shaped); second++ {
 			if gutter[first] == gutter[second] &&
-				sameBackground(words[first].Background, words[second].Background) &&
-				near(words[first], words[second], cell, spacing) &&
-				!wordBetween(words, words[first].Bounds, words[second].Bounds) {
+				sameBackground(shaped[first].Background, shaped[second].Background) &&
+				near(shaped[first], shaped[second], cell, spacing) &&
+				!wordBetween(shaped, shaped[first].Bounds, shaped[second].Bounds) {
 				parent[root(first)] = root(second)
 			}
 		}
 	}
 
-	for _, run := range highlightedItems(words, gutter, cell) {
+	for _, run := range highlightedItems(shaped, gutter, cell) {
 		parent[root(run[0])] = root(run[1])
 		parent[root(run[1])] = root(run[2])
 	}
@@ -216,6 +221,50 @@ func distance(a, b int) int {
 	return max(a-b, b-a)
 }
 
+// lineTall returns words with each one as tall as the line the reader read
+// it on. macOS's reader measures a word at its line's height, while
+// tesseract and Windows measure only its ink, so "There" comes out shorter
+// than "typesetting". The paragraph break and heading rules weigh a gap
+// against a word's height, so they use the line's height to read every
+// reader alike.
+func lineTall(words []Word, cell int) []Word {
+	spans := map[int][2]int{}
+
+	for _, word := range words {
+		if word.Line == 0 {
+			continue
+		}
+
+		span, seen := spans[word.Line]
+		if !seen {
+			span = [2]int{word.Bounds.Min.Y, word.Bounds.Max.Y}
+		}
+
+		spans[word.Line] = [2]int{min(span[0], word.Bounds.Min.Y), max(span[1], word.Bounds.Max.Y)}
+	}
+
+	shaped := slices.Clone(words)
+
+	for index, word := range shaped {
+		span, ok := spans[word.Line]
+		if !ok {
+			continue
+		}
+
+		// A line is at least lineCellsTimesTwo halves of a character tall,
+		// as a line box is, so ink that sits low in it, as "ago" does, reads
+		// as a full line.
+		if short := cell*lineCellsTimesTwo/halfDivisor - (span[1] - span[0]); short > 0 {
+			span[0] -= short / halfDivisor
+			span[1] += short - short/halfDivisor
+		}
+
+		shaped[index].Bounds.Min.Y, shaped[index].Bounds.Max.Y = span[0], span[1]
+	}
+
+	return shaped
+}
+
 // lineSpacing maps each line the reader read to the median gap between its
 // words, for lines with at least spacingWords words.
 func lineSpacing(words []Word) map[int]int {
@@ -264,10 +313,8 @@ func near(first, second Word, cell int, spacing map[int]int) bool {
 	switch {
 	case first.icon != second.icon:
 		return overlapY*halfDivisor >= shorter && gapX <= iconGapColumns*cell
-	case overlapY*halfDivisor >= shorter:
-		return gapX <= rowGap(first, second, cell, spacing, false)
-	case gapY*halfDivisor <= shorter:
-		return gapX <= rowGap(first, second, cell, spacing, true)
+	case overlapY*halfDivisor >= shorter, gapY*halfDivisor <= shorter:
+		return gapX <= rowGap(first, second, cell, spacing)
 	default:
 		upper, lower := boxFirst, boxSecond
 		if lower.Min.Y < upper.Min.Y {
@@ -346,12 +393,11 @@ func wordBetween(words []Word, first, second image.Rectangle) bool {
 // rowGap is the widest gap two words on one row, or on lines one under the
 // other, may have between them and join. Words the reader put on two lines
 // join across lineSpacings of the narrower line's spacing at most, so a
-// gutter between two columns of text keeps them apart. On one row, both
-// lines must have a measured spacing, since a line of one or two words,
-// such as a list's number, sits close to the text beside it. For lines one
-// under the other, one measured line is enough, so the end of a line cannot
-// step down across a gutter to a short line of the next column.
-func rowGap(first, second Word, cell int, spacing map[int]int, stacked bool) int {
+// gutter between two columns of text keeps them apart. A line of fewer
+// than spacingWords words has no spacing to tell, so the other line's
+// decides, and a reader that splits a widely justified line into short
+// ones cannot join it across the gutter to the next column.
+func rowGap(first, second Word, cell int, spacing map[int]int) int {
 	limit := containerGapColumns * cell
 	if first.Line == second.Line {
 		return limit
@@ -363,9 +409,9 @@ func rowGap(first, second Word, cell int, spacing map[int]int, stacked bool) int
 	switch {
 	case knownFirst && knownSecond:
 		return min(limit, lineSpacings*min(spacingFirst, spacingSecond))
-	case stacked && knownFirst:
+	case knownFirst:
 		return min(limit, lineSpacings*spacingFirst)
-	case stacked && knownSecond:
+	case knownSecond:
 		return min(limit, lineSpacings*spacingSecond)
 	default:
 		return limit
@@ -476,33 +522,56 @@ func boundsOf(words []Word) image.Rectangle {
 	return bounds
 }
 
-// neighbor returns the container key leads to from container from. For h,
-// j, k and l it is the nearest container wholly that way past the facing
-// edge, preferring one that shares rows (or columns) with from, and for w and
-// W the next and the previous in reading order, wrapping around.
-func (t *Text) neighbor(from int, key string) (int, bool) {
+// neighbor returns the container key leads to from leaf from. For w and W it
+// is the next and the previous leaf in reading order, wrapping around. For h,
+// j, k and l it is the nearest container that way among the ones beside
+// from in the tree, and when none lies that way, among the ones beside its
+// block, a level up at a time, so a move stays within a column until the
+// column ends.
+func (t *Text) neighbor(from int, key string) (Container, bool) {
 	count := len(t.containers)
 
 	switch key {
 	case "w":
-		return (from + 1) % count, true
+		return t.containers[(from+1)%count], true
 	case "W":
-		return (from + count - 1) % count, true
+		return t.containers[(from+count-1)%count], true
 	case "h", "j", "k", "l":
 	default:
-		return 0, false
+		return Container{}, false
 	}
 
-	origin := t.containers[from].Bounds
+	for node := t.containers[from].node; node >= 0; node = t.tree[node].Parent {
+		var siblings []int
 
-	// First only the containers that share rows or columns with from, then
-	// any that way.
+		for index, other := range t.tree {
+			if index != node && other.Parent == t.tree[node].Parent {
+				siblings = append(siblings, index)
+			}
+		}
+
+		if next, found := t.toward(node, siblings, key); found {
+			return t.tree[next], true
+		}
+	}
+
+	return Container{}, false
+}
+
+// toward returns the one of candidates, tree indices, nearest from the way
+// key points: first those wholly that way that share rows or columns with
+// from, then any wholly that way. Bounds that overlap, as a block widened by
+// a line under the block beside it, can leave none wholly that way. Then the
+// nearest of those it overlaps whose center lies that way is next.
+func (t *Text) toward(from int, candidates []int, key string) (int, bool) {
+	origin := t.tree[from].Bounds
+
 	for _, sharing := range []bool{true, false} {
 		best, bestScore := -1, 0
 
-		for index, container := range t.containers {
-			gap, side, ahead := facing(key, origin, container.Bounds)
-			if index == from || !ahead || (sharing && side > 0) {
+		for _, index := range candidates {
+			gap, side, ahead := facing(key, origin, t.tree[index].Bounds)
+			if !ahead || (sharing && side > 0) {
 				continue
 			}
 
@@ -517,24 +586,19 @@ func (t *Text) neighbor(from int, key string) (int, bool) {
 		}
 	}
 
-	// When bounds overlap, as when a line under one block widens it past
-	// the block beside it, no container lies wholly that way. Then the
-	// nearest one whose center lies that way is next.
-	return t.centerToward(from, key)
-}
-
-// centerToward returns the container nearest from whose center lies the way
-// key points from from's center.
-func (t *Text) centerToward(from int, key string) (int, bool) {
 	centerOf := func(bounds image.Rectangle) image.Point {
 		return bounds.Min.Add(bounds.Size().Div(halfDivisor))
 	}
 
-	origin := centerOf(t.containers[from].Bounds)
+	center := centerOf(origin)
 	best, bestDistance := -1, 0
 
-	for index, container := range t.containers {
-		offset := centerOf(container.Bounds).Sub(origin)
+	for _, index := range candidates {
+		if !t.tree[index].Bounds.Overlaps(origin) {
+			continue
+		}
+
+		offset := centerOf(t.tree[index].Bounds).Sub(center)
 
 		var ahead int
 
@@ -549,7 +613,7 @@ func (t *Text) centerToward(from int, key string) (int, bool) {
 			ahead = offset.Y
 		}
 
-		if index == from || ahead <= 0 {
+		if ahead <= 0 {
 			continue
 		}
 

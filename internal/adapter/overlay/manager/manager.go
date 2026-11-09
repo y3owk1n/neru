@@ -172,6 +172,7 @@ type VimScene struct {
 	Matches   []image.Rectangle
 	Current   int
 	Container image.Rectangle
+	Block     image.Rectangle
 	Status    string
 	Lens      [3]string
 	Labels    []VimLabel

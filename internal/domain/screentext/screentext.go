@@ -63,6 +63,11 @@ func Icon(bounds image.Rectangle) Word {
 type Container struct {
 	Bounds     image.Rectangle
 	Start, End int
+	// Parent is the index, in the tree Text.Tree returns, of the block the
+	// container sits in, or -1 at the top.
+	Parent int
+
+	node int // its own index in the tree
 }
 
 // Text is the screen as lines of words. It implements vim.Text.
@@ -71,10 +76,11 @@ type Text struct {
 	starts     []int             // byte offset where each line starts
 	boxes      []image.Rectangle // per byte, the pixels it was read from
 	words      []image.Rectangle // every word's bounds
-	containers []Container
-	icons      map[int]bool // the bytes that are an icon's glyph
-	iconStarts []int        // where each icon's glyph starts, in order
-	cell       int          // the width of one character
+	containers []Container       // the leaves, in reading order
+	tree       []Container       // every container, blocks too, root first
+	icons      map[int]bool      // the bytes that are an icon's glyph
+	iconStarts []int             // where each icon's glyph starts, in order
+	cell       int               // the width of one character
 }
 
 // New lays words out the way the screen shows them, as a buffer vim moves
@@ -102,8 +108,17 @@ func New(words []Word) *Text {
 		last    image.Rectangle
 	)
 
-	for index, group := range findContainers(kept, cell) {
-		bounds := boundsOf(group)
+	groups := findContainers(kept, cell)
+	nodes := buildTree(groups)
+
+	text.tree = make([]Container, len(nodes))
+	for index, node := range nodes {
+		text.tree[index] = Container{Bounds: node.bounds, Parent: node.parent, node: index}
+	}
+
+	for index, leaf := range leavesInOrder(nodes) {
+		group := groups[nodes[leaf].group]
+		bounds := nodes[leaf].bounds
 
 		if index > 0 {
 			text.newline(&builder, image.Rect(last.Max.X, last.Min.Y, last.Max.X+1, last.Max.Y))
@@ -114,12 +129,20 @@ func New(words []Word) *Text {
 			)
 		}
 
-		start := builder.Len()
+		text.tree[leaf].Start = builder.Len()
 		last = text.addBlock(&builder, group, cell)
-		text.containers = append(
-			text.containers,
-			Container{Bounds: bounds, Start: start, End: builder.Len()},
-		)
+		text.tree[leaf].End = builder.Len()
+		text.containers = append(text.containers, text.tree[leaf])
+	}
+
+	// A block holds the text of its children, which lie next to each other
+	// since the leaves are laid out depth first. Children come after their
+	// parent, so walking back fills every block from what is below it.
+	for index := len(nodes) - 1; index >= 0; index-- {
+		if children := nodes[index].children; len(children) > 0 {
+			text.tree[index].Start = text.tree[children[0]].Start
+			text.tree[index].End = text.tree[children[len(children)-1]].End
+		}
 	}
 
 	text.s = builder.String()
@@ -289,8 +312,12 @@ func (t *Text) CellWidth() int { return max(t.cell, 1) }
 // Words returns the bounds of every word, in reading order.
 func (t *Text) Words() []image.Rectangle { return t.words }
 
-// Containers returns the containers, in reading order.
+// Containers returns the innermost containers, in reading order.
 func (t *Text) Containers() []Container { return t.containers }
+
+// Tree returns every container, the blocks that hold others too, root
+// first. A container's Parent indexes into it.
+func (t *Text) Tree() []Container { return t.tree }
 
 // ContainerAt returns the index of the container whose bytes hold pos, or
 // false when none does, as on the blank line between two.
@@ -304,10 +331,9 @@ func (t *Text) ContainerAt(pos int) (int, bool) {
 	return 0, false
 }
 
-// NearestIn returns the byte of container index whose pixels lie closest to
+// NearestIn returns the byte of container whose pixels lie closest to
 // point.
-func (t *Text) NearestIn(index int, point image.Point) int {
-	container := t.containers[index]
+func (t *Text) NearestIn(container Container, point image.Point) int {
 	best, bestDistance := container.Start, -1
 
 	for offset := container.Start; offset < container.End; offset++ {
@@ -388,6 +414,39 @@ func (t *Text) Nearest(point image.Point) int {
 	}
 
 	return best
+}
+
+// enclosing returns the smallest container whose text holds start to end
+// and is more than it, so asking again with what it returned gives the
+// block around that. With around, a container's text runs on through the
+// blank line after it, to where the next one starts.
+func (t *Text) enclosing(start, end int, around bool) (int, int, bool) {
+	best, bestStart, bestEnd := -1, 0, 0
+
+	for index, container := range t.tree {
+		last := container.End
+		if around {
+			last = t.Len()
+
+			for _, leaf := range t.containers {
+				if leaf.Start >= container.End {
+					last = leaf.Start
+
+					break
+				}
+			}
+		}
+
+		if container.Start > start || last < end || (container.Start == start && last == end) {
+			continue
+		}
+
+		if best < 0 || last-container.Start < bestEnd-bestStart {
+			best, bestStart, bestEnd = index, container.Start, last
+		}
+	}
+
+	return bestStart, bestEnd, best >= 0
 }
 
 // leading reports whether pos is in the padding a line starts with.

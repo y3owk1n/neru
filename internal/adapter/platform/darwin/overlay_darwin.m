@@ -4446,6 +4446,7 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 	NSArray<NSValue *> *selection = NeruVimRects(scene.selection, scene.selectionCount);
 	NSArray<NSValue *> *matches = NeruVimRects(scene.matches, scene.matchCount);
 	CGRect container = scene.container;
+	CGRect block = scene.block;
 	int current = scene.currentMatch;
 	NSString *status = NeruVimString(scene.status);
 	NSString *lensBefore = NeruVimString(scene.lensBefore);
@@ -4498,6 +4499,14 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 
 			view.vimRoot.sublayers = nil;
 			CALayer *root = view.vimRoot;
+
+			// The block around the container is outlined further out, at a
+			// third of the container outline's opacity.
+			if (!CGRectIsEmpty(block)) {
+				CGRect r = CGRectInset(NeruVimFlip(block, height), -12, -10);
+				NSColor *faint = [containerColor colorWithAlphaComponent:containerColor.alphaComponent / 3];
+				[root addSublayer:NeruVimBox(r, [NSColor clearColor], faint, 1.5, 6)];
+			}
 
 			if (!CGRectIsEmpty(container)) {
 				CGRect r = CGRectInset(NeruVimFlip(container, height), -6, -4);

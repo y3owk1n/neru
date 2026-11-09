@@ -281,8 +281,8 @@ func TestText_AppChars_CountsAGapAsTheSpacesItHolds(t *testing.T) {
 	}
 }
 
-// columns is two columns side by side, a gutter apart, and a footer below on
-// another background.
+// columns is two columns side by side, a gutter apart, and a footer below
+// both on another background.
 func columns() []screentext.Word {
 	const page, footer = 0xF0F0F0, 0x303030
 
@@ -292,16 +292,22 @@ func columns() []screentext.Word {
 		{Text: "Article", Bounds: image.Rect(200, 0, 270, 10), Background: page},
 		{Text: "body", Bounds: image.Rect(200, 12, 240, 22), Background: page},
 		{Text: "Footer", Bounds: image.Rect(0, 30, 60, 40), Background: footer},
+		{Text: "about", Bounds: image.Rect(70, 30, 120, 40), Background: footer},
+		{Text: "terms", Bounds: image.Rect(130, 30, 180, 40), Background: footer},
+		{Text: "privacy", Bounds: image.Rect(190, 30, 260, 40), Background: footer},
 	}
 }
 
-// row is words of reader line line, each ten pixels a character, starting
-// at the x positions given, on the top row.
+// wordFour is a four-character word the row tests lay out.
+const wordFour = "aaaa"
+
+// row is words of reader line line, each five pixels a character and ten
+// tall, starting at the x positions given, on the top row.
 func row(line int, xs ...int) []screentext.Word {
 	words := make([]screentext.Word, 0, len(xs))
 	for _, x := range xs {
 		words = append(words, screentext.Word{
-			Text: "aa", Bounds: image.Rect(x, 0, x+20, 10), Line: line,
+			Text: wordFour, Bounds: image.Rect(x, 0, x+20, 10), Line: line,
 		})
 	}
 
@@ -351,7 +357,7 @@ func TestNew_GroupsWordsIntoContainers(t *testing.T) {
 		},
 		{
 			name:  "two short lines on one row join across the same gap",
-			words: slices.Concat(row(1, 0, 30), row(2, 80, 110)),
+			words: slices.Concat(row(1, 0, 30), row(2, 65, 95)),
 			want:  1,
 		},
 		{
@@ -366,10 +372,28 @@ func TestNew_GroupsWordsIntoContainers(t *testing.T) {
 		{
 			name: "the end of an evenly spaced line does not step down across a gutter",
 			words: slices.Concat(row(1, 0, 25, 50, 75), []screentext.Word{
-				{Text: "aa", Bounds: image.Rect(125, 12, 145, 22), Line: 2},
-				{Text: "aa", Bounds: image.Rect(150, 12, 170, 22), Line: 2},
+				{Text: wordFour, Bounds: image.Rect(125, 14, 145, 24), Line: 2},
+				{Text: wordFour, Bounds: image.Rect(150, 14, 170, 24), Line: 2},
 			}),
 			want: 2,
+		},
+		{
+			// A reader that measures ink, as Windows's does, gives a row of
+			// short words a short box. A table's rows are still one column.
+			name: "rows a reader measured at their ink join as rows of full lines do",
+			words: []screentext.Word{
+				{Text: wordFour, Bounds: image.Rect(0, 0, 20, 9), Line: 1},
+				{Text: wordFour, Bounds: image.Rect(0, 30, 20, 39), Line: 2},
+				{Text: wordFour, Bounds: image.Rect(0, 60, 20, 69), Line: 3},
+			},
+			want: 1,
+		},
+		{
+			// A reader can split a widely justified line into short ones,
+			// which have no spacing of their own to measure.
+			name:  "a short line on the row of an evenly spaced one stays apart across a gutter",
+			words: slices.Concat(row(1, 0, 25, 50, 75), row(2, 110)),
+			want:  2,
 		},
 		{
 			name: "two blocks whose corners touch a paragraph break apart stay apart",
@@ -451,7 +475,7 @@ func TestNew_GroupsWordsIntoContainers(t *testing.T) {
 
 func TestNew_LaysEachContainerOutAsItsOwnBlock(t *testing.T) {
 	got := screentext.New(columns()).String()
-	if want := "Menu\nHome\n\nArticle\nbody\n\nFooter"; got != want {
+	if want := "Menu\nHome\n\nArticle\nbody\n\nFooter about terms privacy"; got != want {
 		t.Fatalf("text = %q, want %q", got, want)
 	}
 }
@@ -512,7 +536,7 @@ func TestHost_CtrlW_MovesBetweenContainers(t *testing.T) {
 		point image.Point
 	}{
 		{name: "l goes to the container on the right", keys: "j<C-w>l", point: image.Pt(205, 17)},
-		{name: "j goes to the container below", keys: "<C-w>j", point: image.Pt(5, 35)},
+		{name: "j goes to the container below", keys: keysDownW, point: image.Pt(5, 35)},
 		{name: "w goes to the next in reading order", keys: "<C-w>w", point: image.Pt(205, 5)},
 		{
 			name:  "h passes over a container below for the one beside",
@@ -549,7 +573,7 @@ func TestHost_CtrlW_ReachesAContainerInsideTheBoundsOfAnother(t *testing.T) {
 		{Text: "item", Bounds: image.Rect(0, 12, 40, 22)},
 		{Text: "more", Bounds: image.Rect(0, 24, 40, 34)},
 		{Text: "Side", Bounds: image.Rect(200, 0, 240, 10)},
-		{Text: "aaaa", Bounds: image.Rect(0, 40, 40, 50)},
+		{Text: wordFour, Bounds: image.Rect(0, 40, 40, 50)},
 		{Text: "bbbb", Bounds: image.Rect(50, 40, 90, 50)},
 		{Text: "cccc", Bounds: image.Rect(100, 40, 140, 50)},
 		{Text: "dddd", Bounds: image.Rect(150, 40, 190, 50)},
@@ -567,6 +591,117 @@ func TestHost_CtrlW_ReachesAContainerInsideTheBoundsOfAnother(t *testing.T) {
 
 	if got, _ := text.Point(host.Cursor()); got != image.Pt(205, 5) {
 		t.Fatalf("cursor at %v, want on Side at (205,5)", got)
+	}
+}
+
+// The words and keys the column tests share.
+const (
+	wordLone  = "Lone"
+	wordLtwo  = "Ltwo"
+	keysDownW = "<C-w>j"
+)
+
+// sections is two columns of two sections each, the right column's a little
+// lower, so by height alone their sections interleave.
+func sections() []screentext.Word {
+	return []screentext.Word{
+		{Text: wordLone, Bounds: image.Rect(0, 0, 40, 10)},
+		{Text: wordLtwo, Bounds: image.Rect(0, 40, 40, 50)},
+		{Text: "Rone", Bounds: image.Rect(200, 20, 240, 30)},
+		{Text: "Rtwo", Bounds: image.Rect(200, 52, 240, 62)},
+	}
+}
+
+func TestNew_LaysOutAColumnBeforeTheColumnBesideIt(t *testing.T) {
+	got := screentext.New(sections()).String()
+	if want := "Lone\n\nLtwo\n\nRone\n\nRtwo"; got != want {
+		t.Fatalf("text = %q, want each column whole, %q", got, want)
+	}
+}
+
+func TestHost_CtrlW_StaysInTheColumnUntilItEnds(t *testing.T) {
+	tests := []struct {
+		name    string
+		from    string
+		keys    string
+		want    image.Point
+		refused bool
+	}{
+		{
+			name: "j goes to the section below",
+			from: wordLone,
+			keys: keysDownW,
+			want: image.Pt(5, 45),
+		},
+		{
+			name:    "j at the column's end goes nowhere",
+			from:    wordLtwo,
+			keys:    keysDownW,
+			refused: true,
+		},
+		{
+			name: "l goes to the column beside",
+			from: wordLtwo,
+			keys: "<C-w>l",
+			want: image.Pt(205, 57),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			text := screentext.New(sections())
+			host := screentext.NewHost(text, strings.Index(text.String(), test.from), nil)
+			machine := screentext.NewMachine(host)
+
+			var err error
+			for _, key := range vim.Keys(test.keys) {
+				err = machine.Feed(key)
+			}
+
+			if test.refused {
+				if err == nil {
+					t.Fatalf("moved to %v, want no container that way", host.Cursor())
+				}
+
+				return
+			}
+
+			if got, _ := text.Point(host.Cursor()); err != nil || got != test.want {
+				t.Fatalf("cursor at %v (%v), want %v", got, err, test.want)
+			}
+		})
+	}
+}
+
+func TestHost_YankInsideContainer_ACountTakesTheBlockAround(t *testing.T) {
+	tests := []struct {
+		keys string
+		want string
+	}{
+		{keys: "yic", want: wordLone},
+		{keys: "y2ic", want: "Lone\n\nLtwo"},
+		{keys: "y3ic", want: "Lone\n\nLtwo\n\nRone\n\nRtwo"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.keys, func(t *testing.T) {
+			var copied string
+
+			text := screentext.New(sections())
+			host := screentext.NewHost(text, 0, func(s string) { copied = s })
+			machine := screentext.NewMachine(host)
+
+			for _, key := range vim.Keys(test.keys) {
+				err := machine.Feed(key)
+				if err != nil {
+					t.Fatalf("feed %q: %v", key, err)
+				}
+			}
+
+			if copied != test.want {
+				t.Fatalf("copied %q, want %q", copied, test.want)
+			}
+		})
 	}
 }
 

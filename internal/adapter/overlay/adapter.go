@@ -891,6 +891,7 @@ func (a *Adapter) drawVim(frame ports.VimFrame) error {
 		Matches:   local(frame.Matches),
 		Current:   frame.Current,
 		Container: frame.Container.Sub(origin),
+		Block:     frame.Block.Sub(origin),
 		Status:    frame.Status,
 		Lens:      [3]string{frame.Lens.Before, frame.Lens.At, frame.Lens.After},
 		Labels:    vimLabels(frame.Labels, origin),

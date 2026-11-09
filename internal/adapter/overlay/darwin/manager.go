@@ -682,6 +682,7 @@ func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error 
 		matchCount:     C.int(len(scene.Matches)),
 		currentMatch:   C.int(scene.Current),
 		container:      cRect(scene.Container),
+		block:          cRect(scene.Block),
 		status:         strs[7],
 		lensBefore:     strs[8],
 		lensAt:         strs[9],

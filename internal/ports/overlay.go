@@ -210,6 +210,9 @@ type VimFrame struct {
 	// Container is the block of text the cursor is in, such as a column or
 	// a card, outlined so the reach of j, k and the ic object shows.
 	Container image.Rectangle
+	// Block is the block Container sits in, outlined fainter, so 2ic's reach
+	// shows. It is empty when that is the whole screen.
+	Block image.Rectangle
 	// Status is the status bar's text.
 	Status string
 	// Lens is the word under the cursor as read, split around the character
