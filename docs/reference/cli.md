@@ -671,6 +671,7 @@ again.
 | `ic`, `ac` | The container's text, or with the blank line after it, as `yic` copies a card |
 | `Ctrl+D`, `Ctrl+U`, `Ctrl+F`, `Ctrl+B`, `Ctrl+E`, `Ctrl+Y` | Scroll the app at once. The overlay stays up while the page moves and the status bar says `reading…`, and vim reads the screen again once it stops, so a run of scrolls reads only the screen it ends on. `j` and `k` past the edge scroll too |
 | `zh`, `zl`, `zH`, `zL` | Scroll the app left or right eight characters, or the count with one, or half the width read with `zH` and `zL` |
+| `zz` | Scroll the app until the cursor's line is in the middle of the region read, or line n of the text read with a count |
 | `Ctrl+L` | Read the screen again, keeping registers, macros and the last search |
 | `:q`, `:click`, `:rightclick`, `:middleclick` | Leave, or click at the cursor |
 | `Escape` | Cancel what is pending, then leave |

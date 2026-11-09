@@ -35,6 +35,7 @@ typing, then reads the screen again:
   Ctrl+E Ctrl+Y       scroll the app two lines, as j and k do past the edge
   zh zl zH zL         scroll the app sideways eight characters, or the
                       count, or half the width read
+  zz                  scroll the app until the cursor's line is in the middle
   Ctrl+L              read the screen again
   :q :click           leave, click at the cursor
   Escape              cancel what is pending, then leave

@@ -4988,6 +4988,24 @@ func TestSimulation_VimScrollsTheAppSideways(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimCentersTheCursorsLine covers zz. The word is near the
+// top of the screen, so zz scrolls the app up by the distance from its line
+// to the middle.
+func TestSimulation_VimCentersTheCursorsLine(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{vimWordFile: image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("z", "z")
+	sim.waitFor("the app scrolled", func() bool { return len(sim.ax.recordedScrolls()) == 1 })
+
+	want := image.Pt(0, (simScreen.Dy()-30)/2-100)
+	if got := sim.ax.recordedScrolls()[0]; got != want {
+		t.Fatalf("zz scrolled %v, want %v", got, want)
+	}
+}
+
 // TestSimulation_VimDotRepeatsTypedChange covers . after a change typed into
 // the app. The machine never saw the typing, so . must replay it with the
 // command, and change the word under the cursor the same way. A count before

@@ -275,7 +275,7 @@ func vimCountKeys(count int) []vim.Key {
 	return keys
 }
 
-// handleVimZKey scrolls the app sideways for zh, zl, zH and zL, and reports
+// handleVimZKey scrolls the app for zh, zl, zH, zL and zz, and reports
 // whether it took key. A z with nothing or only a count before it waits for
 // its second key. Any other second key goes to the machine with the z and
 // the count.
@@ -302,7 +302,20 @@ func (h *handlerState) handleVimZKey(vimKey vim.Key) bool {
 			}
 		}
 
-		return !h.feedVim("z")
+		if vimKey != "z" {
+			return !h.feedVim("z")
+		}
+
+		// The machine puts the cursor on line n for a count, and scrolls
+		// nothing since every line read is in view.
+		if !h.feedVim("z") || !h.feedVim(vimKey) {
+			return true
+		}
+
+		h.followVimCursor()
+		h.vimCenterLine()
+
+		return true
 	}
 
 	count, countOnly := vimPendingCount(machine)
@@ -654,8 +667,10 @@ func (h *handlerState) vimJumpTo(target int) {
 // or moves with the text.
 type vimScrollKey struct {
 	direction services.ScrollDirection
-	// lines scrolls this many line heights, and columns this many
-	// characters sideways, or a fraction of the region when zero.
+	// pixels scrolls this far, lines this many line heights, and columns
+	// this many characters sideways, or a fraction of the region when all
+	// are zero.
+	pixels   int
 	lines    int
 	columns  int
 	fraction float64
@@ -685,6 +700,28 @@ var vimSideScrollKeys = map[vim.Key]vimScrollKey{
 	"l": {direction: services.ScrollDirectionRight, columns: vimSideScrollColumns},
 	"H": {direction: services.ScrollDirectionLeft, fraction: vimScrollHalfPage, stays: true},
 	"L": {direction: services.ScrollDirectionRight, fraction: vimScrollHalfPage, stays: true},
+}
+
+// vimCenterLine scrolls the app until the cursor's line sits in the middle
+// of the region read, and the cursor stays on its text. When the line is
+// already there it only redraws, since a count may have moved the cursor.
+func (h *handlerState) vimCenterLine() {
+	session := h.vim
+	region := session.region
+
+	step := 0
+	if box, ok := session.host.Screen().Box(session.host.Cursor()); ok {
+		step = box.Min.Y - region.Min.Y - (region.Dy()-box.Dy())/vimHalf
+	}
+
+	switch {
+	case step > 0:
+		h.vimScroll(vimScrollKey{direction: services.ScrollDirectionDown, pixels: step})
+	case step < 0:
+		h.vimScroll(vimScrollKey{direction: services.ScrollDirectionUp, pixels: -step})
+	default:
+		h.redrawFrame(h.vimFrame(), "update vim overlay")
+	}
 }
 
 // vimScrollAtEdge scrolls the app when j or k tried to leave the text read,

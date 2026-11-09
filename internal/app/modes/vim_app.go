@@ -339,6 +339,8 @@ func (h *handlerState) vimScroll(scroll vimScrollKey) {
 	step := int(float64(session.shown.Dy()) * scroll.fraction)
 
 	switch {
+	case scroll.pixels > 0:
+		step = scroll.pixels
 	case sideways && scroll.columns > 0:
 		step = scroll.columns * text.CellWidth()
 	case sideways:
