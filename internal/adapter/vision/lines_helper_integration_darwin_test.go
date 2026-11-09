@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"image"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -151,27 +150,50 @@ func TestServeTextLines_ReadsAWideWordInALatinLine(t *testing.T) {
 // daemon reads to have Vision compile its models before the first vim
 // session. Arabic and Devanagari each have a model compiled only once a read
 // meets them, so a sample that drew either as missing glyphs would leave its
-// compile to a later read.
+// compile to a later read. A script whose language this macOS's recognizer
+// does not list has no model to compile, so the test leaves it out. macOS 26
+// lists no Hindi, for one.
 func TestReadTextSample_ReadsEveryScriptWithAModelOfItsOwn(t *testing.T) {
 	img, err := textSample()
 	if err != nil {
 		t.Fatalf("draw the sample: %v", err)
 	}
 
-	pieces, err := readSampleWith(img, "")
+	request, err := encodeLinesRequest(img, img.Rect, prepareTimeout.Milliseconds(), "")
 	if err != nil {
-		t.Fatalf("read the sample: %v", err)
+		t.Fatalf("encode the request: %v", err)
+	}
+
+	var out bytes.Buffer
+
+	err = ServeTextLines(context.Background(), request, &out)
+	if err != nil {
+		t.Fatalf("serve the request: %v", err)
+	}
+
+	var pieces []linePiece
+
+	err = json.Unmarshal(out.Bytes(), &pieces)
+	if err != nil {
+		t.Fatalf("the answer is not JSON pieces: %v", err)
 	}
 
 	for _, script := range []struct {
-		name  string
-		table *unicode.RangeTable
+		name     string
+		language string
+		table    *unicode.RangeTable
 	}{
-		{"Latin", unicode.Latin},
-		{"Arabic", unicode.Arabic},
-		{"Devanagari", unicode.Devanagari},
-		{"Han", unicode.Han},
+		{"Latin", "en-US", unicode.Latin},
+		{"Arabic", "ar-SA", unicode.Arabic},
+		{"Devanagari", "hi-IN", unicode.Devanagari},
+		{"Han", "zh-Hans", unicode.Han},
 	} {
+		if !accurateReadReads(script.language) {
+			t.Logf("this macOS reads no %s, so the test leaves it out", script.name)
+
+			continue
+		}
+
 		found := slices.ContainsFunc(pieces, func(piece linePiece) bool {
 			return strings.ContainsFunc(
 				piece.Text,
@@ -182,54 +204,4 @@ func TestReadTextSample_ReadsEveryScriptWithAModelOfItsOwn(t *testing.T) {
 			t.Errorf("the sample read no %s text", script.name)
 		}
 	}
-
-	if t.Failed() {
-		logSampleDiagnosis(t, img, pieces)
-	}
-}
-
-// readSampleWith reads img through the helper's request, with language as the
-// request's second language, or the user's when it is empty.
-func readSampleWith(img *image.RGBA, language string) ([]linePiece, error) {
-	request, err := encodeLinesRequest(img, img.Rect, prepareTimeout.Milliseconds(), language)
-	if err != nil {
-		return nil, err
-	}
-
-	var out bytes.Buffer
-
-	err = ServeTextLines(context.Background(), request, &out)
-	if err != nil {
-		return nil, err
-	}
-
-	var pieces []linePiece
-
-	err = json.Unmarshal(out.Bytes(), &pieces)
-
-	return pieces, err
-}
-
-// logSampleDiagnosis says what the sample read, whether Vision reads
-// Devanagari at all when Hindi is asked for by name, and which machine this
-// is. The sample is fixed text, so logging what was read of it logs nothing
-// of the user's.
-func logSampleDiagnosis(t *testing.T, img *image.RGBA, pieces []linePiece) {
-	t.Helper()
-
-	for _, piece := range pieces {
-		t.Logf("read line %d: %q", piece.Line, piece.Text)
-	}
-
-	hindi, err := readSampleWith(img, "hi-IN")
-	t.Logf("read with hi-IN: %d pieces, err %v", len(hindi), err)
-
-	for _, piece := range hindi {
-		t.Logf("read with hi-IN, line %d: %q", piece.Line, piece.Text)
-	}
-
-	machine, err := exec.CommandContext(
-		t.Context(), "sysctl", "-n", "hw.model", "kern.osversion", "machdep.cpu.brand_string",
-	).Output()
-	t.Logf("machine: %q, err %v", strings.TrimSpace(string(machine)), err)
 }

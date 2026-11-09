@@ -6,6 +6,18 @@ package vision
 #include "../platform/darwin/vision.h"
 #include <stdlib.h>
 #include <string.h>
+#import <Vision/Vision.h>
+
+// accurateReadLists returns 1 when Vision's accurate recognizer lists
+// language among those it reads, and 0 otherwise.
+static int accurateReadLists(const char *language) {
+	@autoreleasepool {
+		VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] init];
+		request.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
+		NSArray<NSString *> *languages = [request supportedRecognitionLanguagesAndReturnError:nil];
+		return [languages containsObject:[NSString stringWithUTF8String:language]] ? 1 : 0;
+	}
+}
 */
 import "C"
 
@@ -150,4 +162,13 @@ func scaledImage(
 	)
 
 	return C.CGBitmapContextCreateImage(context)
+}
+
+// accurateReadReads reports whether this macOS's accurate recognizer reads
+// language, such as "hi-IN".
+func accurateReadReads(language string) bool {
+	cLanguage := C.CString(language)
+	defer C.free(unsafe.Pointer(cLanguage))
+
+	return C.accurateReadLists(cLanguage) == 1
 }
