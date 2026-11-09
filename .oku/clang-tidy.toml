@@ -5,45 +5,45 @@ homepage = "https://clang.llvm.org/extra/clang-tidy/"
 license = "Apache-2.0 WITH LLVM-exception"
 
 # The PyPI wheel, as in clang-format.toml. It ships lib/clang next to the
-# binary, which clang-tidy needs for its builtin headers. 21.1.6 is the newest
-# 21.1 wheel. New urls and sha256 values: https://pypi.org/pypi/clang-tidy/json.
+# binary, which clang-tidy needs for its builtin headers. New urls and sha256
+# values: https://pypi.org/pypi/clang-tidy/json.
 [version]
-value = "21.1.6"
+value = "23.1.4"
 
 [[artifact]]
 match = { os = "darwin", arch = "arm64" }
-url = "https://files.pythonhosted.org/packages/ca/ad/cd1f262bd51376920af406cc3721416f7c303d7eec0ae39218d1a6aa9b45/clang_tidy-21.1.6-py2.py3-none-macosx_11_0_arm64.whl"
-sha256 = "12634548feceb2bce89b65d94550f1b92359ebc19c35cf72b93855cd18845ef9"
+url = "https://files.pythonhosted.org/packages/0c/59/637ce45a6cfa15ddb926e1feeee8077b9ebeb2956548375f24e16d51a908/clang_tidy-23.1.4-py2.py3-none-macosx_11_0_arm64.whl"
+sha256 = "08e977575e9f800c1c806f2001a3cdfd01323491aec05e86dd24be9a5c2585f4"
 bin = ["clang_tidy/data/bin/clang-tidy"]
 
 [[artifact]]
 match = { os = "darwin", arch = "amd64" }
-url = "https://files.pythonhosted.org/packages/73/59/cef36a88d30ed6dfc7237b3a9fa7de062726b4f30aeacf3e0e0316eee41e/clang_tidy-21.1.6-py2.py3-none-macosx_10_9_x86_64.whl"
-sha256 = "372f20267e67f41b758b0c2009e4607f1b53fbee40092e76da3121491d439985"
+url = "https://files.pythonhosted.org/packages/aa/18/581961a934c9df0861fa91dcf2e6c553e1d4e194de10fd80c1c633b731be/clang_tidy-23.1.4-py2.py3-none-macosx_10_9_x86_64.whl"
+sha256 = "16be65b3396d096826cda8b94e7734913b4e2ffe0053fac6b8ccb2efc8d68cb1"
 bin = ["clang_tidy/data/bin/clang-tidy"]
 
 [[artifact]]
 match = { os = "linux", arch = "arm64" }
-url = "https://files.pythonhosted.org/packages/e0/88/494022a892bd121f01c55d32e754867a8d6bbe7640975389be5792a55636/clang_tidy-21.1.6-py2.py3-none-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl"
-sha256 = "d954cc13d87aa6ba847eac4d26bec019024c54c2968389444eed6d4201ec45e6"
+url = "https://files.pythonhosted.org/packages/7d/95/ba9463f94319dddd0c3a9d3f65d432ddf71fe9b203dcd7ea63bcff8999e2/clang_tidy-23.1.4-py2.py3-none-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl"
+sha256 = "87596cd77dedfdea23ced1d13e57e869dcaee99745bfe942796196da3c197671"
 bin = ["clang_tidy/data/bin/clang-tidy"]
 
 [[artifact]]
 match = { os = "linux", arch = "amd64" }
-url = "https://files.pythonhosted.org/packages/cf/fc/f0a2ba49f142e019117e9d9d6c1b49bde410ec0139cc9392ccae1be4ff3e/clang_tidy-21.1.6-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
-sha256 = "685e549e80461afb0f0c420ecfd0427e8bf38b927e989bdfee49dab4a9794cd1"
+url = "https://files.pythonhosted.org/packages/80/85/9b483f300124a9245ec6da8975612f1841e26da13b27ad8d17f2006e13bd/clang_tidy-23.1.4-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+sha256 = "6bb31e4f319ecbe14acb75f23c3050d0f1d4b1d92ea1c66091bc76e4eac2c1ac"
 bin = ["clang_tidy/data/bin/clang-tidy"]
 
 [[artifact]]
 match = { os = "windows", arch = "amd64" }
-url = "https://files.pythonhosted.org/packages/4b/ed/26fbf1a0847ccd424f5a270d851b3b726e17d7eaebefbf58fff8191bdf81/clang_tidy-21.1.6-py2.py3-none-win_amd64.whl"
-sha256 = "8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6"
+url = "https://files.pythonhosted.org/packages/c0/49/b2adbdedbe430d0cce9b354a679d57e28692ce2fb59a575486784d438125/clang_tidy-23.1.4-py2.py3-none-win_amd64.whl"
+sha256 = "8107e05930f53dc477dbb5fb8108d7c10464176fc95d3e58f4ee7317887aed59"
 bin = ["clang_tidy/data/bin/clang-tidy.exe"]
 
 # clang-tidy has no win_arm64 wheel, so Windows on Arm runs the win_amd64
 # wheel under its x64 emulation.
 [[artifact]]
 match = { os = "windows", arch = "arm64" }
-url = "https://files.pythonhosted.org/packages/4b/ed/26fbf1a0847ccd424f5a270d851b3b726e17d7eaebefbf58fff8191bdf81/clang_tidy-21.1.6-py2.py3-none-win_amd64.whl"
-sha256 = "8f29fbc3e8aa0552810dd0e3e69f3158f8dbf0edb425e0437798e9db9d0a28a6"
+url = "https://files.pythonhosted.org/packages/c0/49/b2adbdedbe430d0cce9b354a679d57e28692ce2fb59a575486784d438125/clang_tidy-23.1.4-py2.py3-none-win_amd64.whl"
+sha256 = "8107e05930f53dc477dbb5fb8108d7c10464176fc95d3e58f4ee7317887aed59"
 bin = ["clang_tidy/data/bin/clang-tidy.exe"]

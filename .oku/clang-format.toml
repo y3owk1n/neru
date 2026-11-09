@@ -8,40 +8,40 @@ license = "Apache-2.0 WITH LLVM-exception"
 # archive is 1.5 GB. A wheel's URL holds a hash of the file, so each version
 # needs new urls and sha256 values from https://pypi.org/pypi/clang-format/json.
 [version]
-value = "21.1.8"
+value = "23.1.5"
 
 [[artifact]]
 match = { os = "darwin", arch = "arm64" }
-url = "https://files.pythonhosted.org/packages/84/38/a61466227a8a6bf22c583f7bd810e75c9a356cfc63c6a712a201103a4ad3/clang_format-21.1.8-py2.py3-none-macosx_11_0_arm64.whl"
-sha256 = "9a78fabba6b382866819b42a7b220d235a3baf6128a40fb7bd590c037f69879b"
+url = "https://files.pythonhosted.org/packages/0a/a9/3a17b3eac861ae4d67dd1bed59672028ac66007da056691553ab6cfa1be5/clang_format-23.1.5-py2.py3-none-macosx_11_0_arm64.whl"
+sha256 = "3fb740335d939dd02252cd5075050fc8858466b16cf9c1efa2f52da3baa816a7"
 bin = ["clang_format/data/bin/clang-format"]
 
 [[artifact]]
 match = { os = "darwin", arch = "amd64" }
-url = "https://files.pythonhosted.org/packages/17/1d/4b1d85acb99a2ee3bad0b20cc3e82c58fbfb39bf4dd5856ac1f2c4f36e65/clang_format-21.1.8-py2.py3-none-macosx_10_9_x86_64.whl"
-sha256 = "f447091c346027a09728a0a96128fe058419fe06cf200ccc3dc98bcd4399e351"
+url = "https://files.pythonhosted.org/packages/61/b0/a1d8cd44d504469b4e11d39bb56b7201f8680cbf611d22c8aa3b29cc57fd/clang_format-23.1.5-py2.py3-none-macosx_10_9_x86_64.whl"
+sha256 = "32ec7498f9f1672dff2e65624cf317a1fd64e48a4f582d6c172d440c511bff00"
 bin = ["clang_format/data/bin/clang-format"]
 
 [[artifact]]
 match = { os = "linux", arch = "arm64" }
-url = "https://files.pythonhosted.org/packages/ab/5d/6720c895c5cfc01831fac55ecf849f10d03d6222700909af14f6047c933b/clang_format-21.1.8-py2.py3-none-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl"
-sha256 = "c2a044953efab5f7d0261f3a76aabc01358592faac1b73af38d8c83db6e91a69"
+url = "https://files.pythonhosted.org/packages/24/6c/ecb0739fb3f1798098f4b63c0e22aa0fd5a1d639f3ae4235f8155935a1ef/clang_format-23.1.5-py2.py3-none-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl"
+sha256 = "e8037e12eae19a9779e01ca6719b8d7f6a939ade8869b061912551c9748a27ad"
 bin = ["clang_format/data/bin/clang-format"]
 
 [[artifact]]
 match = { os = "linux", arch = "amd64" }
-url = "https://files.pythonhosted.org/packages/a8/c2/403e7371b1ab0f6175d708ecc93cf18085ea9f903e8fe7d17c43df698f06/clang_format-21.1.8-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
-sha256 = "d12b864b596b80810cdd7f97556c485dc09cfe2952503958535f01359e025fbb"
+url = "https://files.pythonhosted.org/packages/0e/cc/06adcfb7dfaea4d2c1929202021d4afcdc26915dc75fc0c72d63855da553/clang_format-23.1.5-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl"
+sha256 = "d97ce49911ba8c89ef3f3c0735a9c7818e4780ab4812c67d1c5fcd829d16ae52"
 bin = ["clang_format/data/bin/clang-format"]
 
 [[artifact]]
 match = { os = "windows", arch = "amd64" }
-url = "https://files.pythonhosted.org/packages/69/7a/c49c8af9135c6a6dfb9cd103328ba7b6551643dce71b57e58ea940884015/clang_format-21.1.8-py2.py3-none-win_amd64.whl"
-sha256 = "a7606da55e31ebf5b63dd75800392e6cca7c595a74100c2cebcda2d742130732"
+url = "https://files.pythonhosted.org/packages/7b/67/b91fb3483ca5cdb468fa5e72d836736de5ec29154cc3f58718de6192bc12/clang_format-23.1.5-py2.py3-none-win_amd64.whl"
+sha256 = "18a4a1a698dd52ed4e288c97d99e93910f8f9d0128b266f65021ecf39c85d034"
 bin = ["clang_format/data/bin/clang-format.exe"]
 
 [[artifact]]
 match = { os = "windows", arch = "arm64" }
-url = "https://files.pythonhosted.org/packages/ad/d3/8790b539afb6cb0d4474705d3750e78a1f0847ab6d3ef1b00dd1ae52f364/clang_format-21.1.8-py2.py3-none-win_arm64.whl"
-sha256 = "1aa10b3f647268361d08bf4f17ce70964b8d9c04d5539e7d8acbebd14dc4a49c"
+url = "https://files.pythonhosted.org/packages/1a/67/91bb628e4dc1fe02b1682da34eb4297851f43bc423788f83530fb5036d46/clang_format-23.1.5-py2.py3-none-win_arm64.whl"
+sha256 = "9318d1c237b05539b18ecb779575caf92e7cc7b7ceb39250ff01557fa7a6b0b1"
 bin = ["clang_format/data/bin/clang-format.exe"]
