@@ -4895,6 +4895,36 @@ func TestSimulation_VimSubstituteStopsWhenTheScreenNeverShows(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimLeavesTheLineBreakWhenDeletingPadding covers dw from
+// column 0 of an indented line. Column 0 is the padding that stands for the
+// indent on screen, so dw deletes only that, which the app does not have.
+// Nothing is sent, since an erase with nothing selected takes the line break
+// before the caret and joins the line to the one above.
+func TestSimulation_VimLeavesTheLineBreakWhenDeletingPadding(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordExit: image.Rect(145, 200, 205, 230),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("G", "0")
+	vimFrameShows(sim, "cursor on the padding before Exit", func(f ports.VimFrame) bool {
+		return f.Cursor.Min.Y == 200 && f.Cursor.Max.X <= 145
+	})
+
+	sim.press("d", "w")
+	vimFrameShows(sim, "back in normal mode", func(f ports.VimFrame) bool {
+		return strings.HasPrefix(f.Status, "NORMAL")
+	})
+
+	if keys, clicks := sim.keyFeed.FedKeys(), sim.ax.recordedClicks(); len(keys) != 0 ||
+		len(clicks) != 0 {
+		t.Fatalf("deleting padding sent keys %v and clicks %v, want nothing", keys, clicks)
+	}
+}
+
 // TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping covers
 // [vim.hotkeys]. A bound key runs its action and vim never sees it, so x here
 // leaves the mode instead of deleting a character. While vim types into the

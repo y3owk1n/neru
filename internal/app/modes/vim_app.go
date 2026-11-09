@@ -361,6 +361,14 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 			break
 		}
 
+		// A deletion of only the padding before a line's first character, as
+		// dw from column 0 makes, takes nothing the app has. Erasing with
+		// nothing selected would take the character before the caret, the
+		// line break, and join the line to the one above.
+		if !put && edit.Text == "" && before.AppChars(edit.Start, edit.End) == 0 {
+			continue
+		}
+
 		chained := after != nil && vimSameRun(before, edit.Start, after.Start)
 
 		if !chained && lineEdits != nil {
