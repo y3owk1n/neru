@@ -12,7 +12,6 @@ type menuItem = darwin.MenuItem
 // single native tray, so these are functions rather than methods.
 var (
 	setTitle        = darwin.SetTitle
-	setTooltip      = darwin.SetTooltip
 	setTemplateIcon = darwin.SetTemplateIcon
 	addMenuItem     = darwin.AddMenuItem
 	addSeparator    = darwin.AddSeparator

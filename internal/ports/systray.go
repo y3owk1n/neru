@@ -50,9 +50,6 @@ type SystrayPort interface {
 	// title area ignore it.
 	SetTitle(title string)
 
-	// SetTooltip sets the icon's hover text.
-	SetTooltip(tooltip string)
-
 	// SetIcon sets the tray icon from encoded image bytes.
 	//
 	// template asks the platform to treat the image as a monochrome template

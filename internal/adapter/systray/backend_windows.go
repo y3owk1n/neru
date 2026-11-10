@@ -12,7 +12,6 @@ type menuItem = windows.MenuItem
 // single native tray, so these are functions rather than methods.
 var (
 	setTitle        = windows.SetTitle
-	setTooltip      = windows.SetTooltip
 	setTemplateIcon = windows.SetTemplateIcon
 	addMenuItem     = windows.AddMenuItem
 	addSeparator    = windows.AddSeparator

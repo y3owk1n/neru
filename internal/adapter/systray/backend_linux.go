@@ -11,7 +11,6 @@ type menuItem = linux.MenuItem
 // The rest forwards the backend's process-wide tray API.
 var (
 	setTitle        = linux.SetTitle
-	setTooltip      = linux.SetTooltip
 	setTemplateIcon = linux.SetTemplateIcon
 	addMenuItem     = linux.AddMenuItem
 	addSeparator    = linux.AddSeparator

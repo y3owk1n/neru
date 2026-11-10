@@ -9,7 +9,6 @@ void NeruQuit(void);
 
 void NeruSetIcon(const char *iconBytes, int length, bool isTemplate);
 void NeruSetTitle(const char *title);
-void NeruSetTooltip(const char *tooltip);
 
 void NeruAddMenuItem(int menuId, const char *title, short disabled, short checked);
 void NeruAddSubMenuItem(int parentId, int menuId, const char *title, short disabled, short checked);

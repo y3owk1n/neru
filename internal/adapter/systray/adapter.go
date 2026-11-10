@@ -23,11 +23,6 @@ func (a *Adapter) SetTitle(title string) {
 	setTitle(title)
 }
 
-// SetTooltip sets the icon's hover text.
-func (a *Adapter) SetTooltip(tooltip string) {
-	setTooltip(tooltip)
-}
-
 // SetIcon sets the tray icon, optionally as a macOS template image.
 func (a *Adapter) SetIcon(icon []byte, template bool) {
 	setTemplateIcon(icon, template)

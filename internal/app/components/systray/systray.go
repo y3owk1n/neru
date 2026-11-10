@@ -263,11 +263,9 @@ func (c *Component) updateMenuItems(enabled bool) {
 	c.tray.SetIcon(iconBytes, isTemplate)
 
 	if enabled {
-		c.tray.SetTooltip("Neru - Running")
 		c.mToggleDisable.Show()
 		c.mToggleEnable.Hide()
 	} else {
-		c.tray.SetTooltip("Neru - Paused")
 		c.mToggleDisable.Hide()
 		c.mToggleEnable.Show()
 	}
