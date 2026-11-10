@@ -143,6 +143,12 @@ if useZip then
       runHook postInstall
     '';
 
+    # The release binary is already stripped (go build -s -w), so strip has
+    # nothing to remove. It still rewrites the program headers. On x86_64 with
+    # patchelf 0.15.2 that leaves the patched .dynstr outside every LOAD
+    # segment, and the loader segfaults before neru runs.
+    dontStrip = stdenv.hostPlatform.isLinux;
+
     # only install completions on macOS
     # unable to make it work on Linux (do it manually please, sorry)
     postInstall = ''
