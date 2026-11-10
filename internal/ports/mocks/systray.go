@@ -13,7 +13,6 @@ import (
 type MockSystrayPort struct {
 	mu             sync.Mutex
 	title          string
-	tooltip        string
 	icon           []byte
 	iconIsTemplate bool
 	items          []*MockSystrayMenuItem
@@ -25,14 +24,6 @@ func (m *MockSystrayPort) SetTitle(title string) {
 	defer m.mu.Unlock()
 
 	m.title = title
-}
-
-// SetTooltip implements ports.SystrayPort.
-func (m *MockSystrayPort) SetTooltip(tooltip string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.tooltip = tooltip
 }
 
 // SetIcon implements ports.SystrayPort.
@@ -69,14 +60,6 @@ func (m *MockSystrayPort) Title() string {
 	defer m.mu.Unlock()
 
 	return m.title
-}
-
-// Tooltip returns the last value passed to SetTooltip.
-func (m *MockSystrayPort) Tooltip() string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	return m.tooltip
 }
 
 // Icon returns the last icon passed to SetIcon and whether it was set as a

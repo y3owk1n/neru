@@ -115,8 +115,7 @@ func (m *MenuItem) SetTitle(title string) {
 }
 
 // SetTooltip is empty by protocol, because com.canonical.dbusmenu defines no
-// per-item tooltip property (Linux). Nothing in Neru calls it. The icon's
-// hover text is the package-level SetTooltip.
+// per-item tooltip property (Linux). Nothing in Neru calls it.
 // docs/contributing/platform-internals.md owns this as footnote 8 of the
 // implementation matrix.
 func (m *MenuItem) SetTooltip(tooltip string) {}
@@ -375,15 +374,6 @@ func SetTitle(title string) {
 	sniInst.mu.Unlock()
 
 	emitSNI("NewTitle")
-}
-
-// SetTooltip sets the tooltip of the system tray icon (Linux).
-func SetTooltip(tooltip string) {
-	sniInst.mu.Lock()
-	sniInst.tip = toolTip{Title: tooltip}
-	sniInst.mu.Unlock()
-
-	emitSNI("NewToolTip")
 }
 
 // SetIcon sets the tray icon from the passed PNG bytes. The shared component

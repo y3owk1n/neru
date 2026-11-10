@@ -391,20 +391,6 @@ func Quit() {
 // SetTitle is a no-op, because Windows tray icons have no inline title text.
 func SetTitle(title string) {}
 
-// SetTooltip sets the tooltip shown when hovering the tray icon.
-func SetTooltip(tooltip string) {
-	trayMu.Lock()
-	defer trayMu.Unlock()
-
-	if trayHWND == 0 {
-		return
-	}
-
-	copyTip(&trayNID, tooltip)
-	trayNID.uFlags = nifMessage | nifIcon | nifTip
-	_ = shellNotify(nimModify, &trayNID)
-}
-
 // SetIcon replaces the tray icon with one built from the passed PNG bytes.
 // The shared component selects a host-appropriate asset, the colored brand
 // tile on Windows, because a macOS template glyph would be invisible in the

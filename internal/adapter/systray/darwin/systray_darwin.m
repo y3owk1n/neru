@@ -142,16 +142,6 @@ void NeruSetTitle(const char *title) {
 	});
 }
 
-void NeruSetTooltip(const char *tooltip) {
-	NSString *str = [NSString stringWithUTF8String:tooltip] ?: @"";
-
-	dispatch_async(dispatch_get_main_queue(), ^{
-		if (appDelegate && appDelegate.statusItem) {
-			appDelegate.statusItem.button.toolTip = str;
-		}
-	});
-}
-
 #pragma mark - Menu Item Lookup
 
 NSMenuItem *findItemByTagInMenu(NSMenu *menu, int menuId) {

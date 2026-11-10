@@ -105,10 +105,6 @@ func TestComponent_OnReady(t *testing.T) {
 	// Before ports.SystrayPort existed this test could only assert "did not
 	// panic", because the menu was built against a process-global tray. The
 	// mock lets it assert what the user actually sees.
-	if tray.Tooltip() == "" {
-		t.Error("OnReady() set no tooltip on the tray")
-	}
-
 	items := tray.Items()
 	if len(items) == 0 {
 		t.Fatal("OnReady() created no menu items")

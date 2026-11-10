@@ -96,13 +96,6 @@ func SetTitle(title string) {
 	C.NeruSetTitle(cTitle)
 }
 
-// SetTooltip sets the tooltip of the system tray icon.
-func SetTooltip(tooltip string) {
-	cTooltip := C.CString(tooltip)
-	defer C.free(unsafe.Pointer(cTooltip))
-	C.NeruSetTooltip(cTooltip)
-}
-
 // SetIcon sets the icon of the system tray item.
 func SetIcon(icon []byte) {
 	if len(icon) == 0 {
