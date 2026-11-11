@@ -46,11 +46,6 @@ func IsUinputScrollAvailable() bool {
 	return false
 }
 
-// IsWaylandEvdevKeyboardActive reports false, because evdev capture needs cgo.
-func IsWaylandEvdevKeyboardActive() bool {
-	return false
-}
-
 // LiftHeldModifiers reports that the evdev proxy is compiled out. The caller
 // degrades to a click that keeps the held modifiers.
 func LiftHeldModifiers() (bool, error) {

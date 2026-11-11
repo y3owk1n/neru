@@ -41,9 +41,8 @@ type countingManager struct {
 }
 
 var (
-	_ overlay.ManagerInterface          = (*countingManager)(nil)
-	_ overlay.CapabilityReporter        = (*countingManager)(nil)
-	_ overlay.KeyboardCaptureController = (*countingManager)(nil)
+	_ overlay.ManagerInterface   = (*countingManager)(nil)
+	_ overlay.CapabilityReporter = (*countingManager)(nil)
 )
 
 func (m *countingManager) Show()                               { m.hit() }
@@ -63,7 +62,6 @@ func (m *countingManager) SetHideUnmatched(_ bool)                      { m.hit(
 func (m *countingManager) HideGridPointer(_ overlay.Mode)               { m.hit() }
 func (m *countingManager) Flush()                                       { m.hit() }
 func (m *countingManager) SetSharingType(_ bool)                        { m.hit() }
-func (m *countingManager) SetKeyboardCaptureEnabled(_ bool)             { m.hit() }
 func (m *countingManager) ShowIndicator(_ ports.Indicator)              { m.hit() }
 func (m *countingManager) HideIndicator(_ ports.Indicator)              { m.hit() }
 func (m *countingManager) DrawVirtualPointer(_, _ int, _ int, _ string) { m.hit() }
@@ -236,10 +234,6 @@ func everyPortCall() []portCall {
 		{"ApplyConfig", func(p ports.OverlayPort) { p.ApplyConfig(config.DefaultConfig()) }},
 		{"RefreshStyles", func(p ports.OverlayPort) { p.RefreshStyles() }},
 		{"SetHiddenInScreenShare", func(p ports.OverlayPort) { p.SetHiddenInScreenShare(true) }},
-		{
-			"SetKeyboardCaptureEnabled",
-			func(p ports.OverlayPort) { p.SetKeyboardCaptureEnabled(true) },
-		},
 	}
 }
 

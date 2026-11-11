@@ -152,7 +152,13 @@ correct, are not.
   unconditionally, so asserting it would have declared nothing. What confines
   the behaviour to Linux is the caller's existing gate on the event tap, and
   the real capability assertion stays where it means something, on
-  `manager.KeyboardCaptureController` inside the adapter.
+  `manager.KeyboardCaptureController` inside the adapter. **Amended (#1938).**
+  The port method is gone. Its only caller was the indicator poller. On the
+  Wayland fallback path the overlay's keyboard focus is the only key input, so
+  when the poller released the grab, a mode's keys reached the focused app. The
+  Linux event tap now owns the grab alone. It reaches the backend through
+  `overlay.Get()` and `manager.KeyboardCaptureController`, because only the tap
+  knows whether the overlay is its key source.
 - **The no-op manager is gone from the shipped binary.** Its last production
   caller left with the wide interface's last app-side user, and the simulation
   harness, the reason it existed, now implements `ports.OverlayPort` outright

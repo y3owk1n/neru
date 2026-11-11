@@ -288,11 +288,6 @@ func IsUinputScrollAvailable() bool {
 	return false
 }
 
-// IsWaylandEvdevKeyboardActive returns false on Windows (no evdev / Wayland).
-func IsWaylandEvdevKeyboardActive() bool {
-	return false
-}
-
 // notePostedModifier records a modifier this tap holds down (or released) on
 // the handler's behalf.
 func (et *EventTap) notePostedModifier(modifier string, isDown bool) {

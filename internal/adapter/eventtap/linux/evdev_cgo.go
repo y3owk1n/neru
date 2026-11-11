@@ -8,7 +8,6 @@ package linux
 import (
 	"errors"
 	"strings"
-	"sync/atomic"
 	"time"
 )
 
@@ -39,20 +38,6 @@ const (
 	// output device, so this adds room for its idle wait.
 	waylandEvdevYieldGrace = 3 * time.Second
 )
-
-// waylandEvdevKeyboardActive reports whether a mode session owns the keys.
-// When true, the overlay must NOT request exclusive keyboard focus. On
-// wlroots compositors a layer-surface keyboard grab deactivates the focused
-// toplevel, so a hints refresh reads the wrong window and tears the overlay
-// down.
-var waylandEvdevKeyboardActive atomic.Bool
-
-// IsWaylandEvdevKeyboardActive reports whether the evdev proxy is capturing
-// keys for a mode, so the overlay's keyboard grab must stay off. False on
-// non-Wayland sessions, without a proxy, and between modes.
-func IsWaylandEvdevKeyboardActive() bool {
-	return waylandEvdevKeyboardActive.Load()
-}
 
 var (
 	errWaylandEvdevUnavailable  = errors.New("wayland evdev capture unavailable")

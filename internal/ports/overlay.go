@@ -482,15 +482,6 @@ type OverlayPort interface {
 	// themselves ignore it.
 	SetHiddenInScreenShare(hidden bool)
 
-	// SetKeyboardCaptureEnabled asks the overlay to hold or release the
-	// keyboard. Only an overlay that grabs input has anything to release. On
-	// Linux an evdev grab held by the overlay deactivates the focused toplevel,
-	// so the indicator poller releases it before reading which window is
-	// focused. Where the overlay never takes the keyboard from the focused
-	// application, this is a no-op, the same way Flush is on a backend that
-	// presents every draw.
-	SetKeyboardCaptureEnabled(enabled bool)
-
 	// Destroy releases everything the overlay owns: native windows, surfaces,
 	// connections. It runs on the shutdown path, after the modes have already
 	// cleared what they drew, and must be safe to call when nothing was ever

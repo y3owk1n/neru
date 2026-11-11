@@ -27,12 +27,6 @@ func (h *handlerState) startIndicatorPolling(mode domain.Mode) {
 	if h.config == nil || !h.shouldPollCursorOverlays(mode) {
 		return
 	}
-	// Disable exclusive keyboard so scroll events pass through to applications
-	// when indicator overlays are shown, but only if uinput scroll is active.
-	// Skip when an evdev keyboard grab owns the keyboard. There the overlay
-	// must stay keyboard-passive, and the evdev path already keeps it that way.
-	setOverlayKeyboardCapture(h, false)
-
 	// Size the indicators before the goroutine draws. Grid and recursive-grid
 	// manage their own windows and skip the manager's resize, so these could
 	// still be sized for a different monitor.
@@ -256,13 +250,6 @@ func (h *Handler) drawIndicators(snap indicatorSnapshot, cursorX, cursorY int) {
 // stopIndicatorPolling stops the indicator polling goroutine and cleans up
 // both mode indicator and sticky modifiers indicator overlays.
 func (h *handlerState) stopIndicatorPolling() {
-	// Restore keyboard capture if uinput scroll was active. Never re-enable it
-	// while an evdev keyboard grab owns the keyboard. On wlroots compositors the
-	// overlay's exclusive keyboard grab deactivates the focused app's toplevel,
-	// so a hints refresh (which stops indicator polling before rescanning) would
-	// re-read the wrong focused window and clear the hints.
-	setOverlayKeyboardCapture(h, true)
-
 	// Signal stop first.
 	if h.indicatorStopCh != nil {
 		close(h.indicatorStopCh)
@@ -338,19 +325,4 @@ func (h *handlerState) stickyIndicatorAnchor(cursorPoint image.Point) image.Poin
 	}
 
 	return anchor
-}
-
-// setOverlayKeyboardCapture asks the overlay to hold or release the keyboard.
-//
-// What confines this to Linux is the gate, not the overlay. Only the evdev
-// event tap reports that the overlay holds the keyboard, and only there does
-// releasing it matter. An evdev grab deactivates the focused toplevel, so the
-// poller has to let go before reading which window is focused. Everywhere else
-// the gate is closed, and an overlay with no grab to release is a no-op anyway.
-func setOverlayKeyboardCapture(h *handlerState, enabled bool) {
-	if h.overlayPort == nil || !h.allowsOverlayKeyboardPassthrough() {
-		return
-	}
-
-	h.overlayPort.SetKeyboardCaptureEnabled(enabled)
 }

@@ -580,26 +580,6 @@ func (a *Adapter) Destroy() {
 	a.manager.Destroy()
 }
 
-// SetKeyboardCaptureEnabled holds or releases the keyboard on the backends
-// whose surface can, and does nothing on the ones that cannot.
-//
-// Asking is always safe, so this is a plain port method rather than an
-// optional capability. What confines the behavior to Linux is the caller's own
-// gate on the event tap, and a backend with no grab to release implements
-// manager.KeyboardCaptureController as a no-op or not at all.
-func (a *Adapter) SetKeyboardCaptureEnabled(enabled bool) {
-	if a.released() {
-		return
-	}
-
-	controller, ok := a.manager.(KeyboardCaptureController)
-	if !ok {
-		return
-	}
-
-	controller.SetKeyboardCaptureEnabled(enabled)
-}
-
 // OverlayCapabilities reports the manager's live support state, so neru
 // doctor names the backend that is drawing rather than the platform preset.
 // A manager that cannot report is taken as supported with no detail, and a

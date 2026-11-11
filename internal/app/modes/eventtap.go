@@ -109,15 +109,3 @@ func (h *handlerState) postModifierEvent(modifier string, isDown bool) {
 
 	h.eventTap.PostModifierEvent(modifier, isDown)
 }
-
-// allowsOverlayKeyboardPassthrough reports whether an indicator overlay may
-// give up exclusive keyboard capture so scroll reaches the focused app.
-//
-// Backends that cannot answer (everything but the Linux Wayland evdev tap) do
-// not implement the extension, and the conservative false keeps capture,
-// which works everywhere.
-func (h *handlerState) allowsOverlayKeyboardPassthrough() bool {
-	reporter, ok := h.eventTap.(ports.OverlayKeyboardPassthroughReporter)
-
-	return ok && reporter.AllowsOverlayKeyboardPassthrough()
-}

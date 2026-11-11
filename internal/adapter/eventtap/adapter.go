@@ -232,17 +232,6 @@ func (a *Adapter) Destroy() {
 	a.tap.Destroy()
 }
 
-// AllowsOverlayKeyboardPassthrough reports whether an indicator overlay can
-// safely drop exclusive keyboard capture.
-//
-// Both conditions must hold: a uinput scroll device is available to carry the
-// scroll events, and no evdev keyboard grab is active. On wlroots an overlay
-// grab deactivates the focused toplevel, which breaks the next hints refresh.
-// Non-Linux backends and the no-cgo Linux build report false.
-func (a *Adapter) AllowsOverlayKeyboardPassthrough() bool {
-	return overlayKeyboardPassthroughAllowed()
-}
-
 // KeyboardLayouts lists the keyboard layouts keys are named against and the
 // one they are named in, for neru doctor.
 func (a *Adapter) KeyboardLayouts() ports.KeyboardLayouts {
@@ -270,9 +259,5 @@ func (a *Adapter) claimTeardown() (chan struct{}, bool) {
 	return a.teardownDone, true
 }
 
-// Ensure Adapter implements ports.EventTapPort and the optional overlay
-// passthrough extension.
-var (
-	_ ports.EventTapPort                       = (*Adapter)(nil)
-	_ ports.OverlayKeyboardPassthroughReporter = (*Adapter)(nil)
-)
+// Ensure Adapter implements ports.EventTapPort.
+var _ ports.EventTapPort = (*Adapter)(nil)

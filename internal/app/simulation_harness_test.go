@@ -454,13 +454,6 @@ func (m *simOverlayPort) SetHiddenInScreenShare(hidden bool) {
 	m.screenShareHidden = append(m.screenShareHidden, hidden)
 }
 
-// SetKeyboardCaptureEnabled does nothing, and no journey can make it fire, because the
-// caller is gated on the event tap reporting that the overlay holds the
-// keyboard, which only the Linux evdev tap does and the simulated tap never
-// does. It is spelled out rather than inherited so that stays a stated fact
-// about the fixture rather than a method silently swallowing a call.
-func (m *simOverlayPort) SetKeyboardCaptureEnabled(_ bool) {}
-
 // Destroy releases the overlay. What it records is the one thing a shutdown
 // journey needs to observe. From here on there is no surface, so anything that
 // still reaches this port is reaching one that has been freed.

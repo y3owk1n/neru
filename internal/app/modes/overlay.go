@@ -11,9 +11,8 @@ import (
 
 // overlaySurface is the part of ports.OverlayPort this package draws through:
 // frames, the grid updates that run per keystroke, the hint search input, the
-// keyboard grab, the flush and the active screen. Every method's contract is
-// the port's. This declares which of them the handler may reach, not what
-// they mean.
+// flush and the active screen. Every method's contract is the port's. This
+// declares which of them the handler may reach, not what they mean.
 //
 // It is declared at the consumer rather than taken from the port, which is
 // already this repo's idiom (internal/app/keybinding/hotkey.go says so in as
@@ -72,10 +71,6 @@ type overlaySurface interface {
 	SetGridHideUnmatched(hide bool)
 	ShowGridSubgrid(cell *domainGrid.Cell, pointer ports.GridPointer)
 	UpdateGridPointer(mode domain.Mode, pointer ports.GridPointer)
-
-	// SetKeyboardCaptureEnabled is the Linux keyboard grab, gated on the event
-	// tap reporting overlay keyboard passthrough (#1213).
-	SetKeyboardCaptureEnabled(enabled bool)
 
 	// Flush commits a tick's indicator draws in one go, so no intermediate
 	// state shows. The handler owns the tick even though the services own the
