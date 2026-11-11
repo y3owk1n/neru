@@ -154,6 +154,12 @@ func (o *wlrootsOverlay) keyboardPoller() {
 				o.renderMu.Unlock()
 			}
 
+			// Nothing upstream reports this. The overlay keeps drawing, but no
+			// key reaches the active mode.
+			if o.logger != nil {
+				o.logger.Error("Wayland overlay keyboard reader stopped after a display error")
+			}
+
 			return
 		}
 
