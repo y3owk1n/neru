@@ -196,13 +196,13 @@ func (o *winOverlay) DrawVim(scene manager.VimScene, style manager.VimStyle) {
 	o.Clear()
 
 	scale := o.scale()
-	style.FontSize = int(math.Round(float64(style.FontSize) * scale))
+	scaled := func(points int) int { return int(math.Round(float64(points) * scale)) }
+	style.FontSize = scaled(style.FontSize)
+	style.Badge.FontSize = scaled(style.Badge.FontSize)
+	style.Badge.PaddingX = scaled(style.Badge.PaddingX)
+	style.Badge.PaddingY = scaled(style.Badge.PaddingY)
 
-	measure := func(text string, fontSize float64, bold bool) int {
-		return badge.TextWidth(text, style.FontFamily, fontSize, bold)
-	}
-
-	for _, vimOp := range manager.LayoutVim(scene, style, measure) {
+	for _, vimOp := range manager.LayoutVim(scene, style, badge.TextWidth) {
 		lineWidth := vimOp.LineWidth * scale
 
 		switch vimOp.Kind {

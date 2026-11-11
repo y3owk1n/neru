@@ -40,41 +40,57 @@ const (
 	vimContainerInsetX = 6
 	vimContainerInsetY = 4
 	vimContainerRadius = 6
-	vimContainerStroke = 1.5
+	vimOutlineStroke   = 1
 	// The block around the container is outlined further out, at a third of
 	// the container outline's opacity.
-	vimBlockInsetX     = 12
-	vimBlockInsetY     = 10
-	vimBlockFade       = 3
-	vimCursorOutset    = 1
-	vimCursorStroke    = 2
-	vimMatchUnderline  = 2
-	vimMatchStroke     = 1
-	vimBadgePad        = 2
-	vimBadgeRadius     = 3
-	vimLensPad         = 4
+	vimBlockInsetX    = 12
+	vimBlockInsetY    = 10
+	vimBlockFade      = 3
+	vimCursorOutset   = 1
+	vimCursorStroke   = 2
+	vimMatchUnderline = 2
+	vimMatchStroke    = 1
+	// vimBadgeRadiusCap caps an automatic badge corner, as it is capped for a
+	// hint badge.
+	vimBadgeRadiusCap  = 6
 	vimLensGap         = 6
-	vimLensRadius      = 4
 	vimStatusPad       = 6
+	vimStatusRule      = 1
+	vimChipInset       = 3
+	vimChipPadX        = 8
+	vimChipStroke      = 1
 	vimNoticePad       = 14
 	vimNoticeMark      = 18
 	vimNoticeGap       = 12
 	vimNoticeTop       = 56
-	vimNoticeRadius    = 10
-	vimNoticeStroke    = 1.5
 	vimNoticeLineGap   = 4
 	vimDefaultFontSize = 13
 	vimFontPadding     = 1.3
 	vimAlphaMask       = 0x00FFFFFF
+	vimAlphaShift      = 24
 	// vimCurrentMatchAlpha is the fill alpha of the match under the cursor.
 	vimCurrentMatchAlpha = 0x59
+	// The cursor's fill keeps vimCursorFillShare/vimAlphaFull of its color's
+	// alpha, so the character under it stays readable. The bar down its left
+	// edge is the color itself.
+	vimCursorFillShare = 0x59
+	vimAlphaFull       = 0xFF
+	// The notice's detail line is its text color at three quarters of its
+	// alpha.
+	vimDetailShare   = 3
+	vimDetailDivisor = 4
 	// vimSides counts a padding once on each side, and vimHalves halves a
 	// length to center something in it.
 	vimSides  = 2
 	vimHalves = 2
 	// vimNoticeRowsWithDetail is a notice's rows when it has a detail line.
 	vimNoticeRowsWithDetail = 2
+	// vimEllipsis ends status text cut short to fit the bar.
+	vimEllipsis = "…"
 )
+
+// VimMeasure answers how wide text draws in a font family at a size.
+type VimMeasure func(text, family string, fontSize float64, bold bool) int
 
 // VimStatusBar is the strip the status bar covers at the bottom of region. It
 // is one line of the style's font with vimStatusPad above and below. The macOS
@@ -98,54 +114,111 @@ func vimFontSize(style VimStyle) float64 {
 	return float64(style.FontSize)
 }
 
+// vimBadgeFontSize is the badge's font size, or the default when it sets
+// none.
+func vimBadgeFontSize(style VimStyle) float64 {
+	if style.Badge.FontSize <= 0 {
+		return vimDefaultFontSize
+	}
+
+	return float64(style.Badge.FontSize)
+}
+
 // vimLineHeight is the height of a line of the style's font.
 func vimLineHeight(style VimStyle) int {
 	return int(vimFontSize(style) * vimFontPadding)
 }
 
-// LayoutVim lays a vim scene out as the shapes a backend paints, with
-// measure answering a text's width at the style's font family and the given
-// size. The macOS bridge lays out the same geometry with Core Animation
-// layers. Here the notice spinner is an arc drawn at scene.Spin's step.
-func LayoutVim(
-	scene VimScene,
-	style VimStyle,
-	measure func(text string, fontSize float64, bold bool) int,
-) []VimOp {
-	fontSize := vimFontSize(style)
-	width := func(text string, bold bool) int { return measure(text, fontSize, bold) }
-	lineHeight := vimLineHeight(style)
-	cursor := badge.ParseHexARGB(style.CursorColor)
-	match := badge.ParseHexARGB(style.MatchColor)
-	statusBackground := badge.ParseHexARGB(style.StatusBackgroundColor)
-	statusText := badge.ParseHexARGB(style.StatusTextColor)
+// vimWithAlpha is color with its alpha scaled by share/vimAlphaFull.
+func vimWithAlpha(color, share uint32) uint32 {
+	return color&vimAlphaMask | (color>>vimAlphaShift*share/vimAlphaFull)<<vimAlphaShift
+}
 
-	text := func(value string, bounds image.Rectangle, color uint32, bold bool) VimOp {
-		return VimOp{
-			Kind: VimOpText, Bounds: bounds, Text: value, Fill: color,
-			Family: style.FontFamily, FontSize: fontSize, Bold: bold,
+// vimFace is one font a vim frame draws text in.
+type vimFace struct {
+	family string
+	size   float64
+	bold   bool
+}
+
+// vimPainter lays out one vim frame's text and boxes.
+type vimPainter struct {
+	style   VimStyle
+	measure VimMeasure
+	ops     []VimOp
+}
+
+func (p *vimPainter) width(text string, face vimFace) int {
+	return p.measure(text, face.family, face.size, face.bold)
+}
+
+func (p *vimPainter) text(value string, bounds image.Rectangle, color uint32, face vimFace) {
+	p.ops = append(p.ops, VimOp{
+		Kind: VimOpText, Bounds: bounds, Text: value, Fill: color,
+		Family: face.family, FontSize: face.size, Bold: face.bold,
+	})
+}
+
+// badge draws box as a hint badge.
+func (p *vimPainter) badge(box image.Rectangle) {
+	p.ops = append(p.ops, VimOp{
+		Kind:      VimOpRoundedRect,
+		Bounds:    box,
+		Radius:    badge.BorderRadius(p.style.Badge.BorderRadius, box, vimBadgeRadiusCap),
+		Fill:      badge.ParseHexARGB(p.style.Badge.Background),
+		Border:    badge.ParseHexARGB(p.style.Badge.Border),
+		LineWidth: float64(p.style.Badge.BorderWidth),
+	})
+}
+
+// fit is text cut to fit within limit, with an ellipsis where it was cut. It
+// cuts the start when fromStart, and otherwise the end.
+func (p *vimPainter) fit(text string, limit int, face vimFace, fromStart bool) string {
+	if p.width(text, face) <= limit {
+		return text
+	}
+
+	runes := []rune(text)
+	for keep := len(runes) - 1; keep > 0; keep-- {
+		shown := string(runes[:keep]) + vimEllipsis
+		if fromStart {
+			shown = vimEllipsis + string(runes[len(runes)-keep:])
+		}
+
+		if p.width(shown, face) <= limit {
+			return shown
 		}
 	}
 
-	var ops []VimOp
+	return ""
+}
+
+// LayoutVim lays a vim scene out as the shapes a backend paints, with
+// measure answering a text's width. The macOS bridge lays out the same
+// geometry with Core Animation layers. Here the notice spinner is an arc
+// drawn at scene.Spin's step.
+func LayoutVim(scene VimScene, style VimStyle, measure VimMeasure) []VimOp {
+	painter := &vimPainter{style: style, measure: measure}
+	cursor := badge.ParseHexARGB(style.CursorColor)
+	match := badge.ParseHexARGB(style.MatchColor)
 
 	if !scene.Block.Empty() {
 		border := badge.ParseHexARGB(style.ContainerColor)
 
-		ops = append(ops, VimOp{
+		painter.ops = append(painter.ops, VimOp{
 			Kind: VimOpRoundedRect,
 			Bounds: image.Rect(
 				scene.Block.Min.X-vimBlockInsetX, scene.Block.Min.Y-vimBlockInsetY,
 				scene.Block.Max.X+vimBlockInsetX, scene.Block.Max.Y+vimBlockInsetY,
 			),
 			Radius:    vimContainerRadius,
-			Border:    border&vimAlphaMask | (border>>24/vimBlockFade)<<24,
-			LineWidth: vimContainerStroke,
+			Border:    vimWithAlpha(border, vimAlphaFull/vimBlockFade),
+			LineWidth: vimOutlineStroke,
 		})
 	}
 
 	if !scene.Container.Empty() {
-		ops = append(ops, VimOp{
+		painter.ops = append(painter.ops, VimOp{
 			Kind: VimOpRoundedRect,
 			Bounds: image.Rect(
 				scene.Container.Min.X-vimContainerInsetX, scene.Container.Min.Y-vimContainerInsetY,
@@ -153,29 +226,29 @@ func LayoutVim(
 			),
 			Radius:    vimContainerRadius,
 			Border:    badge.ParseHexARGB(style.ContainerColor),
-			LineWidth: vimContainerStroke,
+			LineWidth: vimOutlineStroke,
 		})
 	}
 
 	for _, rect := range scene.Selection {
-		ops = append(
-			ops,
+		painter.ops = append(
+			painter.ops,
 			VimOp{Kind: VimOpRect, Bounds: rect, Fill: badge.ParseHexARGB(style.SelectionColor)},
 		)
 	}
 
 	for index, rect := range scene.Matches {
 		if index == scene.Current {
-			ops = append(ops, VimOp{
+			painter.ops = append(painter.ops, VimOp{
 				Kind: VimOpRect, Bounds: rect,
-				Fill:   match&vimAlphaMask | vimCurrentMatchAlpha<<24,
+				Fill:   match&vimAlphaMask | vimCurrentMatchAlpha<<vimAlphaShift,
 				Border: match, LineWidth: vimMatchStroke,
 			})
 
 			continue
 		}
 
-		ops = append(ops, VimOp{
+		painter.ops = append(painter.ops, VimOp{
 			Kind: VimOpRect,
 			Bounds: image.Rect(
 				rect.Min.X,
@@ -188,85 +261,88 @@ func LayoutVim(
 	}
 
 	if !scene.Cursor.Empty() {
-		box := scene.Cursor.Inset(-vimCursorOutset)
-		if scene.Pending {
-			ops = append(
-				ops,
-				VimOp{Kind: VimOpRect, Bounds: box, Border: cursor, LineWidth: vimCursorStroke},
-			)
-		} else {
-			ops = append(ops, VimOp{Kind: VimOpRect, Bounds: box, Fill: cursor})
-		}
+		painter.cursor(scene.Cursor.Inset(-vimCursorOutset), scene.Pending, cursor)
 	}
 
-	for _, label := range scene.Labels {
-		badgeWidth := width(label.Text, true) + vimBadgePad*vimSides
-		height := lineHeight + vimBadgePad*vimSides
-		box := image.Rect(
-			label.Bounds.Min.X,
-			label.Bounds.Max.Y-height,
-			label.Bounds.Min.X+badgeWidth,
-			label.Bounds.Max.Y,
-		)
-		ops = append(ops,
-			VimOp{Kind: VimOpRoundedRect, Bounds: box, Radius: vimBadgeRadius, Fill: match},
-			text(label.Text, box, statusText, true),
-		)
-	}
+	painter.labels(scene.Labels)
 
 	if scene.Lens[1] != "" && !scene.Cursor.Empty() {
-		ops = append(
-			ops,
-			vimLens(scene, lineHeight, width, cursor, statusBackground, statusText, text)...)
+		painter.lens(scene, cursor)
 	}
 
-	if scene.Status != "" && !scene.Region.Empty() {
-		bar := VimStatusBar(scene.Region, style)
-		left := bar.Min.X + vimStatusPad*vimSides
-		ops = append(
-			ops,
-			VimOp{Kind: VimOpRect, Bounds: bar, Fill: statusBackground},
-			text(
-				scene.Status,
-				image.Rect(left, bar.Min.Y, left+width(scene.Status, false), bar.Max.Y),
-				statusText,
-				false,
-			),
-		)
+	if scene.Mode != "" && !scene.Region.Empty() {
+		painter.statusBar(scene)
 	}
 
 	if scene.Notice != "" && !scene.Region.Empty() {
-		ops = append(
-			ops,
-			vimNotice(scene, lineHeight, width, cursor, statusBackground, statusText, text)...)
+		painter.notice(scene)
 	}
 
-	return ops
+	return painter.ops
 }
 
-// vimLens is the box above the cursor, or below it when there is no room
+// cursor draws the cursor on box. While an operator waits for its motion it
+// is an outline. Otherwise it is a light fill with a bar down its left edge,
+// which a selection's fill and a match's underline never have.
+func (p *vimPainter) cursor(box image.Rectangle, pending bool, color uint32) {
+	if pending {
+		p.ops = append(
+			p.ops,
+			VimOp{Kind: VimOpRect, Bounds: box, Border: color, LineWidth: vimCursorStroke},
+		)
+
+		return
+	}
+
+	p.ops = append(p.ops,
+		VimOp{Kind: VimOpRect, Bounds: box, Fill: vimWithAlpha(color, vimCursorFillShare)},
+		VimOp{
+			Kind:   VimOpRect,
+			Bounds: image.Rect(box.Min.X, box.Min.Y, box.Min.X+vimCursorStroke, box.Max.Y),
+			Fill:   color,
+		},
+	)
+}
+
+// labels draws each jump label as a hint badge centered on the character it
+// names.
+func (p *vimPainter) labels(labels []VimLabel) {
+	face := vimFace{family: p.style.Badge.FontFamily, size: vimBadgeFontSize(p.style), bold: true}
+	textColor := badge.ParseHexARGB(p.style.Badge.Text)
+	height := badge.EstimateTextHeight(face.size) + p.style.Badge.PaddingY*vimSides
+
+	for _, label := range labels {
+		width := p.width(label.Text, face) + p.style.Badge.PaddingX*vimSides
+		center := label.Bounds.Min.Add(label.Bounds.Size().Div(vimHalves))
+		box := badge.CenteredOn(center, width, height)
+
+		p.badge(box)
+		p.text(label.Text, box, textColor, face)
+	}
+}
+
+// lens is the hint badge above the cursor, or below it when there is no room
 // above. It shows the word under the cursor as read, with the cursor's
 // character marked.
-func vimLens(
-	scene VimScene,
-	lineHeight int,
-	measure func(string, bool) int,
-	cursor, background, color uint32,
-	text func(string, image.Rectangle, uint32, bool) VimOp,
-) []VimOp {
+func (p *vimPainter) lens(scene VimScene, cursor uint32) {
 	before, marked, after := scene.Lens[0], scene.Lens[1], scene.Lens[2]
-	widths := [3]int{measure(before, false), measure(marked, true), measure(after, false)}
-	width := widths[0] + widths[1] + widths[2] + vimLensPad*vimSides
-	height := lineHeight + vimLensPad*vimSides
+	plain := vimFace{family: p.style.Badge.FontFamily, size: vimBadgeFontSize(p.style)}
+	bold := plain
+	bold.bold = true
+	widths := [3]int{p.width(before, plain), p.width(marked, bold), p.width(after, plain)}
+	padX, padY := p.style.Badge.PaddingX, p.style.Badge.PaddingY
+	width := widths[0] + widths[1] + widths[2] + padX*vimSides
+	height := badge.EstimateTextHeight(plain.size) + padY*vimSides
 
 	top := scene.Cursor.Min.Y - vimLensGap - height
 	if top < 0 {
 		top = scene.Cursor.Max.Y + vimLensGap
 	}
 
-	left := max(scene.Cursor.Min.X-vimLensPad, 0)
+	left := max(scene.Cursor.Min.X-padX, 0)
 	box := image.Rect(left, top, left+width, top+height)
-	inner := box.Inset(vimLensPad)
+	inner := image.Rect(box.Min.X+padX, box.Min.Y+padY, box.Max.X-padX, box.Max.Y-padY)
+	textColor := badge.ParseHexARGB(p.style.Badge.Text)
 
 	atBox := image.Rect(
 		inner.Min.X+widths[0],
@@ -274,58 +350,114 @@ func vimLens(
 		inner.Min.X+widths[0]+widths[1],
 		inner.Max.Y,
 	)
-	ops := []VimOp{
-		{
-			Kind:      VimOpRoundedRect,
-			Bounds:    box,
-			Radius:    vimLensRadius,
-			Fill:      background,
-			Border:    cursor,
-			LineWidth: 1,
-		},
-		{Kind: VimOpRect, Bounds: atBox, Fill: cursor},
-		text(marked, atBox, color, true),
-	}
+
+	p.badge(box)
+	p.ops = append(p.ops, VimOp{Kind: VimOpRect, Bounds: atBox, Fill: cursor})
+	p.text(marked, atBox, badge.ParseHexARGB(p.style.OnModeColor), bold)
 
 	if before != "" {
-		ops = append(
-			ops,
-			text(
-				before,
-				image.Rect(inner.Min.X, inner.Min.Y, atBox.Min.X, inner.Max.Y),
-				color,
-				false,
-			),
+		p.text(
+			before,
+			image.Rect(inner.Min.X, inner.Min.Y, atBox.Min.X, inner.Max.Y),
+			textColor,
+			plain,
 		)
 	}
 
 	if after != "" {
-		ops = append(
-			ops,
-			text(
-				after,
-				image.Rect(atBox.Max.X, inner.Min.Y, atBox.Max.X+widths[2], inner.Max.Y),
-				color,
-				false,
-			),
+		p.text(
+			after,
+			image.Rect(atBox.Max.X, inner.Min.Y, atBox.Max.X+widths[2], inner.Max.Y),
+			textColor,
+			plain,
 		)
 	}
-
-	return ops
 }
 
-// vimNotice is the card near the top of the region that says what a wait is:
-// a ring beside a bold title and, under it, a detail line.
-func vimNotice(
-	scene VimScene,
-	lineHeight int,
-	measure func(string, bool) int,
-	accent, background, color uint32,
-	text func(string, image.Rectangle, uint32, bool) VimOp,
-) []VimOp {
+// statusBar draws the bar along the region's bottom edge: a rule along its
+// top, the mode chip at its left, the status after the chip and the right
+// status at its right end. The status is cut short before it reaches the
+// right status.
+func (p *vimPainter) statusBar(scene VimScene) {
+	style := p.style
+	bar := VimStatusBar(scene.Region, style)
+	face := vimFace{family: style.FontFamily, size: vimFontSize(style)}
+	bold := face
+	bold.bold = true
+	textColor := badge.ParseHexARGB(style.StatusTextColor)
+
+	p.ops = append(p.ops,
+		VimOp{Kind: VimOpRect, Bounds: bar, Fill: badge.ParseHexARGB(style.StatusBackgroundColor)},
+		VimOp{
+			Kind:   VimOpRect,
+			Bounds: image.Rect(bar.Min.X, bar.Min.Y, bar.Max.X, bar.Min.Y+vimStatusRule),
+			Fill:   badge.ParseHexARGB(style.Badge.Border),
+		},
+	)
+
+	chipLeft := bar.Min.X + vimStatusPad
+	chip := image.Rect(
+		chipLeft,
+		bar.Min.Y+vimChipInset,
+		chipLeft+p.width(scene.Mode, bold)+vimChipPadX*vimSides,
+		bar.Max.Y-vimChipInset,
+	)
+	chipOp := VimOp{
+		Kind:   VimOpRoundedRect,
+		Bounds: chip,
+		Radius: badge.BorderRadius(-1, chip, vimBadgeRadiusCap),
+	}
+	chipText := badge.ParseHexARGB(style.OnModeColor)
+
+	switch scene.ModeKind {
+	case VimModeNormal:
+		chipOp.Fill = badge.ParseHexARGB(style.ModeColor)
+	case VimModeVisual:
+		chipOp.Fill = badge.ParseHexARGB(style.VisualModeColor)
+	case VimModeOther:
+		chipOp.Border = badge.ParseHexARGB(style.Badge.Border)
+		chipOp.LineWidth = vimChipStroke
+		chipText = textColor
+	}
+
+	p.ops = append(p.ops, chipOp)
+	p.text(scene.Mode, chip, chipText, bold)
+
+	right := bar.Max.X - vimStatusPad*vimSides
+	if scene.StatusRight != "" {
+		rightWidth := p.width(scene.StatusRight, face)
+		p.text(
+			scene.StatusRight,
+			image.Rect(right-rightWidth, bar.Min.Y, right, bar.Max.Y),
+			textColor,
+			face,
+		)
+		right -= rightWidth + vimStatusPad*vimSides
+	}
+
+	left := chip.Max.X + vimStatusPad*vimSides
+	if status := p.fit(scene.Status, right-left, face, scene.StatusTyped); status != "" {
+		p.text(
+			status,
+			image.Rect(left, bar.Min.Y, left+p.width(status, face), bar.Max.Y),
+			textColor,
+			face,
+		)
+	}
+}
+
+// notice is the hint badge near the top of the region that says what a wait
+// is: a ring beside a bold title and, under it, a detail line.
+func (p *vimPainter) notice(scene VimScene) {
+	style := p.style
+	face := vimFace{family: style.FontFamily, size: vimFontSize(style)}
+	bold := face
+	bold.bold = true
+	lineHeight := vimLineHeight(style)
+	textColor := badge.ParseHexARGB(style.Badge.Text)
 	title, detail, _ := strings.Cut(scene.Notice, "\n")
 
-	textWidth := max(measure(title, true), measure(detail, false))
+	textWidth := max(p.width(title, bold), p.width(detail, face))
 
 	rows := 1
 	if detail != "" {
@@ -350,37 +482,21 @@ func vimNotice(
 
 	textLeft := mark.Max.X + vimNoticeGap
 	textTop := card.Min.Y + (height-textHeight)/vimHalves
-	titleBox := image.Rect(textLeft, textTop, textLeft+measure(title, true), textTop+lineHeight)
+	titleBox := image.Rect(textLeft, textTop, textLeft+p.width(title, bold), textTop+lineHeight)
 
-	ops := []VimOp{
-		{
-			Kind: VimOpRoundedRect, Bounds: card, Radius: vimNoticeRadius,
-			Fill: background, Border: accent, LineWidth: vimNoticeStroke,
-		},
-		text(title, titleBox, color, true),
-	}
-
-	ops = append(ops, vimSpinner(mark, scene.Spin, accent)...)
+	p.badge(card)
+	p.text(title, titleBox, textColor, bold)
+	p.ops = append(p.ops, vimSpinner(mark, scene.Spin, badge.ParseHexARGB(style.ModeColor))...)
 
 	if detail != "" {
 		detailTop := titleBox.Max.Y + vimNoticeLineGap
-		ops = append(
-			ops,
-			text(
-				detail,
-				image.Rect(
-					textLeft,
-					detailTop,
-					textLeft+measure(detail, false),
-					detailTop+lineHeight,
-				),
-				color,
-				false,
-			),
+		p.text(
+			detail,
+			image.Rect(textLeft, detailTop, textLeft+p.width(detail, face), detailTop+lineHeight),
+			vimWithAlpha(textColor, vimAlphaFull*vimDetailShare/vimDetailDivisor),
+			face,
 		)
 	}
-
-	return ops
 }
 
 // vimSpinDots is how many dots ring the notice spinner, vimSpinLit how many

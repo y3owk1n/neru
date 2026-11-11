@@ -4507,7 +4507,7 @@ func TestSimulation_VimCompletesExCommands(t *testing.T) {
 
 		sim.press(keys...)
 		vimFrameShows(sim, what, func(f ports.VimFrame) bool {
-			return strings.Contains(f.Status, want)
+			return strings.Contains(f.Status.Text, want)
 		})
 	}
 
@@ -4642,6 +4642,12 @@ func TestSimulation_VimEscapeCancelsThenLeaves(t *testing.T) {
 	}
 }
 
+// The status bar's chip in vim's normal mode and while it types into the app.
+const (
+	vimNormalMode = "NORMAL"
+	vimInsertMode = "INSERT"
+)
+
 // vimHarness opens a harness with a vim binding and the screen reading words.
 func vimHarness(t *testing.T, words map[string]image.Rectangle) *simHarness {
 	t.Helper()
@@ -4746,7 +4752,7 @@ func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
 
 	sim.press("0", "w", "c", "i", "w")
 	vimFrameShows(sim, "typing into the app", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "INSERT")
+		return f.Status.Mode == vimInsertMode
 	})
 
 	sim.press("x")
@@ -4763,7 +4769,7 @@ func TestSimulation_VimChangeTypesIntoTheApp(t *testing.T) {
 
 	sim.press("Escape")
 	vimFrameShows(sim, "back to normal mode", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL")
+		return f.Status.Mode == vimNormalMode
 	})
 
 	if got := sim.app.CurrentMode(); got != domain.ModeVim {
@@ -4788,7 +4794,7 @@ func TestSimulation_VimSubstitutes(t *testing.T) {
 
 	sim.press(keys[:len(keys)-1]...)
 	vimFrameShows(sim, "both i highlighted and counted", func(f ports.VimFrame) bool {
-		return strings.Contains(f.Status, "2 to change") &&
+		return strings.Contains(f.Status.Right, "2 to change") &&
 			slices.Equal(f.Matches, []image.Rectangle{
 				image.Rect(115, 100, 130, 130), image.Rect(230, 100, 245, 130),
 			})
@@ -4886,7 +4892,7 @@ func TestSimulation_VimSubstituteStopsWhenTheScreenNeverShows(t *testing.T) {
 
 	sim.press(vimExKeys("1,2s/wh/z/")...)
 	vimFrameShows(sim, "the status says it stopped", func(f ports.VimFrame) bool {
-		return strings.Contains(f.Status, "stopped with 1 left")
+		return strings.Contains(f.Status.Text, "stopped with 1 left")
 	})
 
 	if clicks, keys := sim.ax.recordedClicks(), sim.keyFeed.FedKeys(); len(clicks) != 1 ||
@@ -4910,17 +4916,17 @@ func TestSimulation_VimOpensALineBelowAnIndentedOne(t *testing.T) {
 
 	sim.press("G", "o")
 	vimFrameShows(sim, "typing into the app", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "INSERT")
+		return f.Status.Mode == vimInsertMode
 	})
 
 	sim.press("x", "Escape")
 	vimFrameShows(sim, "back in normal mode", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL") && !strings.Contains(f.Status, "one edit")
+		return f.Status.Mode == vimNormalMode && !strings.Contains(f.Status.Text, "one edit")
 	})
 
 	sim.press("w")
 	vimFrameShows(sim, "still in normal mode after w", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL")
+		return f.Status.Mode == vimNormalMode
 	})
 
 	if got, want := sim.keyFeed.FedKeys(), []string{vimKeyReturn, "x"}; !slices.Equal(got, want) {
@@ -4976,7 +4982,7 @@ func TestSimulation_VimTypesOnTheLineOOpens(t *testing.T) {
 
 		sim.press("G", "o", "x", "y", "Escape")
 		vimFrameShows(sim, "cursor on the y typed on the new line", func(f ports.VimFrame) bool {
-			return strings.HasPrefix(f.Status, "NORMAL") &&
+			return f.Status.Mode == vimNormalMode &&
 				f.Cursor == image.Rect(115, 190, 130, 220)
 		})
 	})
@@ -5015,7 +5021,7 @@ func TestSimulation_VimLeavesTheLineBreakWhenDeletingPadding(t *testing.T) {
 
 	sim.press("d", "w")
 	vimFrameShows(sim, "back in normal mode", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL")
+		return f.Status.Mode == vimNormalMode
 	})
 
 	if keys, clicks := sim.keyFeed.FedKeys(), sim.ax.recordedClicks(); len(keys) != 0 ||
@@ -5051,7 +5057,7 @@ func TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping(t *testing.T) {
 
 	sim.press("0", "w", "c", "i", "w")
 	vimFrameShows(sim, "typing into the app", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "INSERT")
+		return f.Status.Mode == vimInsertMode
 	})
 
 	sim.press("x")
@@ -5078,7 +5084,7 @@ func TestSimulation_VimHotkeysRunAheadOfVimButNotWhileTyping(t *testing.T) {
 
 	sim.press("Escape")
 	vimFrameShows(sim, "back to normal mode", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL")
+		return f.Status.Mode == vimNormalMode
 	})
 
 	sim.press("x")
@@ -5100,12 +5106,12 @@ func TestSimulation_VimEscapeLeavesTheCursorOnTheLastCharacterTyped(t *testing.T
 
 	sim.press("0", "w", "c", "i", "w")
 	vimFrameShows(sim, "typing into the app", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "INSERT")
+		return f.Status.Mode == vimInsertMode
 	})
 
 	sim.press("a", "b", "Escape")
 	vimFrameShows(sim, "the cursor on Edit's second character", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL") && f.Cursor.Min.X == 215
+		return f.Status.Mode == vimNormalMode && f.Cursor.Min.X == 215
 	})
 }
 
@@ -5135,7 +5141,7 @@ func TestSimulation_VimRefusesChangesWhereTypedKeysCannotReachTheApp(t *testing.
 			sim,
 			strings.Join(keys, "")+" refused in normal mode",
 			func(f ports.VimFrame) bool {
-				return strings.HasPrefix(f.Status, "NORMAL") && strings.Contains(f.Status, reason)
+				return f.Status.Mode == vimNormalMode && strings.Contains(f.Status.Text, reason)
 			},
 		)
 	}
@@ -5190,7 +5196,7 @@ func TestSimulation_VimShiftVSelectsLines(t *testing.T) {
 
 	sim.press("g", "g", "shift+v", "j")
 	vimFrameShows(sim, "both lines selected in linewise visual mode", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "V-LINE") && len(f.Selection) == 2
+		return f.Status.Mode == "V-LINE" && len(f.Selection) == 2
 	})
 }
 
@@ -5207,7 +5213,7 @@ func TestSimulation_VimYankCopiesWithoutTouchingTheApp(t *testing.T) {
 		return slices.Equal(sim.clipboard.Written(), []string{vimWordEdit})
 	})
 	vimFrameShows(sim, "the copy said in the status bar", func(f ports.VimFrame) bool {
-		return strings.Contains(f.Status, "copied 4 characters")
+		return strings.Contains(f.Status.Text, "copied 4 characters")
 	})
 
 	if keys, clicks := sim.keyFeed.FedKeys(), sim.ax.recordedClicks(); len(keys) != 0 ||
@@ -5283,7 +5289,7 @@ func TestSimulation_VimDropsAnAccurateReadFromAClosedSession(t *testing.T) {
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
 	vimFrameShows(sim, "the new session read", func(f ports.VimFrame) bool {
-		return !strings.Contains(f.Status, "reading")
+		return !strings.Contains(f.Status.Right, "reading")
 	})
 
 	close(release)
@@ -5357,12 +5363,12 @@ func TestSimulation_VimSaysWhileTextRecognitionPrepares(t *testing.T) {
 
 	close(preparing)
 	vimFrameShows(sim, "the notice gone while the read runs", func(f ports.VimFrame) bool {
-		return f.Notice == "" && strings.Contains(f.Status, "reading")
+		return f.Notice == "" && strings.Contains(f.Status.Right, "reading")
 	})
 
 	close(release)
 	vimFrameShows(sim, "the read landed", func(f ports.VimFrame) bool {
-		return !strings.Contains(f.Status, "reading")
+		return !strings.Contains(f.Status.Right, "reading")
 	})
 
 	if n := accurate.Load(); n != 1 {
@@ -5408,7 +5414,7 @@ func TestSimulation_VimScrollWhilePreparingReadsOnlyTheNewScreen(t *testing.T) {
 
 	close(preparing)
 	vimFrameShows(sim, "the read landed", func(f ports.VimFrame) bool {
-		return f.Notice == "" && !strings.Contains(f.Status, "reading")
+		return f.Notice == "" && !strings.Contains(f.Status.Right, "reading")
 	})
 	time.Sleep(vimScrollGapForTest)
 
@@ -5458,7 +5464,7 @@ func TestSimulation_VimSaysNothingOfASlowAccurateRead(t *testing.T) {
 
 	close(release)
 	vimFrameShows(sim, "the read landed", func(f ports.VimFrame) bool {
-		return !strings.Contains(f.Status, "reading")
+		return !strings.Contains(f.Status.Right, "reading")
 	})
 }
 
@@ -5498,7 +5504,7 @@ func TestSimulation_VimJumpByLabel(t *testing.T) {
 
 	sim.press("d")
 	vimFrameShows(sim, "d narrowed the jump to Edit", func(f ports.VimFrame) bool {
-		return strings.Contains(f.Status, "sed") && len(f.Matches) == 1
+		return strings.Contains(f.Status.Text, "sed") && len(f.Matches) == 1
 	})
 	sim.press("Escape")
 
@@ -5577,7 +5583,7 @@ func TestSimulation_VimTypesJAndKOnTheCommandLine(t *testing.T) {
 
 	sim.press("Shift+;", "j", "k")
 	vimFrameShows(sim, "j and k on the command line", func(f ports.VimFrame) bool {
-		return strings.Contains(f.Status, ":jk")
+		return strings.Contains(f.Status.Text, ":jk")
 	})
 
 	if scrolls := sim.ax.recordedScrolls(); len(scrolls) != 0 {
@@ -5604,7 +5610,7 @@ func TestSimulation_VimScrollsTheAppSideways(t *testing.T) {
 	time.Sleep(vimScrollSettleForTest)
 	sim.press("3", "z")
 	vimFrameShows(sim, "the count and z waiting", func(f ports.VimFrame) bool {
-		return strings.Contains(f.Status, "3z")
+		return strings.Contains(f.Status.Text, "3z")
 	})
 
 	sim.press("l")
@@ -5652,7 +5658,7 @@ func TestSimulation_VimDotRepeatsTypedChange(t *testing.T) {
 
 	sim.press("0", "w", "c", "i", "w", "x", "Escape")
 	vimFrameShows(sim, "back to normal mode", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL")
+		return f.Status.Mode == vimNormalMode
 	})
 
 	sim.press("0", ".")
@@ -5668,7 +5674,7 @@ func TestSimulation_VimDotRepeatsTypedChange(t *testing.T) {
 	}
 
 	vimFrameShows(sim, "normal mode after the repeat", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL")
+		return f.Status.Mode == vimNormalMode
 	})
 
 	// 2. is 2ciw, File and the spaces after it, with the x typed again.
@@ -5848,7 +5854,7 @@ func TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn(t *testing.T) {
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
 	vimFrameShows(sim, "the activation's accurate read landed", func(f ports.VimFrame) bool {
-		return !strings.Contains(f.Status, "reading")
+		return !strings.Contains(f.Status.Right, "reading")
 	})
 
 	before, _ := sim.overlay.lastVimFrame()
@@ -5868,7 +5874,7 @@ func TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn(t *testing.T) {
 		sim,
 		"the overlay left in place while the page moves",
 		func(f ports.VimFrame) bool {
-			return strings.Contains(f.Status, "reading") && !f.Cursor.Empty() &&
+			return strings.Contains(f.Status.Right, "reading") && !f.Cursor.Empty() &&
 				f.Cursor == before.Cursor && f.Lens == before.Lens
 		},
 	)
@@ -5878,7 +5884,7 @@ func TestSimulation_VimReadsOnlyTheScreenAScrollRunEndsOn(t *testing.T) {
 
 	close(gate.release)
 	vimFrameShows(sim, "the cursor back once the last screen is read", func(f ports.VimFrame) bool {
-		return !f.Cursor.Empty() && !strings.Contains(f.Status, "reading")
+		return !f.Cursor.Empty() && !strings.Contains(f.Status.Right, "reading")
 	})
 
 	if n := gate.completed.Load(); n != 1 {
@@ -5964,7 +5970,7 @@ func TestSimulation_VimMovesTheOverlayWithALineScroll(t *testing.T) {
 	sim.press("Ctrl+e")
 
 	vimFrameShows(sim, "the cursor moved up with its text", func(f ports.VimFrame) bool {
-		return strings.Contains(f.Status, "reading") &&
+		return strings.Contains(f.Status.Right, "reading") &&
 			f.Cursor.Size() == before.Cursor.Size() &&
 			f.Cursor.Min.X == before.Cursor.Min.X && f.Cursor.Min.Y < before.Cursor.Min.Y
 	})
@@ -6011,7 +6017,7 @@ func TestSimulation_VimEscapeCancelsTheReadOfAScrolledScreen(t *testing.T) {
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
 	vimFrameShows(sim, "the activation's accurate read landed", func(f ports.VimFrame) bool {
-		return !strings.Contains(f.Status, "reading")
+		return !strings.Contains(f.Status.Right, "reading")
 	})
 
 	gate.armed.Store(true)
@@ -6066,7 +6072,7 @@ func TestSimulation_VimCancelsAnAccurateReadOfAScreenScrolledAway(t *testing.T) 
 		func() bool { return accurate.Load() == 2 },
 	)
 	vimFrameShows(sim, "it landed", func(f ports.VimFrame) bool {
-		return !f.Cursor.Empty() && !strings.Contains(f.Status, "reading")
+		return !f.Cursor.Empty() && !strings.Contains(f.Status.Right, "reading")
 	})
 }
 
@@ -6130,12 +6136,12 @@ func TestSimulation_VimCountStopsAtFourDigits(t *testing.T) {
 
 	sim.press("0", "9", "9", "9", "9", "9")
 	vimFrameShows(sim, "count held at four digits", func(f ports.VimFrame) bool {
-		return strings.Contains(f.Status, "9999") && !strings.Contains(f.Status, "99999")
+		return strings.Contains(f.Status.Text, "9999") && !strings.Contains(f.Status.Text, "99999")
 	})
 
 	sim.press("w")
 	vimFrameShows(sim, "the motion ran", func(f ports.VimFrame) bool {
-		return strings.HasPrefix(f.Status, "NORMAL") && !strings.Contains(f.Status, "9999")
+		return f.Status.Mode == vimNormalMode && !strings.Contains(f.Status.Text, "9999")
 	})
 }
 
@@ -6199,7 +6205,7 @@ func TestSimulation_VimKeepsTheFastReadWhereAnAccurateReadWouldMatch(t *testing.
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
 	vimFrameShows(sim, "the refine landed", func(f ports.VimFrame) bool {
-		return !strings.Contains(f.Status, "reading")
+		return !strings.Contains(f.Status.Right, "reading")
 	})
 
 	sim.press("0", "w")
@@ -6238,7 +6244,7 @@ func TestSimulation_VimReachesIcons(t *testing.T) {
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
 	vimFrameShows(sim, "the accurate read landed", func(f ports.VimFrame) bool {
-		return !strings.Contains(f.Status, "reading")
+		return !strings.Contains(f.Status.Right, "reading")
 	})
 
 	sim.press("y", "y")

@@ -377,8 +377,8 @@ func (c *Config) ResolveThemeDefaults() {
 		Dark:  applyAlpha(c.Theme.Dark.Text, "B3"),
 	})
 
-	mergeColorWithDefault(&c.Vim.UI.CursorColor, themedColor(
-		c.Theme.Light.Accent, c.Theme.Dark.AccentAlt, "99",
+	mergeColorWithDefault(&c.Vim.UI.CursorColor, solidThemedColor(
+		c.Theme.Light.Accent, c.Theme.Dark.AccentAlt,
 	))
 	mergeColorWithDefault(&c.Vim.UI.SelectionColor, themedColor(
 		c.Theme.Light.Accent, c.Theme.Dark.AccentAlt, "40",
@@ -387,7 +387,7 @@ func (c *Config) ResolveThemeDefaults() {
 		c.Theme.Light.AccentAlt, c.Theme.Dark.AccentAlt, "CC",
 	))
 	mergeColorWithDefault(&c.Vim.UI.ContainerColor, themedColor(
-		c.Theme.Light.Accent, c.Theme.Dark.Accent, "66",
+		c.Theme.Light.Accent, c.Theme.Dark.AccentAlt, "73",
 	))
 	mergeColorWithDefault(&c.Vim.UI.StatusBackgroundColor, themedColor(
 		c.Theme.Light.Surface, c.Theme.Dark.Surface, "F2",

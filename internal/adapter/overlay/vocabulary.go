@@ -36,10 +36,14 @@ type (
 	VimDrawer = manager.VimDrawer
 	// VimStyle styles the vim surface.
 	VimStyle = manager.VimStyle
+	// VimBadge styles a box vim draws over the text.
+	VimBadge = manager.VimBadge
 	// VimScene is a vim frame in screen-local space.
 	VimScene = manager.VimScene
 	// VimLabel is a jump label in screen-local space.
 	VimLabel = manager.VimLabel
+	// VimModeKind is how the vim status bar's mode chip draws.
+	VimModeKind = manager.VimModeKind
 )
 
 // Overlay modes.

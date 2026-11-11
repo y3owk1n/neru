@@ -151,8 +151,11 @@ type MonitorSelector interface {
 	HideMonitorSelect()
 }
 
-// VimStyle is how the vim surface draws, resolved from [vim.ui].
+// VimStyle is how the vim surface draws, resolved from [vim.ui], the hint
+// badge and the theme. It holds every value a backend draws with, so the
+// macOS bridge and LayoutVim only lay it out.
 type VimStyle struct {
+	// FontSize and FontFamily set the status bar and the notice.
 	FontSize              int
 	FontFamily            string
 	CursorColor           string
@@ -161,7 +164,43 @@ type VimStyle struct {
 	ContainerColor        string
 	StatusBackgroundColor string
 	StatusTextColor       string
+	// Badge styles the jump labels, the lens and the notice, which draw as
+	// hint badges.
+	Badge VimBadge
+	// ModeColor fills the status bar's mode chip in normal mode, and
+	// VisualModeColor fills it in visual mode. OnModeColor is the text on
+	// both, and on the cursor's character in the lens. Any other mode draws
+	// an outlined chip.
+	ModeColor       string
+	VisualModeColor string
+	OnModeColor     string
 }
+
+// VimBadge is a box vim draws over the text, styled as a hint badge. Padding
+// is resolved, and a negative BorderRadius is the hint badge's automatic one.
+type VimBadge struct {
+	FontSize     int
+	FontFamily   string
+	Background   string
+	Text         string
+	Border       string
+	BorderWidth  int
+	PaddingX     int
+	PaddingY     int
+	BorderRadius int
+}
+
+// VimModeKind is how the status bar's mode chip draws.
+type VimModeKind int
+
+const (
+	// VimModeNormal fills the chip with ModeColor.
+	VimModeNormal VimModeKind = iota
+	// VimModeVisual fills the chip with VisualModeColor.
+	VimModeVisual
+	// VimModeOther outlines the chip, for a mode waiting on input.
+	VimModeOther
+)
 
 // VimScene is a vim frame in the overlay's screen-local space.
 type VimScene struct {
@@ -173,10 +212,19 @@ type VimScene struct {
 	Current   int
 	Container image.Rectangle
 	Block     image.Rectangle
-	Status    string
-	Lens      [3]string
-	Labels    []VimLabel
-	Notice    string
+	// Mode is the status bar's chip and ModeKind how it draws. Status is the
+	// text after it and StatusRight the text at the bar's right end. An
+	// empty Mode draws no bar. StatusTyped cuts a Status too long for the
+	// bar from its start, since it is being typed, and otherwise from its
+	// end.
+	Mode        string
+	ModeKind    VimModeKind
+	Status      string
+	StatusRight string
+	StatusTyped bool
+	Lens        [3]string
+	Labels      []VimLabel
+	Notice      string
 	// Spin is the notice spinner's step. A backend advances it while a notice
 	// shows (VimSpin).
 	Spin int

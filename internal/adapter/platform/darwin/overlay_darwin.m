@@ -4380,25 +4380,53 @@ static CATextLayer *NeruVimText(NSAttributedString *text, CGPoint origin, CGFloa
 	return layer;
 }
 
-/// A card near the top of region, a spinner beside a bold title and a detail
+/// The badge corner radius for rect. A configured radius of zero or more is
+/// used as given, and otherwise it is half the shorter side, capped at 6 as a
+/// hint badge's is.
+static CGFloat NeruVimBadgeRadius(int configured, CGRect rect) {
+	CGFloat half = MIN(rect.size.width, rect.size.height) / 2;
+	return configured >= 0 ? MIN(configured, half) : MIN(half, 6);
+}
+
+/// The style of the jump labels, the lens and the notice, which draw as hint
+/// badges.
+typedef struct {
+	NSFont *font;
+	NSFont *bold;
+	NSColor *fill;
+	NSColor *text;
+	NSColor *border;
+	CGFloat borderWidth;
+	CGFloat padX;
+	CGFloat padY;
+	int radius;
+} NeruVimBadgeStyle;
+
+/// A hint badge filling rect.
+static CALayer *NeruVimBadge(CGRect rect, NeruVimBadgeStyle badge) {
+	return NeruVimBox(rect, badge.fill, badge.border, badge.borderWidth, NeruVimBadgeRadius(badge.radius, rect));
+}
+
+/// A badge near the top of region, a spinner beside a bold title and a detail
 /// line, for a wait the user should see. notice is the title and the detail
 /// split by a newline.
 static CALayer *NeruVimNotice(
-    NSString *notice, CGRect region, NSFont *font, NSFont *bold, NSColor *fill, NSColor *textColor, NSColor *accent,
+    NSString *notice, CGRect region, NSFont *font, NSFont *bold, NeruVimBadgeStyle badge, NSColor *accent,
     CGFloat scale) {
 	NSArray<NSString *> *parts = [notice componentsSeparatedByString:@"\n"];
 	NSMutableAttributedString *text = [[NSMutableAttributedString alloc]
 	    initWithString:parts.firstObject
-	        attributes:@{NSFontAttributeName : bold, NSForegroundColorAttributeName : textColor}];
+	        attributes:@{NSFontAttributeName : bold, NSForegroundColorAttributeName : badge.text}];
 	if (parts.count > 1) {
 		NSString *detail = [@"\n" stringByAppendingString:[[parts subarrayWithRange:NSMakeRange(1, parts.count - 1)]
 		                                                      componentsJoinedByString:@"\n"]];
-		[text appendAttributedString:[[NSAttributedString alloc] initWithString:detail
-		                                                             attributes:@{
-			                                                             NSFontAttributeName : font,
-			                                                             NSForegroundColorAttributeName :
-			                                                                 [textColor colorWithAlphaComponent:0.75]
-		                                                             }]];
+		[text appendAttributedString:[[NSAttributedString alloc]
+		                                 initWithString:detail
+		                                     attributes:@{
+			                                     NSFontAttributeName : font,
+			                                     NSForegroundColorAttributeName : [badge.text
+			                                         colorWithAlphaComponent:badge.text.alphaComponent * 0.75]
+		                                     }]];
 	}
 
 	CGFloat pad = 14, spinner = 18, gap = 12;
@@ -4407,10 +4435,7 @@ static CALayer *NeruVimNotice(
 	CGFloat x = region.origin.x + MAX((region.size.width - w) / 2, 0);
 	// Below the window's title bar, which the read covers.
 	CGFloat y = MAX(CGRectGetMaxY(region) - 56 - h, region.origin.y);
-	CALayer *card = NeruVimBox(CGRectMake(x, y, w, h), fill, accent, 1.5, 10);
-	card.shadowOpacity = 0.25;
-	card.shadowRadius = 12;
-	card.shadowOffset = CGSizeMake(0, -3);
+	CALayer *card = NeruVimBadge(CGRectMake(x, y, w, h), badge);
 
 	CAShapeLayer *ring = [CAShapeLayer layer];
 	ring.frame = CGRectMake(pad, (h - spinner) / 2, spinner, spinner);
@@ -4434,6 +4459,95 @@ static CALayer *NeruVimNotice(
 	return card;
 }
 
+/// text cut to fit within width at attributes, with an ellipsis where it was
+/// cut. It cuts the start when fromStart, and otherwise the end, and is empty
+/// when not even an ellipsis fits. CATextLayer's own truncation lays the line
+/// out against the layer's bottom edge, which cuts off descenders.
+static NSString *NeruVimFit(NSString *text, NSDictionary *attributes, CGFloat width, BOOL fromStart) {
+	if ([[[NSAttributedString alloc] initWithString:text attributes:attributes] size].width <= width)
+		return text;
+
+	NSString * (^cut)(NSUInteger) = ^(NSUInteger keep) {
+		NSRange range =
+		    [text rangeOfComposedCharacterSequencesForRange:fromStart ? NSMakeRange(text.length - keep, keep)
+			                                                          : NSMakeRange(0, keep)];
+		NSString *kept = [text substringWithRange:range];
+		return fromStart ? [@"…" stringByAppendingString:kept] : [kept stringByAppendingString:@"…"];
+	};
+
+	NSUInteger low = 0, high = text.length;
+	while (low < high) {
+		NSUInteger mid = (low + high + 1) / 2;
+		if ([[[NSAttributedString alloc] initWithString:cut(mid) attributes:attributes] size].width <= width)
+			low = mid;
+		else
+			high = mid - 1;
+	}
+
+	return low == 0 ? @"" : cut(low);
+}
+
+/// The status bar along the bottom of region (flipped): a rule along its top,
+/// the mode chip at its left, the status after the chip, and the right status
+/// at its right end. The status is cut short before it reaches the right
+/// status.
+static CALayer *NeruVimStatusBar(
+    CGRect region, NSString *mode, int kind, NSString *status, BOOL typed, NSString *right, NSFont *font, NSFont *bold,
+    NSColor *fill, NSColor *textColor, NSColor *rule, NSColor *modeColor, NSColor *visualColor, NSColor *onMode,
+    CGFloat scale) {
+	CGFloat pad = 6, inset = 3, chipPad = 8;
+	NSDictionary *plain = @{NSFontAttributeName : font, NSForegroundColorAttributeName : textColor};
+	CGFloat lineHeight = ceil([[NSAttributedString alloc] initWithString:@"M" attributes:plain].size.height);
+	CGFloat h = lineHeight + 2 * pad;
+	CGRect barRect = CGRectMake(region.origin.x, MAX(region.origin.y, 0), region.size.width, h);
+	CALayer *bar = NeruVimBox(barRect, fill, [NSColor clearColor], 0, 0);
+	[bar addSublayer:NeruVimBox(CGRectMake(0, h - 1, barRect.size.width, 1), rule, [NSColor clearColor], 0, 0)];
+
+	BOOL filled = kind == VimModeNormal || kind == VimModeVisual;
+	NSAttributedString *chipText = [[NSAttributedString alloc]
+	    initWithString:mode
+	        attributes:@{NSFontAttributeName : bold, NSForegroundColorAttributeName : filled ? onMode : textColor}];
+	NSSize chipSize = [chipText size];
+	CGRect chipRect = CGRectMake(pad, inset, ceil(chipSize.width) + 2 * chipPad, h - 2 * inset);
+	CGFloat chipRadius = NeruVimBadgeRadius(-1, chipRect);
+	CALayer *chip =
+	    filled
+	        ? NeruVimBox(chipRect, kind == VimModeNormal ? modeColor : visualColor, [NSColor clearColor], 0, chipRadius)
+	        : NeruVimBox(chipRect, [NSColor clearColor], rule, 1, chipRadius);
+	[chip addSublayer:NeruVimText(
+	                      chipText, CGPointMake(chipPad, (chipRect.size.height - ceil(chipSize.height)) / 2), scale)];
+	[bar addSublayer:chip];
+
+	// Each text layer starts pad below the bar's top and reaches the bar's
+	// bottom edge. A glyph from a fallback font, such as the command line's
+	// caret, makes the line taller than it measures, and a shorter layer
+	// would cut off its descenders.
+	CATextLayer * (^line)(NSString *, CGFloat, CGFloat) = ^(NSString *string, CGFloat x, CGFloat maxWidth) {
+		CATextLayer *text = NeruVimText(
+		    [[NSAttributedString alloc] initWithString:string attributes:plain], CGPointMake(x, pad), scale);
+		CGRect frame = text.frame;
+		frame.size.width = MIN(frame.size.width, maxWidth);
+		frame.size.height += frame.origin.y;
+		frame.origin.y = 0;
+		text.frame = frame;
+		return text;
+	};
+
+	CGFloat end = barRect.size.width - 2 * pad;
+	if (right.length > 0) {
+		CGFloat w = ceil([[[NSAttributedString alloc] initWithString:right attributes:plain] size].width);
+		[bar addSublayer:line(right, end - w, w)];
+		end -= w + 2 * pad;
+	}
+
+	CGFloat left = CGRectGetMaxX(chipRect) + 2 * pad;
+	NSString *shown = NeruVimFit(status, plain, end - left, typed);
+	if (shown.length > 0)
+		[bar addSublayer:line(shown, left, end - left)];
+
+	return bar;
+}
+
 void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 	if (!window)
 		return;
@@ -4448,7 +4562,11 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 	CGRect container = scene.container;
 	CGRect block = scene.block;
 	int current = scene.currentMatch;
+	NSString *mode = NeruVimString(scene.mode);
+	int modeKind = scene.modeKind;
 	NSString *status = NeruVimString(scene.status);
+	NSString *statusRight = NeruVimString(scene.statusRight);
+	BOOL statusTyped = scene.statusTyped != 0;
 	NSString *lensBefore = NeruVimString(scene.lensBefore);
 	NSString *lensAt = NeruVimString(scene.lensAt);
 	NSString *lensAfter = NeruVimString(scene.lensAfter);
@@ -4465,6 +4583,18 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 	NSString *containerHex = NeruVimString(style.containerColor);
 	NSString *statusBgHex = NeruVimString(style.statusBackgroundColor);
 	NSString *statusTextHex = NeruVimString(style.statusTextColor);
+	CGFloat badgeFontSize = style.badgeFontSize > 0 ? style.badgeFontSize : 13;
+	NSString *badgeFamily = NeruVimString(style.badgeFontFamily);
+	NSString *badgeBgHex = NeruVimString(style.badgeBackground);
+	NSString *badgeTextHex = NeruVimString(style.badgeText);
+	NSString *badgeBorderHex = NeruVimString(style.badgeBorder);
+	CGFloat badgeBorderWidth = style.badgeBorderWidth;
+	CGFloat badgePadX = style.badgePaddingX;
+	CGFloat badgePadY = style.badgePaddingY;
+	int badgeRadius = style.badgeBorderRadius;
+	NSString *modeHex = NeruVimString(style.modeColor);
+	NSString *visualModeHex = NeruVimString(style.visualModeColor);
+	NSString *onModeHex = NeruVimString(style.onModeColor);
 
 	dispatch_async(dispatch_get_main_queue(), ^{
 		@autoreleasepool {
@@ -4478,10 +4608,26 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 			NSColor *containerColor = NeruColorFromHexString(containerHex, [NSColor clearColor]);
 			NSColor *statusBg = NeruColorFromHexString(statusBgHex, [NSColor windowBackgroundColor]);
 			NSColor *statusText = NeruColorFromHexString(statusTextHex, [NSColor labelColor]);
+			NSColor *modeColor = NeruColorFromHexString(modeHex, [NSColor systemBlueColor]);
+			NSColor *visualModeColor = NeruColorFromHexString(visualModeHex, [NSColor systemPurpleColor]);
+			NSColor *onModeColor = NeruColorFromHexString(onModeHex, [NSColor whiteColor]);
 			NSFont *font = [view resolveFont:fontFamily size:fontSize bold:NO]
 			                   ?: [NSFont monospacedSystemFontOfSize:fontSize weight:NSFontWeightRegular];
 			NSFont *bold = [view resolveFont:fontFamily size:fontSize bold:YES]
 			                   ?: [NSFont monospacedSystemFontOfSize:fontSize weight:NSFontWeightBold];
+			NeruVimBadgeStyle badge = {
+			    .font = [view resolveFont:badgeFamily size:badgeFontSize bold:NO]
+				            ?: [NSFont systemFontOfSize:badgeFontSize weight:NSFontWeightRegular],
+			    .bold = [view resolveFont:badgeFamily size:badgeFontSize bold:YES]
+				            ?: [NSFont systemFontOfSize:badgeFontSize weight:NSFontWeightBold],
+			    .fill = NeruColorFromHexString(badgeBgHex, [NSColor windowBackgroundColor]),
+			    .text = NeruColorFromHexString(badgeTextHex, [NSColor labelColor]),
+			    .border = NeruColorFromHexString(badgeBorderHex, [NSColor clearColor]),
+			    .borderWidth = badgeBorderWidth,
+			    .padX = badgePadX,
+			    .padY = badgePadY,
+			    .radius = badgeRadius,
+			};
 			CGFloat height = view.bounds.size.height;
 			CGFloat scale = [view currentBackingScaleFactor];
 
@@ -4505,12 +4651,12 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 			if (!CGRectIsEmpty(block)) {
 				CGRect r = CGRectInset(NeruVimFlip(block, height), -12, -10);
 				NSColor *faint = [containerColor colorWithAlphaComponent:containerColor.alphaComponent / 3];
-				[root addSublayer:NeruVimBox(r, [NSColor clearColor], faint, 1.5, 6)];
+				[root addSublayer:NeruVimBox(r, [NSColor clearColor], faint, 1, 6)];
 			}
 
 			if (!CGRectIsEmpty(container)) {
 				CGRect r = CGRectInset(NeruVimFlip(container, height), -6, -4);
-				[root addSublayer:NeruVimBox(r, [NSColor clearColor], containerColor, 1.5, 6)];
+				[root addSublayer:NeruVimBox(r, [NSColor clearColor], containerColor, 1, 6)];
 			}
 
 			for (NSValue *value in selection) {
@@ -4529,72 +4675,71 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 				}
 			}
 
+			// An outline while an operator waits for its motion, and otherwise
+			// a light fill with a bar down the left edge, which a selection's
+			// fill and a match's underline never have.
 			if (!CGRectIsEmpty(cursor)) {
 				CGRect r = CGRectInset(NeruVimFlip(cursor, height), -1, -1);
 				if (pending) {
 					[root addSublayer:NeruVimBox(r, [NSColor clearColor], cursorColor, 2, 2)];
 				} else {
-					[root addSublayer:NeruVimBox(r, cursorColor, [NSColor clearColor], 0, 2)];
+					NSColor *fill = [cursorColor colorWithAlphaComponent:cursorColor.alphaComponent * 0x59 / 0xFF];
+					[root addSublayer:NeruVimBox(r, fill, [NSColor clearColor], 0, 0)];
+					[root addSublayer:NeruVimBox(
+					                      CGRectMake(r.origin.x, r.origin.y, 2, r.size.height), cursorColor,
+					                      [NSColor clearColor], 0, 0)];
 				}
 			}
 
+			// Jump labels are hint badges centered on the character each
+			// names.
 			for (NSUInteger i = 0; i < labels.count && i < labelBounds.count; i++) {
 				NSAttributedString *text = [[NSAttributedString alloc]
 				    initWithString:labels[i]
-				        attributes:@{NSFontAttributeName : bold, NSForegroundColorAttributeName : statusText}];
+				        attributes:@{NSFontAttributeName : badge.bold, NSForegroundColorAttributeName : badge.text}];
 				CGRect c = NeruVimFlip(NSRectToCGRect(labelBounds[i].rectValue), height);
 				NSSize size = [text size];
-				CGFloat pad = 2;
-				CGRect r = CGRectMake(
-				    c.origin.x, CGRectGetMaxY(c) - ceil(size.height) - pad * 2, ceil(size.width) + pad * 2,
-				    ceil(size.height) + pad * 2);
-				CALayer *badge = NeruVimBox(r, matchColor, [NSColor clearColor], 0, 3);
-				[badge addSublayer:NeruVimText(text, CGPointMake(pad, pad), scale)];
-				[root addSublayer:badge];
+				CGFloat w = ceil(size.width) + 2 * badge.padX, h = ceil(size.height) + 2 * badge.padY;
+				CGRect r = CGRectMake(round(CGRectGetMidX(c) - w / 2), round(CGRectGetMidY(c) - h / 2), w, h);
+				CALayer *label = NeruVimBadge(r, badge);
+				[label addSublayer:NeruVimText(text, CGPointMake(badge.padX, badge.padY), scale)];
+				[root addSublayer:label];
 			}
 
 			if (lensAt.length > 0 && !CGRectIsEmpty(cursor)) {
 				NSMutableAttributedString *lens = [[NSMutableAttributedString alloc] init];
-				NSDictionary *plain = @{NSFontAttributeName : font, NSForegroundColorAttributeName : statusText};
+				NSDictionary *plain = @{NSFontAttributeName : badge.font, NSForegroundColorAttributeName : badge.text};
 				NSDictionary *mark = @{
-					NSFontAttributeName : bold,
-					NSForegroundColorAttributeName : statusText,
+					NSFontAttributeName : badge.bold,
+					NSForegroundColorAttributeName : onModeColor,
 					NSBackgroundColorAttributeName : cursorColor,
 				};
 				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensBefore attributes:plain]];
 				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensAt attributes:mark]];
 				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensAfter attributes:plain]];
 
-				CGFloat pad = 4;
 				NSSize size = [lens size];
 				CGRect c = NeruVimFlip(cursor, height);
-				CGFloat w = ceil(size.width) + 2 * pad, h = ceil(size.height) + 2 * pad;
+				CGFloat w = ceil(size.width) + 2 * badge.padX, h = ceil(size.height) + 2 * badge.padY;
 				// Above the cursor, or below it when there is no room above.
 				CGFloat y = CGRectGetMaxY(c) + 6;
 				if (y + h > view.bounds.size.height)
 					y = c.origin.y - 6 - h;
-				CGFloat x = MIN(MAX(c.origin.x - pad, 0), MAX(view.bounds.size.width - w, 0));
-				CALayer *box = NeruVimBox(CGRectMake(x, y, w, h), statusBg, cursorColor, 1, 4);
-				[box addSublayer:NeruVimText(lens, CGPointMake(pad, pad), scale)];
+				CGFloat x = MIN(MAX(c.origin.x - badge.padX, 0), MAX(view.bounds.size.width - w, 0));
+				CALayer *box = NeruVimBadge(CGRectMake(x, y, w, h), badge);
+				[box addSublayer:NeruVimText(lens, CGPointMake(badge.padX, badge.padY), scale)];
 				[root addSublayer:box];
 			}
 
-			if (status.length > 0 && !CGRectIsEmpty(region)) {
-				NSAttributedString *text = [[NSAttributedString alloc]
-				    initWithString:status
-				        attributes:@{NSFontAttributeName : font, NSForegroundColorAttributeName : statusText}];
-				CGFloat pad = 6;
-				CGFloat h = ceil([text size].height) + 2 * pad;
-				CGRect r = NeruVimFlip(region, height);
-				CGRect bar = CGRectMake(r.origin.x, MAX(r.origin.y, 0), r.size.width, h);
-				CALayer *box = NeruVimBox(bar, statusBg, [NSColor clearColor], 0, 0);
-				[box addSublayer:NeruVimText(text, CGPointMake(pad * 2, pad), scale)];
-				[root addSublayer:box];
+			if (mode.length > 0 && !CGRectIsEmpty(region)) {
+				[root addSublayer:NeruVimStatusBar(
+				                      NeruVimFlip(region, height), mode, modeKind, status, statusTyped, statusRight,
+				                      font, bold, statusBg, statusText, badge.border, modeColor, visualModeColor,
+				                      onModeColor, scale)];
 			}
 
 			if (notice.length > 0 && !CGRectIsEmpty(region)) {
-				CALayer *card = NeruVimNotice(
-				    notice, NeruVimFlip(region, height), font, bold, statusBg, statusText, cursorColor, scale);
+				CALayer *card = NeruVimNotice(notice, NeruVimFlip(region, height), font, bold, badge, modeColor, scale);
 				if (keptNotice && CGRectEqualToRect(keptNotice.frame, card.frame))
 					card = keptNotice;
 				card.name = noticeName;

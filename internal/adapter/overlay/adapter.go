@@ -884,18 +884,22 @@ func (a *Adapter) drawVim(frame ports.VimFrame) error {
 	}
 
 	drawErr := drawer.DrawVim(VimScene{
-		Region:    frame.Region.Sub(origin),
-		Cursor:    frame.Cursor.Sub(origin),
-		Pending:   frame.Pending,
-		Selection: local(frame.Selection),
-		Matches:   local(frame.Matches),
-		Current:   frame.Current,
-		Container: frame.Container.Sub(origin),
-		Block:     frame.Block.Sub(origin),
-		Status:    frame.Status,
-		Lens:      [3]string{frame.Lens.Before, frame.Lens.At, frame.Lens.After},
-		Labels:    vimLabels(frame.Labels, origin),
-		Notice:    frame.Notice,
+		Region:      frame.Region.Sub(origin),
+		Cursor:      frame.Cursor.Sub(origin),
+		Pending:     frame.Pending,
+		Selection:   local(frame.Selection),
+		Matches:     local(frame.Matches),
+		Current:     frame.Current,
+		Container:   frame.Container.Sub(origin),
+		Block:       frame.Block.Sub(origin),
+		Mode:        frame.Status.Mode,
+		ModeKind:    vimModeKind(frame.Status.Kind),
+		Status:      frame.Status.Text,
+		StatusRight: frame.Status.Right,
+		StatusTyped: frame.Status.Typed,
+		Lens:        [3]string{frame.Lens.Before, frame.Lens.At, frame.Lens.After},
+		Labels:      vimLabels(frame.Labels, origin),
+		Notice:      frame.Notice,
 	}, ResolvedStyle(a.styles).Vim)
 	if drawErr != nil {
 		if derrors.IsNotSupported(drawErr) {
@@ -906,6 +910,20 @@ func (a *Adapter) drawVim(frame ports.VimFrame) error {
 	}
 
 	return nil
+}
+
+// vimModeKind is how the status bar's chip draws a kind of mode.
+func vimModeKind(kind ports.VimModeKind) VimModeKind {
+	switch kind {
+	case ports.VimModeNormal:
+		return manager.VimModeNormal
+	case ports.VimModeVisual:
+		return manager.VimModeVisual
+	case ports.VimModeOther:
+		return manager.VimModeOther
+	default:
+		return manager.VimModeOther
+	}
 }
 
 // vimLabels moves jump labels into screen-local space.

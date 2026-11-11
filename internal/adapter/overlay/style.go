@@ -5,6 +5,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/recursivegrid"
@@ -200,8 +201,10 @@ func (r *StyleResolver) resolve(cfg *config.Config) Style {
 		cfg = config.DefaultConfig()
 	}
 
+	hintStyle := hints.BuildStyle(cfg.Hints, r.theme)
+
 	style := Style{
-		Hints:            hints.BuildStyle(cfg.Hints, r.theme),
+		Hints:            hintStyle,
 		HintSearchInput:  hints.BuildSearchInputStyle(cfg.Hints, r.theme),
 		HintSearchLayout: buildSearchInputLayout(cfg.Hints.SearchInputUI),
 		Grid:             grid.BuildStyle(cfg.Grid, r.theme),
@@ -209,7 +212,7 @@ func (r *StyleResolver) resolve(cfg *config.Config) Style {
 		Bisect:           recursivegrid.BuildStyle(cfg.Bisect.RenderConfig(), r.theme),
 		MonitorSelect:    buildMonitorSelectStyle(cfg, r.theme),
 		VirtualPointer:   buildVirtualPointerStyle(cfg.VirtualPointer, r.theme),
-		Vim:              buildVimStyle(cfg.Vim.UI, r.theme),
+		Vim:              buildVimStyle(cfg, hintStyle, r.theme),
 	}
 
 	r.mu.Lock()
@@ -364,7 +367,15 @@ func buildMonitorSelectStyle(cfg *config.Config, theme config.ThemeProvider) Mon
 // buildVimStyle resolves the vim surface. Its colors come out of the
 // configuration already themed (config.ResolveThemeDefaults), so a theme
 // change resolves them again through ForTheme with no fallback of their own.
-func buildVimStyle(vimUI config.VimUI, theme config.ThemeProvider) VimStyle {
+// The jump labels, the lens and the notice draw as hint badges, so they take
+// the hint style. The mode chip takes the theme's accents.
+func buildVimStyle(cfg *config.Config, hint hints.StyleMode, theme config.ThemeProvider) VimStyle {
+	vimUI := cfg.Vim.UI
+	palette := func(light, dark string) string {
+		return (&config.Color{Light: light, Dark: dark}).ForTheme(theme, "", "")
+	}
+	badgeFontSize := float64(hint.FontSize())
+
 	return VimStyle{
 		FontSize:              vimUI.FontSize,
 		FontFamily:            ports.ResolveFont(vimUI.FontFamily),
@@ -374,6 +385,20 @@ func buildVimStyle(vimUI config.VimUI, theme config.ThemeProvider) VimStyle {
 		ContainerColor:        vimUI.ContainerColor.ForTheme(theme, "", ""),
 		StatusBackgroundColor: vimUI.StatusBackgroundColor.ForTheme(theme, "", ""),
 		StatusTextColor:       vimUI.StatusTextColor.ForTheme(theme, "", ""),
+		Badge: VimBadge{
+			FontSize:     hint.FontSize(),
+			FontFamily:   hint.FontFamily(),
+			Background:   hint.BackgroundColor(),
+			Text:         hint.TextColor(),
+			Border:       hint.BorderColor(),
+			BorderWidth:  max(hint.BorderWidth(), 0),
+			PaddingX:     badge.AutoPadding(badgeFontSize, hint.PaddingX(), true),
+			PaddingY:     badge.AutoPadding(badgeFontSize, hint.PaddingY(), false),
+			BorderRadius: hint.BorderRadius(),
+		},
+		ModeColor:       palette(cfg.Theme.Light.Accent, cfg.Theme.Dark.Accent),
+		VisualModeColor: palette(cfg.Theme.Light.AccentAlt, cfg.Theme.Dark.AccentAlt),
+		OnModeColor:     palette(cfg.Theme.Light.OnAccentAlt, cfg.Theme.Dark.OnAccentAlt),
 	}
 }
 

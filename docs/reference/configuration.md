@@ -1126,16 +1126,23 @@ cursor_color = "#FF8800AA"
 
 ### Vim UI
 
-| Option                    | Type   | Default | Description                                                                                 |
-| ------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------- |
-| `font_size`               | int    | `13`    | Status bar and lens font size                                                               |
-| `font_family`             | string | `""`    | Status bar and lens font. Accepts [generic aliases](#fonts), and empty means a monospaced face |
-| `cursor_color`            | color  | derived | Fill of the cursor, and of the cursor's character in the lens                               |
-| `selection_color`         | color  | derived | Fill of the visual selection                                                                |
-| `match_color`             | color  | derived | Underline of each search match, and outline of the one under the cursor                     |
-| `container_color`         | color  | derived | Outline of the container the cursor is in. A fully transparent color hides it               |
-| `status_background_color` | color  | derived | Background of the status bar and the lens                                                   |
-| `status_text_color`       | color  | derived | Text of the status bar and the lens                                                         |
+| Option                    | Type   | Default | Description                                                                                                  |
+| ------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `font_size`               | int    | `13`    | Status bar and notice font size                                                                              |
+| `font_family`             | string | `""`    | Status bar and notice font. Accepts [generic aliases](#fonts), and empty means a monospaced face             |
+| `cursor_color`            | color  | derived | Bar down the cursor's left edge. The cursor's fill is this color at about a third of its alpha. Also the fill of the cursor's character in the lens |
+| `selection_color`         | color  | derived | Fill of the visual selection                                                                                 |
+| `match_color`             | color  | derived | Underline of each search match, and outline of the one under the cursor                                      |
+| `container_color`         | color  | derived | Outline of the container the cursor is in, and at a third of its opacity of the block around it. A fully transparent color hides both |
+| `status_background_color` | color  | derived | Background of the status bar                                                                                 |
+| `status_text_color`       | color  | derived | Text of the status bar, and of the mode chip while vim waits on input                                        |
+
+Vim draws jump labels and the lens as hint badges, in the font, colors,
+border and padding of [`[hints.ui]`](#hints). The waiting notice takes the
+hint badge's colors, border and corners, in the font above. The status bar's
+mode chip is `theme.accent` in normal mode and `theme.accent_alt` in visual
+mode, with text in `theme.on_accent_alt`. While vim waits on a command, a
+jump, a motion or typing, the chip is an outline in the hint border color.
 
 ### Vim hotkeys
 

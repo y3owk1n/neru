@@ -626,12 +626,13 @@ func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error 
 		return derrors.New(derrors.CodeNotSupported, "vim overlay has no window")
 	}
 
-	cstr := func(s string) *C.char { return C.CString(s) }
-	strs := []*C.char{
-		cstr(style.FontFamily), cstr(style.CursorColor), cstr(style.SelectionColor),
-		cstr(style.MatchColor), cstr(style.ContainerColor), cstr(style.StatusBackgroundColor),
-		cstr(style.StatusTextColor), cstr(scene.Status),
-		cstr(scene.Lens[0]), cstr(scene.Lens[1]), cstr(scene.Lens[2]), cstr(scene.Notice),
+	var strs []*C.char
+
+	cstr := func(s string) *C.char {
+		str := C.CString(s)
+		strs = append(strs, str)
+
+		return str
 	}
 
 	defer func() {
@@ -683,23 +684,39 @@ func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error 
 		currentMatch:   C.int(scene.Current),
 		container:      cRect(scene.Container),
 		block:          cRect(scene.Block),
-		status:         strs[7],
-		lensBefore:     strs[8],
-		lensAt:         strs[9],
-		lensAfter:      strs[10],
+		mode:           cstr(scene.Mode),
+		modeKind:       C.int(scene.ModeKind),
+		status:         cstr(scene.Status),
+		statusRight:    cstr(scene.StatusRight),
+		statusTyped:    C.int(boolToInt(scene.StatusTyped)),
+		lensBefore:     cstr(scene.Lens[0]),
+		lensAt:         cstr(scene.Lens[1]),
+		lensAfter:      cstr(scene.Lens[2]),
 		labels:         labels,
 		labelBounds:    bounds,
 		labelCount:     C.int(len(scene.Labels)),
-		notice:         strs[11],
+		notice:         cstr(scene.Notice),
 	}, C.VimStyle{
 		fontSize:              C.int(style.FontSize),
-		fontFamily:            strs[0],
-		cursorColor:           strs[1],
-		selectionColor:        strs[2],
-		matchColor:            strs[3],
-		containerColor:        strs[4],
-		statusBackgroundColor: strs[5],
-		statusTextColor:       strs[6],
+		fontFamily:            cstr(style.FontFamily),
+		cursorColor:           cstr(style.CursorColor),
+		selectionColor:        cstr(style.SelectionColor),
+		matchColor:            cstr(style.MatchColor),
+		containerColor:        cstr(style.ContainerColor),
+		statusBackgroundColor: cstr(style.StatusBackgroundColor),
+		statusTextColor:       cstr(style.StatusTextColor),
+		badgeFontSize:         C.int(style.Badge.FontSize),
+		badgeFontFamily:       cstr(style.Badge.FontFamily),
+		badgeBackground:       cstr(style.Badge.Background),
+		badgeText:             cstr(style.Badge.Text),
+		badgeBorder:           cstr(style.Badge.Border),
+		badgeBorderWidth:      C.int(style.Badge.BorderWidth),
+		badgePaddingX:         C.int(style.Badge.PaddingX),
+		badgePaddingY:         C.int(style.Badge.PaddingY),
+		badgeBorderRadius:     C.int(style.Badge.BorderRadius),
+		modeColor:             cstr(style.ModeColor),
+		visualModeColor:       cstr(style.VisualModeColor),
+		onModeColor:           cstr(style.OnModeColor),
 	})
 
 	return nil

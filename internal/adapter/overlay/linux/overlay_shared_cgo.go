@@ -469,8 +469,8 @@ func (o *sharedOverlay) DrawVim(scene manager.VimScene, style manager.VimStyle) 
 
 	o.srf.surfaceClear()
 
-	measure := func(text string, fontSize float64, bold bool) int {
-		return badge.TextWidth(text, style.FontFamily, fontSize*o.srf.surfaceScale(), bold)
+	measure := func(text, family string, fontSize float64, bold bool) int {
+		return badge.TextWidth(text, family, fontSize*o.srf.surfaceScale(), bold)
 	}
 
 	for _, vimOp := range manager.LayoutVim(scene, style, measure) {

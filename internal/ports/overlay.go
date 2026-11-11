@@ -188,9 +188,9 @@ func (MonitorSelectFrame) frame() {}
 // VimFrame is the vim surface: the text read off the screen, drawn as the
 // cursor on one character, the visual selection, the search matches, an
 // outline around the container the cursor is in, a status bar along the
-// region read, and a lens showing the word under the cursor as it was read. Every rectangle is in
-// global coordinates. Translating them into the overlay's screen-local space
-// is the adapter's business.
+// region read, and a lens showing the word under the cursor as it was read.
+// Every rectangle is in global coordinates. Translating them into the
+// overlay's screen-local space is the adapter's business.
 type VimFrame struct {
 	// Screen is the active display.
 	Screen image.Rectangle
@@ -213,8 +213,9 @@ type VimFrame struct {
 	// Block is the block Container sits in, outlined fainter, so 2ic's reach
 	// shows. It is empty when that is the whole screen.
 	Block image.Rectangle
-	// Status is the status bar's text.
-	Status string
+	// Status is the status bar along Region's bottom edge. An empty Mode
+	// draws no bar.
+	Status VimStatus
 	// Lens is the word under the cursor as read, split around the character
 	// the cursor is on. An empty At shows no lens.
 	Lens VimLens
@@ -226,6 +227,32 @@ type VimFrame struct {
 	// draws none.
 	Notice string
 }
+
+// VimStatus is vim's status bar: a chip naming the mode, the text after it,
+// such as the command being typed or a message, and the text at the bar's
+// right end, such as where the cursor is among the matches. Typed says Text
+// is being typed, so a bar too narrow for it cuts its start rather than its
+// end, keeping what is typed next in view.
+type VimStatus struct {
+	Mode  string
+	Kind  VimModeKind
+	Text  string
+	Right string
+	Typed bool
+}
+
+// VimModeKind sorts vim's modes by how the status bar's chip shows them.
+type VimModeKind int
+
+const (
+	// VimModeNormal is normal mode.
+	VimModeNormal VimModeKind = iota
+	// VimModeVisual is any of the visual modes.
+	VimModeVisual
+	// VimModeOther is a mode waiting on input: a command line, a jump, an
+	// operator waiting for its motion, or typing into the app.
+	VimModeOther
+)
 
 // VimLabel is one jump target's label and the character it sits on.
 type VimLabel struct {

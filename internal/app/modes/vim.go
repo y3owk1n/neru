@@ -1056,7 +1056,11 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 	}
 
 	if session.typing {
-		frame.Status = "INSERT   typing into the app, Escape to stop"
+		frame.Status = ports.VimStatus{
+			Mode: "INSERT",
+			Kind: ports.VimModeOther,
+			Text: "typing into the app, Escape to stop",
+		}
 
 		return frame
 	}
@@ -1275,86 +1279,95 @@ func vimCompletionList(completion *vimCompletion) string {
 	return strings.Join(shown, " ")
 }
 
-// vimStatus is the status bar: the mode, the command being typed or the
-// command line, the machine's message, a macro being recorded, where the
-// cursor is among the search matches, and whether a read of the screen is
-// still running.
-func vimStatus(session *vimSession, current, matches int) string {
+// vimStatus is the status bar: the mode, then the command being typed or the
+// command line, or the machine's message, and at the right end a macro being
+// recorded, where the cursor is among the search matches, and whether a read
+// of the screen is still running.
+func vimStatus(session *vimSession, current, matches int) ports.VimStatus {
 	machine := session.machine
-	parts := []string{vimModeName(session)}
+	mode, kind := vimModeName(session)
+	status := ports.VimStatus{Mode: mode, Kind: kind}
 
 	switch {
 	case session.jump != nil:
-		parts = append(parts, "s"+session.jump.query)
+		status.Text, status.Typed = "s"+session.jump.query, true
 	case machine.Mode() == vim.Cmdline:
 		line := machine.Line()
 		at := min(max(machine.LineCursor(), 0), len(line))
-		parts = append(parts, line[:at]+"▏"+line[at:])
+		status.Text, status.Typed = line[:at]+"▏"+line[at:], true
 
 		if session.completion != nil {
-			parts = append(parts, vimCompletionList(session.completion))
+			status.Text += vimStatusGap + vimCompletionList(session.completion)
 		}
 	case machine.Message() != "":
-		parts = append(parts, machine.Message())
+		status.Text = machine.Message()
 	case session.notice != "":
-		parts = append(parts, session.notice)
+		status.Text = session.notice
 	case session.zPrefix && session.zCount > 0:
-		parts = append(parts, strconv.Itoa(session.zCount)+"z")
+		status.Text = strconv.Itoa(session.zCount) + "z"
 	case session.zPrefix:
-		parts = append(parts, "z")
+		status.Text = "z"
 	case machine.Shown() != "":
-		parts = append(parts, machine.Shown())
+		status.Text = machine.Shown()
 	}
 
+	var right []string
+
 	if r := machine.Recording(); r != 0 {
-		parts = append(parts, "recording @"+string(r))
+		right = append(right, "recording @"+string(r))
 	}
 
 	switch {
 	case matches > 0 && machine.Substituting():
-		parts = append(parts, vimChangeCount(matches))
+		right = append(right, vimChangeCount(matches))
 	case matches > 0:
 		at := "-"
 		if current >= 0 {
 			at = strconv.Itoa(current + 1)
 		}
 
-		parts = append(parts, "["+at+"/"+strconv.Itoa(matches)+"]")
+		right = append(right, "["+at+"/"+strconv.Itoa(matches)+"]")
 	}
 
 	if session.reading || session.stale {
-		parts = append(parts, "reading…")
+		right = append(right, "reading…")
 	}
 
-	return strings.Join(parts, "   ")
+	status.Right = strings.Join(right, vimStatusGap)
+
+	return status
 }
 
-// vimModeName names the session's mode for the status bar.
-func vimModeName(session *vimSession) string {
+// vimStatusGap separates the parts of the status bar's text.
+const vimStatusGap = "   "
+
+// vimModeName names the session's mode for the status bar's chip, and says
+// how the chip shows it.
+func vimModeName(session *vimSession) (string, ports.VimModeKind) {
 	machine := session.machine
 
 	if session.jump != nil {
-		return "JUMP"
+		return "JUMP", ports.VimModeOther
 	}
 
 	if sel, ok := machine.Selection(); ok {
 		switch sel.Kind {
 		case "V":
-			return "V-LINE"
+			return "V-LINE", ports.VimModeVisual
 		case "<C-v>":
-			return "V-BLOCK"
+			return "V-BLOCK", ports.VimModeVisual
 		default:
-			return "VISUAL"
+			return "VISUAL", ports.VimModeVisual
 		}
 	}
 
 	switch {
 	case machine.Mode() == vim.Cmdline:
-		return "COMMAND"
+		return "COMMAND", ports.VimModeOther
 	case machine.Pending():
-		return "PENDING"
+		return "PENDING", ports.VimModeOther
 	default:
-		return "NORMAL"
+		return "NORMAL", ports.VimModeNormal
 	}
 }
 
