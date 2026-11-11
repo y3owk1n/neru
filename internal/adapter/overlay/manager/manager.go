@@ -79,10 +79,12 @@ type HeadlessReporter interface {
 // KeyboardCaptureController is the optional extension a backend implements
 // when its overlay surface can hold or release the keyboard.
 //
-// Only the Linux backends can. An evdev grab held by the overlay deactivates
-// the focused toplevel, so the indicator poller has to release it. Reach it by
-// type assertion and skip the behavior when the assertion fails, the same way
-// every other optional platform capability works.
+// Only the Linux backends can, and only the Linux event tap calls it. The tap
+// holds the keyboard while the overlay is its only key source. It releases the
+// keyboard when an evdev proxy owns the keys, because a layer-surface grab
+// deactivates the focused toplevel. Reach it by type assertion and skip the
+// behavior when the assertion fails, the same way every other optional platform
+// capability works.
 type KeyboardCaptureController interface {
 	SetKeyboardCaptureEnabled(enabled bool)
 }

@@ -687,7 +687,6 @@ func (capture *waylandEvdevCapture) beginSession() error {
 	}
 
 	capture.sessionActive = true
-	waylandEvdevKeyboardActive.Store(true)
 
 	return nil
 }
@@ -697,7 +696,6 @@ func (capture *waylandEvdevCapture) endSession() {
 	defer capture.deviceMu.Unlock()
 
 	capture.sessionActive = false
-	waylandEvdevKeyboardActive.Store(false)
 }
 
 // yieldDevice lets go of one held keyboard once no key on it is down and no

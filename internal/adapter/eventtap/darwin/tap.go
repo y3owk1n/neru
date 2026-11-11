@@ -491,8 +491,3 @@ func eventTapPassthroughBridge(_ unsafe.Pointer) {
 func IsUinputScrollAvailable() bool {
 	return false
 }
-
-// IsWaylandEvdevKeyboardActive returns false on Darwin (no evdev / Wayland).
-func IsWaylandEvdevKeyboardActive() bool {
-	return false
-}

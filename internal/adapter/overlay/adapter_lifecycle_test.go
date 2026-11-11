@@ -8,7 +8,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay"
 	"github.com/y3owk1n/neru/internal/config"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // recordingStyles is the Style owner as the adapter depends on it, recording
@@ -67,35 +66,6 @@ func (m *lifecycleManager) Destroy() { m.destroys++ }
 func (m *lifecycleManager) ConfigureComponents(cfg *config.Config, _ overlay.PointerAppearance) {
 	m.configures++
 	m.configuredFor = cfg.Hints.UI.FontSize
-}
-
-// capture is what a keyboard grab looks like to a test: which backend was
-// asked, and what for. Both managers below point at one, so a table can assert
-// on the same value whether or not the backend declares the capability.
-type capture struct {
-	calls   int
-	enabled bool
-}
-
-// grabbingManager is a backend whose surface can hold the keyboard, the way
-// the Linux ones do.
-type grabbingManager struct {
-	headlessManager
-
-	seen *capture
-}
-
-var _ overlay.KeyboardCaptureController = (*grabbingManager)(nil)
-
-func (m *grabbingManager) SetKeyboardCaptureEnabled(enabled bool) {
-	m.seen.calls++
-	m.seen.enabled = enabled
-}
-
-// deafManager is every other backend. It never takes the keyboard from the
-// focused application, so it declares no capability to release it.
-type deafManager struct {
-	headlessManager
 }
 
 // TestAdapterApplyConfig_ReachesTheStyleOwnerOnce is the acceptance for the
@@ -243,55 +213,5 @@ func TestAdapterDestroy_ReleasesTheBackend(t *testing.T) {
 
 	if manager.destroys != 1 {
 		t.Errorf("Destroy() released the backend %d times, want 1", manager.destroys)
-	}
-}
-
-// TestAdapterSetKeyboardCaptureEnabled_ReachesOnlyABackendThatGrabs covers
-// both halves of the call the mode handler used to make through the overlay
-// package's singleton. A Linux backend has a grab to release and hears about
-// it, and every other backend never took the keyboard from the focused
-// application, so the call is inert rather than a panic.
-func TestAdapterSetKeyboardCaptureEnabled_ReachesOnlyABackendThatGrabs(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		manager   func(*capture) overlay.ManagerInterface
-		wantCalls int
-	}{
-		{
-			name:      "a backend whose surface grabs the keyboard",
-			manager:   func(seen *capture) overlay.ManagerInterface { return &grabbingManager{seen: seen} },
-			wantCalls: 1,
-		},
-		{
-			name:      "a backend that never took it",
-			manager:   func(*capture) overlay.ManagerInterface { return &deafManager{} },
-			wantCalls: 0,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			seen := &capture{}
-
-			var port ports.OverlayPort = overlay.NewAdapter(
-				test.manager(seen),
-				testStyles{},
-				zap.NewNop(),
-			)
-
-			port.SetKeyboardCaptureEnabled(true)
-
-			if seen.calls != test.wantCalls {
-				t.Fatalf("the backend was asked %d times, want %d", seen.calls, test.wantCalls)
-			}
-
-			if test.wantCalls > 0 && !seen.enabled {
-				t.Error("the backend was asked to release the keyboard, want hold")
-			}
-		})
 	}
 }

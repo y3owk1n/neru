@@ -216,8 +216,10 @@ func (et *EventTap) runWaylandEvdev() bool {
 		return false
 	}
 
-	// The proxy owns the keyboard, so the overlay stays keyboard-passive (see
-	// waylandEvdevKeyboardActive). Set once, on the first session.
+	// The proxy owns the keyboard, so the overlay stays keyboard-passive. On
+	// wlroots a layer-surface keyboard grab deactivates the focused toplevel,
+	// and a hints refresh would read the wrong window. This runs once, on the
+	// first session.
 	et.overlayPassiveOnce.Do(func() {
 		if controller, ok := overlay.Get().(overlaymanager.KeyboardCaptureController); ok {
 			controller.SetKeyboardCaptureEnabled(false)

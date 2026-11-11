@@ -31,9 +31,6 @@ type (
 	CapabilityReporter = manager.CapabilityReporter
 	// HeadlessReporter declares a manager that has no surface to render on.
 	HeadlessReporter = manager.HeadlessReporter
-	// KeyboardCaptureController is the optional capability a backend declares
-	// when its surface can hold or release the keyboard.
-	KeyboardCaptureController = manager.KeyboardCaptureController
 )
 
 // Overlay modes.
