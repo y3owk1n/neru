@@ -80,38 +80,38 @@ verified = 'manifest'
 name = 'go'
 ref = './.oku/go.toml'
 manifest_sha256 = '2022b9ea9d9e33afb9ca6a565a6ec9b4655f57311f5c8db4f0a5d6fe81b191ae'
-version = '1.27.3'
-tag = 'go1.27.3'
+version = '1.27.4'
+tag = 'go1.27.4'
 
 [package.platform]
 [package.platform.darwin-arm64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.27.3.darwin-arm64.tar.gz'
-sha256 = 'dd3908cf20959d798c1e06ebe5b72213f0505ce01373b40ce3110975a6cd99c2'
+url = 'https://dl.google.com/go/go1.27.4.darwin-arm64.tar.gz'
+sha256 = '91a44a2b8a716600ad94a4f143e156116620db8828086a6e3602291be9bd0bb4'
 verified = 'checksum-file'
 
 [package.platform.linux-amd64-glibc]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.27.3.linux-amd64.tar.gz'
-sha256 = '65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40'
+url = 'https://dl.google.com/go/go1.27.4.linux-amd64.tar.gz'
+sha256 = '7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840'
 verified = 'checksum-file'
 
 [package.platform.linux-arm64-glibc]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.27.3.linux-arm64.tar.gz'
-sha256 = 'a06e99309dbcbdca1a8ccd2282c3ee146e55930886e26b4f1193269587165f49'
+url = 'https://dl.google.com/go/go1.27.4.linux-arm64.tar.gz'
+sha256 = '3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92'
 verified = 'checksum-file'
 
 [package.platform.windows-amd64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.27.3.windows-amd64.zip'
-sha256 = 'f26081f438319757f8a1b46d7d0b2c5ec7583d4038e485e0aa725cfde7885fff'
+url = 'https://dl.google.com/go/go1.27.4.windows-amd64.zip'
+sha256 = '178ab98950ac69ab25069307dc6ade79f3816e414cce95b4da166a115cde1e7e'
 verified = 'checksum-file'
 
 [package.platform.windows-arm64]
 strategy = 'artifact'
-url = 'https://dl.google.com/go/go1.27.3.windows-arm64.zip'
-sha256 = 'c507872ff21f8a7cd3c1c217b059c6f7271a4a9d8e692810ef9dd3e1f601197c'
+url = 'https://dl.google.com/go/go1.27.4.windows-arm64.zip'
+sha256 = '9e7a72565792b8ab370b37ac9ac109799237abacb39ff2f541c438b963c0cc64'
 verified = 'checksum-file'
 
 [[package]]
