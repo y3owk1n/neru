@@ -59,6 +59,10 @@ type winPoint struct {
 // sees, without the invisible resize borders GetWindowRect counts.
 const dwmExtendedFrameBounds = 9
 
+// dwmCloaked is DWMWA_CLOAKED, which is nonzero while DWM keeps a window off
+// the screen although Win32 reports it visible.
+const dwmCloaked = 14
+
 // dwmTransitionsForceDisabled is DWMWA_TRANSITIONS_FORCEDISABLED: no fade when
 // the window is shown or hidden.
 const dwmTransitionsForceDisabled = 3
@@ -407,7 +411,10 @@ func foregroundWindowHandle() (windows.HWND, error) {
 }
 
 // usableWindowHandle rejects the handles that stand for "no application has
-// focus": a null handle, a handle that is no longer a window, and the desktop.
+// focus": a null handle, a handle that is no longer a window, the desktop, and
+// a window DWM keeps cloaked. The shell leaves its Search and Start hosts in
+// the foreground, cloaked, after they are dismissed, and taking one for the
+// focused window reads and outlines a frame nothing on screen shows.
 func usableWindowHandle(hwnd windows.HWND) (windows.HWND, error) {
 	if hwnd == 0 {
 		return 0, derrors.New(derrors.CodeElementNotFound, "no foreground window")
@@ -422,7 +429,26 @@ func usableWindowHandle(hwnd windows.HWND) (windows.HWND, error) {
 		return 0, derrors.New(derrors.CodeElementNotFound, "desktop is focused")
 	}
 
+	if windowCloaked(hwnd) {
+		return 0, derrors.New(derrors.CodeElementNotFound, "foreground window is cloaked")
+	}
+
 	return hwnd, nil
+}
+
+// windowCloaked reports whether DWM keeps hwnd off the screen. A desktop
+// without composition cloaks nothing, so a failed query is not cloaked.
+func windowCloaked(hwnd windows.HWND) bool {
+	var cloaked uint32
+
+	result, _, _ := procDwmGetWindowAttribute.Call(
+		uintptr(hwnd),
+		dwmCloaked,
+		uintptr(unsafe.Pointer(&cloaked)),
+		unsafe.Sizeof(cloaked),
+	)
+
+	return result == 0 && cloaked != 0
 }
 
 func focusedWindowBounds() (image.Rectangle, bool, error) {
