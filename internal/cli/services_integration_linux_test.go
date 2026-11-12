@@ -40,7 +40,10 @@ func requireNoExistingUnit(t *testing.T, unitPath string) {
 // systemd spells the key is accepted by every string comparison and ignored by
 // systemd. `systemd-analyze verify` is the only reader whose opinion counts,
 // and it reports an unparsed directive on stderr while still exiting 0, so the
-// diagnostics are the assertion rather than the exit status.
+// diagnostics are the assertion rather than the exit status. The test counts
+// only the lines that name Neru's unit. The verifier also reads the units the
+// machine ships, and a newer systemd warns about directives in those, such as
+// CPUAccounting= on GitHub's Ubuntu runners.
 func TestRenderServiceUnit_IsAcceptedBySystemdAnalyze(t *testing.T) {
 	analyze, err := exec.LookPath("systemd-analyze")
 	if err != nil {
@@ -66,8 +69,19 @@ func TestRenderServiceUnit_IsAcceptedBySystemdAnalyze(t *testing.T) {
 		t.Fatalf("systemd-analyze verify error = %v, output:\n%s", err, output)
 	}
 
-	if diagnostics := strings.TrimSpace(string(output)); diagnostics != "" {
-		t.Errorf("systemd-analyze verify reported diagnostics:\n%s", diagnostics)
+	var diagnostics []string
+
+	for line := range strings.Lines(string(output)) {
+		if strings.Contains(line, serviceUnitName) {
+			diagnostics = append(diagnostics, strings.TrimSpace(line))
+		}
+	}
+
+	if len(diagnostics) > 0 {
+		t.Errorf(
+			"systemd-analyze verify reported diagnostics:\n%s",
+			strings.Join(diagnostics, "\n"),
+		)
 	}
 }
 
