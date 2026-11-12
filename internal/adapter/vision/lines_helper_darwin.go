@@ -358,6 +358,33 @@ func encodeLinesRequest(
 	return &request, nil
 }
 
+// helperParentPoll is how often the helper checks that the daemon that
+// started it still runs.
+const helperParentPoll = 500 * time.Millisecond
+
+// launchdPID is the pid of launchd, which adopts a process whose parent died.
+const launchdPID = 1
+
+// exitWithParent exits the process once launchd adopts it or its parent
+// otherwise stops being parent, until done closes. A daemon gone before the
+// helper read its parent leaves launchd as parent from the start.
+func exitWithParent(parent int, done <-chan struct{}) {
+	ticker := time.NewTicker(helperParentPoll)
+
+	for {
+		select {
+		case <-done:
+			ticker.Stop()
+
+			return
+		case <-ticker.C:
+			if ppid := os.Getppid(); ppid != parent || ppid == launchdPID {
+				os.Exit(1)
+			}
+		}
+	}
+}
+
 // writeRows writes img's pixels row by row, without any padding past each.
 func writeRows(out *bytes.Buffer, img *image.RGBA) {
 	rowBytes := img.Rect.Dx() * bytesPerPixel
@@ -369,8 +396,14 @@ func writeRows(out *bytes.Buffer, img *image.RGBA) {
 }
 
 // ServeTextLines is the helper's side. It reads one request from request,
-// reads its pixels accurately and writes the pieces to out as JSON.
+// reads its pixels accurately and writes the pieces to out as JSON. It exits
+// once the daemon that started it has gone.
 func ServeTextLines(_ context.Context, request io.Reader, out io.Writer) error {
+	done := make(chan struct{})
+	defer close(done)
+
+	go exitWithParent(os.Getppid(), done)
+
 	var header linesHeader
 
 	err := binary.Read(request, binary.LittleEndian, &header)
