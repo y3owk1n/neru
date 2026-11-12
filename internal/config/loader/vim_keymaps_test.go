@@ -78,6 +78,21 @@ func TestLoad_RefusesAVimMappingVimModeCannotMake(t *testing.T) {
 			toml: "[vim.keymaps.normal]\n\"Q\" = \"<Plug>(jmup)\"\n",
 			want: "not a command vim mode has: <Plug>(jmup)",
 		},
+		{
+			name: "a key name vim does not know",
+			toml: "[vim.keymaps.normal]\n\"<M-j>\" = \"j\"\n",
+			want: "not a key vim mode reads: <M-j>",
+		},
+		{
+			name: "a command left unclosed",
+			toml: "[vim.keymaps.normal]\n\"Q\" = \"<Plug>(jump\"\n",
+			want: "not a key vim mode reads: <Plug>",
+		},
+		{
+			name: "two spellings of one sequence",
+			toml: "[vim.keymaps.normal]\n\"<Space>j\" = \"w\"\n\"<space>j\" = \"b\"\n",
+			want: `maps the same keys as "<Space>j"`,
+		},
 	}
 
 	for _, testCase := range tests {

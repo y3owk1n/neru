@@ -220,8 +220,16 @@ func ctrlLetter(key vim.Key) (string, bool) {
 // CheckMapping says why the keys from cannot be mapped to the keys runs, or
 // returns nil. Every key typed has to be one the event taps name, and
 // Escape is never mapped, since it always cancels and leaves. Every
-// <Plug>(name) run has to be a command vim mode adds.
+// <Plug>(name) run has to be a command vim mode adds. A <name> on either
+// side has to be one vim knows, since vim reads one it does not as its
+// characters, so <M-j> would map < and then M.
 func CheckMapping(from, runs string) error {
+	for _, side := range []string{from, runs} {
+		if name, ok := unknownName(side); ok {
+			return fmt.Errorf("%w: %s, write <lt> for a <", errNotAKey, name)
+		}
+	}
+
 	keys := vim.Keys(from)
 	if len(keys) == 0 {
 		return errNoKeys
@@ -263,6 +271,37 @@ var (
 	errNotAKey     = errors.New("not a key vim mode reads")
 	errNotACommand = errors.New("not a command vim mode has")
 )
+
+// unknownName returns the first <name> in keys that vim does not read as one
+// key, which it reads as a < key, the name's characters and a > key.
+func unknownName(keys string) (string, bool) {
+	parsed := vim.Keys(keys)
+
+	for start, key := range parsed {
+		if key != "<" {
+			continue
+		}
+
+		for end := start + 1; end < len(parsed); end++ {
+			char := parsed[end]
+			if char == ">" && end > start+1 {
+				var name strings.Builder
+				for _, k := range parsed[start : end+1] {
+					name.WriteString(string(k))
+				}
+
+				return name.String(), true
+			}
+
+			if utf8.RuneCountInString(string(char)) != 1 || char == "<" || char == " " ||
+				char == ">" {
+				break
+			}
+		}
+	}
+
+	return "", false
+}
 
 // typable reports whether Key can turn a key the taps name into key.
 func typable(key vim.Key) bool {

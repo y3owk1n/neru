@@ -1181,9 +1181,11 @@ counts, so `H` and `h` are different keys. Both tables ship empty.
   the `:` line, after an operator such as `d`, after `f` or `r`, during an
   `s` jump, or into the app after `i`.
 - Neru refuses a mapping of `Escape`, which always cancels and leaves. It
-  also refuses keys it never reads, such as `<Del>` and `<S-Left>`, and a
-  `<Plug>` name vim mode does not have. A refused mapping refuses the whole
-  file, as any invalid option does.
+  also refuses keys it never reads, such as `<Del>` and `<S-Left>`, a name
+  vim does not know, such as `<M-j>`, a `<Plug>` name vim mode does not
+  have, and two spellings of one sequence, such as `"<Space>j"` and
+  `"<space>j"`. Write `<lt>` for a literal `<`. A refused mapping refuses the
+  whole file, as any invalid option does.
 - `[vim.hotkeys]` runs first. A key bound there never reaches these tables.
 
 | Command                     | Mapped by default to | Does                                                              |
