@@ -235,6 +235,19 @@ func lineNumberGutter(words []Word, cell int) map[int]bool {
 
 	gutter := map[int]bool{}
 
+	// startsText caches leftmost(other, true), which scans every word and
+	// does not depend on the number being checked.
+	startsText := map[int]bool{}
+	firstAfterNumbers := func(other int) bool {
+		first, ok := startsText[other]
+		if !ok {
+			first = leftmost(other, true)
+			startsText[other] = first
+		}
+
+		return first
+	}
+
 	for _, index := range numbers {
 		next, found := beside(index)
 		if !found || next.Bounds.Min.X-words[index].Bounds.Max.X < gutterGapColumns*cell {
@@ -244,15 +257,18 @@ func lineNumberGutter(words []Word, cell int) map[int]bool {
 		aligned := 0
 
 		for other, word := range words {
-			if other != index && !sameRow(word.Bounds, words[index].Bounds) &&
-				leftmost(other, true) &&
-				distance(word.Bounds.Min.X, next.Bounds.Min.X)*halfDivisor <= cell {
+			if other != index &&
+				distance(word.Bounds.Min.X, next.Bounds.Min.X)*halfDivisor <= cell &&
+				!sameRow(word.Bounds, words[index].Bounds) &&
+				firstAfterNumbers(other) {
 				aligned++
 			}
-		}
 
-		if aligned >= gutterTextLines {
-			gutter[index] = true
+			if aligned >= gutterTextLines {
+				gutter[index] = true
+
+				break
+			}
 		}
 	}
 
