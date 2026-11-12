@@ -146,7 +146,7 @@ func (a *Adapter) DetectSegmentsAsRead(
 // ReadLinesOnceChanged waits for region to change from what the last fast
 // read of it captured and to settle, then reads it fast. One that never
 // changes reads the last read's lines again. The watch captures only a band
-// of region, and region is captured whole once, to read.
+// of region, and region is captured whole once, to compare and read.
 func (a *Adapter) ReadLinesOnceChanged(
 	ctx context.Context,
 	region image.Rectangle,
@@ -184,12 +184,15 @@ func (a *Adapter) ReadLinesOnceChanged(
 		return nil, err
 	}
 
-	if !unchanged {
-		frame, captureErr := a.captureRegion(ctx, region)
-		if captureErr != nil {
-			return nil, captureErr
-		}
+	// The band is only the middle of region, so a scroll elsewhere in it, as
+	// in a short panel, leaves the band unchanged. The whole region is
+	// compared once before the last read's lines are kept.
+	frame, captureErr := a.captureRegion(ctx, region)
+	if captureErr != nil {
+		return nil, captureErr
+	}
 
+	if unchanged = unchanged && sameFrame(frame, before); !unchanged {
 		lines, err = a.readFrameLines(ctx, region, frame, ports.TextFast)
 		if err != nil {
 			return nil, err
