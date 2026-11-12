@@ -2,23 +2,42 @@
 
 #include <fontconfig/fontconfig.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
 // A draw asks again for the same few texts, such as the word under vim's
 // cursor, so the last answers are kept. Sorting every font takes milliseconds.
+// An answer is kept under a hash of its family and text, never the text, since
+// the text can be what vim read off the screen. Two texts sharing a hash at
+// worst draw one in a font that misses some of its characters.
 #define NERU_FONT_CACHE_SIZE 32
-#define NERU_FONT_KEY_SIZE 512
 #define NERU_FONT_FAMILY_SIZE 256
 
 typedef struct {
-	char key[NERU_FONT_KEY_SIZE];
+	uint64_t key;
 	char family[NERU_FONT_FAMILY_SIZE];
 } NeruFontCacheEntry;
 
 static pthread_mutex_t neru_font_cache_mutex = PTHREAD_MUTEX_INITIALIZER;
 static NeruFontCacheEntry neru_font_cache[NERU_FONT_CACHE_SIZE];
 static int neru_font_cache_next;
+
+// neru_font_key is the FNV-1a hash of family, a line break and text. Zero
+// marks an empty entry, so a hash of zero is moved to one.
+static uint64_t neru_font_key(const char *family, const char *text) {
+	uint64_t hash = 14695981039346656037ULL;
+	const char *parts[] = {family, "\n", text};
+
+	for (int i = 0; i < 3; i++) {
+		for (const unsigned char *at = (const unsigned char *)parts[i]; *at; at++) {
+			hash ^= *at;
+			hash *= 1099511628211ULL;
+		}
+	}
+
+	return hash == 0 ? 1 : hash;
+}
 
 static int neru_font_is_ascii(const char *text) {
 	for (const unsigned char *at = (const unsigned char *)text; *at; at++) {
@@ -94,14 +113,12 @@ void neru_font_family_for_text(const char *family, const char *text, char *out, 
 	if (text == NULL || neru_font_is_ascii(text))
 		return;
 
-	char key[NERU_FONT_KEY_SIZE];
-	if ((size_t)snprintf(key, sizeof(key), "%s\n%s", family, text) >= sizeof(key))
-		return;
+	uint64_t key = neru_font_key(family, text);
 
 	pthread_mutex_lock(&neru_font_cache_mutex);
 
 	for (int i = 0; i < NERU_FONT_CACHE_SIZE; i++) {
-		if (strcmp(neru_font_cache[i].key, key) == 0) {
+		if (neru_font_cache[i].key == key) {
 			snprintf(out, out_len, "%s", neru_font_cache[i].family);
 			pthread_mutex_unlock(&neru_font_cache_mutex);
 
@@ -114,7 +131,7 @@ void neru_font_family_for_text(const char *family, const char *text, char *out, 
 		snprintf(out, out_len, "%s", covering);
 
 	NeruFontCacheEntry *entry = &neru_font_cache[neru_font_cache_next];
-	snprintf(entry->key, sizeof(entry->key), "%s", key);
+	entry->key = key;
 	snprintf(entry->family, sizeof(entry->family), "%s", out);
 	neru_font_cache_next = (neru_font_cache_next + 1) % NERU_FONT_CACHE_SIZE;
 
