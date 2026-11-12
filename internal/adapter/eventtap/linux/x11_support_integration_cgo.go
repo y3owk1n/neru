@@ -129,6 +129,33 @@ static Display *neru_test_x11_focused_window(Window *window) {
 	return display;
 }
 
+// neru_test_x11_hold_keyboard takes an active grab of the whole keyboard on a
+// connection of its own, as an app's menu does. Returns NULL when the display
+// is missing or the grab is refused.
+static Display *neru_test_x11_hold_keyboard(void) {
+	Display *display = XOpenDisplay(NULL);
+	if (!display)
+		return NULL;
+
+	int status = XGrabKeyboard(display, DefaultRootWindow(display), True,
+	                           GrabModeAsync,  // pointer_mode
+	                           GrabModeAsync,  // keyboard_mode
+	                           CurrentTime);
+	XSync(display, False);
+	if (status != GrabSuccess) {
+		XCloseDisplay(display);
+		return NULL;
+	}
+
+	return display;
+}
+
+static void neru_test_x11_release_keyboard(Display *display) {
+	XUngrabKeyboard(display, CurrentTime);
+	XSync(display, False);
+	XCloseDisplay(display);
+}
+
 // neru_test_x11_key_presses discards the window's pending events and counts
 // the key presses among them.
 static int neru_test_x11_key_presses(Display *display) {
@@ -189,6 +216,17 @@ func holdX11GrabbedKey(name string) (func(), bool, error) {
 	}
 
 	return func() { C.neru_test_x11_release_grabbed(display, key) }, cBlocked != 0, nil
+}
+
+// holdX11Keyboard takes the whole keyboard from another connection, as an
+// app's menu or popup does. The returned function lets go of it.
+func holdX11Keyboard() (func(), error) {
+	display := C.neru_test_x11_hold_keyboard()
+	if display == nil {
+		return nil, errX11PressRefused
+	}
+
+	return func() { C.neru_test_x11_release_keyboard(display) }, nil
 }
 
 // x11FocusedWindow is a window holding the input focus, as an app the user

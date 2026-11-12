@@ -120,9 +120,20 @@ func (et *EventTap) grabX11Keyboard(display *C.Display) bool {
 			warned = true
 		}
 
+		// A yield answers at once, since nothing is grabbed to let go of.
+		// Leaving it waiting would hold the mode handler's lock for as long
+		// as another client holds the keyboard.
 		select {
 		case <-et.stopCh:
 			return false
+		case request := <-et.yieldCh:
+			close(request.released)
+
+			select {
+			case <-request.sent:
+			case <-et.stopCh:
+				return false
+			}
 		case <-time.After(x11PollingInterval):
 		}
 	}

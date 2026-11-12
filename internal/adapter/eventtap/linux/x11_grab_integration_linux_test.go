@@ -162,3 +162,80 @@ func TestEventTap_X11_YieldKeyboard_SendsTypedKeysToTheFocusedWindow(t *testing.
 		t.Fatalf("the focused window received %d key presses after the yield, want none", got)
 	}
 }
+
+// x11YieldWait bounds how long a yield may wait for the tap to answer.
+const x11YieldWait = time.Second
+
+// TestEventTap_X11_YieldKeyboard_AnswersWhileAnotherClientHoldsTheKeyboard
+// pins that a yield returns while the tap cannot take the keyboard back. Vim
+// mode types each key in a yield of its own while it holds the mode
+// handler's lock, and a key it typed can open a menu that grabs the keyboard.
+// A tap that waited for its grab before answering the next yield held that
+// lock, Escape included, until the menu closed.
+func TestEventTap_X11_YieldKeyboard_AnswersWhileAnotherClientHoldsTheKeyboard(t *testing.T) {
+	if os.Getenv("NERU_DESKTOP_TESTS") == "" {
+		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")
+	}
+
+	if os.Getenv("DISPLAY") == "" || platform.DetectLinuxBackend().IsWayland() {
+		t.Skip("skipping: no X11 session; this drives the X11 keyboard grab")
+	}
+
+	keys := make(chan string, 64)
+	eventTap := NewEventTap(func(key string) { keys <- key }, nil)
+
+	eventTap.Enable()
+	defer eventTap.Destroy()
+
+	time.Sleep(x11GrabSettle)
+
+	// The first key's app answers by grabbing the keyboard, so the tap
+	// cannot take it back.
+	var release func()
+
+	err := eventTap.YieldKeyboard(func() error {
+		var holdErr error
+
+		release, holdErr = holdX11Keyboard()
+
+		return holdErr
+	})
+	if err != nil {
+		t.Fatalf("taking the keyboard while the tap stepped aside: %v", err)
+	}
+
+	defer func() {
+		if release != nil {
+			release()
+		}
+	}()
+
+	answered := make(chan error, 1)
+
+	go func() { answered <- eventTap.YieldKeyboard(func() error { return nil }) }()
+
+	select {
+	case err = <-answered:
+		if err != nil {
+			t.Fatalf("the second yield failed: %v", err)
+		}
+	case <-time.After(x11YieldWait):
+		t.Fatal("the second yield waited for the tap to take back a keyboard another client holds")
+	}
+
+	release()
+	release = nil
+
+	time.Sleep(x11GrabSettle)
+
+	err = pressX11Keys(x11KeyQ)
+	if err != nil {
+		t.Fatalf("typing into the mode once the keyboard was free: %v", err)
+	}
+
+	select {
+	case <-keys:
+	case <-time.After(x11KeysWait):
+		t.Fatal("the tap dispatched no key once the other client let go of the keyboard")
+	}
+}
