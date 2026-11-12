@@ -162,15 +162,22 @@ func New(words []Word) *Text {
 // as vim.Host's Apply makes them. An inserted rune takes the box of the
 // character it was inserted before, since nothing on screen shows it yet.
 // The containers go with it, since their bytes moved, until the screen is
-// read again.
+// read again. Each icon moves with its bytes, and an icon an edit touches is
+// gone.
 func (t *Text) Edit(edits []vim.Edit) *Text {
-	out := &Text{words: t.words}
+	out := &Text{words: t.words, cell: t.cell}
 
 	var builder strings.Builder
+
+	// kept are the runs of t the edits leave, each with how far it moved.
+	type run struct{ from, to, shift int }
+
+	kept := make([]run, 0, len(edits)+1)
 
 	from := 0
 
 	for _, edit := range edits {
+		kept = append(kept, run{from, edit.Start, builder.Len() - from})
 		builder.WriteString(t.s[from:edit.Start])
 		out.boxes = append(out.boxes, t.boxes[from:edit.Start]...)
 
@@ -184,9 +191,31 @@ func (t *Text) Edit(edits []vim.Edit) *Text {
 		from = edit.End
 	}
 
+	kept = append(kept, run{from, len(t.s), builder.Len() - from})
 	builder.WriteString(t.s[from:])
 	out.boxes = append(out.boxes, t.boxes[from:]...)
 	out.s = builder.String()
+
+	for _, start := range t.iconStarts {
+		end := start + len(IconGlyph)
+
+		for _, keptRun := range kept {
+			if start < keptRun.from || end > keptRun.to {
+				continue
+			}
+
+			if out.icons == nil {
+				out.icons = map[int]bool{}
+			}
+
+			out.iconStarts = append(out.iconStarts, start+keptRun.shift)
+			for pos := start; pos < end; pos++ {
+				out.icons[pos+keptRun.shift] = true
+			}
+
+			break
+		}
+	}
 
 	out.starts = []int{0}
 	for offset := range len(out.s) {
@@ -454,9 +483,16 @@ func (t *Text) enclosing(start, end int, around bool) (int, int, bool) {
 	return bestStart, bestEnd, best >= 0
 }
 
-// leading reports whether pos is in the padding a line starts with.
+// leading reports whether pos is in the padding or the icons a line starts
+// with, which AppStart skips too.
 func (t *Text) leading(pos int) bool {
-	return strings.TrimLeft(t.s[t.starts[t.LineOf(pos)]:pos], " ") == ""
+	for at := t.starts[t.LineOf(pos)]; at < pos; at++ {
+		if t.s[at] != ' ' && !t.icons[at] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // appSpaces is how many spaces the app has for the run of padding from pos,

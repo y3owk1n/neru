@@ -261,6 +261,43 @@ func TestText_AppChars_LeavesOutWhereALineStarts(t *testing.T) {
 	}
 }
 
+func TestText_AppChars_LeavesOutTheIconALineStartsWith(t *testing.T) {
+	// The app has no text for the icon or the gap after it, so a selection
+	// from where the app's text starts takes Save and its line break only.
+	text := screentext.New([]screentext.Word{
+		screentext.Icon(image.Rect(0, 0, 10, 10)),
+		{Text: "Save", Bounds: image.Rect(20, 0, 60, 10)},
+		{Text: "Next", Bounds: image.Rect(0, 12, 40, 22)},
+	})
+
+	next := strings.Index(text.String(), "Next")
+	if got := text.AppChars(0, next); got != len("Save\n") {
+		t.Fatalf("AppChars over %q = %d, want %d", text.String(), got, len("Save\n"))
+	}
+}
+
+func TestText_Edit_KeepsTheSpacingAndTheIcons(t *testing.T) {
+	// An edited text stands in for the screen until it is read again, so
+	// the gap after the edit still counts as the one space the app has, and
+	// the icon is still no text of the app's.
+	text := screentext.New([]screentext.Word{
+		screentext.Icon(image.Rect(0, 0, 10, 10)),
+		{Text: "save", Bounds: image.Rect(20, 0, 60, 10)},
+		{Text: "file", Bounds: image.Rect(70, 0, 110, 10)},
+	})
+
+	save := strings.Index(text.String(), "save")
+	edited := text.Edit([]vim.Edit{{Start: save, End: save + 1, Text: "S"}})
+
+	if got, want := edited.AppText(0, edited.Len()), "Save file"; got != want {
+		t.Fatalf("AppText of %q = %q, want %q", edited.String(), got, want)
+	}
+
+	if got, want := edited.AppChars(save, edited.Len()), len("Save file"); got != want {
+		t.Fatalf("AppChars of %q = %d, want %d", edited.String(), got, want)
+	}
+}
+
 func TestText_AppChars_CountsAGapAsTheSpacesItHolds(t *testing.T) {
 	// Characters 10.4 pixels apart read as 10 wide, so by the third word the
 	// columns from the left edge have drifted a character, and the layout
