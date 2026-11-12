@@ -4,7 +4,6 @@ package windows
 
 import (
 	"image"
-	"math"
 	"strings"
 	"time"
 
@@ -196,11 +195,7 @@ func (o *winOverlay) DrawVim(scene manager.VimScene, style manager.VimStyle) {
 	o.Clear()
 
 	scale := o.scale()
-	scaled := func(points int) int { return int(math.Round(float64(points) * scale)) }
-	style.FontSize = scaled(style.FontSize)
-	style.Badge.FontSize = scaled(style.Badge.FontSize)
-	style.Badge.PaddingX = scaled(style.Badge.PaddingX)
-	style.Badge.PaddingY = scaled(style.Badge.PaddingY)
+	style = manager.ScaleVimStyle(style, scale)
 
 	for _, vimOp := range manager.LayoutVim(scene, style, badge.TextWidth) {
 		lineWidth := vimOp.LineWidth * scale

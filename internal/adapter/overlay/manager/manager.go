@@ -2,6 +2,7 @@ package manager
 
 import (
 	"image"
+	"math"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
@@ -241,6 +242,27 @@ type VimLabel struct {
 // CodeNotSupported.
 type VimDrawer interface {
 	DrawVim(scene VimScene, style VimStyle) error
+}
+
+// VimScaler is the optional extension a backend implements when it draws the
+// vim surface's fonts scaled, as Windows does by the monitor's DPI factor. It
+// answers the factor for region, so the strip vim leaves for its status bar
+// is as tall as the bar drawn.
+type VimScaler interface {
+	VimScale(region image.Rectangle) float64
+}
+
+// ScaleVimStyle returns style with its font sizes and badge padding scaled by
+// scale, as a backend that draws in pixels scales points.
+func ScaleVimStyle(style VimStyle, scale float64) VimStyle {
+	scaled := func(points int) int { return int(math.Round(float64(points) * scale)) }
+
+	style.FontSize = scaled(style.FontSize)
+	style.Badge.FontSize = scaled(style.Badge.FontSize)
+	style.Badge.PaddingX = scaled(style.Badge.PaddingX)
+	style.Badge.PaddingY = scaled(style.Badge.PaddingY)
+
+	return style
 }
 
 // Interface is the overlay window management contract.

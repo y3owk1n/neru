@@ -361,6 +361,14 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 	return nil
 }
 
+// VimScale is the DPI factor of the monitor region is on, which DrawVim
+// scales the vim surface's fonts by.
+func (m *Manager) VimScale(region image.Rectangle) float64 {
+	const halves = 2
+
+	return winplatform.DPIScaleAt(region.Min.Add(region.Size().Div(halves)))
+}
+
 // DrawVim paints vim mode's surface. The adapter has already brought the
 // window up, so this only draws.
 func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error {

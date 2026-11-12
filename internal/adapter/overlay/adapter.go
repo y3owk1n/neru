@@ -284,7 +284,12 @@ func (a *Adapter) VimStatusBar(region image.Rectangle) image.Rectangle {
 		return image.Rectangle{}
 	}
 
-	return manager.VimStatusBar(region, ResolvedStyle(a.styles).Vim)
+	style := ResolvedStyle(a.styles).Vim
+	if scaler, ok := a.manager.(manager.VimScaler); ok {
+		style = manager.ScaleVimStyle(style, scaler.VimScale(region))
+	}
+
+	return manager.VimStatusBar(region, style)
 }
 
 // HintSearchBounds reports where the search input sits on a screen.
