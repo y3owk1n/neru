@@ -675,7 +675,7 @@ turn off.
 | `Ctrl+W` + `h`, `j`, `k`, `l` | Move to the container left, below, above or right, within the block the cursor is in until that block ends |
 | `Ctrl+W` + `w`, `W` | Move to the next or the previous container |
 | `ic`, `ac` | The container's text, or with the blank line after it, as `yic` copies a card. A count takes the block around it, as `y2ic` copies the column the card is in |
-| `Ctrl+D`, `Ctrl+U`, `Ctrl+F`, `Ctrl+B`, `Ctrl+E`, `Ctrl+Y` | Scroll the app at once. The overlay stays up while the page moves and the status bar says `reading…`, and vim reads the screen again once it stops, so a run of scrolls reads only the screen it ends on. `j` and `k` past the edge scroll too |
+| `Ctrl+D`, `Ctrl+U`, `Ctrl+F`, `Ctrl+B`, `Ctrl+E`, `Ctrl+Y` | Scroll the app at once. The overlay stays up while the page moves and the status bar says `reading…`, and vim reads the screen again once it stops, so a run of scrolls reads only the screen it ends on. A key that acts on the text before that read lands reads the screen first, and vim mode drops it with a notice when that read finds nothing. `j` and `k` past the edge scroll too |
 | `zh`, `zl`, `zH`, `zL` | Scroll the app left or right eight characters, or the count with one, or half the width read with `zH` and `zL` |
 | `zz` | Scroll the app until the cursor's line is in the middle of the region read, or line n of the text read with a count |
 | `Ctrl+L` | Read the screen again, keeping registers, macros and the last search |
@@ -702,7 +702,9 @@ such as an icon-only button, and puts a `□` where each one is, so `w`, `j` and
 `s` reach it and `Return` clicks it. A yank leaves the `□` out. The box beside
 the cursor shows the word under it as read. The counts in one command, such
 as both in `99d99j`, multiply to at most 9999, and vim mode drops a digit
-past that. One command changes at most 64 places or 2000 characters.
+past that. One command changes at most 64 places and sends the app at most
+2000 keys, a Shift+Right for each character it selects and a key for each it
+types.
 
 The fast read knows Latin script only. The accurate read finds each line's
 script, so it reads Chinese, Japanese, Korean, Thai, Russian and the other

@@ -5111,6 +5111,102 @@ func TestSimulation_VimDeletesTheLastLineOfAFieldWithTheBreakAbove(t *testing.T)
 	}
 }
 
+// TestSimulation_VimDropsAKeyWhenTheScrolledScreenCannotBeRead covers a read
+// after a scroll that fails. The text is still the screen before the scroll,
+// so x there would delete other text. Vim mode drops the key with a notice,
+// and the next key reads again and acts once the read works.
+func TestSimulation_VimDropsAKeyWhenTheScrolledScreenCannotBeRead(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	var failing atomic.Bool
+
+	read := sim.vision.ReadLinesFunc
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, region image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if failing.Load() && level == ports.TextFast && !region.Empty() {
+			return nil, derrors.New(derrors.CodeActionFailed, "capture failed")
+		}
+
+		return read(ctx, region, level)
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	failing.Store(true)
+	sim.press("Ctrl+d", "x")
+	vimFrameShows(sim, "x dropped", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status.Text, "could not read")
+	})
+
+	if keys := sim.keyFeed.FedKeys(); len(keys) != 0 {
+		t.Fatalf("keys %v, want none sent on the screen before the scroll", keys)
+	}
+
+	failing.Store(false)
+	sim.press("x")
+	sim.waitFor("x made once the screen read", func() bool {
+		return slices.Contains(sim.keyFeed.FedKeys(), "Delete")
+	})
+}
+
+// TestSimulation_VimStopsAnEditWhenTheCaretClickFails covers a desktop that
+// refuses the click placing the app's caret. With the caret wherever it was,
+// selecting or typing would change other text, so dw sends no key and i
+// types nothing into the app, and the status bar says why.
+func TestSimulation_VimStopsAnEditWhenTheCaretClickFails(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.ax.failClicks(derrors.New(derrors.CodeActionFailed, "click refused"))
+
+	for _, keys := range [][]string{{"d", "w"}, {"i"}} {
+		sim.press(keys...)
+		vimFrameShows(sim, strings.Join(keys, "")+" stopped", func(f ports.VimFrame) bool {
+			return f.Status.Mode == vimNormalMode && strings.Contains(f.Status.Text, "click")
+		})
+
+		sim.press("Escape")
+	}
+
+	if keys := sim.keyFeed.FedKeys(); len(keys) != 0 {
+		t.Fatalf("keys %v, want none sent after a failed click", keys)
+	}
+}
+
+// TestSimulation_VimRefusesASubstituteThatTypesTooMuch covers :s with a long
+// replacement. It selects two characters but would type two thousand keys
+// with the handler held, so vim mode refuses it before anything reaches the
+// app.
+func TestSimulation_VimRefusesASubstituteThatTypesTooMuch(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press(vimExKeys("s/i/" + strings.Repeat("x", 1000) + "/g")...)
+	vimFrameShows(sim, "the substitute refused", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status.Text, "too much to change")
+	})
+
+	if keys, clicks := sim.keyFeed.FedKeys(), sim.ax.recordedClicks(); len(keys) != 0 ||
+		len(clicks) != 0 {
+		t.Fatalf("%d keys and %d clicks, want nothing sent to the app", len(keys), len(clicks))
+	}
+}
+
 // TestSimulation_VimRefusesToPutWhatItCannotType covers a put of a word with a
 // letter outside ASCII, which no key types. The status bar says so, and
 // nothing reaches the app.

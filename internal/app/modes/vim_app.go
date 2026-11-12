@@ -107,7 +107,7 @@ func vimCaretIn(text *screentext.Text, pos int) image.Point {
 // break, as dd on the last line does, clicks its end and selects backwards.
 // The line above can be outside the field, such as the title over a search
 // bar.
-func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) {
+func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) bool {
 	start, end = vimBreakBefore(text, start, end)
 
 	extend, from := vimKeyExtend, text.AppStart(start)
@@ -115,8 +115,13 @@ func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) {
 		extend, from = vimKeyExtendBack, end
 	}
 
-	h.vimClick(vimCaretIn(text, from))
+	if !h.vimClick(vimCaretIn(text, from)) {
+		return false
+	}
+
 	h.vimFeed(slices.Repeat([]string{extend}, text.AppChars(start, end))...)
+
+	return true
 }
 
 // vimBreakBefore moves whole lines [start, end) that end their container to
@@ -312,14 +317,40 @@ func vimSameRun(text *screentext.Text, start, end int) bool {
 }
 
 // vimClick left clicks p, and gives the app a moment to place its caret
-// there, since the keys that follow act from wherever the caret is.
-func (h *handlerState) vimClick(p image.Point) {
+// there, since the keys that follow act from wherever the caret is. It
+// reports false when the click failed, so the caret is wherever it was and
+// no key may follow.
+func (h *handlerState) vimClick(p image.Point) bool {
 	err := h.actionService.PerformActionAtPoint(h.ctx, string(action.NameLeftClick), p, 0)
 	if err != nil {
 		h.logger.Warn("Vim click failed", zap.Error(err))
+
+		return false
 	}
 
 	time.Sleep(vimClickSettle)
+
+	return true
+}
+
+// vimNoticeClickFailed is the status bar's notice for an edit given up
+// because its click to place the caret failed.
+const vimNoticeClickFailed = "stopped, the click that places the caret failed"
+
+// vimStopEdit gives up an edit whose click to place the caret failed. The
+// machine has made it already, so insert mode ends and the screen is read
+// again for what the app has.
+func (h *handlerState) vimStopEdit(anchor image.Point) {
+	session := h.vim
+	session.edits, session.lastInsert = nil, nil
+
+	if session.machine.Mode() == vim.Insert {
+		h.feedVim(vimEscape)
+	}
+
+	session.notice = vimNoticeClickFailed
+
+	h.rereadVim(anchor)
 }
 
 // vimDragRange presses at the start of [start, end), moves to its end and
@@ -382,7 +413,12 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit) {
 	// space with it.
 	if len(edits) == 1 && edits[0].Text == "" && edits[0].End > edits[0].Start &&
 		session.machine.Mode() == vim.Insert {
-		h.vimSelectIn(before, edits[0].Start, edits[0].End)
+		if !h.vimSelectIn(before, edits[0].Start, edits[0].End) {
+			h.vimStopEdit(anchor)
+
+			return
+		}
+
 		session.edits = nil
 		session.eraseOnEscape = true
 
@@ -403,6 +439,8 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit) {
 	// all on one line of before, which the screen has to show before a click
 	// on another line.
 	var lineEdits []vim.Edit
+
+	clicked := true
 
 	for index, edit := range slices.Backward(edits) {
 		// OnApply refused any edit with text no key types.
@@ -443,11 +481,17 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit) {
 				slices.Repeat([]string{vimKeyExtendBack}, before.AppChars(edit.Start, edit.End))...)
 			h.vimTypeOver(edit, keys)
 		case edit.End > edit.Start:
-			h.vimSelectIn(before, edit.Start, edit.End)
-			h.vimTypeOver(edit, keys)
+			if clicked = h.vimSelectIn(before, edit.Start, edit.End); clicked {
+				h.vimTypeOver(edit, keys)
+			}
 		default:
-			h.vimClick(vimCaretIn(before, edit.Start))
-			h.vimFeed(keys...)
+			if clicked = h.vimClick(vimCaretIn(before, edit.Start)); clicked {
+				h.vimFeed(keys...)
+			}
+		}
+
+		if !clicked {
+			break
 		}
 
 		lineEdits = append([]vim.Edit{edit}, lineEdits...)
@@ -461,6 +505,12 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit) {
 	// the user had it.
 	if !session.follow && heldErr == nil {
 		_ = h.actionService.MoveCursorToPoint(h.ctx, held)
+	}
+
+	if !clicked {
+		h.vimStopEdit(anchor)
+
+		return
 	}
 
 	if session.machine.Mode() == vim.Insert {

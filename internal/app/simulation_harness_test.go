@@ -883,6 +883,10 @@ type simAXPort struct {
 	scrollMods     []action.Modifiers
 	releases       int
 
+	// clickErr is what every click at a point answers, as when the desktop
+	// refuses a synthetic click.
+	clickErr error
+
 	// filters is the element filter each scan was handed, in order.
 	filters []ports.ElementFilter
 
@@ -974,7 +978,7 @@ func (a *simAXPort) PerformActionAtPoint(
 
 	a.clicks = append(a.clicks, simClick{action: actionType, point: point, modifiers: modifiers})
 
-	return nil
+	return a.clickErr
 }
 
 func (a *simAXPort) Scroll(
@@ -1093,6 +1097,14 @@ func (a *simAXPort) focusedAppQueryCount() int {
 	defer a.mu.Unlock()
 
 	return a.focusedAppQueries
+}
+
+// failClicks makes every later click at a point fail with err.
+func (a *simAXPort) failClicks(err error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.clickErr = err
 }
 
 func (a *simAXPort) recordedClicks() []simClick {

@@ -574,7 +574,7 @@ func (h *Handler) applyScrolledVim(
 // readScrolledVim reads the screen the scrolls left, now and under h.mu, for a
 // key that acts on the text. The read already running is canceled, since this one
 // replaces it.
-func (h *handlerState) readScrolledVim() {
+func (h *handlerState) readScrolledVim() bool {
 	session := h.vim
 
 	h.stopScrolledRead()
@@ -583,12 +583,15 @@ func (h *handlerState) readScrolledVim() {
 	defer cancel()
 
 	lines, err := h.vision.ReadLinesOnceChanged(ctx, session.region)
-	h.finishScrolledVim(lines, err)
+
+	return h.finishScrolledVim(lines, err)
 }
 
 // finishScrolledVim takes the read of the screen the scrolls left, and moves the
-// cursor the line a j or k that scrolled at an edge asked for.
-func (h *handlerState) finishScrolledVim(lines [][]ports.TextPiece, err error) {
+// cursor the line a j or k that scrolled at an edge asked for. It reports
+// false when the read found nothing, so the text is still the screen before
+// the scroll.
+func (h *handlerState) finishScrolledVim(lines [][]ports.TextPiece, err error) bool {
 	session := h.vim
 
 	var text *screentext.Text
@@ -602,7 +605,7 @@ func (h *handlerState) finishScrolledVim(lines [][]ports.TextPiece, err error) {
 	if err != nil || text.Len() == 0 {
 		h.logger.Debug("Vim read after a scroll found nothing", zap.Error(err))
 
-		return
+		return false
 	}
 
 	key := session.afterScroll
@@ -616,7 +619,13 @@ func (h *handlerState) finishScrolledVim(lines [][]ports.TextPiece, err error) {
 		h.followVimCursor()
 		h.redrawFrame(h.vimFrame(), "update vim overlay")
 	}
+
+	return true
 }
+
+// vimNoticeUnread is the status bar's notice for a key dropped because the
+// screen a scroll left could not be read, so the text is the one before it.
+const vimNoticeUnread = "could not read the screen after the scroll"
 
 // cancelScrolledRead stops the read of a scrolled screen in flight. It returns
 // a channel that closes once the read has stopped capturing and recognizing,
@@ -879,18 +888,23 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 			return errVimOneEdit
 		}
 
-		if len(edits) > vimMaxEdits ||
-			vimEditRunes(session.host.Screen(), edits) > vimMaxSelectRunes {
-			return errVimTooBig
-		}
-
 		// Every edit reaches the app as typed keys, a put's text included,
 		// so text with a character no key types is refused before the
 		// machine changes anything.
+		typed := 0
+
 		for _, edit := range edits {
-			if _, typeable := vimEditKeys(edit.Text); !typeable {
+			keys, typeable := vimEditKeys(edit.Text)
+			if !typeable {
 				return errVimUntypeable
 			}
+
+			typed += len(keys)
+		}
+
+		if len(edits) > vimMaxEdits ||
+			vimEditRunes(session.host.Screen(), edits)+typed > vimMaxEditKeys {
+			return errVimTooBig
 		}
 
 		session.edited = true
@@ -1012,9 +1026,9 @@ var (
 const (
 	// vimMaxEdits is the most places one command may change, as :s/a/b/g does.
 	vimMaxEdits = 64
-	// vimMaxSelectRunes is the most characters one command may select in the
-	// app, one Shift+Right each.
-	vimMaxSelectRunes = 2000
+	// vimMaxEditKeys is the most keys one command's edits may send the app:
+	// a Shift+Right for each character selected and a key for each typed.
+	vimMaxEditKeys = 2000
 )
 
 // vimEditRunes counts the characters the app would select to make edits.

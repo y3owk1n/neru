@@ -104,11 +104,21 @@ func (h *handlerState) handleVimKey(key string) {
 		}
 
 		// Every key but another scroll, or Escape, acts on the text, so it
-		// first reads the screen the scrolls left.
+		// first reads the screen the scrolls left. Without that read the
+		// text is the screen before the scroll, where an edit would select
+		// other text, so vim mode drops the key and the next one reads again.
 		if vimKey != vimEscape && !h.vimContinuesScroll(vimKey) {
-			h.readScrolledVim()
+			read := h.readScrolledVim()
 
 			if h.vim != session {
+				return
+			}
+
+			if !read {
+				session.notice = vimNoticeUnread
+
+				h.redrawFrame(h.vimFrame(), "update vim overlay")
+
 				return
 			}
 		}
@@ -291,9 +301,19 @@ func (h *Handler) endVimMapWait(session *vimSession, wait uint64) {
 	}
 
 	if session.stale {
-		h.readScrolledVim()
+		read := h.readScrolledVim()
 
 		if h.vim != session {
+			return
+		}
+
+		if !read {
+			h.dropVimHeld()
+
+			session.notice = vimNoticeUnread
+
+			h.redrawFrame(h.vimFrame(), "update vim overlay")
+
 			return
 		}
 	}
@@ -655,8 +675,14 @@ func vimTypedLength(keys []string) (int, bool) {
 func (h *handlerState) vimStartTyping(caret image.Point, click bool) {
 	session := h.vim
 
-	if click {
-		h.vimClick(caret)
+	if click && !h.vimClick(caret) {
+		h.feedVim(vimEscape)
+
+		session.notice = vimNoticeClickFailed
+
+		h.redrawFrame(h.vimFrame(), "update vim overlay")
+
+		return
 	}
 
 	session.typing = true
