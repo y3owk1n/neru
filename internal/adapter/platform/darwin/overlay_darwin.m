@@ -4552,205 +4552,215 @@ void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style) {
 	if (!window)
 		return;
 
-	OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
+	// The scene is converted on the calling Go thread, which has no pool.
+	@autoreleasepool {
+		OverlayWindowController *controller = (__bridge OverlayWindowController *)window;
 
-	CGRect region = scene.region;
-	CGRect cursor = scene.cursor;
-	BOOL pending = scene.pending != 0;
-	NSArray<NSValue *> *selection = NeruVimRects(scene.selection, scene.selectionCount);
-	NSArray<NSValue *> *matches = NeruVimRects(scene.matches, scene.matchCount);
-	CGRect container = scene.container;
-	CGRect block = scene.block;
-	int current = scene.currentMatch;
-	NSString *mode = NeruVimString(scene.mode);
-	int modeKind = scene.modeKind;
-	NSString *status = NeruVimString(scene.status);
-	NSString *statusRight = NeruVimString(scene.statusRight);
-	BOOL statusTyped = scene.statusTyped != 0;
-	NSString *lensBefore = NeruVimString(scene.lensBefore);
-	NSString *lensAt = NeruVimString(scene.lensAt);
-	NSString *lensAfter = NeruVimString(scene.lensAfter);
-	NSString *notice = NeruVimString(scene.notice);
-	NSArray<NSValue *> *labelBounds = NeruVimRects(scene.labelBounds, scene.labelCount);
-	NSMutableArray<NSString *> *labels = [NSMutableArray arrayWithCapacity:MAX(scene.labelCount, 0)];
-	for (int i = 0; scene.labels && i < scene.labelCount; i++)
-		[labels addObject:NeruVimString(scene.labels[i])];
-	CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 13;
-	NSString *fontFamily = NeruVimString(style.fontFamily);
-	NSString *cursorHex = NeruVimString(style.cursorColor);
-	NSString *selectionHex = NeruVimString(style.selectionColor);
-	NSString *matchHex = NeruVimString(style.matchColor);
-	NSString *containerHex = NeruVimString(style.containerColor);
-	NSString *statusBgHex = NeruVimString(style.statusBackgroundColor);
-	NSString *statusTextHex = NeruVimString(style.statusTextColor);
-	CGFloat badgeFontSize = style.badgeFontSize > 0 ? style.badgeFontSize : 13;
-	NSString *badgeFamily = NeruVimString(style.badgeFontFamily);
-	NSString *badgeBgHex = NeruVimString(style.badgeBackground);
-	NSString *badgeTextHex = NeruVimString(style.badgeText);
-	NSString *badgeBorderHex = NeruVimString(style.badgeBorder);
-	CGFloat badgeBorderWidth = style.badgeBorderWidth;
-	CGFloat badgePadX = style.badgePaddingX;
-	CGFloat badgePadY = style.badgePaddingY;
-	int badgeRadius = style.badgeBorderRadius;
-	NSString *modeHex = NeruVimString(style.modeColor);
-	NSString *visualModeHex = NeruVimString(style.visualModeColor);
-	NSString *onModeHex = NeruVimString(style.onModeColor);
+		CGRect region = scene.region;
+		CGRect cursor = scene.cursor;
+		BOOL pending = scene.pending != 0;
+		NSArray<NSValue *> *selection = NeruVimRects(scene.selection, scene.selectionCount);
+		NSArray<NSValue *> *matches = NeruVimRects(scene.matches, scene.matchCount);
+		CGRect container = scene.container;
+		CGRect block = scene.block;
+		int current = scene.currentMatch;
+		NSString *mode = NeruVimString(scene.mode);
+		int modeKind = scene.modeKind;
+		NSString *status = NeruVimString(scene.status);
+		NSString *statusRight = NeruVimString(scene.statusRight);
+		BOOL statusTyped = scene.statusTyped != 0;
+		NSString *lensBefore = NeruVimString(scene.lensBefore);
+		NSString *lensAt = NeruVimString(scene.lensAt);
+		NSString *lensAfter = NeruVimString(scene.lensAfter);
+		NSString *notice = NeruVimString(scene.notice);
+		NSArray<NSValue *> *labelBounds = NeruVimRects(scene.labelBounds, scene.labelCount);
+		NSMutableArray<NSString *> *labels = [NSMutableArray arrayWithCapacity:MAX(scene.labelCount, 0)];
+		for (int i = 0; scene.labels && i < scene.labelCount; i++)
+			[labels addObject:NeruVimString(scene.labels[i])];
+		CGFloat fontSize = style.fontSize > 0 ? style.fontSize : 13;
+		NSString *fontFamily = NeruVimString(style.fontFamily);
+		NSString *cursorHex = NeruVimString(style.cursorColor);
+		NSString *selectionHex = NeruVimString(style.selectionColor);
+		NSString *matchHex = NeruVimString(style.matchColor);
+		NSString *containerHex = NeruVimString(style.containerColor);
+		NSString *statusBgHex = NeruVimString(style.statusBackgroundColor);
+		NSString *statusTextHex = NeruVimString(style.statusTextColor);
+		CGFloat badgeFontSize = style.badgeFontSize > 0 ? style.badgeFontSize : 13;
+		NSString *badgeFamily = NeruVimString(style.badgeFontFamily);
+		NSString *badgeBgHex = NeruVimString(style.badgeBackground);
+		NSString *badgeTextHex = NeruVimString(style.badgeText);
+		NSString *badgeBorderHex = NeruVimString(style.badgeBorder);
+		CGFloat badgeBorderWidth = style.badgeBorderWidth;
+		CGFloat badgePadX = style.badgePaddingX;
+		CGFloat badgePadY = style.badgePaddingY;
+		int badgeRadius = style.badgeBorderRadius;
+		NSString *modeHex = NeruVimString(style.modeColor);
+		NSString *visualModeHex = NeruVimString(style.visualModeColor);
+		NSString *onModeHex = NeruVimString(style.onModeColor);
 
-	dispatch_async(dispatch_get_main_queue(), ^{
-		@autoreleasepool {
-			OverlayView *view = controller.overlayView;
-			if (!view.vimRoot)
-				view.vimRoot = [view makeContainerLayer];
+		dispatch_async(dispatch_get_main_queue(), ^{
+			@autoreleasepool {
+				OverlayView *view = controller.overlayView;
+				if (!view.vimRoot)
+					view.vimRoot = [view makeContainerLayer];
 
-			NSColor *cursorColor = NeruColorFromHexString(cursorHex, [NSColor systemBlueColor]);
-			NSColor *selectionColor = NeruColorFromHexString(selectionHex, [NSColor selectedTextBackgroundColor]);
-			NSColor *matchColor = NeruColorFromHexString(matchHex, [NSColor systemYellowColor]);
-			NSColor *containerColor = NeruColorFromHexString(containerHex, [NSColor clearColor]);
-			NSColor *statusBg = NeruColorFromHexString(statusBgHex, [NSColor windowBackgroundColor]);
-			NSColor *statusText = NeruColorFromHexString(statusTextHex, [NSColor labelColor]);
-			NSColor *modeColor = NeruColorFromHexString(modeHex, [NSColor systemBlueColor]);
-			NSColor *visualModeColor = NeruColorFromHexString(visualModeHex, [NSColor systemPurpleColor]);
-			NSColor *onModeColor = NeruColorFromHexString(onModeHex, [NSColor whiteColor]);
-			NSFont *font = [view resolveFont:fontFamily size:fontSize bold:NO]
-			                   ?: [NSFont monospacedSystemFontOfSize:fontSize weight:NSFontWeightRegular];
-			NSFont *bold = [view resolveFont:fontFamily size:fontSize bold:YES]
-			                   ?: [NSFont monospacedSystemFontOfSize:fontSize weight:NSFontWeightBold];
-			NeruVimBadgeStyle badge = {
-			    .font = [view resolveFont:badgeFamily size:badgeFontSize bold:NO]
-				            ?: [NSFont systemFontOfSize:badgeFontSize weight:NSFontWeightRegular],
-			    .bold = [view resolveFont:badgeFamily size:badgeFontSize bold:YES]
-				            ?: [NSFont systemFontOfSize:badgeFontSize weight:NSFontWeightBold],
-			    .fill = NeruColorFromHexString(badgeBgHex, [NSColor windowBackgroundColor]),
-			    .text = NeruColorFromHexString(badgeTextHex, [NSColor labelColor]),
-			    .border = NeruColorFromHexString(badgeBorderHex, [NSColor clearColor]),
-			    .borderWidth = badgeBorderWidth,
-			    .padX = badgePadX,
-			    .padY = badgePadY,
-			    .radius = badgeRadius,
-			};
-			CGFloat height = view.bounds.size.height;
-			CGFloat scale = [view currentBackingScaleFactor];
-
-			[CATransaction begin];
-			[CATransaction setDisableActions:YES];
-
-			// The notice card is kept across draws while it says the same
-			// thing, so its spinner keeps turning instead of starting over on
-			// every key.
-			NSString *noticeName = [@"notice:" stringByAppendingString:notice];
-			CALayer *keptNotice = nil;
-			for (CALayer *layer in view.vimRoot.sublayers)
-				if (notice.length > 0 && [layer.name isEqualToString:noticeName])
-					keptNotice = layer;
-
-			view.vimRoot.sublayers = nil;
-			CALayer *root = view.vimRoot;
-
-			// The block around the container is outlined further out, at a
-			// third of the container outline's opacity.
-			if (!CGRectIsEmpty(block)) {
-				CGRect r = CGRectInset(NeruVimFlip(block, height), -12, -10);
-				NSColor *faint = [containerColor colorWithAlphaComponent:containerColor.alphaComponent / 3];
-				[root addSublayer:NeruVimBox(r, [NSColor clearColor], faint, 1, 6)];
-			}
-
-			if (!CGRectIsEmpty(container)) {
-				CGRect r = CGRectInset(NeruVimFlip(container, height), -6, -4);
-				[root addSublayer:NeruVimBox(r, [NSColor clearColor], containerColor, 1, 6)];
-			}
-
-			for (NSValue *value in selection) {
-				CGRect r = NeruVimFlip(NSRectToCGRect(value.rectValue), height);
-				[root addSublayer:NeruVimBox(r, selectionColor, [NSColor clearColor], 0, 2)];
-			}
-
-			for (NSUInteger i = 0; i < matches.count; i++) {
-				CGRect r = NeruVimFlip(NSRectToCGRect(matches[i].rectValue), height);
-				if ((int)i == current) {
-					[root addSublayer:NeruVimBox(r, [matchColor colorWithAlphaComponent:0.35], matchColor, 1, 2)];
-				} else {
-					[root addSublayer:NeruVimBox(
-					                      CGRectMake(r.origin.x, r.origin.y - 1, r.size.width, 2), matchColor,
-					                      [NSColor clearColor], 0, 0)];
-				}
-			}
-
-			// An outline while an operator waits for its motion, and otherwise
-			// a light fill with a bar down the left edge, which a selection's
-			// fill and a match's underline never have.
-			if (!CGRectIsEmpty(cursor)) {
-				CGRect r = CGRectInset(NeruVimFlip(cursor, height), -1, -1);
-				if (pending) {
-					[root addSublayer:NeruVimBox(r, [NSColor clearColor], cursorColor, 2, 2)];
-				} else {
-					NSColor *fill = [cursorColor colorWithAlphaComponent:cursorColor.alphaComponent * 0x59 / 0xFF];
-					[root addSublayer:NeruVimBox(r, fill, [NSColor clearColor], 0, 0)];
-					[root addSublayer:NeruVimBox(
-					                      CGRectMake(r.origin.x, r.origin.y, 2, r.size.height), cursorColor,
-					                      [NSColor clearColor], 0, 0)];
-				}
-			}
-
-			// Jump labels are hint badges centered on the character each
-			// names.
-			for (NSUInteger i = 0; i < labels.count && i < labelBounds.count; i++) {
-				NSAttributedString *text = [[NSAttributedString alloc]
-				    initWithString:labels[i]
-				        attributes:@{NSFontAttributeName : badge.bold, NSForegroundColorAttributeName : badge.text}];
-				CGRect c = NeruVimFlip(NSRectToCGRect(labelBounds[i].rectValue), height);
-				NSSize size = [text size];
-				CGFloat w = ceil(size.width) + 2 * badge.padX, h = ceil(size.height) + 2 * badge.padY;
-				CGRect r = CGRectMake(round(CGRectGetMidX(c) - w / 2), round(CGRectGetMidY(c) - h / 2), w, h);
-				CALayer *label = NeruVimBadge(r, badge);
-				[label addSublayer:NeruVimText(text, CGPointMake(badge.padX, badge.padY), scale)];
-				[root addSublayer:label];
-			}
-
-			if (lensAt.length > 0 && !CGRectIsEmpty(cursor)) {
-				NSMutableAttributedString *lens = [[NSMutableAttributedString alloc] init];
-				NSDictionary *plain = @{NSFontAttributeName : badge.font, NSForegroundColorAttributeName : badge.text};
-				NSDictionary *mark = @{
-					NSFontAttributeName : badge.bold,
-					NSForegroundColorAttributeName : onModeColor,
-					NSBackgroundColorAttributeName : cursorColor,
+				NSColor *cursorColor = NeruColorFromHexString(cursorHex, [NSColor systemBlueColor]);
+				NSColor *selectionColor = NeruColorFromHexString(selectionHex, [NSColor selectedTextBackgroundColor]);
+				NSColor *matchColor = NeruColorFromHexString(matchHex, [NSColor systemYellowColor]);
+				NSColor *containerColor = NeruColorFromHexString(containerHex, [NSColor clearColor]);
+				NSColor *statusBg = NeruColorFromHexString(statusBgHex, [NSColor windowBackgroundColor]);
+				NSColor *statusText = NeruColorFromHexString(statusTextHex, [NSColor labelColor]);
+				NSColor *modeColor = NeruColorFromHexString(modeHex, [NSColor systemBlueColor]);
+				NSColor *visualModeColor = NeruColorFromHexString(visualModeHex, [NSColor systemPurpleColor]);
+				NSColor *onModeColor = NeruColorFromHexString(onModeHex, [NSColor whiteColor]);
+				NSFont *font = [view resolveFont:fontFamily size:fontSize bold:NO]
+				                   ?: [NSFont monospacedSystemFontOfSize:fontSize weight:NSFontWeightRegular];
+				NSFont *bold = [view resolveFont:fontFamily size:fontSize bold:YES]
+				                   ?: [NSFont monospacedSystemFontOfSize:fontSize weight:NSFontWeightBold];
+				NeruVimBadgeStyle badge = {
+				    .font = [view resolveFont:badgeFamily size:badgeFontSize bold:NO]
+					            ?: [NSFont systemFontOfSize:badgeFontSize weight:NSFontWeightRegular],
+				    .bold = [view resolveFont:badgeFamily size:badgeFontSize bold:YES]
+					            ?: [NSFont systemFontOfSize:badgeFontSize weight:NSFontWeightBold],
+				    .fill = NeruColorFromHexString(badgeBgHex, [NSColor windowBackgroundColor]),
+				    .text = NeruColorFromHexString(badgeTextHex, [NSColor labelColor]),
+				    .border = NeruColorFromHexString(badgeBorderHex, [NSColor clearColor]),
+				    .borderWidth = badgeBorderWidth,
+				    .padX = badgePadX,
+				    .padY = badgePadY,
+				    .radius = badgeRadius,
 				};
-				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensBefore attributes:plain]];
-				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensAt attributes:mark]];
-				[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensAfter attributes:plain]];
+				CGFloat height = view.bounds.size.height;
+				CGFloat scale = [view currentBackingScaleFactor];
 
-				NSSize size = [lens size];
-				CGRect c = NeruVimFlip(cursor, height);
-				CGFloat w = ceil(size.width) + 2 * badge.padX, h = ceil(size.height) + 2 * badge.padY;
-				// Above the cursor, or below it when there is no room above.
-				CGFloat y = CGRectGetMaxY(c) + 6;
-				if (y + h > view.bounds.size.height)
-					y = c.origin.y - 6 - h;
-				CGFloat x = MIN(MAX(c.origin.x - badge.padX, 0), MAX(view.bounds.size.width - w, 0));
-				CALayer *box = NeruVimBadge(CGRectMake(x, y, w, h), badge);
-				[box addSublayer:NeruVimText(lens, CGPointMake(badge.padX, badge.padY), scale)];
-				[root addSublayer:box];
+				[CATransaction begin];
+				[CATransaction setDisableActions:YES];
+
+				// The notice card is kept across draws while it says the same
+				// thing, so its spinner keeps turning instead of starting over on
+				// every key.
+				NSString *noticeName = [@"notice:" stringByAppendingString:notice];
+				CALayer *keptNotice = nil;
+				for (CALayer *layer in view.vimRoot.sublayers)
+					if (notice.length > 0 && [layer.name isEqualToString:noticeName])
+						keptNotice = layer;
+
+				view.vimRoot.sublayers = nil;
+				CALayer *root = view.vimRoot;
+
+				// The block around the container is outlined further out, at a
+				// third of the container outline's opacity.
+				if (!CGRectIsEmpty(block)) {
+					CGRect r = CGRectInset(NeruVimFlip(block, height), -12, -10);
+					NSColor *faint = [containerColor colorWithAlphaComponent:containerColor.alphaComponent / 3];
+					[root addSublayer:NeruVimBox(r, [NSColor clearColor], faint, 1, 6)];
+				}
+
+				if (!CGRectIsEmpty(container)) {
+					CGRect r = CGRectInset(NeruVimFlip(container, height), -6, -4);
+					[root addSublayer:NeruVimBox(r, [NSColor clearColor], containerColor, 1, 6)];
+				}
+
+				for (NSValue *value in selection) {
+					CGRect r = NeruVimFlip(NSRectToCGRect(value.rectValue), height);
+					[root addSublayer:NeruVimBox(r, selectionColor, [NSColor clearColor], 0, 2)];
+				}
+
+				for (NSUInteger i = 0; i < matches.count; i++) {
+					CGRect r = NeruVimFlip(NSRectToCGRect(matches[i].rectValue), height);
+					if ((int)i == current) {
+						[root addSublayer:NeruVimBox(r, [matchColor colorWithAlphaComponent:0.35], matchColor, 1, 2)];
+					} else {
+						[root addSublayer:NeruVimBox(
+						                      CGRectMake(r.origin.x, r.origin.y - 1, r.size.width, 2), matchColor,
+						                      [NSColor clearColor], 0, 0)];
+					}
+				}
+
+				// An outline while an operator waits for its motion, and otherwise
+				// a light fill with a bar down the left edge, which a selection's
+				// fill and a match's underline never have.
+				if (!CGRectIsEmpty(cursor)) {
+					CGRect r = CGRectInset(NeruVimFlip(cursor, height), -1, -1);
+					if (pending) {
+						[root addSublayer:NeruVimBox(r, [NSColor clearColor], cursorColor, 2, 2)];
+					} else {
+						NSColor *fill = [cursorColor colorWithAlphaComponent:cursorColor.alphaComponent * 0x59 / 0xFF];
+						[root addSublayer:NeruVimBox(r, fill, [NSColor clearColor], 0, 0)];
+						[root addSublayer:NeruVimBox(
+						                      CGRectMake(r.origin.x, r.origin.y, 2, r.size.height), cursorColor,
+						                      [NSColor clearColor], 0, 0)];
+					}
+				}
+
+				// Jump labels are hint badges centered on the character each
+				// names.
+				for (NSUInteger i = 0; i < labels.count && i < labelBounds.count; i++) {
+					NSAttributedString *text =
+					    [[NSAttributedString alloc] initWithString:labels[i]
+					                                    attributes:@{
+						                                    NSFontAttributeName : badge.bold,
+						                                    NSForegroundColorAttributeName : badge.text
+					                                    }];
+					CGRect c = NeruVimFlip(NSRectToCGRect(labelBounds[i].rectValue), height);
+					NSSize size = [text size];
+					CGFloat w = ceil(size.width) + 2 * badge.padX, h = ceil(size.height) + 2 * badge.padY;
+					CGRect r = CGRectMake(round(CGRectGetMidX(c) - w / 2), round(CGRectGetMidY(c) - h / 2), w, h);
+					CALayer *label = NeruVimBadge(r, badge);
+					[label addSublayer:NeruVimText(text, CGPointMake(badge.padX, badge.padY), scale)];
+					[root addSublayer:label];
+				}
+
+				if (lensAt.length > 0 && !CGRectIsEmpty(cursor)) {
+					NSMutableAttributedString *lens = [[NSMutableAttributedString alloc] init];
+					NSDictionary *plain =
+					    @{NSFontAttributeName : badge.font, NSForegroundColorAttributeName : badge.text};
+					NSDictionary *mark = @{
+						NSFontAttributeName : badge.bold,
+						NSForegroundColorAttributeName : onModeColor,
+						NSBackgroundColorAttributeName : cursorColor,
+					};
+					[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensBefore
+					                                                             attributes:plain]];
+					[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensAt attributes:mark]];
+					[lens appendAttributedString:[[NSAttributedString alloc] initWithString:lensAfter
+					                                                             attributes:plain]];
+
+					NSSize size = [lens size];
+					CGRect c = NeruVimFlip(cursor, height);
+					CGFloat w = ceil(size.width) + 2 * badge.padX, h = ceil(size.height) + 2 * badge.padY;
+					// Above the cursor, or below it when there is no room above.
+					CGFloat y = CGRectGetMaxY(c) + 6;
+					if (y + h > view.bounds.size.height)
+						y = c.origin.y - 6 - h;
+					CGFloat x = MIN(MAX(c.origin.x - badge.padX, 0), MAX(view.bounds.size.width - w, 0));
+					CALayer *box = NeruVimBadge(CGRectMake(x, y, w, h), badge);
+					[box addSublayer:NeruVimText(lens, CGPointMake(badge.padX, badge.padY), scale)];
+					[root addSublayer:box];
+				}
+
+				if (mode.length > 0 && !CGRectIsEmpty(region)) {
+					[root addSublayer:NeruVimStatusBar(
+					                      NeruVimFlip(region, height), mode, modeKind, status, statusTyped, statusRight,
+					                      font, bold, statusBg, statusText, badge.border, modeColor, visualModeColor,
+					                      onModeColor, scale)];
+				}
+
+				if (notice.length > 0 && !CGRectIsEmpty(region)) {
+					CALayer *card =
+					    NeruVimNotice(notice, NeruVimFlip(region, height), font, bold, badge, modeColor, scale);
+					if (keptNotice && CGRectEqualToRect(keptNotice.frame, card.frame))
+						card = keptNotice;
+					card.name = noticeName;
+					[root addSublayer:card];
+				}
+
+				[CATransaction commit];
+
+				NeruOrderOverlayWindowIfDrawable(controller, NO);
 			}
-
-			if (mode.length > 0 && !CGRectIsEmpty(region)) {
-				[root addSublayer:NeruVimStatusBar(
-				                      NeruVimFlip(region, height), mode, modeKind, status, statusTyped, statusRight,
-				                      font, bold, statusBg, statusText, badge.border, modeColor, visualModeColor,
-				                      onModeColor, scale)];
-			}
-
-			if (notice.length > 0 && !CGRectIsEmpty(region)) {
-				CALayer *card = NeruVimNotice(notice, NeruVimFlip(region, height), font, bold, badge, modeColor, scale);
-				if (keptNotice && CGRectEqualToRect(keptNotice.frame, card.frame))
-					card = keptNotice;
-				card.name = noticeName;
-				[root addSublayer:card];
-			}
-
-			[CATransaction commit];
-
-			NeruOrderOverlayWindowIfDrawable(controller, NO);
-		}
-	});
+		});
+	}
 }
 
 void NeruClearVim(OverlayWindow window) {
