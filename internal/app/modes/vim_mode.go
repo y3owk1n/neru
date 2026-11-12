@@ -83,6 +83,10 @@ func (m *VimMode) RefreshForScreenChange(_ context.Context) bool {
 // runtime would otherwise take minutes.
 func (m *VimMode) Exit() {
 	if m.handler.vim != nil {
+		if m.handler.vim.mapTimer != nil {
+			m.handler.vim.mapTimer.Stop()
+		}
+
 		m.handler.stopScrolledRead()
 		m.handler.cancelYoungRefine()
 

@@ -58,9 +58,10 @@ type vimSession struct {
 	// nil once any other key is typed.
 	completion *vimCompletion
 
-	// What a key asked of the app, done once Feed returns, since the machine
-	// is still in the middle of the key when it calls back.
-	act   func()
+	// What a key asked of the app, done in order once Feed returns and its
+	// edits are made, since the machine is still in the middle of the key
+	// when it calls back. One mapping can run several.
+	acts  []func()
 	edits []vim.Edit
 	label string
 	// before is the text the edits' offsets are in, as it was on screen.
@@ -100,11 +101,11 @@ type vimSession struct {
 
 	// scrolled is when the last scroll of the app started. stale is set from
 	// a scroll until the screen is read again, staleNear is where the
-	// cursor's text went, and afterScroll is a j or k that scrolled at an
-	// edge and still has to move the cursor. scrollSeq tells the read of a
-	// scrolled screen whether another scroll came after it, readCancel
-	// stops that read, and readDone closes once it has stopped capturing and
-	// recognizing.
+	// cursor's text went, and afterScroll is a key that came to j or k,
+	// scrolled at an edge and still has to move the cursor. scrollSeq tells
+	// the read of a scrolled screen whether another scroll came after it,
+	// readCancel stops that read, and readDone closes once it has stopped
+	// capturing and recognizing.
 	scrolled    time.Time
 	stale       bool
 	staleNear   image.Point
@@ -125,10 +126,14 @@ type vimSession struct {
 	lastInsert    *vimInsert
 	repeating     bool
 
-	// zPrefix is a z waiting for its second key, with the count typed before
-	// it, for the sideways scroll keys.
-	zPrefix bool
-	zCount  int
+	// keymap is what the machine maps, and held the keys it holds because
+	// they start a longer mapping. mapTimer runs them as typed when the rest
+	// of the mapping does not come within vimMapTimeout, and mapWait tells
+	// it whether a key came since it started.
+	keymap   screentext.Keymap
+	held     []vim.Key
+	mapTimer *time.Timer
+	mapWait  uint64
 
 	// flash is where the last yank took its text, shown briefly, and notice
 	// what the status bar says about it until the next key.
@@ -603,7 +608,9 @@ func (h *handlerState) finishScrolledVim(lines [][]ports.TextPiece, err error) {
 
 	h.applyVimRead(session.staleNear, text, lines, nil)
 
-	if key != "" && h.vim == session && h.feedVim(key) {
+	// A key held for a longer mapping was typed after the j or k, and
+	// feeding the j or k now would join the hold, so its move is dropped.
+	if key != "" && h.vim == session && !session.machine.Waiting() && h.feedVim(key) {
 		h.followVimCursor()
 		h.redrawFrame(h.vimFrame(), "update vim overlay")
 	}
@@ -802,12 +809,12 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 	session.host = screentext.NewHost(text, pos, func(s string) { session.yank = s })
 	session.machine = screentext.NewMachine(session.host)
 
-	session.machine.Operator(vimOperatorDrag, 0,
+	session.machine.Operator(screentext.OperatorDrag, 0,
 		func(_ vim.Text, start, end int, _ bool, _ []string) []vim.Edit {
-			session.act = func() {
+			session.queue(func() {
 				h.vimDragRange(start, end)
 				h.exitMode()
-			}
+			})
 
 			return nil
 		})
@@ -821,13 +828,13 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 				return screentext.ErrNotACommand
 			}
 
-			session.act = h.exitMode
+			session.queue(h.exitMode)
 
 			return nil
 		}
 
 		if name, ok := vimExMouse[command]; ok && arg == "" {
-			session.act = func() { h.vimMouseAtCursor(name, 1) }
+			session.queue(func() { h.vimMouseAtCursor(name, 1) })
 
 			return nil
 		}
@@ -848,7 +855,7 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 			times = n
 		}
 
-		session.act = func() { h.vimMouseAtCursor(button, times) }
+		session.queue(func() { h.vimMouseAtCursor(button, times) })
 
 		return nil
 	}
@@ -877,11 +884,88 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 		session.host.CanEdit = gate.ReachesApp
 	}
 
-	session.host.OnUndo = func() { session.act = func() { h.vimUndo(vimKeyUndo) } }
-	session.host.OnRedo = func() { session.act = func() { h.vimUndo(vimKeyRedo) } }
+	// A count calls these once per step, so 3u undoes three times in the app.
+	session.host.OnUndo = func() { session.queue(func() { h.vimUndo(vimKeyUndo) }) }
+	session.host.OnRedo = func() { session.queue(func() { h.vimUndo(vimKeyRedo) }) }
+
+	h.addVimPlugs(session)
+
+	user := screentext.Keymap{
+		vim.Normal: h.config.Vim.Keymaps.Normal,
+		vim.Visual: h.config.Vim.Keymaps.Visual,
+	}
+	session.keymap = screentext.DefaultKeymap().With(user)
+	user.Apply(session.machine)
 
 	return session
 }
+
+// queue adds act to what the key asks of the app. Past vimMaxActs it is
+// refused, and the status bar says so.
+func (s *vimSession) queue(act func()) {
+	if len(s.acts) >= vimMaxActs {
+		s.notice = derrors.Message(errVimTooBig)
+
+		return
+	}
+
+	s.acts = append(s.acts, act)
+}
+
+// addVimPlugs gives the machine vim mode's commands, each run by its <Plug>
+// key. They act on the app, so each queues its action for once the key is
+// done.
+func (h *handlerState) addVimPlugs(session *vimSession) {
+	plug := func(name string, run func(count int)) {
+		session.machine.Command(name, func(_ vim.Text, _, count int) ([]vim.Edit, string) {
+			session.queue(func() { run(count) })
+
+			return nil, ""
+		})
+	}
+
+	plug(screentext.PlugJump, func(int) { h.startVimJump() })
+	plug(screentext.PlugReadScreen, func(int) { h.startVim(h.vimSessionActivation()) })
+	plug(screentext.PlugCenterLine, func(int) {
+		h.followVimCursor()
+		h.vimCenterLine()
+	})
+
+	// A count clicks that many times, as 2gc double clicks.
+	for name, button := range vimMousePlugs {
+		plug(name, func(count int) { h.vimMouseAtCursor(button, count) })
+	}
+
+	// A count scrolls that many characters sideways, as 3zl does.
+	for name, scroll := range vimScrollPlugs {
+		plug(name, func(count int) {
+			counted := scroll
+			if count > 0 && counted.columns > 0 {
+				counted.columns = count
+			}
+
+			h.vimScroll(counted)
+		})
+	}
+
+	// The jump lands with go, the machine's own motion to a byte, typed
+	// through no mapping.
+	session.machine.Command(vimPlugGoName, func(vim.Text, int, int) ([]vim.Edit, string) {
+		return nil, "go"
+	})
+}
+
+// vimMaxActs is the most actions one key may queue, as a mapping or a macro
+// running vim mode's commands. Each can click and read the screen, all with
+// the keyboard held.
+const vimMaxActs = 8
+
+// vimPlugGoName names the command that runs go, for vim mode itself rather
+// than a mapping, and vimPlugGo is its key.
+const (
+	vimPlugGoName         = "neru-go"
+	vimPlugGo     vim.Key = "<Plug>(" + vimPlugGoName + ")"
+)
 
 var (
 	// errVimOneEdit refuses a second batch of edits in one key.
@@ -915,21 +999,18 @@ func vimEditRunes(text *screentext.Text, edits []vim.Edit) int {
 	return count
 }
 
-// vimOperatorDrag is the operator vim mode adds, which drags across the text
-// on screen rather than changing it.
-const vimOperatorDrag = "gs"
-
 // vimMaxClicks is the most times a count repeats a click, which a triple
 // click needs. A larger count clicks this many times.
 const vimMaxClicks = 3
 
-// vimMouseKeys are the keys after g that act at the cursor, and the action
-// each runs: c, r and m click, as gc does, and h moves the real cursor there.
-var vimMouseKeys = map[vim.Key]action.Name{
-	"c": action.NameLeftClick,
-	"r": action.NameRightClick,
-	"m": action.NameMiddleClick,
-	"h": action.NameMoveMouse,
+// vimMousePlugs are vim mode's commands that act at the cursor, and the
+// action each runs: three click, as gc does, and one moves the real cursor
+// there.
+var vimMousePlugs = map[string]action.Name{
+	screentext.PlugLeftClick:   action.NameLeftClick,
+	screentext.PlugRightClick:  action.NameRightClick,
+	screentext.PlugMiddleClick: action.NameMiddleClick,
+	screentext.PlugMoveMouse:   action.NameMoveMouse,
 }
 
 // vimExClicks are the ex commands that click at the cursor, as :leftclick 2
@@ -1303,10 +1384,6 @@ func vimStatus(session *vimSession, current, matches int) ports.VimStatus {
 		status.Text = machine.Message()
 	case session.notice != "":
 		status.Text = session.notice
-	case session.zPrefix && session.zCount > 0:
-		status.Text = strconv.Itoa(session.zCount) + "z"
-	case session.zPrefix:
-		status.Text = "z"
 	case machine.Shown() != "":
 		status.Text = machine.Shown()
 	}

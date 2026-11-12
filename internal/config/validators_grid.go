@@ -598,6 +598,11 @@ func (c *Config) ValidateVim() error {
 		)
 	}
 
+	err = validateVimKeymaps(c.Vim.Keymaps)
+	if err != nil {
+		return err
+	}
+
 	return validateAppConfigsWithCallback(
 		ModeNameVim,
 		c.Vim.AppConfigs,

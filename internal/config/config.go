@@ -346,10 +346,23 @@ type VimConfig struct {
 
 	AppConfigs []AppConfig `json:"appConfigs" toml:"app_configs"`
 
+	// Keymaps maps keys to other keys inside vim, as vim's noremap does.
+	Keymaps VimKeymaps `json:"keymaps" toml:"keymaps"`
+
 	// Hotkeys binds keys to actions ahead of vim, so a bound key runs its
 	// action and vim never sees it. It ships empty, since vim answers every
 	// key it is given.
 	Hotkeys map[string]StringOrStringArray `json:"hotkeys" toml:"-"`
+}
+
+// VimKeymaps maps keys in normal and visual mode, from the keys typed to the
+// keys they run, both in vim's notation, such as "<Space>j". The keys run are
+// vim's own and never mapped again, so vim mode's own commands are written
+// as <Plug>(name). A mapping replaces vim mode's own mapping of the same
+// keys, and "<Nop>" makes the keys do nothing.
+type VimKeymaps struct {
+	Normal map[string]string `json:"normal" toml:"normal"`
+	Visual map[string]string `json:"visual" toml:"visual"`
 }
 
 // VimUI is how vim mode draws: the cursor, the selection, the search matches,

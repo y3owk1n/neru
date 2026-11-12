@@ -250,8 +250,9 @@ func (h *Host) moveContainer(key string, count int) error {
 }
 
 // NewMachine returns a vim machine over host, set up for the screen. Search
-// ignores case unless the pattern has a capital, and a yank goes to the
-// clipboard.
+// ignores case unless the pattern has a capital, a yank goes to the
+// clipboard, and the default keymap is mapped. Of the commands it maps, the
+// caller adds all but the icon moves.
 func NewMachine(host *Host) *vim.Machine {
 	machine := vim.New(host)
 	machine.IgnoreCase(true, true)
@@ -261,7 +262,7 @@ func NewMachine(host *Host) *vim.Machine {
 
 	// ]i and [i go to the next and the previous icon, as [[ and ]] go to
 	// sections.
-	for name, back := range map[string]bool{"nexticon": false, "previcon": true} {
+	for name, back := range map[string]bool{PlugNextIcon: false, PlugPrevIcon: true} {
 		machine.Command(name, func(_ vim.Text, pos, count int) ([]vim.Edit, string) {
 			if target, ok := host.text.IconAfter(pos, count, back); ok {
 				host.SetCursor(target)
@@ -271,8 +272,7 @@ func NewMachine(host *Host) *vim.Machine {
 		})
 	}
 
-	machine.Map(vim.Normal, "]i", "<Plug>(nexticon)")
-	machine.Map(vim.Normal, "[i", "<Plug>(previcon)")
+	DefaultKeymap().Apply(machine)
 
 	return machine
 }

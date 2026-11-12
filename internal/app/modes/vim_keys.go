@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/y3owk1n/neru/internal/app/services"
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
-	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/screentext"
 )
 
@@ -31,10 +31,15 @@ const (
 	vimShiftTab vim.Key = "<S-Tab>"
 )
 
-// vimControlKeys are the Ctrl chords vim reads, held back from the focused
-// app while a session is open so they reach the machine, or while typing, so
-// they reach the app through the key feed.
+// vimControlKeys are the Ctrl chords vim's own commands read, held back from
+// the focused app while a session is open so they reach the machine, or while
+// typing, so they reach the app through the key feed. The chords the keymap
+// maps are held back with them.
 const vimControlKeys = "abdefgilnoprtuvwxy["
+
+// vimMapTimeout is how long the machine holds keys that start a longer
+// mapping before it runs them as typed, vim's own timeoutlen.
+const vimMapTimeout = time.Second
 
 const (
 	// vimMaxCountDigits is the longest count a key may extend. A longer one
@@ -55,19 +60,20 @@ func (h *handlerState) vimChords() []string {
 		return nil
 	}
 
-	chords := make([]string, 0, len(vimControlKeys))
+	chords := h.vim.keymap.Chords()
 	for _, key := range vimControlKeys {
 		chords = append(chords, "Ctrl+"+strings.ToUpper(string(key)))
 	}
 
-	return chords
+	slices.Sort(chords)
+
+	return slices.Compact(chords)
 }
 
-// handleVimKey runs one key. With nothing pending, Escape leaves the mode,
-// Return clicks the character under the cursor or drags across the visual
-// selection, Ctrl+L reads the screen again, s starts a jump, and the scroll
-// keys scroll the app. Everything else goes to the machine, and what it asks
-// of the app is done once it returns.
+// handleVimKey runs one key. With nothing pending, Escape leaves the mode.
+// Everything else goes to the machine, which runs vim mode's own commands
+// through the keymap like its own, and what it asks of the app is done once
+// it returns.
 func (h *handlerState) handleVimKey(key string) {
 	session := h.vim
 
@@ -111,8 +117,9 @@ func (h *handlerState) handleVimKey(key string) {
 	h.handleVimMachineKey(vimKey)
 }
 
-// handleVimMachineKey runs a key in vim's notation: the keys vim mode owns,
-// or the machine's, and what the machine asks of the app once it returns.
+// handleVimMachineKey runs a key in vim's notation: the keys vim mode keeps
+// from the machine, or the machine's, and what the machine asks of the app
+// once it returns.
 func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 	session := h.vim
 	machine := session.machine
@@ -125,11 +132,8 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 
 	session.completion = nil
 
-	if h.handleVimZKey(vimKey) {
-		return
-	}
-
-	if vimKey == "." && session.lastInsert != nil && !session.repeating {
+	if vimKey == "." && session.lastInsert != nil && !session.repeating &&
+		!h.vimMapsKey(vimKey) {
 		if count, ok := vimPendingCount(machine); ok || machine.Idle() {
 			if ok && !h.feedVim(vimEscape) {
 				return
@@ -144,25 +148,17 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 	if machine.Idle() {
 		session.commandKeys = nil
 
-		if h.handleVimIdleKey(vimKey) {
+		if vimKey == vimEscape {
+			h.exitMode()
+
 			return
 		}
 	}
 
-	if name, count, ok := vimMouseKey(machine, vimKey); ok {
-		if h.feedVim(vimEscape) {
-			h.vimMouseAtCursor(name, count)
-		}
-
-		return
-	}
-
-	if machine.Mode() == vim.Visual && vimKey == vimReturn {
-		if sel, ok := machine.Selection(); ok {
-			h.vimDragRange(sel.Start, sel.End)
-		}
-
-		h.exitMode()
+	// Escape drops keys held for a longer mapping without running them.
+	if vimKey == vimEscape && machine.Waiting() {
+		h.dropVimHeld()
+		h.redrawFrame(h.vimFrame(), "update vim overlay")
 
 		return
 	}
@@ -171,28 +167,64 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 		return
 	}
 
-	line := session.host.Screen().LineOf(session.host.Cursor())
-	bare := vimBareKey(machine)
-	session.edited, session.edits, session.yank, session.notice = false, nil, "", ""
 	session.commandKeys = append(session.commandKeys, vimKey)
 
-	if !h.feedVim(vimKey) {
+	h.vimStep(vimKey, func() error { return machine.Feed(vimKey) })
+}
+
+// vimStep runs step, which feeds key to the machine, or with no key ends its
+// wait for a longer mapping, and then does what the machine asked of the app.
+func (h *handlerState) vimStep(key vim.Key, step func() error) {
+	session := h.vim
+	machine := session.machine
+
+	line := session.host.Screen().LineOf(session.host.Cursor())
+
+	// The keymap applies only between commands in normal and visual mode,
+	// and only then does vimStep track the held keys and the j or k a key
+	// comes to.
+	var held []vim.Key
+
+	edge := vim.Key("")
+
+	if key != "" && (machine.Waiting() || vimBareKey(machine)) {
+		held = session.keymap.Held(machine.Mode(), session.held, key)
+		edge = h.vimEdgeKey(key)
+	}
+
+	session.edited, session.edits, session.yank, session.notice = false, nil, "", ""
+
+	if !h.runVim(step) {
 		return
 	}
+
+	session.held = held
+
+	h.vimAwaitMapping()
 
 	if machine.Mode() == vim.Insert {
 		session.insertCommand = slices.Clone(session.commandKeys)
 	}
 
-	if act := session.act; act != nil {
-		session.act = nil
-		act()
-
-		return
-	}
+	acts := session.acts
+	session.acts = nil
 
 	if len(session.edits) > 0 {
 		h.vimApplyEdits(session.edits, session.label)
+
+		if len(acts) == 0 || h.vim != session || session.typing {
+			return
+		}
+	}
+
+	if len(acts) > 0 {
+		for _, act := range acts {
+			act()
+
+			if h.vim != session {
+				return
+			}
+		}
 
 		return
 	}
@@ -208,11 +240,84 @@ func (h *handlerState) handleVimMachineKey(vimKey vim.Key) {
 		return
 	}
 
-	if bare && h.vimScrollAtEdge(vimKey, line) {
+	if edge != "" && h.vimScrollAtEdge(key, edge, line) {
 		return
 	}
 
 	h.vimCursorMoved()
+}
+
+// vimAwaitMapping gives keys the machine holds for a longer mapping
+// vimMapTimeout for the rest of it, then runs them as typed. Each key starts
+// the wait over, and one that ends the hold ends it.
+func (h *handlerState) vimAwaitMapping() {
+	session := h.vim
+	session.mapWait++
+
+	if session.mapTimer != nil {
+		session.mapTimer.Stop()
+		session.mapTimer = nil
+	}
+
+	if !session.machine.Waiting() {
+		return
+	}
+
+	outer, wait := h.outer, session.mapWait
+	session.mapTimer = time.AfterFunc(vimMapTimeout, func() { outer.endVimMapWait(session, wait) })
+}
+
+// endVimMapWait runs the keys the machine held for a mapping that never came,
+// for the session and the wait that started the timer. Text a scroll left
+// stale is read first, since the keys may act on it.
+func (h *Handler) endVimMapWait(session *vimSession, wait uint64) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.vim != session || session.mapWait != wait || session.jump != nil || session.typing {
+		return
+	}
+
+	if session.stale {
+		h.readScrolledVim()
+
+		if h.vim != session {
+			return
+		}
+	}
+
+	h.vimStep("", session.machine.Timeout)
+}
+
+// vimMapsKey reports whether key, typed next, is mapped or starts a mapping.
+func (h *handlerState) vimMapsKey(key vim.Key) bool {
+	session := h.vim
+	keys := append(slices.Clone(session.held), key)
+
+	return session.keymap.Leads(session.machine.Mode(), keys, func([]vim.Key) bool { return true })
+}
+
+// vimEdgeKey returns the key that key comes to through the keymap, so a key
+// mapped to j or k scrolls at the edge as they do. That is the one key a
+// mapping of the held keys and key runs, key itself when no mapping takes
+// it, and nothing otherwise.
+func (h *handlerState) vimEdgeKey(key vim.Key) vim.Key {
+	session := h.vim
+	keys := append(slices.Clone(session.held), key)
+
+	if to, ok := session.keymap.Runs(session.machine.Mode(), keys); ok {
+		if len(to) == 1 {
+			return to[0]
+		}
+
+		return ""
+	}
+
+	if len(session.held) > 0 {
+		return ""
+	}
+
+	return key
 }
 
 // vimCursorMoved moves the real cursor to the machine's cursor, then swaps in
@@ -289,33 +394,6 @@ func vimPendingCount(machine *vim.Machine) (int, bool) {
 	return count, err == nil
 }
 
-// vimMouseKey reports the mouse action key finishes and how many times it
-// runs. That is a click for Return after a count, as 2 Return double clicks,
-// or the action of a key in vimMouseKeys after g, as 2gc runs. A missing
-// count runs it once.
-func vimMouseKey(machine *vim.Machine, key vim.Key) (action.Name, int, bool) {
-	if key == vimReturn {
-		count, ok := vimPendingCount(machine)
-
-		return action.NameLeftClick, count, ok
-	}
-
-	name, ok := vimMouseKeys[key]
-	digits, isG := strings.CutSuffix(machine.Shown(), "g")
-
-	if !ok || !isG || machine.Mode() != vim.Normal || machine.Pending() ||
-		strings.TrimFunc(digits, unicode.IsDigit) != "" {
-		return "", 0, false
-	}
-
-	count, err := strconv.Atoi(digits)
-	if err != nil {
-		count = 1
-	}
-
-	return name, count, true
-}
-
 // vimCountKeys returns the keys that type count, or none for zero.
 func vimCountKeys(count int) []vim.Key {
 	if count <= 0 {
@@ -330,71 +408,59 @@ func vimCountKeys(count int) []vim.Key {
 	return keys
 }
 
-// handleVimZKey scrolls the app for zh, zl, zH, zL and zz, and reports
-// whether it took key. A z with nothing or only a count before it waits for
-// its second key. Any other second key goes to the machine with the z and
-// the count.
-func (h *handlerState) handleVimZKey(vimKey vim.Key) bool {
+// feedVim feeds key to the machine, and reports whether the session is still
+// open. It feeds past vimStep, so it clears the held keys vimStep tracks once
+// the machine holds none.
+func (h *handlerState) feedVim(key vim.Key) bool {
 	session := h.vim
-	machine := session.machine
-
-	if session.zPrefix {
-		session.zPrefix = false
-
-		if scroll, ok := vimSideScrollKeys[vimKey]; ok {
-			if session.zCount > 0 && scroll.columns > 0 {
-				scroll.columns = session.zCount
-			}
-
-			h.vimScroll(scroll)
-
-			return true
-		}
-
-		for _, key := range vimCountKeys(session.zCount) {
-			if !h.feedVim(key) {
-				return true
-			}
-		}
-
-		if vimKey != "z" {
-			return !h.feedVim("z")
-		}
-
-		// The machine puts the cursor on line n for a count, and scrolls
-		// nothing since every line read is in view.
-		if !h.feedVim("z") || !h.feedVim(vimKey) {
-			return true
-		}
-
-		h.followVimCursor()
-		h.vimCenterLine()
-
-		return true
-	}
-
-	count, countOnly := vimPendingCount(machine)
-	if vimKey != "z" || (!machine.Idle() && !countOnly) {
+	if !h.runVim(func() error { return session.machine.Feed(key) }) {
 		return false
 	}
 
-	session.zCount = count
-
-	if countOnly && !h.feedVim(vimEscape) {
-		return true
+	if !session.machine.Waiting() {
+		session.held = nil
 	}
-
-	session.zPrefix = true
-
-	h.redrawFrame(h.vimFrame(), "update vim overlay")
 
 	return true
 }
 
-// feedVim feeds key to the machine. A panic inside it would take the daemon
-// down with the keyboard held, so it is recovered, logged and the mode left.
-// It reports whether the session is still open.
-func (h *handlerState) feedVim(key vim.Key) bool {
+// dropVimHeld drops the keys the machine holds for a longer mapping, running
+// none of them, and stops the wait for the rest. It returns them.
+func (h *handlerState) dropVimHeld() []vim.Key {
+	session := h.vim
+	held := session.held
+
+	session.machine.Cancel()
+	session.held = nil
+
+	h.vimAwaitMapping()
+
+	return held
+}
+
+// startVimJump starts a jump. Keys held for a longer mapping when it starts
+// were typed after it, so the characters among them begin its text.
+func (h *handlerState) startVimJump() {
+	session := h.vim
+	session.jump = &vimJump{}
+
+	for _, key := range h.dropVimHeld() {
+		if utf8.RuneCountInString(string(key)) == 1 {
+			session.jump.query += string(key)
+		}
+	}
+
+	if session.jump.query != "" {
+		h.findVimJumpTargets()
+	}
+
+	h.redrawFrame(h.vimFrame(), "update vim overlay")
+}
+
+// runVim runs step, which hands the machine a key. A panic inside it would
+// take the daemon down with the keyboard held, so it is recovered, logged and
+// the mode left. It reports whether the session is still open.
+func (h *handlerState) runVim(step func() error) bool {
 	failed := false
 
 	func() {
@@ -411,7 +477,7 @@ func (h *handlerState) feedVim(key vim.Key) bool {
 		// machine shows it as its message. A refusal from vim mode itself,
 		// such as a change too big to make, is a domain error the machine
 		// does not show, so the status line says it.
-		err := h.vim.machine.Feed(key)
+		err := step()
 		if err != nil {
 			h.logger.Debug("Vim key failed")
 
@@ -426,31 +492,6 @@ func (h *handlerState) feedVim(key vim.Key) bool {
 		h.exitMode()
 
 		return false
-	}
-
-	return true
-}
-
-// handleVimIdleKey runs the keys vim mode owns between commands, and reports
-// whether key was one.
-func (h *handlerState) handleVimIdleKey(key vim.Key) bool {
-	switch key {
-	case vimEscape:
-		h.exitMode()
-	case vimReturn:
-		h.vimMouseAtCursor(action.NameLeftClick, 1)
-	case "<C-l>":
-		h.startVim(h.vimSessionActivation())
-	case "s":
-		h.vim.jump = &vimJump{}
-		h.redrawFrame(h.vimFrame(), "update vim overlay")
-	default:
-		scroll, ok := vimScrollKeys[key]
-		if !ok {
-			return false
-		}
-
-		h.vimScroll(scroll)
 	}
 
 	return true
@@ -721,7 +762,7 @@ func vimJumpLabelBox(text *screentext.Text, match [2]int) (image.Rectangle, bool
 func (h *handlerState) vimJumpTo(target int) {
 	h.vim.jump = nil
 
-	for _, key := range append(vimCountKeys(target+1), "g", "o") {
+	for _, key := range append(vimCountKeys(target+1), vimPlugGo) {
 		if !h.feedVim(key) {
 			return
 		}
@@ -746,28 +787,54 @@ type vimScrollKey struct {
 	stays bool
 }
 
-// vimScrollKeys are the keys that scroll the app rather than the text, since
-// the whole screen is already in view.
-var vimScrollKeys = map[vim.Key]vimScrollKey{
-	"<C-e>": {direction: services.ScrollDirectionDown, lines: vimScrollLines},
-	"<C-y>": {direction: services.ScrollDirectionUp, lines: vimScrollLines},
-	"<C-d>": {direction: services.ScrollDirectionDown, fraction: vimScrollHalfPage, stays: true},
-	"<C-u>": {direction: services.ScrollDirectionUp, fraction: vimScrollHalfPage, stays: true},
-	"<C-f>": {direction: services.ScrollDirectionDown, fraction: vimScrollPage, stays: true},
-	"<C-b>": {direction: services.ScrollDirectionUp, fraction: vimScrollPage, stays: true},
+// vimScrollPlugs are vim mode's commands that scroll the app rather than the
+// text, since the whole screen is already in view: by line heights or a share
+// of the region read up and down, and by characters or half the region
+// sideways.
+var vimScrollPlugs = map[string]vimScrollKey{
+	screentext.PlugScrollLineDown: {direction: services.ScrollDirectionDown, lines: vimScrollLines},
+	screentext.PlugScrollLineUp:   {direction: services.ScrollDirectionUp, lines: vimScrollLines},
+	screentext.PlugScrollHalfDown: {
+		direction: services.ScrollDirectionDown, fraction: vimScrollHalfPage, stays: true,
+	},
+	screentext.PlugScrollHalfUp: {
+		direction: services.ScrollDirectionUp, fraction: vimScrollHalfPage, stays: true,
+	},
+	screentext.PlugScrollPageDown: {
+		direction: services.ScrollDirectionDown, fraction: vimScrollPage, stays: true,
+	},
+	screentext.PlugScrollPageUp: {
+		direction: services.ScrollDirectionUp, fraction: vimScrollPage, stays: true,
+	},
+	screentext.PlugScrollLeft: {
+		direction: services.ScrollDirectionLeft, columns: vimSideScrollColumns,
+	},
+	screentext.PlugScrollRight: {
+		direction: services.ScrollDirectionRight, columns: vimSideScrollColumns,
+	},
+	screentext.PlugScrollHalfLeft: {
+		direction: services.ScrollDirectionLeft, fraction: vimScrollHalfPage, stays: true,
+	},
+	screentext.PlugScrollHalfRight: {
+		direction: services.ScrollDirectionRight, fraction: vimScrollHalfPage, stays: true,
+	},
 }
 
-// vimSideScrollColumns is how far zh and zl scroll without a count. One
-// character, vim's own default, barely moves a screen.
+// vimSideScrollColumns is how far the sideways scroll by characters goes
+// without a count. One character, vim's own default, barely moves a screen.
 const vimSideScrollColumns = 8
 
-// vimSideScrollKeys are the second keys after z that scroll the app sideways:
-// h and l by characters, and H and L by half the region read.
-var vimSideScrollKeys = map[vim.Key]vimScrollKey{
-	"h": {direction: services.ScrollDirectionLeft, columns: vimSideScrollColumns},
-	"l": {direction: services.ScrollDirectionRight, columns: vimSideScrollColumns},
-	"H": {direction: services.ScrollDirectionLeft, fraction: vimScrollHalfPage, stays: true},
-	"L": {direction: services.ScrollDirectionRight, fraction: vimScrollHalfPage, stays: true},
+// vimScrollPlug returns the scroll a key runs when it is one of
+// vimScrollPlugs.
+func vimScrollPlug(key vim.Key) (vimScrollKey, bool) {
+	name, isPlug := strings.CutPrefix(string(key), "<Plug>(")
+	if !isPlug {
+		return vimScrollKey{}, false
+	}
+
+	scroll, found := vimScrollPlugs[strings.TrimSuffix(name, ")")]
+
+	return scroll, found
 }
 
 // vimCenterLine scrolls the app until the cursor's line sits in the middle
@@ -792,10 +859,11 @@ func (h *handlerState) vimCenterLine() {
 	}
 }
 
-// vimScrollAtEdge scrolls the app when j or k tried to leave the text read,
-// keeps the cursor on the same text, and moves it the line it asked for.
-// It reports whether it scrolled.
-func (h *handlerState) vimScrollAtEdge(key vim.Key, lineBefore int) bool {
+// vimScrollAtEdge scrolls the app when key, which came to edge through the
+// keymap, was a j or k that tried to leave the text read, keeps the cursor
+// on the same text, and moves it the line it asked for. It reports whether
+// it scrolled.
+func (h *handlerState) vimScrollAtEdge(key, edge vim.Key, lineBefore int) bool {
 	session := h.vim
 	text := session.host.Screen()
 	line := text.LineOf(session.host.Cursor())
@@ -803,9 +871,9 @@ func (h *handlerState) vimScrollAtEdge(key vim.Key, lineBefore int) bool {
 	var scroll vimScrollKey
 
 	switch {
-	case (key == "j" || key == "<Down>") && line == lineBefore && line == text.Lines()-1:
+	case (edge == "j" || edge == "<Down>") && line == lineBefore && line == text.Lines()-1:
 		scroll = vimScrollKey{direction: services.ScrollDirectionDown, fraction: vimScrollEdge}
-	case (key == "k" || key == "<Up>") && line == lineBefore && line == 0:
+	case (edge == "k" || edge == "<Up>") && line == lineBefore && line == 0:
 		scroll = vimScrollKey{direction: services.ScrollDirectionUp, fraction: vimScrollEdge}
 	default:
 		return false
@@ -885,33 +953,40 @@ func vimBareKey(machine *vim.Machine) bool {
 // that same key scrolling at an edge, so holding it keeps scrolling without
 // a read per scroll.
 func (h *handlerState) vimEdgeScroll(key vim.Key) (vimScrollKey, bool) {
-	switch {
-	case key != h.vim.afterScroll:
+	if key != h.vim.afterScroll {
 		return vimScrollKey{}, false
-	case key == "j" || key == "<Down>":
+	}
+
+	switch h.vimEdgeKey(key) {
+	case "j", "<Down>":
 		return vimScrollKey{direction: services.ScrollDirectionDown, fraction: vimScrollEdge}, true
-	default:
+	case "k", "<Up>":
 		return vimScrollKey{direction: services.ScrollDirectionUp, fraction: vimScrollEdge}, true
+	default:
+		return vimScrollKey{}, false
 	}
 }
 
 // vimContinuesScroll reports a key that scrolls again without reading the
-// text: a scroll key, a z starting a sideways scroll, or the key after it.
+// text: one that, after the keys the machine holds, runs a scroll of the app
+// or starts a mapping that runs one, as the z of zl does.
 func (h *handlerState) vimContinuesScroll(key vim.Key) bool {
 	session := h.vim
 	machine := session.machine
 
-	if session.zPrefix {
-		_, ok := vimSideScrollKeys[key]
-
-		return ok
-	}
-
-	if !machine.Idle() {
+	if !machine.Waiting() && !vimBareKey(machine) {
 		return false
 	}
 
-	_, ok := vimScrollKeys[key]
+	keys := append(slices.Clone(session.held), key)
 
-	return ok || key == "z"
+	return session.keymap.Leads(machine.Mode(), keys, func(to []vim.Key) bool {
+		if len(to) != 1 {
+			return false
+		}
+
+		_, ok := vimScrollPlug(to[0])
+
+		return ok
+	})
 }

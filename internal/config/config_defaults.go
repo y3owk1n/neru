@@ -808,6 +808,12 @@ func defaultVim() VimConfig {
 		},
 		// AppConfigs ships empty, because per-app overrides are the user's.
 		AppConfigs: []AppConfig{},
+		// Keymaps ship empty. Vim mode's own mappings are in
+		// screentext.DefaultKeymap, and a mapping here replaces one there.
+		Keymaps: VimKeymaps{
+			Normal: map[string]string{},
+			Visual: map[string]string{},
+		},
 		// Hotkeys ships empty, because every key in vim mode is vim's until
 		// the user binds it to something else.
 		Hotkeys: map[string]StringOrStringArray{},

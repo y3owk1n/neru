@@ -654,12 +654,16 @@ point at other text. Vim mode makes each edit in the app under the cursor, by
 clicking the caret into place, selecting with Shift+Right and typing, then
 reads the screen again.
 
+Vim mode's own keys in the table below, such as `s`, `gc` and `Ctrl+D`, are
+mappings that [`[vim.keymaps]`](configuration.md#vim-keymaps) can move or
+turn off.
+
 | Keys | Does |
 | :--- | :--- |
 | `i`, `a`, `I`, `A`, `o`, `O` | Click the app's caret into place, then type into the app until `Escape` |
 | `c`, `d`, `x`, `r`, `J` and the rest | Select the text, then erase it or type over it |
 | `p`, `P` | Click into place and paste |
-| `u`, `Ctrl+R` | The app's own undo and redo |
+| `u`, `Ctrl+R` | The app's own undo and redo. A count repeats it, up to eight times |
 | `.` | Repeat the last change. A change typed into the app repeats with what was typed |
 | `y` + motion | Copy the text as read, without touching the app. The copied text flashes and the status bar says how much |
 | `Return`, `gc`, `gr`, `gm` | Click the character under the cursor, left with `Return` or `gc`, right with `gr` and middle with `gm`. A count clicks that many times, up to three, so `2gc` or `2` `Return` double clicks. Vim mode stays open and reads the screen again |

@@ -397,6 +397,17 @@ font_family = ""
 # cursor_color, selection_color, match_color, container_color,
 # status_background_color, status_text_color
 
+# Map keys to other keys inside vim, in vim's notation, as noremap does. The
+# right side runs vim's own keys, so write vim mode's commands as
+# <Plug>(name). "<Nop>" makes the keys do nothing.
+[vim.keymaps.normal]
+# "<Space>j" = "<Plug>(jump)"
+# "s" = "<Nop>"
+# "H" = "^"
+
+[vim.keymaps.visual]
+# "H" = "^"
+
 # A key bound here runs its action and vim never sees it, so every key stays
 # vim's until bound. Per-app bindings and capture scopes go in [[vim.app_configs]].
 [vim.hotkeys]

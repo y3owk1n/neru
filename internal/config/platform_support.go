@@ -119,6 +119,8 @@ func PlatformSupport() parity.Declaration {
 			"vim.ui.container_color",
 			"vim.ui.status_background_color",
 			"vim.ui.status_text_color",
+			"vim.keymaps.normal",
+			"vim.keymaps.visual",
 			"mode_indicator.vim.enabled",
 			"mode_indicator.vim.text",
 			"mode_indicator.vim.background_color",

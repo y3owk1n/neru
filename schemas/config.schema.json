@@ -1869,6 +1869,24 @@
           },
           "type": "object"
         },
+        "keymaps": {
+          "additionalProperties": false,
+          "properties": {
+            "normal": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "visual": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
         "ui": {
           "additionalProperties": false,
           "properties": {

@@ -1113,6 +1113,9 @@ capture_scope = "screen"
 [vim.ui]
 cursor_color = "#FF8800AA"
 
+[vim.keymaps.normal]
+"<Space>j" = "<Plug>(jump)"
+
 [vim.hotkeys]
 "Ctrl+c" = "idle"
 ```
@@ -1143,6 +1146,69 @@ hint badge's colors, border and corners, in the font above. The status bar's
 mode chip is `theme.accent` in normal mode and `theme.accent_alt` in visual
 mode, with text in `theme.on_accent_alt`. While vim waits on a command, a
 jump, a motion or typing, the chip is an outline in the hint border color.
+
+### Vim keymaps
+
+`[vim.keymaps.normal]` and `[vim.keymaps.visual]` map keys to other keys
+inside vim, the way vim's `nnoremap` and `xnoremap` do. Both sides are in
+vim's notation, such as `"<Space>j"`, `"<C-j>"` or `"<CR>"`, and letter case
+counts, so `H` and `h` are different keys. Both tables ship empty.
+
+```toml
+[vim.keymaps.normal]
+"H" = "^"
+"L" = "$"
+"<Space>j" = "<Plug>(jump)"
+"s" = "<Nop>"
+"S" = "<Plug>(read-screen)<Plug>(jump)"
+
+[vim.keymaps.visual]
+"H" = "^"
+```
+
+- The keys a mapping runs are vim's own and never mapped again, so mapping
+  `"<Space>j" = "s"` runs vim's own `s`, which changes a character. Write
+  vim mode's commands as `<Plug>(name)`, with the names in the table below.
+- One mapping can run several commands, in order, as `S` above reads the
+  screen and then starts a jump. One key runs at most eight of them.
+- `"<Nop>"` makes the keys do nothing.
+- A key that starts a longer mapping waits one second for the rest of it,
+  then runs as typed.
+- Your mapping of a key replaces vim mode's own mapping of it, which the
+  table below lists. A default key you map to something else no longer runs
+  its command.
+- Mappings apply in normal and visual mode. Vim mode never maps keys typed on
+  the `:` line, after an operator such as `d`, after `f` or `r`, during an
+  `s` jump, or into the app after `i`.
+- Neru refuses a mapping of `Escape`, which always cancels and leaves. It
+  also refuses keys it never reads, such as `<Del>` and `<S-Left>`, and a
+  `<Plug>` name vim mode does not have. A refused mapping refuses the whole
+  file, as any invalid option does.
+- `[vim.hotkeys]` runs first. A key bound there never reaches these tables.
+
+| Command                     | Mapped by default to | Does                                                              |
+| --------------------------- | -------------------- | ----------------------------------------------------------------- |
+| `<Plug>(jump)`              | `s`                  | Start a jump                                                      |
+| `<Plug>(read-screen)`       | `<C-l>`              | Read the screen again                                             |
+| `<Plug>(left-click)`        | `<CR>`, `gc`         | Click at the cursor. A count clicks that many times, up to three |
+| `<Plug>(right-click)`       | `gr`                 | Right click at the cursor, with a count as above                 |
+| `<Plug>(middle-click)`      | `gm`                 | Middle click at the cursor, with a count as above                |
+| `<Plug>(move-mouse)`        | `gh`                 | Move the real cursor to the vim cursor                            |
+| `<Plug>(scroll-line-down)`  | `<C-e>`              | Scroll the app down two lines                                     |
+| `<Plug>(scroll-line-up)`    | `<C-y>`              | Scroll the app up two lines                                       |
+| `<Plug>(scroll-half-down)`  | `<C-d>`              | Scroll the app down half the region read                          |
+| `<Plug>(scroll-half-up)`    | `<C-u>`              | Scroll the app up half the region read                            |
+| `<Plug>(scroll-page-down)`  | `<C-f>`              | Scroll the app down most of the region read                       |
+| `<Plug>(scroll-page-up)`    | `<C-b>`              | Scroll the app up most of the region read                         |
+| `<Plug>(scroll-left)`       | `zh`                 | Scroll the app left eight characters, or the count                |
+| `<Plug>(scroll-right)`      | `zl`                 | Scroll the app right eight characters, or the count               |
+| `<Plug>(scroll-half-left)`  | `zH`                 | Scroll the app left half the width read                           |
+| `<Plug>(scroll-half-right)` | `zL`                 | Scroll the app right half the width read                          |
+| `<Plug>(center-line)`       | `zz`                 | Scroll the app until the cursor's line is in the middle. `zz` runs vim's own `zz` first, so a count picks the line |
+| `<Plug>(next-icon)`         | `]i`                 | Move to the next icon                                             |
+| `<Plug>(prev-icon)`         | `[i`                 | Move to the previous icon                                         |
+
+Visual mode maps `<CR>` to `gs`, the drag operator.
 
 ### Vim hotkeys
 
