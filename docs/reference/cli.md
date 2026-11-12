@@ -650,9 +650,10 @@ Read the text in the focused window, or the whole screen with
 `--capture-scope screen`, and move a cursor over it with vim's keys. Motions,
 counts, text objects, search, registers, macros and `.` work as in vim. Marks
 do not, because every scroll and edit reads the screen again and a mark would
-point at other text. Vim mode makes each edit in the app under the cursor, by
-clicking the caret into place, selecting with Shift+Right and typing, then
-reads the screen again.
+point at other text. For the same reason a read of the screen ends visual
+mode, as when `j` past the last line scrolls the app. Vim mode makes each
+edit in the app under the cursor, by clicking the caret into place,
+selecting with Shift+Right and typing, then reads the screen again.
 
 Vim mode's own keys in the table below, such as `s`, `gc` and `Ctrl+D`, are
 mappings that [`[vim.keymaps]`](configuration.md#vim-keymaps) can move or
@@ -662,7 +663,7 @@ turn off.
 | :--- | :--- |
 | `i`, `a`, `I`, `A`, `o`, `O` | Click the app's caret into place, then type into the app until `Escape` |
 | `c`, `d`, `x`, `r`, `J` and the rest | Select the text, then erase it or type over it |
-| `p`, `P` | Click into place and paste |
+| `p`, `P` | Click into place and type the register's text, without its `□` icons. Vim mode never touches the clipboard |
 | `u`, `Ctrl+R` | The app's own undo and redo. A count repeats it, up to eight times |
 | `.` | Repeat the last change. A change typed into the app repeats with what was typed |
 | `y` + motion | Copy the text as read, without touching the app. The copied text flashes and the status bar says how much |
@@ -699,8 +700,9 @@ accurate read replaces it when it finishes. The status bar says `reading…`
 until then. The accurate read also finds icons and pictures with no text,
 such as an icon-only button, and puts a `□` where each one is, so `w`, `j` and
 `s` reach it and `Return` clicks it. A yank leaves the `□` out. The box beside
-the cursor shows the word under it as read. A count is at most four digits,
-and one command changes at most 64 places or 2000 characters.
+the cursor shows the word under it as read. The counts in one command, such
+as both in `99d99j`, multiply to at most 9999, and vim mode drops a digit
+past that. One command changes at most 64 places or 2000 characters.
 
 The fast read knows Latin script only. The accurate read finds each line's
 script, so it reads Chinese, Japanese, Korean, Thai, Russian and the other
@@ -722,9 +724,11 @@ before it finishes.
 
 Typing into the app re-sends each key, so an input method's composition does
 not work there, and `i` over text that cannot be edited sends the keys to the
-app as shortcuts. A drag and every edit change the app's own selection. Vim
-mode also reads the window's title and toolbar as text, so an edit there, such
-as `A` on the title line, renames or types into it. Takes the `vim` flags in
+app as shortcuts. Vim mode types every edit key by key too, so it refuses
+an edit whose text has a character no key types, such as a letter outside
+ASCII, and the status bar says why. A drag and every edit change the app's
+own selection. Vim mode also reads the window's title and toolbar as text,
+so an edit there, such as `A` on the title line, renames or types into it. Takes the `vim` flags in
 the [mode flag reference](#mode-flag-reference). The scope and appearance are
 under [`[vim]`](configuration.md#vim).
 

@@ -63,7 +63,6 @@ type vimSession struct {
 	// when it calls back. One mapping can run several.
 	acts  []func()
 	edits []vim.Edit
-	label string
 	// before is the text the edits' offsets are in, as it was on screen.
 	before *screentext.Text
 	yank   string
@@ -136,9 +135,11 @@ type vimSession struct {
 	mapWait  uint64
 
 	// flash is where the last yank took its text, shown briefly, and notice
-	// what the status bar says about it until the next key.
-	flash  []image.Rectangle
-	notice string
+	// what the status bar says about it until the next key. flashSeq tells
+	// a flash's timer whether a later yank replaced it.
+	flash    []image.Rectangle
+	flashSeq uint64
+	notice   string
 }
 
 // startVim reads the screen and opens vim mode over it. Activated again while
@@ -229,7 +230,7 @@ func (h *handlerState) startVim(activation modecmd.Activation) {
 	}
 
 	if isRefresh {
-		h.vim.host.Replace(text, text.Nearest(h.vimCursorPoint()))
+		h.replaceVimText(text, text.Nearest(h.vimCursorPoint()))
 		h.vim.region = region
 		h.vim.jump = nil
 	} else {
@@ -506,7 +507,8 @@ func (h *handlerState) swapInRefinedVimText() bool {
 
 	text := session.refined
 	session.refined = nil
-	session.host.Replace(text, text.Nearest(h.vimCursorPoint()))
+
+	h.replaceVimText(text, text.Nearest(h.vimCursorPoint()))
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
 
 	return true
@@ -651,6 +653,17 @@ func (h *handlerState) readVimAgain(near image.Point) {
 	h.applyVimRead(near, text, lines, err)
 }
 
+// replaceVimText puts a new read of the screen in place of the text, with
+// the cursor at pos. Visual mode ends first, because its anchor is an offset
+// into the old text, which in the new one is other text or past its end.
+func (h *handlerState) replaceVimText(text *screentext.Text, pos int) {
+	if h.vim.machine.Mode() == vim.Visual {
+		h.feedVim(vimEscape)
+	}
+
+	h.vim.host.Replace(text, pos)
+}
+
 // applyVimRead replaces the text with a read of the screen, the cursor
 // nearest near, and starts a fresh accurate read.
 func (h *handlerState) applyVimRead(
@@ -668,7 +681,8 @@ func (h *handlerState) applyVimRead(
 		return
 	}
 
-	session.host.Replace(text, text.Nearest(near))
+	h.replaceVimText(text, text.Nearest(near))
+
 	session.generation++
 	session.reading = true
 	session.refined = nil
@@ -860,7 +874,7 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 		return nil
 	}
 
-	session.host.OnApply = func(edits []vim.Edit, label string) error {
+	session.host.OnApply = func(edits []vim.Edit, _ string) error {
 		if session.edited {
 			return errVimOneEdit
 		}
@@ -870,9 +884,17 @@ func (h *handlerState) newVimSession(text *screentext.Text, region image.Rectang
 			return errVimTooBig
 		}
 
+		// Every edit reaches the app as typed keys, a put's text included,
+		// so text with a character no key types is refused before the
+		// machine changes anything.
+		for _, edit := range edits {
+			if _, typeable := vimEditKeys(edit.Text); !typeable {
+				return errVimUntypeable
+			}
+		}
+
 		session.edited = true
 		session.edits = append(session.edits[:0], edits...)
-		session.label = label
 		session.before = session.host.Screen()
 
 		return nil
@@ -973,6 +995,12 @@ var (
 	// errVimTooBig refuses an edit that would take the app seconds to make,
 	// with the keyboard held all the while.
 	errVimTooBig = derrors.New(derrors.CodeInvalidInput, "too much to change at once")
+	// errVimUntypeable refuses an edit whose text has a character vim mode
+	// has no key to type, such as a letter outside ASCII.
+	errVimUntypeable = derrors.New(
+		derrors.CodeInvalidInput,
+		"the text has a character vim mode cannot type",
+	)
 	// errVimClickCount refuses a click command whose argument is not a
 	// number of clicks.
 	errVimClickCount = derrors.New(

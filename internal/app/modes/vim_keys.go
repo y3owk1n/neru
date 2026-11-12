@@ -46,6 +46,12 @@ const (
 	// would run a motion or a macro for minutes under h.mu, with the keyboard
 	// held.
 	vimMaxCountDigits = 4
+	// vimMaxCount is the largest count a command may run with. The counts
+	// in one command multiply, as 99d99j moves 9801 lines, so it caps their
+	// product.
+	vimMaxCount = 9999
+	// vimCountBase is the base a count is typed in.
+	vimCountBase = 10
 	// The scroll keys' distances: line heights for Ctrl+E and Ctrl+Y, and
 	// shares of the region read for the rest and for j and k past an edge.
 	vimScrollLines    = 2
@@ -198,7 +204,13 @@ func (h *handlerState) vimStep(key vim.Key, step func() error) {
 		return
 	}
 
+	// The keymap guesses from the keys alone, and the machine maps nothing
+	// while a command is pending, as after the first g of gg, so it holds
+	// nothing then whatever the guess.
 	session.held = held
+	if !machine.Waiting() {
+		session.held = nil
+	}
 
 	h.vimAwaitMapping()
 
@@ -210,7 +222,7 @@ func (h *handlerState) vimStep(key vim.Key, step func() error) {
 	session.acts = nil
 
 	if len(session.edits) > 0 {
-		h.vimApplyEdits(session.edits, session.label)
+		h.vimApplyEdits(session.edits)
 
 		if len(acts) == 0 || h.vim != session || session.typing {
 			return
@@ -497,18 +509,48 @@ func (h *handlerState) runVim(step func() error) bool {
 	return true
 }
 
-// vimCountTooLong reports a digit that would make the count being typed
-// longer than vimMaxCountDigits.
+// vimCountTooLong reports a digit that would make the counts of the command
+// being typed multiply past vimMaxCount.
 func vimCountTooLong(machine *vim.Machine, key vim.Key) bool {
 	if len(key) != 1 || key[0] < '0' || key[0] > '9' {
 		return false
 	}
 
+	// A digit after a key that waits for a character is that character, and
+	// ends the command, so no digit before it is that character too.
 	shown := machine.Shown()
-	digits := len(shown) - len(strings.TrimRightFunc(shown, unicode.IsDigit))
+	if last, _ := utf8.DecodeLastRuneInString(shown); strings.ContainsRune(vimCharKeys, last) {
+		return false
+	}
 
-	return digits >= vimMaxCountDigits
+	product, run, register := 1, 0, false
+
+	for _, char := range shown + string(key) {
+		switch {
+		case register:
+			register = false
+		case char >= '0' && char <= '9' && (run > 0 || char != '0'):
+			run = run*vimCountBase + int(char-'0')
+			if product*run > vimMaxCount {
+				return true
+			}
+
+			continue
+		case char == '"':
+			register = true
+		}
+
+		if run > 0 {
+			product, run = product*run, 0
+		}
+	}
+
+	return false
 }
+
+// vimCharKeys are the keys that take the next key as a character, such as
+// the register after " or the target of f.
+const vimCharKeys = `"fFtTrm'` + "`@q"
 
 // handleVimTypingKey sends a key to the app while typing, until Escape,
 // which goes back to normal mode and reads the screen the typing changed.
@@ -696,8 +738,16 @@ func (h *handlerState) findVimJumpTargets() {
 	}
 
 	query, haystack := jump.query, session.host.Screen().String()
+
+	// inText maps an offset in haystack back to the text, since lowering a
+	// rune can change its length, as İ grows a byte.
+	inText := func(offset int) int { return offset }
+
 	if strings.ToLower(query) == query {
-		haystack = strings.ToLower(haystack)
+		var offsets []int
+
+		haystack, offsets = vimLowered(haystack)
+		inText = func(offset int) int { return offsets[offset] }
 	}
 
 	next := map[rune]bool{}
@@ -709,7 +759,7 @@ func (h *handlerState) findVimJumpTargets() {
 		}
 
 		start := from + found
-		jump.matches = append(jump.matches, [2]int{start, start + len(query)})
+		jump.matches = append(jump.matches, [2]int{inText(start), inText(start + len(query))})
 
 		if r, _ := utf8.DecodeRuneInString(haystack[start+len(query):]); r != utf8.RuneError {
 			next[unicode.ToLower(r)] = true
@@ -739,6 +789,25 @@ func (h *handlerState) findVimJumpTargets() {
 		jump.labels[index] = string(free[0])
 		free = free[1:]
 	}
+}
+
+// vimLowered returns text in lower case, and for each of its byte offsets,
+// and its end, the offset in text it came from.
+func vimLowered(text string) (string, []int) {
+	var lowered strings.Builder
+
+	offsets := make([]int, 0, len(text)+1)
+
+	for offset, r := range text {
+		before := lowered.Len()
+		lowered.WriteRune(unicode.ToLower(r))
+
+		for range lowered.Len() - before {
+			offsets = append(offsets, offset)
+		}
+	}
+
+	return lowered.String(), append(offsets, len(text))
 }
 
 // vimJumpLabelBox is where a jump match's label goes: over the character

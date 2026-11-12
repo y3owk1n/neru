@@ -56,11 +56,10 @@ const (
 // the handler.
 const vimGlideLimit = time.Second
 
-// The chords vim mode sends the app for u and Ctrl+R, and to copy and paste.
+// The chords vim mode sends the app for u and Ctrl+R, and to erase.
 const (
 	vimKeyUndo  = "Primary+z"
 	vimKeyRedo  = "Primary+Shift+z"
-	vimKeyPaste = "Primary+v"
 	vimKeyErase = "Delete"
 	// vimKeyExtend grows the app's selection by one character, and
 	// vimKeyExtendBack grows it backwards.
@@ -109,6 +108,8 @@ func vimCaretIn(text *screentext.Text, pos int) image.Point {
 // The line above can be outside the field, such as the title over a search
 // bar.
 func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) {
+	start, end = vimBreakBefore(text, start, end)
+
 	extend, from := vimKeyExtend, text.AppStart(start)
 	if text.Slice(start, min(start+1, text.Len())) == "\n" {
 		extend, from = vimKeyExtendBack, end
@@ -118,6 +119,27 @@ func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) {
 	h.vimFeed(slices.Repeat([]string{extend}, text.AppChars(start, end))...)
 }
 
+// vimBreakBefore moves whole lines [start, end) that end their container to
+// take the line break before them instead of the one after. That last break
+// is the gap vim lays out before the next container, which the app does not
+// have when the container is a field, so dd on a field's last line would
+// leave the break above it. Taking the break before leaves the same text
+// whenever the app has both.
+func vimBreakBefore(text *screentext.Text, start, end int) (int, int) {
+	if start == 0 || text.Slice(start-1, start) != "\n" || text.Slice(end-1, end) != "\n" {
+		return start, end
+	}
+
+	container, inContainer := text.ContainerAt(start)
+	next, inNext := text.ContainerAt(end)
+
+	if !inContainer || (end < text.Len() && inNext && next == container) {
+		return start, end
+	}
+
+	return start - 1, end - 1
+}
+
 // vimAwaitLine waits until the screen shows the line edits are on with the
 // edits made. It reads the band of the screen from that line down, since a
 // longer line may wrap. An app can take a click ahead of keys sent before
@@ -125,12 +147,20 @@ func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) {
 // the caret away from keys still on their way. It reports false when the
 // screen does not show the change within vimLandLimit.
 func (h *handlerState) vimAwaitLine(before *screentext.Text, edits []vim.Edit) bool {
-	line := before.LineOf(edits[0].Start)
-	start, end := before.LineStart(line), before.Len()
+	lineEnd := func(line int) int {
+		if line+1 < before.Lines() {
+			return before.LineStart(line+1) - 1
+		}
 
-	if line+1 < before.Lines() {
-		end = before.LineStart(line+1) - 1
+		return before.Len()
 	}
+
+	// The last edit can take the line break, as J does, and the line it
+	// joins comes up onto this one, so the change runs to the end of the
+	// line that edit ends on.
+	line := before.LineOf(edits[0].Start)
+	start, shown := before.LineStart(line), lineEnd(line)
+	end := lineEnd(before.LineOf(edits[len(edits)-1].End))
 
 	var changed strings.Builder
 
@@ -143,7 +173,7 @@ func (h *handlerState) vimAwaitLine(before *screentext.Text, edits []vim.Edit) b
 
 	changed.WriteString(before.Slice(max(from, start), end))
 
-	level, visible := vimLandLevel(before.Slice(start, end), changed.String())
+	level, visible := vimLandLevel(before.Slice(start, shown), changed.String())
 	if !visible {
 		return false
 	}
@@ -338,14 +368,13 @@ func (h *handlerState) vimFeed(keys ...string) bool {
 
 // vimApplyEdits makes a command's edits in the app with clicks and keys. A
 // deletion selects the text and erases it, a replacement selects it and
-// types over it, an insertion clicks into place and types, and a put clicks
-// and pastes. They run last to first, so
-// each one's place on screen has not moved yet. Then the screen is read
-// again, or the keyboard goes to the app when the command left insert mode.
-func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
+// types over it, and an insertion, a put's among them, clicks into place and
+// types. They run last to first, so each one's place on screen has not moved
+// yet. Then the screen is read again, or the keyboard goes to the app when
+// the command left insert mode.
+func (h *handlerState) vimApplyEdits(edits []vim.Edit) {
 	session := h.vim
 	before := session.before
-	put := vimIsPut(label)
 	anchor := vimCaretIn(before, edits[0].Start)
 
 	// A change leaves its text selected for the first key typed to replace.
@@ -365,8 +394,7 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 	held, heldErr := h.actionService.CursorPosition(h.ctx)
 
 	// after is the change made last, which is later in the text, and typed
-	// how many characters the caret sits past its start. Nil after a paste,
-	// whose length the app decides.
+	// how many characters the caret sits past its start.
 	var after *vim.Edit
 
 	typed := 0
@@ -377,18 +405,14 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 	var lineEdits []vim.Edit
 
 	for index, edit := range slices.Backward(edits) {
-		keys, typeable := screentext.FeedKeys(vimWithoutIndent(edit.Text))
-		if !put && !typeable {
-			h.logger.Debug("Vim edit has text that cannot be typed")
-
-			break
-		}
+		// OnApply refused any edit with text no key types.
+		keys, _ := vimEditKeys(edit.Text)
 
 		// A deletion of only the padding before a line's first character, as
 		// dw from column 0 makes, takes nothing the app has. Erasing with
 		// nothing selected would take the character before the caret, the
 		// line break, and join the line to the one above.
-		if !put && edit.Text == "" && before.AppChars(edit.Start, edit.End) == 0 {
+		if edit.Text == "" && before.AppChars(edit.Start, edit.End) == 0 {
 			continue
 		}
 
@@ -406,9 +430,6 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 		}
 
 		switch {
-		case put:
-			h.vimClick(vimCaretIn(before, edit.Start))
-			h.vimFeed(vimKeyPaste)
 		case chained:
 			// The caret is just past what the change after this one typed, on
 			// the same run of text, so arrow keys reach this one without a
@@ -431,10 +452,7 @@ func (h *handlerState) vimApplyEdits(edits []vim.Edit, label string) {
 
 		lineEdits = append([]vim.Edit{edit}, lineEdits...)
 
-		after, typed = nil, len(keys)
-		if !put {
-			after = &edit
-		}
+		after, typed = &edit, len(keys)
 	}
 
 	session.edits = nil
@@ -487,16 +505,15 @@ func (h *handlerState) vimTypingStart(
 	return image.Pt(box.Min.X-1, anchor.Y+breaks*box.Dy()*vimLineSpacing/vimHalf)
 }
 
-// vimIsPut reports whether a command's keys are a put, p or P after any
-// register and count.
-func vimIsPut(label string) bool {
-	if len(label) >= 2 && label[0] == '"' {
-		label = label[2:]
-	}
+// vimEditKeys returns the keys that type an edit's text into the app, and
+// false when a character in it has no key. The text is as vim read it, so
+// it leaves out the padding that indents a line, which the app adds itself,
+// and the icons, which the app has no text for, each with the space after.
+func vimEditKeys(text string) ([]string, bool) {
+	text = strings.ReplaceAll(text, screentext.IconGlyph+" ", "")
+	text = strings.ReplaceAll(text, screentext.IconGlyph, "")
 
-	label = strings.TrimLeft(label, "0123456789")
-
-	return label == "p" || label == "P" || label == "gp" || label == "gP"
+	return screentext.FeedKeys(vimWithoutIndent(text))
 }
 
 // vimYank copies the text a yank took, as it was read, without touching the
@@ -528,8 +545,9 @@ func (h *handlerState) vimYank(read string) {
 
 	session.notice = vimCopiedNotice(read)
 
-	outer := h.outer
-	time.AfterFunc(vimFlashDuration, func() { outer.clearVimFlash(session) })
+	session.flashSeq++
+	outer, seq := h.outer, session.flashSeq
+	time.AfterFunc(vimFlashDuration, func() { outer.clearVimFlash(session, seq) })
 
 	clipboard, logger, parent := h.clipboard, h.logger, h.ctx
 	if clipboard == nil {
@@ -556,13 +574,13 @@ func vimCopiedNotice(read string) string {
 	return "copied " + strconv.Itoa(utf8.RuneCountInString(read)) + " characters"
 }
 
-// clearVimFlash takes a yank's flash off the screen, for the session that
-// made it.
-func (h *Handler) clearVimFlash(session *vimSession) {
+// clearVimFlash takes a yank's flash off the screen, for the session and
+// yank that made it.
+func (h *Handler) clearVimFlash(session *vimSession, seq uint64) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if h.vim != session || session.flash == nil {
+	if h.vim != session || session.flashSeq != seq || session.flash == nil {
 		return
 	}
 

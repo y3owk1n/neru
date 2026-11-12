@@ -4901,6 +4901,236 @@ func TestSimulation_VimSubstituteStopsWhenTheScreenNeverShows(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimJoinsThreeLines covers 3J, whose two changes each take a
+// line break. It joins the last two lines first and waits for the screen to
+// show two and three on one line before it clicks the line above.
+func TestSimulation_VimJoinsThreeLines(t *testing.T) {
+	const one, two, three = "one", "two", "three"
+
+	oneBox, twoBox := image.Rect(100, 100, 145, 130), image.Rect(100, 200, 145, 230)
+	threeBox := image.Rect(100, 300, 175, 330)
+
+	sim := vimHarness(t, map[string]image.Rectangle{one: oneBox, two: twoBox, three: threeBox})
+	sim.vision.ReadLinesFunc = func(
+		context.Context, image.Rectangle, ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		// Each join selects its line break and types a space over it.
+		if len(sim.keyFeed.FedKeys()) >= 2 {
+			return [][]ports.TextPiece{
+				{{Text: one, Bounds: oneBox}},
+				{
+					{Text: two, Bounds: twoBox},
+					{Text: three, Bounds: image.Rect(160, 200, 235, 230)},
+				},
+			}, nil
+		}
+
+		return [][]ports.TextPiece{
+			{{Text: one, Bounds: oneBox}},
+			{{Text: two, Bounds: twoBox}},
+			{{Text: three, Bounds: threeBox}},
+		}, nil
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "3", "J")
+	sim.waitFor("both line breaks typed over", func() bool {
+		return len(sim.ax.recordedClicks()) == 2 && len(sim.keyFeed.FedKeys()) == 4
+	})
+
+	if clicks := sim.ax.recordedClicks(); clicks[1].point.Y >= 300 {
+		t.Fatalf("clicks %v, want the second above the line of three", clicks)
+	}
+}
+
+// TestSimulation_VimLeavesVisualModeWhenTheScreenIsReadAgain covers a
+// selection carried down past the last line, which scrolls the app. The
+// screen read after the scroll is shorter than the selection's start, so
+// vim leaves visual mode rather than select from an offset the new text
+// does not have.
+func TestSimulation_VimLeavesVisualModeWhenTheScreenIsReadAgain(t *testing.T) {
+	sim := vimHarness(t, nil)
+
+	var scrolled atomic.Bool
+
+	sim.vision.ReadLinesFunc = func(
+		context.Context, image.Rectangle, ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if scrolled.Load() {
+			return [][]ports.TextPiece{{{Text: "x", Bounds: image.Rect(100, 100, 115, 130)}}}, nil
+		}
+
+		return [][]ports.TextPiece{
+			{
+				{Text: "alpha", Bounds: image.Rect(100, 100, 175, 130), Word: 0},
+				{Text: "bravo", Bounds: image.Rect(190, 100, 265, 130), Word: 1},
+			},
+			{
+				{Text: "charlie", Bounds: image.Rect(100, 135, 205, 165), Word: 0},
+				{Text: "delta", Bounds: image.Rect(220, 135, 295, 165), Word: 1},
+			},
+		}, nil
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("G", "Shift+4")
+	vimFrameShows(sim, "the cursor on the last line", func(f ports.VimFrame) bool {
+		return f.Cursor.Min.Y == 135
+	})
+
+	scrolled.Store(true)
+	sim.press("v", "j")
+	vimFrameShows(sim, "normal mode over the shorter screen", func(f ports.VimFrame) bool {
+		return f.Status.Mode == vimNormalMode && len(f.Selection) == 0 && f.Cursor.Min.Y == 100
+	})
+
+	sim.waitMode(domain.ModeVim)
+}
+
+// TestSimulation_VimJumpsPastALetterWhoseLowerCaseIsLonger covers a jump on a
+// line with İ, whose lower case is a byte longer. The matches for a land on
+// the A and the a rather than a byte to the left of each.
+func TestSimulation_VimJumpsPastALetterWhoseLowerCaseIsLonger(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		"İSTANBUL": image.Rect(100, 100, 220, 130),
+		"ab":       image.Rect(235, 100, 265, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("s", "a")
+	vimFrameShows(sim, "the A and the a matched", func(f ports.VimFrame) bool {
+		return len(f.Matches) == 2 &&
+			slices.Contains(f.Matches, image.Rect(145, 100, 160, 130)) &&
+			slices.Contains(f.Matches, image.Rect(235, 100, 250, 130))
+	})
+}
+
+// TestSimulation_VimScrollsUpOnKAfterGG covers k on the first line right
+// after gg. The second g could have started a mapping such as gc, but it
+// ended a command, so k scrolls the app as it does after any other motion.
+func TestSimulation_VimScrollsUpOnKAfterGG(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(100, 140, 160, 170),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("G", "g", "g", "k")
+	sim.waitFor("k scrolled the app", func() bool {
+		return len(sim.ax.recordedScrolls()) == 1
+	})
+}
+
+// TestSimulation_VimCapsTheCountsOfACommandTogether covers a count before an
+// operator and another before its motion, which multiply. A digit that would
+// take the product past 9999 is dropped, as a fifth digit of one count is,
+// while a digit that is the character f looks for still lands.
+func TestSimulation_VimCapsTheCountsOfACommandTogether(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("9", "9", "y", "1", "0", "1", "0", "2")
+	vimFrameShows(sim, "the count that passes 9999 dropped", func(f ports.VimFrame) bool {
+		return f.Status.Text == "99y101"
+	})
+
+	sim.press("Escape", "9", "9", "9", "9", "f", "9")
+	vimFrameShows(sim, "the f target typed", func(f ports.VimFrame) bool {
+		return f.Status.Text == ""
+	})
+}
+
+// TestSimulation_VimPutsTheRegisterByTypingIt covers ddp. The put types the
+// line dd took, since the app's paste would put whatever the clipboard held
+// instead, which dd never wrote.
+func TestSimulation_VimPutsTheRegisterByTypingIt(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(100, 140, 160, 170),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "d", "d")
+	sim.waitFor("dd made in the app", func() bool {
+		return slices.Contains(sim.keyFeed.FedKeys(), "Delete")
+	})
+
+	deleted := len(sim.keyFeed.FedKeys())
+
+	sim.press("p")
+	sim.waitFor("File typed", func() bool {
+		typed := strings.Join(sim.keyFeed.FedKeys()[deleted:], " ")
+
+		return strings.Contains(typed, "F i l e")
+	})
+
+	if slices.Contains(sim.keyFeed.FedKeys(), "Primary+v") {
+		t.Fatalf("keys %v, want the put typed without the app's paste", sim.keyFeed.FedKeys())
+	}
+}
+
+// TestSimulation_VimDeletesTheLastLineOfAFieldWithTheBreakAbove covers dd on
+// the last line of a container, such as a text field with a paragraph below
+// it. The field has no line break after its last line, so dd selects back
+// from the line's end over the break above it, rather than forward over a
+// break the field does not have.
+func TestSimulation_VimDeletesTheLastLineOfAFieldWithTheBreakAbove(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(100, 140, 160, 170),
+		vimWordExit: image.Rect(100, 400, 160, 430),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "j", "d", "d")
+	sim.waitFor("Edit and the break above it erased", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(),
+			append(slices.Repeat([]string{vimKeyExtendBack}, len("\nEdit")), "Delete"))
+	})
+
+	if clicks := sim.ax.recordedClicks(); len(clicks) != 1 || clicks[0].point.Y != 155 ||
+		clicks[0].point.X < 155 {
+		t.Fatalf("clicks %v, want one at the end of Edit", clicks)
+	}
+}
+
+// TestSimulation_VimRefusesToPutWhatItCannotType covers a put of a word with a
+// letter outside ASCII, which no key types. The status bar says so, and
+// nothing reaches the app.
+func TestSimulation_VimRefusesToPutWhatItCannotType(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{"café": image.Rect(100, 100, 160, 130)})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("y", "i", "w", "Shift+p")
+	vimFrameShows(sim, "the put refused", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status.Text, "cannot type")
+	})
+
+	if keys, clicks := sim.keyFeed.FedKeys(), sim.ax.recordedClicks(); len(keys) != 0 ||
+		len(clicks) != 0 {
+		t.Fatalf("keys %v and clicks %v, want nothing sent to the app", keys, clicks)
+	}
+}
+
 // TestSimulation_VimOpensALineBelowAnIndentedOne covers o on a line read with
 // padding before it. The new line gets no typed indent, since the padding is
 // not text the app has, and Escape after typing leaves insert mode for good:
