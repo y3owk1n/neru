@@ -115,9 +115,39 @@ jump. Bind it to a second hotkey to keep the subgrid on the first.
 The [`[scroll]` default hotkeys](../reference/configuration.md#scroll-default-hotkeys)
 list the keys for paging, jumping to the top and scrolling sideways.
 
+## Vim
+
+`neru vim`. It has no default hotkey, so bind one:
+
+```toml
+[hotkeys]
+"Primary+Shift+V" = "vim"
+```
+
+1. Press the hotkey. Neru reads the text in the focused window and puts a
+   cursor on the character nearest the mouse pointer. A status bar shows the
+   mode and the command being typed.
+2. Move with vim's keys, such as `w`, `b`, `j`, `k`, `f`, `/` and counts. To
+   jump anywhere, press `s`, type a few characters of the target, then the
+   label that appears on it.
+3. Act on it. `Return` clicks the character under the cursor, `y` and a
+   motion copy the text as read, and `i`, `c` or `d` edit the app's text in
+   place.
+4. Press `Escape` to leave. With a command half typed, the first `Escape`
+   cancels it.
+
+Vim mode keeps every key for vim, so it does not bind the shared keys in
+the next section, such as `Shift+L`. `gc`, `gr` and `gm` click, and
+`:leftdown` and `:leftup` around a motion drag. On macOS it needs the Screen
+Recording permission, see [Getting started](getting-started.md#macos).
+[`neru vim`](../reference/cli.md#neru-vim) lists every key and what an edit
+does to the app, and [`[vim.keymaps]`](../reference/configuration.md#vim-keymaps)
+remaps them.
+
 ## More than a left click
 
-These work in every mode except monitor select, which only picks a display.
+These work in every mode except monitor select, which only picks a display,
+and vim, which has its own keys for them.
 
 **Double and triple click.** Bind a chain, such as
 `"Ctrl+Enter" = "action left_click,left_click"`. See

@@ -384,7 +384,7 @@ sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5
 sub_key_preview_label_char = ""
 
-# Vim mode (macOS)
+# Vim mode
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#vim
 [vim]
 enabled = true

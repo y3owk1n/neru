@@ -54,7 +54,7 @@ the current mode or which sticky modifiers are held. See
 [`[macros]`](../reference/configuration.md#macros).
 
 **Mode.** A state where Neru captures the keyboard and draws an overlay, such as
-hints, grid, recursive grid, bisect, scroll or monitor select. You can also
+hints, grid, recursive grid, bisect, scroll, monitor select or vim. You can also
 declare your own under [`[modes]`](../reference/configuration.md#modes). See
 [Using Neru](../guide/using-neru.md).
 

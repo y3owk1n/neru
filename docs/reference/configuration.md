@@ -283,7 +283,7 @@ indicator = "Window"
 
 The name is the table key: letters, digits, `_` and `-`, starting with a
 letter. Neru refuses the built-in mode names (`hints`, `grid`,
-`recursive_grid`, `bisect`, `scroll`, `monitor_select`, `idle`) and `mode`. The
+`recursive_grid`, `bisect`, `scroll`, `monitor_select`, `vim`, `idle`) and `mode`. The
 indicator style comes
 from [`[mode_indicator.ui]`](#mode_indicator).
 

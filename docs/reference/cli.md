@@ -87,7 +87,7 @@ Print the daemon state and the current mode.
 
 The human form prints `Status` (`running`, or `stopped` after `neru stop`) and
 `Mode` (`idle`, `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`,
-`monitor_select`, or the name of the open [declared mode](configuration.md#modes)).
+`monitor_select`, `vim`, or the name of the open [declared mode](configuration.md#modes)).
 It then prints `Config`, `Platform`, the adapter profile, and the runtime
 toggles as `yes` or `no`. `Cursor follows selection` appears only while it has
 a value. With `--json`, the object goes to stdout alone, and errors go to
@@ -508,7 +508,7 @@ confirm a mode opened, read `mode` from [`neru status --json`](#neru-status),
 or wait for the `mode_enter` line of `neru watch --event mode_enter`.
 
 Errors: `ERR_MODE_DISABLED` when the config sets `enabled = false` for the
-mode, which hints, grid, recursive_grid, bisect and monitor_select can do.
+mode, which hints, grid, recursive_grid, bisect, monitor_select and vim can do.
 `ERR_NOT_RUNNING` after `neru stop`. A flag the mode refuses fails too. The CLI
 refuses it before sending, and the daemon answers `ERR_INVALID_INPUT`.
 

@@ -86,6 +86,7 @@ Run `neru launch`, grant the permissions `neru doctor` asks for, then press
 | **Hints**             | `Primary+Shift+Space` | Labels every target via accessibility tree, OCR or a pixel scan | Native apps, Electron, browsers, Figma      |
 | **Grid**              | `Primary+Shift+G`     | Type a row and column label to jump to a cell                   | Coarse jumps across big monitors            |
 | **Scroll**            | `Primary+Shift+S`     | `j`/`k`, `u`/`d`, `gg`/`G`, `h`/`l` in any scroll view          | Reading without lifting your hands          |
+| **Vim**               | unbound               | Reads the screen's text and moves a cursor over it with vim keys | Selecting, copying and editing any app's text |
 | **Monitor Select**    | disabled, unbound     | Labels each display, type one to jump                           | Multi-monitor setups                        |
 | **Your own**          | unbound               | A name, an indicator and a key table you declare in config      | Window management layers, app-specific keys |
 
