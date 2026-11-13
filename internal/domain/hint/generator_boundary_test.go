@@ -220,6 +220,104 @@ func TestAlphabetGenerator_Generate_LabelsArePrefixFreeAndUnique(t *testing.T) {
 
 // assertLabelsUniqueAndPrefixFree checks the two properties the hint router
 // depends on: labels are distinct, and none is a prefix of another.
+// homeRow is the default hint characters, which split into asdfg and hjkl.
+const homeRow = "asdfghjkl"
+
+// TestAlphabetGenerator_LabelAlternationHalves_AlternatesWhileLabelsFit pins
+// the halves split for every count up to MaxHints, in both directions. Labels
+// stay prefix-free and unique. Every multi-key label alternates between the
+// first half of the characters and the rest while the count is above the
+// alphabet size and within L*R*N. Outside that range, and for any count when
+// a hand has a single key, the labels are the ones the generator produces
+// without alternation.
+func TestAlphabetGenerator_LabelAlternationHalves_AlternatesWhileLabelsFit(t *testing.T) {
+	for _, characters := range []string{"xyz", "abcde", homeRow, homeRow + "q"} {
+		numChars := len(characters)
+		upper := strings.ToUpper(characters)
+		half := (numChars + 1) / 2
+
+		// A hand with a single key gets no alternation.
+		capacity := 0
+		if numChars-half > 1 {
+			capacity = half * (numChars - half) * numChars
+		}
+
+		for _, direction := range []hint.LabelDirection{
+			hint.LabelDirectionReverse,
+			hint.LabelDirectionNormal,
+		} {
+			plain, err := hint.NewAlphabetGenerator(characters, direction)
+			if err != nil {
+				t.Fatalf("NewAlphabetGenerator(%q): %v", characters, err)
+			}
+
+			alternating, _ := hint.NewAlphabetGenerator(characters, direction)
+			alternating.UpdateLabelAlternation(hint.LabelAlternationHalves)
+
+			for count := 1; count <= plain.MaxHints(); count++ {
+				labels := alternating.LabelsForTesting(count)
+				name := labelCaseName(characters, direction, count)
+
+				if len(labels) != count {
+					t.Fatalf("%s: got %d labels, want %d", name, len(labels), count)
+				}
+
+				assertLabelsUniqueAndPrefixFree(t, labels)
+
+				if count <= numChars || count > capacity {
+					if want := plain.LabelsForTesting(count); !slices.Equal(labels, want) {
+						t.Fatalf("%s: got %v, want the unalternated %v", name, labels, want)
+					}
+
+					continue
+				}
+
+				for _, label := range labels {
+					for pos := 1; pos < len(label); pos++ {
+						if (strings.IndexByte(upper, label[pos-1]) < half) ==
+							(strings.IndexByte(upper, label[pos]) < half) {
+							t.Fatalf("%s: label %q repeats a hand", name, label)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// TestAlphabetGenerator_LabelAlternationHalves_Order pins the label order under
+// the halves split for the default characters, so a change to which prefixes
+// expand first fails as a diff and not only as a property check.
+func TestAlphabetGenerator_LabelAlternationHalves_Order(t *testing.T) {
+	tests := []struct {
+		direction hint.LabelDirection
+		count     int
+		want      string
+	}{
+		{hint.LabelDirectionNormal, 12, "A S D F G H J K LA LS LD LF"},
+		{hint.LabelDirectionNormal, 14, "A S D F G H J KA KS LA LS LD LF LG"},
+		{hint.LabelDirectionReverse, 12, "AH SH DH FH GH HA JA KA LA AJ SJ DJ"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(labelCaseName(homeRow, testCase.direction, testCase.count), func(t *testing.T) {
+			generator, err := hint.NewAlphabetGenerator(homeRow, testCase.direction)
+			if err != nil {
+				t.Fatalf("NewAlphabetGenerator: %v", err)
+			}
+
+			generator.UpdateLabelAlternation(hint.LabelAlternationHalves)
+
+			if got := strings.Join(
+				generator.LabelsForTesting(testCase.count),
+				" ",
+			); got != testCase.want {
+				t.Errorf("labels = %s, want %s", got, testCase.want)
+			}
+		})
+	}
+}
+
 func assertLabelsUniqueAndPrefixFree(t *testing.T, labels []string) {
 	t.Helper()
 

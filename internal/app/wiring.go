@@ -162,8 +162,8 @@ func initializeServices(
 	visionPort ports.VisionPort,
 	logger *zap.Logger,
 ) (*services.HintService, *services.GridService, *services.ActionService, *services.ScrollService, indicatorServices, error) {
-	hintGen, hintGenErr := domainHint.NewAlphabetGenerator(
-		cfg.Hints.HintCharacters,
+	hintGen, hintGenErr := newHintGenerator(
+		cfg,
 		domainHint.LabelDirectionFromString(cfg.Hints.LabelDirectionForApp("")),
 	)
 	if hintGenErr != nil {

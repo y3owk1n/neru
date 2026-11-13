@@ -225,8 +225,8 @@ func (a *App) updateServiceConfigs(cfg *config.Config) {
 	if a.hintService != nil {
 		a.hintService.UpdateConfig(cfg.Hints)
 
-		newGen, genErr := domainHint.NewAlphabetGenerator(
-			cfg.Hints.HintCharacters,
+		newGen, genErr := newHintGenerator(
+			cfg,
 			domainHint.LabelDirectionFromString(cfg.Hints.LabelDirectionForApp("")),
 		)
 		if genErr != nil {

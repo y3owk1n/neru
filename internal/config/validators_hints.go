@@ -493,6 +493,16 @@ func (c *Config) validateHintVocabulary() error {
 		)
 	}
 
+	switch c.Hints.LabelAlternation {
+	case domain.LabelAlternationNone, domain.LabelAlternationHalves, "":
+	default:
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.label_alternation must be %q or %q",
+			domain.LabelAlternationNone, domain.LabelAlternationHalves,
+		)
+	}
+
 	return nil
 }
 

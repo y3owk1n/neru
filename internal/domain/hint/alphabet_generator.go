@@ -86,6 +86,42 @@ func (d LabelDirection) Opposite() LabelDirection {
 	}
 }
 
+// LabelAlternation decides whether consecutive keys of a multi-character
+// label have to come from opposite hands.
+type LabelAlternation uint8
+
+const (
+	// LabelAlternationNone puts no constraint on consecutive keys. This is the
+	// default.
+	LabelAlternationNone LabelAlternation = iota
+
+	// LabelAlternationHalves treats the first half of the characters as one
+	// hand and the rest as the other, with the extra character in the first
+	// half for an odd count. Each key of a label comes from the opposite hand
+	// to the key before it. It applies from more hints than characters up to
+	// L*R*N hints. Beyond that the labels are unconstrained.
+	LabelAlternationHalves
+)
+
+// String returns the canonical config representation of the alternation.
+func (a LabelAlternation) String() string {
+	if a == LabelAlternationHalves {
+		return "halves"
+	}
+
+	return "none"
+}
+
+// LabelAlternationFromString parses a config-style alternation string.
+// Unknown values resolve to LabelAlternationNone.
+func LabelAlternationFromString(s string) LabelAlternation {
+	if s == "halves" {
+		return LabelAlternationHalves
+	}
+
+	return LabelAlternationNone
+}
+
 // labelCacheEntry holds a cached label slice with access tracking.
 type labelCacheEntry struct {
 	labels   []string
@@ -116,6 +152,7 @@ type AlphabetGenerator struct {
 	maxHints         int
 	uppercaseRuneMap map[rune]rune
 	labelDirection   LabelDirection
+	labelAlternation LabelAlternation
 }
 
 // NewAlphabetGenerator creates a new alphabet-based hint generator.
@@ -227,6 +264,13 @@ func (g *AlphabetGenerator) UpdateLabelDirection(direction LabelDirection) {
 	g.labelDirection = direction
 }
 
+// UpdateLabelAlternation sets whether multi-character labels alternate hands.
+// The label cache key includes the alternation, so a change recomputes labels
+// on next use.
+func (g *AlphabetGenerator) UpdateLabelAlternation(alternation LabelAlternation) {
+	g.labelAlternation = alternation
+}
+
 // Update replaces both the character set and label direction in a single
 // call. Callers that only need to change one field should prefer
 // UpdateCharacters or UpdateLabelDirection so the intent is explicit.
@@ -301,7 +345,8 @@ func (g *AlphabetGenerator) generateLabels(count int) []string {
 		return nil
 	}
 
-	cacheKey := g.uppercaseChars + ":" + g.labelDirection.String() + ":" + strconv.Itoa(count)
+	cacheKey := g.uppercaseChars + ":" + g.labelDirection.String() + ":" +
+		g.labelAlternation.String() + ":" + strconv.Itoa(count)
 
 	labelCacheMu.Lock()
 	if entry, ok := labelCache[cacheKey]; ok {
@@ -362,6 +407,15 @@ func (g *AlphabetGenerator) computeLabels(count int) []string {
 	chars := []rune(g.uppercaseChars)
 	numChars := len(chars)
 	labels := make([]string, 0, count)
+
+	if g.labelAlternation == LabelAlternationHalves && count > numChars &&
+		count <= alternatingCapacity(numChars) {
+		if g.labelDirection == LabelDirectionReverse {
+			return computeLabelsAlternatingReverse(count, chars, labels)
+		}
+
+		return computeLabelsAlternatingNormal(count, chars, labels)
+	}
 
 	if g.labelDirection == LabelDirectionReverse {
 		return g.computeLabelsReverse(count, chars, numChars, labels)
@@ -520,6 +574,158 @@ func (g *AlphabetGenerator) computeLabelsNormal(
 
 					current[pos] = 0
 				}
+			}
+		}
+	}
+
+	return labels
+}
+
+// handCount is the number of hands the halves split divides characters into.
+const handCount = 2
+
+// firstHandSize is the size of the first hand under the halves split, the
+// larger half for an odd count.
+func firstHandSize(numChars int) int {
+	return (numChars + 1) / handCount
+}
+
+// alternatingCapacity is how many alternating labels of up to three keys the
+// halves split of numChars characters yields: L*R*N. It is zero when a hand
+// has a single key, since alternation would then only lengthen labels.
+func alternatingCapacity(numChars int) int {
+	half := firstHandSize(numChars)
+	if numChars-half <= 1 {
+		return 0
+	}
+
+	return half * (numChars - half) * numChars
+}
+
+// handRange returns the character indexes [low, high) of hand (0 or 1) under the
+// halves split, where hand 0 is the first, larger half.
+func handRange(hand, numChars int) (int, int) {
+	half := firstHandSize(numChars)
+	if hand == 0 {
+		return 0, half
+	}
+
+	return half, numChars
+}
+
+// handOf returns the hand (0 or 1) of the character at index under the halves
+// split.
+func handOf(index, numChars int) int {
+	if index < firstHandSize(numChars) {
+		return 0
+	}
+
+	return 1
+}
+
+// buildLabel renders a sequence of character indexes as a label.
+func buildLabel(chars []rune, indexes []int) string {
+	var builder strings.Builder
+
+	builder.Grow(len(indexes))
+
+	for _, index := range indexes {
+		builder.WriteRune(chars[index])
+	}
+
+	return builder.String()
+}
+
+// computeLabelsAlternatingNormal is the normal direction under the halves
+// split. As in computeLabelsNormal, the first characters stay single-key
+// labels and prefixes are expanded from the end of the alphabet, shortest
+// first. A prefix expands only into keys of the other hand.
+func computeLabelsAlternatingNormal(count int, chars []rune, labels []string) []string {
+	numChars := len(chars)
+
+	level := make([][]int, numChars)
+	for index := range level {
+		level[index] = []int{index}
+	}
+
+	total := numChars
+
+	for total < count {
+		// Expand from the end of the level until the leaves cover count.
+		cut := len(level)
+		for cut > 0 && total < count {
+			cut--
+			low, high := handRange(1-handOf(level[cut][len(level[cut])-1], numChars), numChars)
+			total += high - low - 1
+		}
+
+		for _, prefix := range level[:cut] {
+			labels = append(labels, buildLabel(chars, prefix))
+		}
+
+		var next [][]int
+
+		for position, prefix := range level[cut:] {
+			low, high := handRange(1-handOf(prefix[len(prefix)-1], numChars), numChars)
+			if position == 0 && total > count {
+				// The last prefix expanded covers more than count, so keep
+				// only the children it needs. At least two remain.
+				high -= total - count
+			}
+
+			for index := low; index < high; index++ {
+				next = append(next, append(slices.Clone(prefix), index))
+			}
+		}
+
+		total = min(total, count)
+		level = next
+	}
+
+	for _, prefix := range level {
+		labels = append(labels, buildLabel(chars, prefix))
+	}
+
+	return labels
+}
+
+// computeLabelsAlternatingReverse is the reverse direction under the halves
+// split. All labels have the same length, two keys up to 2*L*R labels and
+// three keys beyond. As in computeLabelsReverse, the first key varies fastest.
+func computeLabelsAlternatingReverse(count int, chars []rune, labels []string) []string {
+	numChars := len(chars)
+	half := firstHandSize(numChars)
+
+	twoKeys := count <= handCount*half*(numChars-half)
+
+	// The keys that can follow a first key depend only on its hand. They are
+	// listed with the second key varying fastest.
+	var suffixes [handCount][][]int
+
+	for hand := range suffixes {
+		otherLow, otherHigh := handRange(1-hand, numChars)
+
+		if twoKeys {
+			for second := otherLow; second < otherHigh; second++ {
+				suffixes[hand] = append(suffixes[hand], []int{second})
+			}
+
+			continue
+		}
+
+		sameLow, sameHigh := handRange(hand, numChars)
+		for third := sameLow; third < sameHigh; third++ {
+			for second := otherLow; second < otherHigh; second++ {
+				suffixes[hand] = append(suffixes[hand], []int{second, third})
+			}
+		}
+	}
+
+	for round := 0; len(labels) < count; round++ {
+		for first := 0; first < numChars && len(labels) < count; first++ {
+			suffix := suffixes[handOf(first, numChars)]
+			if round < len(suffix) {
+				labels = append(labels, buildLabel(chars, append([]int{first}, suffix[round]...)))
 			}
 		}
 	}
