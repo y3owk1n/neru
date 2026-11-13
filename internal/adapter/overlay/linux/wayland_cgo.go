@@ -59,7 +59,7 @@ func newWlrootsOverlay(logger *zap.Logger) *wlrootsOverlay {
 		stopCh: make(chan struct{}),
 		doneCh: make(chan struct{}),
 	}
-	overlay.srf = overlay
+	overlay.srf = &changeTrackedSurface{overlaySurface: overlay}
 
 	return overlay
 }
@@ -350,16 +350,21 @@ func (o *wlrootsOverlay) textPrim(
 // frame callback.
 const blankFrameTimeout = 100 * time.Millisecond
 
-// withBlanked runs capture with a cleared buffer committed in place of the
-// drawn one, once the compositor has drawn a frame with it, then commits the
-// untouched drawn buffer again. The surface stays mapped, so the overlay keeps
-// the keyboard.
-func (o *wlrootsOverlay) withBlanked(capture func() error) error {
+// withBlanked commits a buffer cleared inside region, or all over when region
+// is empty, in place of the drawn one. Once the compositor has drawn a frame
+// with it, withBlanked runs capture and commits the untouched drawn buffer
+// again. The surface stays mapped, so the overlay keeps the keyboard.
+func (o *wlrootsOverlay) withBlanked(region image.Rectangle, capture func() error) error {
 	if o == nil || o.raw == nil {
 		return capture()
 	}
 
-	saved := C.neru_wayland_overlay_blank(o.raw, C.int(blankFrameTimeout.Milliseconds()))
+	saved := C.neru_wayland_overlay_blank(
+		o.raw,
+		C.int(blankFrameTimeout.Milliseconds()),
+		C.double(region.Min.X), C.double(region.Min.Y),
+		C.double(region.Dx()), C.double(region.Dy()),
+	)
 
 	switch {
 	case saved == C.NERU_BLANK_NOTHING_SHOWN:

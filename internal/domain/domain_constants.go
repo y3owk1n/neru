@@ -30,6 +30,9 @@ const (
 	// name says which. One value serves every declared mode, so the switches
 	// that name a mode gain one arm rather than one per declaration.
 	ModeCustom
+	// ModeVim moves a cursor over the text read off the screen with vim's
+	// motions, search and operators.
+	ModeVim
 )
 
 // IPC Commands.

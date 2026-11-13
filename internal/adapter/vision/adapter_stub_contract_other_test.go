@@ -10,6 +10,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // The vision adapter is fully stubbed on the platforms with neither half of
@@ -77,6 +78,34 @@ func TestVisionAdapter_AllMethodsReportNotSupportedOffDarwin(t *testing.T) {
 			name: "ReadText",
 			call: func() error {
 				_, err := adapter.ReadText(ctx, image.Rect(0, 0, 100, 100))
+
+				return err
+			},
+		},
+		{
+			name: "ReadLines",
+			call: func() error {
+				_, err := adapter.ReadLines(ctx, image.Rect(0, 0, 100, 100), ports.TextFast)
+
+				return err
+			},
+		},
+		{
+			name: "ReadLinesOnceChanged",
+			call: func() error {
+				_, err := adapter.ReadLinesOnceChanged(ctx, image.Rect(0, 0, 100, 100))
+
+				return err
+			},
+		},
+		{
+			name: "DetectSegmentsAsRead",
+			call: func() error {
+				_, err := adapter.DetectSegmentsAsRead(
+					ctx,
+					image.Rect(0, 0, 100, 100),
+					config.DefaultConfig().Hints.Segment,
+				)
 
 				return err
 			},

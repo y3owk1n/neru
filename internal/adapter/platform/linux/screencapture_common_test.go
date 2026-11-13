@@ -282,7 +282,7 @@ func TestCaptureScreenRegion_GivesUpWhenTheDeadlinePassesWhileTheOverlayComesOff
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			SetOwnWindowsHider(func(capture func() error) error {
+			SetOwnWindowsHider(func(_ image.Rectangle, capture func() error) error {
 				cancel()
 
 				return capture()

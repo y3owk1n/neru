@@ -151,6 +151,28 @@ func WithVisionPort(vision ports.VisionPort) Option {
 	}
 }
 
+// WithLinesHelper names the hidden command the vision adapter runs this
+// executable with to read text lines accurately in a process of its own.
+// Without it they are read in the daemon, where a model compiling for a new
+// script holds up every other read for seconds.
+func WithLinesHelper(command string) Option {
+	return func(a *App) error {
+		a.linesHelper = command
+
+		return nil
+	}
+}
+
+// WithKeyFeed sets the port keys are typed into the focused app through.
+// Note: keyFeed can be nil, will be initialized during app startup if not provided.
+func WithKeyFeed(keyFeed ports.KeyFeedPort) Option {
+	return func(a *App) error {
+		a.keyFeed = keyFeed
+
+		return nil
+	}
+}
+
 // WithSystemPort sets the system port implementation.
 // Note: systemPort can be nil, will be initialized during app startup if not provided.
 func WithSystemPort(systemPort ports.SystemPort) Option {

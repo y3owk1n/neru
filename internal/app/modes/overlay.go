@@ -65,6 +65,10 @@ type overlaySurface interface {
 	HideHintSearch()
 	HintSearchBounds(screen image.Rectangle) image.Rectangle
 
+	// VimStatusBar: the strip vim's status bar covers, which vim leaves out of
+	// what it reads.
+	VimStatusBar(region image.Rectangle) image.Rectangle
+
 	// Grid updates: the incremental half, which runs per keystroke and stays
 	// off the frame path for the latency reason ADR 0003 gives.
 	UpdateGridMatches(prefix string)

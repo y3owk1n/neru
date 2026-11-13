@@ -5,9 +5,11 @@ package vision
 import (
 	"context"
 	"image"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
+	"golang.org/x/image/draw"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
@@ -16,6 +18,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Linux answers this port with screen capture (wlr-screencopy on wlroots,
@@ -148,6 +151,13 @@ func toRecognizedWords(words []platformlinux.OCRWord) []recognizedWord {
 	return converted
 }
 
+// AccurateReadDiffers is true when the locale names a language in another
+// script whose data is installed, the one thing an accurate read adds here.
+// It asks what ReadLines asks, so the two never disagree.
+func (a *Adapter) AccurateReadDiffers() bool {
+	return a.secondLanguage() != ""
+}
+
 // CaptureExcludesOwnWindows is true once the overlay is built. No Linux
 // capture can leave a window out, so the overlay takes itself off the screen
 // around each one (platform/linux capture_exclusion.go).
@@ -190,6 +200,15 @@ func (a *Adapter) DetectSegments(
 		return nil, err
 	}
 
+	return detectSegmentsIn(ctx, frame, cfg)
+}
+
+// detectSegmentsIn runs the segment detector on frame.
+func detectSegmentsIn(
+	ctx context.Context,
+	frame detectionFrame,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
 	rects, err := segment.Detect(ctx, frame.img, frame.scale, cfg.Targets)
 	if err != nil {
 		return nil, err
@@ -216,12 +235,17 @@ func (a *Adapter) captureDetectionFrame(
 		return detectionFrame{}, err
 	}
 
+	return detectionFrameOf(img, region), nil
+}
+
+// detectionFrameOf wraps img, a capture of region, for a detector.
+func detectionFrameOf(img *image.RGBA, region image.Rectangle) detectionFrame {
 	scale := 1.0
 	if img.Rect.Dy() > 0 {
 		scale = float64(img.Rect.Dy()) / float64(region.Dy())
 	}
 
-	return detectionFrame{img: img, origin: region.Min, region: region, scale: scale}, nil
+	return detectionFrame{img: img, origin: region.Min, region: region, scale: scale}
 }
 
 // Health reports whether the vision strategy can run on this machine, checking
@@ -286,8 +310,187 @@ func (a *Adapter) captureRegion(ctx context.Context, region image.Rectangle) (*i
 	return img, nil
 }
 
+// captureProbe captures region with the overlay left on the screen, for the
+// captures that watch the middle of a region settle. The overlay draws nothing
+// there that changes while they watch, and taking it off for each would blink
+// it every settleInterval.
+func (a *Adapter) captureProbe(ctx context.Context, region image.Rectangle) (*image.RGBA, error) {
+	return platformlinux.CaptureScreenRegionWithOverlay(ctx, a.backend(), region)
+}
+
+// overlayDrawnOn returns where the overlay drew, which the probes leave out.
+func (a *Adapter) overlayDrawnOn() []image.Rectangle {
+	return platformlinux.OwnWindowsDrawnOn()
+}
+
 // ReadText reports CodeNotSupported. tesseract already reads text accurately
 // in the detection pass, so copy_text keeps the text the hint has.
 func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
 	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Linux")
 }
+
+// ReadLines captures region and has tesseract read it a character at a time.
+// An accurate read also reads it in the languages of other scripts the locale
+// names, on an engine of its own, as macOS reads in the preferred languages,
+// since eng reads them as Latin noise. The fast read, which a keystroke waits
+// on, stays eng alone.
+func (a *Adapter) ReadLines(
+	ctx context.Context,
+	region image.Rectangle,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	if region.Empty() {
+		err := platformlinux.LinesReadable()
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, derrors.New(
+			derrors.CodeInvalidInput,
+			"reading lines needs a region with an area",
+		)
+	}
+
+	img, err := a.captureRegion(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	lines, err := a.readFrameLines(ctx, region, img, level)
+	if err == nil && level == ports.TextFast {
+		a.lastRead.remember(region, img, lines)
+	}
+
+	return lines, err
+}
+
+// readFrameLines reads img, a capture of region, at level.
+func (a *Adapter) readFrameLines(
+	ctx context.Context,
+	region image.Rectangle,
+	img *image.RGBA,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	timeoutMS := 0
+	if deadline, ok := ctx.Deadline(); ok {
+		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
+	}
+
+	params := platformlinux.OCRParams{TimeoutMS: timeoutMS, Done: ctx.Done()}
+
+	lines, stats, err := readLinePieces(img, img, region, params)
+	if err != nil {
+		if derrors.IsNotSupported(err) {
+			return nil, err
+		}
+
+		return nil, derrors.Wrapf(
+			err,
+			derrors.GetCode(err),
+			"reading lines failed after %s (frame %dx%d)",
+			stats.Recognition,
+			img.Rect.Dx(),
+			img.Rect.Dy(),
+		)
+	}
+
+	second := ""
+	if level == ports.TextAccurate {
+		second = a.secondLanguage()
+	}
+
+	if second != "" {
+		params.Language = second
+		if timeoutMS > 0 {
+			params.TimeoutMS = max(timeoutMS-int(stats.Recognition.Milliseconds()), 1)
+		}
+
+		secondLines, secondStats, secondErr := readLinePieces(
+			atLeastTwoPixelsPerPoint(img, region), img, region, params,
+		)
+		if secondErr != nil {
+			a.logger.Debug("Second-language read failed, keeping the eng read",
+				zap.Duration("recognition", secondStats.Recognition), zap.Error(secondErr))
+		} else {
+			lines = mergeSecondLines(lines, secondLines)
+			stats.Recognition += secondStats.Recognition
+		}
+	}
+
+	a.logger.Debug("Read lines",
+		zap.Bool("accurate", level == ports.TextAccurate),
+		zap.Bool("second_language", second != ""),
+		zap.Int("line_count", len(lines)),
+		zap.Duration("recognition", stats.Recognition))
+
+	return lines, nil
+}
+
+// secondLanguageWarned keeps missing language data to one warning.
+var secondLanguageWarned sync.Once
+
+// secondLanguage is the languages an accurate read reads a second time in, or
+// "" for none. A locale naming one whose data is missing warns once and reads
+// in the rest.
+func (a *Adapter) secondLanguage() string {
+	language, err := platformlinux.SecondLanguage()
+	if err != nil {
+		secondLanguageWarned.Do(func() {
+			a.logger.Warn("Vim mode cannot read every language the locale names", zap.Error(err))
+		})
+	}
+
+	return language
+}
+
+// wideReadPixelsPerPoint is how many pixels per point the second-language read
+// gets. At one pixel per point, small Chinese text reads better as eng's Latin
+// noise, so tesseract keeps that reading, while at two it reads the
+// characters.
+const wideReadPixelsPerPoint = 2
+
+// atLeastTwoPixelsPerPoint is img, which shows region, scaled up to
+// wideReadPixelsPerPoint pixels per point when it has fewer.
+func atLeastTwoPixelsPerPoint(img *image.RGBA, region image.Rectangle) *image.RGBA {
+	if region.Dx() <= 0 || img.Rect.Dx() >= wideReadPixelsPerPoint*region.Dx() {
+		return img
+	}
+
+	scaled := image.NewRGBA(image.Rect(
+		0, 0, wideReadPixelsPerPoint*region.Dx(), wideReadPixelsPerPoint*region.Dy(),
+	))
+	draw.CatmullRom.Scale(scaled, scaled.Rect, img, img.Rect, draw.Src, nil)
+
+	return scaled
+}
+
+// readLinePieces has tesseract read read, a frame of img at any scale, and lays
+// the characters out as ReadLines pieces over img, which shows region. The
+// layout cuts at img's own pixels, since scaling blurs away the one-pixel gaps
+// between small characters.
+func readLinePieces(
+	read, img *image.RGBA,
+	region image.Rectangle,
+	params platformlinux.OCRParams,
+) ([][]ports.TextPiece, platformlinux.OCRStats, error) {
+	found, stats, err := platformlinux.RecognizeLines(read, params)
+	if err != nil {
+		return nil, stats, err
+	}
+
+	symbols := make([]lineSymbol, 0, len(found))
+	for _, symbol := range found {
+		symbols = append(symbols, lineSymbol{
+			text: symbol.Text,
+			ink:  toRegion(symbol.Bounds.Add(read.Rect.Min), read.Rect, img.Rect),
+			line: symbol.Line,
+			word: symbol.Word,
+		})
+	}
+
+	return piecesFromSymbols(symbols, img, region), stats, nil
+}
+
+// accurateReadPreparation is nil. tesseract compiles nothing on first use, so
+// there is nothing to prepare.
+func (a *Adapter) accurateReadPreparation() func() error { return nil }

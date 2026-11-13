@@ -384,6 +384,29 @@ Swap recursive grid layouts. `--no-reload` defers the reload to the last step:
 `config set` values persist in the override file. See
 [Configuring Neru](configuring.md#how-the-layers-combine).
 
+### Open vim mode straight into a jump
+
+Open vim mode with the jump already waiting for text, by feeding it `s`
+once it is open:
+
+```toml
+[hotkeys]
+"Primary+Shift+V" = ["vim", "action feed --mode s"]
+```
+
+### Read the screen again before each jump
+
+Have `s` read the screen first, so the jump searches the page as it is now
+rather than as it was when vim mode opened:
+
+```toml
+[vim.keymaps.normal]
+"s" = "<Plug>(read-screen)<Plug>(jump)"
+```
+
+See [vim keymaps](../reference/configuration.md#vim-keymaps) for the other
+commands a mapping can run.
+
 ### Leave global hotkeys to another tool
 
 Leave global bindings to an external daemon such as skhd. An empty `[hotkeys]`

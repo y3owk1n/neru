@@ -10,6 +10,8 @@ import (
 // MockKeyFeedPort is a mock implementation of ports.KeyFeedPort.
 type MockKeyFeedPort struct {
 	FeedFunc func(context.Context, string) error
+	// ReachesAppFunc answers ReachesApp. Nil lets every key reach the app.
+	ReachesAppFunc func() error
 
 	mu       sync.Mutex
 	fedKeys  []string
@@ -46,5 +48,17 @@ func (m *MockKeyFeedPort) FeedCallCount() int {
 	return m.feedCall
 }
 
-// Ensure MockKeyFeedPort implements ports.KeyFeedPort.
-var _ ports.KeyFeedPort = (*MockKeyFeedPort)(nil)
+// ReachesApp implements ports.KeyFeedGate.
+func (m *MockKeyFeedPort) ReachesApp() error {
+	if m.ReachesAppFunc != nil {
+		return m.ReachesAppFunc()
+	}
+
+	return nil
+}
+
+// Ensure MockKeyFeedPort implements ports.KeyFeedPort and ports.KeyFeedGate.
+var (
+	_ ports.KeyFeedPort = (*MockKeyFeedPort)(nil)
+	_ ports.KeyFeedGate = (*MockKeyFeedPort)(nil)
+)

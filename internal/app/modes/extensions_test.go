@@ -185,6 +185,13 @@ var modeExtensionMatrix = map[domain.Mode][]extensionName{
 	domain.ModeCustom: {
 		extensionHotkeyOverrides,
 	},
+	domain.ModeVim: {
+		extensionCursorFollow,
+		extensionHotkeyOverrides,
+		extensionThemeRefresh,
+		extensionScreenRefresh,
+		extensionScopeReport,
+	},
 }
 
 // TestModeExtensionMatrix pins what every registered mode does on every

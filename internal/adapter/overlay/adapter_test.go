@@ -1331,6 +1331,24 @@ func TestAdapterShowFrame_ReportsAMonitorPickerTheBackendCannotDraw(t *testing.T
 	}
 }
 
+// TestAdapterShowFrame_ReportsAVimSurfaceTheBackendCannotDraw pins the same
+// pattern for vim mode. A backend that cannot draw the surface refuses it, so
+// the mode refuses rather than holding the keyboard over nothing.
+func TestAdapterShowFrame_ReportsAVimSurfaceTheBackendCannotDraw(t *testing.T) {
+	t.Parallel()
+
+	adapter := overlay.NewAdapter(newScreenManager(), testStyles{}, zap.NewNop())
+
+	showErr := adapter.ShowFrame(context.Background(), ports.VimFrame{
+		Screen: image.Rect(0, 0, 100, 100),
+		Region: image.Rect(0, 0, 100, 100),
+		Cursor: image.Rect(10, 10, 20, 20),
+	})
+	if !derrors.IsNotSupported(showErr) {
+		t.Fatalf("ShowFrame() error = %v, want CodeNotSupported", showErr)
+	}
+}
+
 // TestAdapterClearFrame_TakesTheMonitorPanelsDown covers the failure the
 // Indicator work exists to prevent, one surface further. The panels are not on
 // the shared surface, so clearing that surface is not enough to take them off
@@ -1400,5 +1418,45 @@ func TestAdapterShowFrame_ScrollTakesTheSurfaceOverWithoutDrawing(t *testing.T) 
 
 	if manager.gridDraws != 0 || len(manager.drawn) != 0 {
 		t.Error("scroll drew content of its own on the shared surface")
+	}
+}
+
+// scaledVimManager draws the vim surface's fonts scaled by a DPI factor, as
+// the Windows backend does.
+type scaledVimManager struct {
+	headlessManager
+
+	scale float64
+}
+
+func (m *scaledVimManager) VimScale(image.Rectangle) float64 { return m.scale }
+
+// vimFontStyles resolves a vim status bar font of 13 points.
+type vimFontStyles struct{ testStyles }
+
+func (vimFontStyles) Style() overlay.Style {
+	return overlay.Style{Vim: overlay.VimStyle{FontSize: 13}}
+}
+
+// TestAdapter_VimStatusBar_ScalesWithTheBackendsFont pins that the strip vim
+// leaves for its status bar is as tall as the bar a backend draws with
+// scaled fonts. Unscaled, the strip at 200% was shorter than the bar, so vim
+// moved over text hidden behind it.
+func TestAdapter_VimStatusBar_ScalesWithTheBackendsFont(t *testing.T) {
+	t.Parallel()
+
+	region := image.Rect(0, 0, 1000, 800)
+
+	plain := overlay.NewAdapter(&headlessManager{}, vimFontStyles{}, zap.NewNop()).
+		VimStatusBar(region)
+	doubled := overlay.NewAdapter(&scaledVimManager{scale: 2}, vimFontStyles{}, zap.NewNop()).
+		VimStatusBar(region)
+
+	if doubled.Dy() <= plain.Dy() || doubled.Max != region.Max {
+		t.Fatalf(
+			"status bar at 2x = %v, at 1x = %v, want a taller strip at the bottom",
+			doubled,
+			plain,
+		)
 	}
 }

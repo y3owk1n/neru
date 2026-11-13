@@ -29,6 +29,9 @@
 // Recognition ran past the caller's deadline. Split from ERR_RECOGNIZE because
 // a timeout wants a bigger budget or smaller region, and a failure a bad frame.
 #define NERU_OCR_ERR_TIMEOUT 6
+// The caller canceled the recognition through its config's cancel flag. It
+// returns no lines, never the part read before it stopped.
+#define NERU_OCR_ERR_CANCELED 7
 
 typedef struct {
 	// text is a NUL-terminated UTF-8 string owned by the result.
@@ -54,6 +57,9 @@ typedef struct {
 	int elapsedMS;
 } NeruOCRResult;
 
+// NERU_OCR_ENGINES is how many engines stay cached at once.
+#define NERU_OCR_ENGINES 2
+
 typedef struct {
 	// datapath is the directory holding <language>.traineddata. Never NULL.
 	// Resolution is done in Go so a missing tessdata reports which file is
@@ -65,7 +71,38 @@ typedef struct {
 	int wordLevel;
 	// timeoutMS bounds one recognition. <= 0 means no deadline.
 	int timeoutMS;
+	// engine is the cached engine slot, below NERU_OCR_ENGINES. Each slot keeps
+	// one language's engine under a lock of its own.
+	int engine;
+	// cancel, when not NULL, stops the recognition once it reads nonzero.
+	// neru_ocr_cancel sets it from another thread.
+	int *cancel;
 } NeruOCRConfig;
+
+// neru_ocr_cancel sets a cancel flag a recognition is watching.
+void neru_ocr_cancel(int *flag);
+
+// One character of a line read, with the ink box tesseract placed it in. line
+// and word count from 0 in reading order, so the characters of a word share a
+// word number within their line.
+typedef struct {
+	// text is the character as NUL-terminated UTF-8, owned by the result.
+	char *text;
+	// Bounding box of its ink in the captured image's own pixel space.
+	int x;
+	int y;
+	int width;
+	int height;
+	int line;
+	int word;
+} NeruOCRSymbol;
+
+typedef struct {
+	NeruOCRSymbol *symbols;
+	int count;
+	// How long recognition took, in ms, as NeruOCRResult has it.
+	int elapsedMS;
+} NeruOCRLines;
 
 // neru_ocr_probe reports whether the engine can be initialized for this
 // datapath and language, warming it in the process. NERU_OCR_OK or
@@ -80,5 +117,16 @@ int neru_ocr_recognize(
 
 // neru_ocr_result_free wipes and releases a result. Safe on a zeroed struct.
 void neru_ocr_result_free(NeruOCRResult *result);
+
+// neru_ocr_recognize_lines reads RGBA8888 pixels as neru_ocr_recognize does
+// and fills out with every character found, with its line and word. It is for
+// a caller that lays the text out as the screen shows it. config->wordLevel
+// is ignored.
+int neru_ocr_recognize_lines(
+    const unsigned char *pixels, int width, int height, int stride, const NeruOCRConfig *config, NeruOCRLines *out);
+
+// neru_ocr_lines_free wipes and releases what neru_ocr_recognize_lines filled.
+// Safe on a zeroed struct.
+void neru_ocr_lines_free(NeruOCRLines *lines);
 
 #endif /* OCR_H */

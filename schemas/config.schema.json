@@ -1152,6 +1152,27 @@
             }
           },
           "type": "object"
+        },
+        "vim": {
+          "additionalProperties": false,
+          "properties": {
+            "background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "border_color": {
+              "$ref": "#/definitions/color"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "text": {
+              "type": "string"
+            },
+            "text_color": {
+              "$ref": "#/definitions/color"
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"
@@ -1771,6 +1792,127 @@
             },
             "text": {
               "$ref": "#/definitions/solid_color"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "vim": {
+      "additionalProperties": false,
+      "description": "See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#vim",
+      "properties": {
+        "app_configs": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "additional_clickable_roles": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "bundle_id": {
+                "type": "string"
+              },
+              "capture_scope": {
+                "type": "string"
+              },
+              "hotkeys": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
+              "ignore_clickable_check": {
+                "type": "boolean"
+              },
+              "label_direction": {
+                "type": "string"
+              },
+              "scroll_step": {
+                "type": "integer"
+              },
+              "scroll_step_full": {
+                "type": "integer"
+              },
+              "scroll_step_half": {
+                "type": "integer"
+              },
+              "select_with": {
+                "additionalProperties": {
+                  "$ref": "#/definitions/steps"
+                },
+                "type": "object"
+              },
+              "strategy": {
+                "type": "string"
+              },
+              "visible_check_enabled": {
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "capture_scope": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "hotkeys": {
+          "additionalProperties": {
+            "$ref": "#/definitions/steps"
+          },
+          "type": "object"
+        },
+        "keymaps": {
+          "additionalProperties": false,
+          "properties": {
+            "normal": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "visual": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "ui": {
+          "additionalProperties": false,
+          "properties": {
+            "container_color": {
+              "$ref": "#/definitions/color"
+            },
+            "cursor_color": {
+              "$ref": "#/definitions/color"
+            },
+            "font_family": {
+              "type": "string"
+            },
+            "font_size": {
+              "type": "integer"
+            },
+            "match_color": {
+              "$ref": "#/definitions/color"
+            },
+            "selection_color": {
+              "$ref": "#/definitions/color"
+            },
+            "status_background_color": {
+              "$ref": "#/definitions/color"
+            },
+            "status_text_color": {
+              "$ref": "#/definitions/color"
             }
           },
           "type": "object"

@@ -6,6 +6,8 @@ package linux
 #include <cairo/cairo.h>
 #include <stdlib.h>
 
+#include "font_fallback.h"
+
 // Measures one line of text with cairo's toy text API, the one both overlay
 // backends draw with (neru_x11_overlay_text, neru_wayland_overlay_text), on a
 // throwaway image surface. It needs no display connection, so X11 and Wayland
@@ -18,8 +20,11 @@ static int neru_text_measure_once(
 	cairo_text_extents_t text_extents;
 	cairo_font_extents_t font_extents;
 
+	char drawn[256];
+	neru_font_family_for_text(family, text, drawn, sizeof(drawn));
+
 	cairo_select_font_face(
-	    cr, family, CAIRO_FONT_SLANT_NORMAL, bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
+	    cr, drawn, CAIRO_FONT_SLANT_NORMAL, bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_font_size(cr, size);
 	cairo_text_extents(cr, text, &text_extents);
 	cairo_font_extents(cr, &font_extents);

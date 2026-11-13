@@ -1,0 +1,773 @@
+package modes
+
+import (
+	"context"
+	"fmt"
+	"image"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/y3owk1n/fude/vim"
+	"go.uber.org/zap"
+
+	"github.com/y3owk1n/neru/internal/app/services"
+	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/screentext"
+)
+
+const (
+	// vimClipboardTimeout bounds a yank's clipboard write, which runs off h.mu.
+	vimClipboardTimeout = 2 * time.Second
+	// vimScrollSettle is the shortest time between two scrolls, so a held
+	// scroll key scrolls no faster than the app keeps up. It bounds the key,
+	// not the read, which waits for the screen to stop moving instead.
+	vimScrollSettle = 150 * time.Millisecond
+	// vimClickSettle is how long the app gets to take a click before keys
+	// that act from its caret.
+	vimClickSettle = 60 * time.Millisecond
+	// vimFlashDuration is how long a yank's flash stays on screen.
+	vimFlashDuration = 250 * time.Millisecond
+	// vimPastLineEnd is how far right of a line's last character a click
+	// lands to put the caret at the line's end.
+	vimPastLineEnd = 2
+	// vimQuarter divides a size into quarters.
+	vimQuarter = 4
+	// vimLineSpacing over vimHalf is a line's pitch as a share of its glyphs'
+	// height.
+	vimLineSpacing = 3
+)
+
+// vimLandLimit is how long vimAwaitLine waits for the screen to show a
+// change, and vimLandPoll how long it waits between reads. vimLandRows is
+// how many lines below the changed one it reads, besides those its new text
+// needs, for the text to wrap onto.
+const (
+	vimLandLimit = time.Second
+	vimLandPoll  = 20 * time.Millisecond
+	vimLandRows  = 2
+)
+
+// vimGlideLimit is how long a click at the cursor waits for the real cursor's
+// glide, since smooth_cursor.max_duration has no ceiling and the wait holds
+// the handler.
+const vimGlideLimit = time.Second
+
+// The chords vim mode sends the app for u and Ctrl+R, and to erase.
+const (
+	vimKeyUndo  = "Primary+z"
+	vimKeyRedo  = "Primary+Shift+z"
+	vimKeyErase = "Delete"
+	// vimKeyExtend grows the app's selection by one character, and
+	// vimKeyExtendBack grows it backwards.
+	vimKeyExtend     = "Shift+Right"
+	vimKeyExtendBack = "Shift+Left"
+	// vimKeyLeft moves the app's caret back one character.
+	vimKeyLeft = "Left"
+)
+
+// vimCaretIn is where a click puts the app's caret before the character at
+// pos in text: halfway between its middle and the middle of the character
+// before it, so a box read a little off on both sides still lands nearest
+// that boundary. At the start of a line it is a quarter into the first
+// character, and at the end just right of the last.
+func vimCaretIn(text *screentext.Text, pos int) image.Point {
+	box, ok := text.Box(pos)
+	atEnd := !ok || text.Slice(pos, pos+1) == "\n"
+	startsLine := pos == 0 || text.Slice(pos-1, pos) == "\n"
+
+	switch {
+	case atEnd:
+		prev, _ := text.Box(max(min(pos, text.Len())-1, 0))
+
+		return image.Pt(prev.Max.X+vimPastLineEnd, (prev.Min.Y+prev.Max.Y)/vimHalf)
+	case startsLine:
+		return image.Pt(box.Min.X+box.Dx()/vimQuarter, (box.Min.Y+box.Max.Y)/vimHalf)
+	default:
+		prev, _ := text.Box(pos - 1)
+
+		// The mean of the four edges is halfway between the two middles.
+		return image.Pt(
+			(prev.Min.X+prev.Max.X+box.Min.X+box.Max.X)/vimQuarter,
+			(box.Min.Y+box.Max.Y)/vimHalf,
+		)
+	}
+}
+
+// vimSelectIn selects [start, end) of text in the app from the keyboard: a
+// click puts the caret before start, and one Shift+Right per character the
+// app has extends the selection. Keys land exactly, where a Shift+click is
+// taken as a plain click by some apps.
+//
+// The click has to land on text the app has. A range that starts in a line's
+// padding clicks the line's first character. A range that starts at a line
+// break, as dd on the last line does, clicks its end and selects backwards.
+// The line above can be outside the field, such as the title over a search
+// bar.
+func (h *handlerState) vimSelectIn(text *screentext.Text, start, end int) bool {
+	start, end = vimBreakBefore(text, start, end)
+
+	extend, from := vimKeyExtend, text.AppStart(start)
+	if text.Slice(start, min(start+1, text.Len())) == "\n" {
+		extend, from = vimKeyExtendBack, end
+	}
+
+	if !h.vimClick(vimCaretIn(text, from)) {
+		return false
+	}
+
+	h.vimFeed(slices.Repeat([]string{extend}, text.AppChars(start, end))...)
+
+	return true
+}
+
+// vimBreakBefore moves whole lines [start, end) that end their container to
+// take the line break before them instead of the one after. That last break
+// is the gap vim lays out before the next container, which the app does not
+// have when the container is a field, so dd on a field's last line would
+// leave the break above it. Taking the break before leaves the same text
+// whenever the app has both.
+func vimBreakBefore(text *screentext.Text, start, end int) (int, int) {
+	if start == 0 || text.Slice(start-1, start) != "\n" || text.Slice(end-1, end) != "\n" {
+		return start, end
+	}
+
+	container, inContainer := text.ContainerAt(start)
+	next, inNext := text.ContainerAt(end)
+
+	if !inContainer || (end < text.Len() && inNext && next == container) {
+		return start, end
+	}
+
+	return start - 1, end - 1
+}
+
+// vimAwaitLine waits until the screen shows the line edits are on with the
+// edits made. It reads the band of the screen from that line down, since a
+// longer line may wrap. An app can take a click ahead of keys sent before
+// it, as a browser does, so a click on the next line any sooner would move
+// the caret away from keys still on their way. It reports false when the
+// screen does not show the change within vimLandLimit.
+func (h *handlerState) vimAwaitLine(before *screentext.Text, edits []vim.Edit) bool {
+	lineEnd := func(line int) int {
+		if line+1 < before.Lines() {
+			return before.LineStart(line+1) - 1
+		}
+
+		return before.Len()
+	}
+
+	// The last edit can take the line break, as J does, and the line it
+	// joins comes up onto this one, so the change runs to the end of the
+	// line that edit ends on.
+	line := before.LineOf(edits[0].Start)
+	start, shown := before.LineStart(line), lineEnd(line)
+	end := lineEnd(before.LineOf(edits[len(edits)-1].End))
+
+	var changed strings.Builder
+
+	from := start
+	for _, edit := range edits {
+		changed.WriteString(before.Slice(from, edit.Start))
+		changed.WriteString(edit.Text)
+		from = edit.End
+	}
+
+	changed.WriteString(before.Slice(max(from, start), end))
+
+	level, visible := vimLandLevel(before.Slice(start, shown), changed.String())
+	if !visible {
+		return false
+	}
+
+	want := vimLandKey(changed.String(), level)
+
+	first, found := lineRect(before, before.AppStart(start), max(end, start+1))
+	if !found {
+		return false
+	}
+
+	region := h.vim.region
+	left := first.Min.X
+
+	if index, ok := before.ContainerAt(start); ok {
+		left = min(left, before.Containers()[index].Bounds.Min.X)
+	}
+
+	pitch := first.Dy() * vimLineSpacing / vimHalf
+	rows := vimLandRows + utf8.RuneCountInString(want)*before.CellWidth()/max(region.Max.X-left, 1)
+	band := image.Rect(left, first.Min.Y-first.Dy()/vimQuarter, region.Max.X, first.Min.Y+rows*pitch).
+		Intersect(region)
+
+	deadline := time.Now().Add(vimLandLimit)
+
+	for {
+		read, _, err := h.readVimText(band)
+		if err == nil && strings.Contains(vimLandKey(read.String(), level), want) {
+			return true
+		}
+
+		if time.Now().After(deadline) {
+			return false
+		}
+
+		time.Sleep(vimLandPoll)
+	}
+}
+
+// vimLandLevel is the loosest level of vimLandKey that tells line from what
+// it changes to, and false when none does, as for a change of spaces only.
+func vimLandLevel(line, changed string) (int, bool) {
+	for level := range vimLandLevels {
+		if vimLandKey(line, level) != vimLandKey(changed, level) {
+			return level, true
+		}
+	}
+
+	return 0, false
+}
+
+// vimLandKey is text as vimAwaitLine compares it, which never has spaces,
+// since the fast read guesses them from gaps, or other scripts, which it
+// cannot read. At level 0 it keeps Latin letters and digits in lower case,
+// with a 0 as an o, and without the thin letters the app's caret reads as,
+// since the caret sits just past the text typed. Level 1 keeps letters and
+// digits as they are, for a change of case or of a thin letter, and level 2
+// keeps punctuation too. The stricter levels match less often while the
+// caret blinks on, and wait for it to blink off.
+func vimLandKey(text string, level int) string {
+	return strings.Map(func(char rune) rune {
+		if level == 0 {
+			switch char = unicode.ToLower(char); {
+			case char == '0':
+				return 'o'
+			case strings.ContainsRune(vimCaretLike, char):
+				return -1
+			}
+		}
+
+		switch {
+		case char > unicode.MaxASCII || unicode.IsSpace(char) || !unicode.IsGraphic(char):
+			return -1
+		case level < vimLandPunctuation && !unicode.IsLetter(char) && !unicode.IsDigit(char):
+			return -1
+		}
+
+		return char
+	}, text)
+}
+
+// vimLandLevels is how many levels vimLandKey has, and vimLandPunctuation
+// the first that keeps punctuation.
+const (
+	vimLandLevels      = 3
+	vimLandPunctuation = 2
+)
+
+// vimCaretLike are the characters a fast read can see the app's caret as.
+const vimCaretLike = "il1"
+
+// vimWithoutIndent is text to type without the indent around its line
+// breaks: the blanks after each break, and the blanks before the first one
+// when nothing else is. The machine copies a line's indent onto the line o or
+// O opens, and an indent read off the screen is the padding before the line's
+// first character, which the app does not have as text. The app indents the
+// new line itself, as it does for Return.
+func vimWithoutIndent(text string) string {
+	if !strings.Contains(text, "\n") {
+		return text
+	}
+
+	lines := strings.Split(text, "\n")
+	if strings.TrimLeft(lines[0], " \t") == "" {
+		lines[0] = ""
+	}
+
+	for index := 1; index < len(lines); index++ {
+		lines[index] = strings.TrimLeft(lines[index], " \t")
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+// vimTypeOver types keys over the selected text of edit, or erases it when
+// edit has none.
+func (h *handlerState) vimTypeOver(edit vim.Edit, keys []string) {
+	if edit.Text == "" && edit.End > edit.Start {
+		h.vimFeed(vimKeyErase)
+
+		return
+	}
+
+	h.vimFeed(keys...)
+}
+
+// vimSameRun reports whether start and end are on one line of one
+// container, where the app's arrow keys move between them a character at a
+// time. Two fields side by side can share a line read off the screen, and
+// an arrow key never crosses from one to the other.
+func vimSameRun(text *screentext.Text, start, end int) bool {
+	first, inFirst := text.ContainerAt(start)
+	last, inLast := text.ContainerAt(end)
+
+	return inFirst == inLast && first == last && !strings.Contains(text.Slice(start, end), "\n")
+}
+
+// vimClick left clicks p, and gives the app a moment to place its caret
+// there, since the keys that follow act from wherever the caret is. It
+// reports false when the click failed, so the caret is wherever it was and
+// no key may follow.
+func (h *handlerState) vimClick(p image.Point) bool {
+	err := h.actionService.PerformActionAtPoint(h.ctx, string(action.NameLeftClick), p, 0)
+	if err != nil {
+		h.logger.Warn("Vim click failed", zap.Error(err))
+
+		return false
+	}
+
+	time.Sleep(vimClickSettle)
+
+	return true
+}
+
+// vimNoticeClickFailed is the status bar's notice for an edit given up
+// because its click to place the caret failed.
+const vimNoticeClickFailed = "stopped, the click that places the caret failed"
+
+// vimStopEdit gives up an edit whose click to place the caret failed. The
+// machine has made it already, so insert mode ends and the screen is read
+// again for what the app has.
+func (h *handlerState) vimStopEdit(anchor image.Point) {
+	session := h.vim
+	session.edits, session.lastInsert = nil, nil
+
+	if session.machine.Mode() == vim.Insert {
+		h.feedVim(vimEscape)
+	}
+
+	session.notice = vimNoticeClickFailed
+
+	h.rereadVim(anchor)
+}
+
+// vimDragRange presses at the start of [start, end), moves to its end and
+// lets go, so the app under it selects that text itself.
+func (h *handlerState) vimDragRange(start, end int) {
+	text := h.vim.host.Screen()
+	press, release := vimCaretIn(text, start), vimCaretIn(text, max(end, start+1))
+
+	steps := []struct {
+		name  action.Name
+		point image.Point
+	}{
+		{action.NameLeftMouseDown, press},
+		{action.NameMoveMouse, release},
+		{action.NameLeftMouseUp, release},
+	}
+
+	for _, step := range steps {
+		err := h.actionService.PerformActionAtPoint(h.ctx, string(step.name), step.point, 0)
+		if err != nil {
+			h.logger.Warn("Vim drag failed", zap.String("step", string(step.name)), zap.Error(err))
+
+			return
+		}
+	}
+}
+
+// vimFeed sends keys to the app. A key that fails stops the rest.
+func (h *handlerState) vimFeed(keys ...string) bool {
+	if h.keyFeed == nil {
+		return false
+	}
+
+	for _, key := range keys {
+		// A fed key is a keystream, so neither it nor the error is logged.
+		err := h.keyFeed.Feed(h.ctx, key)
+		if err != nil {
+			h.logger.Debug("Failed to send a key to the app")
+
+			return false
+		}
+	}
+
+	return true
+}
+
+// vimApplyEdits makes a command's edits in the app with clicks and keys. A
+// deletion selects the text and erases it, a replacement selects it and
+// types over it, and an insertion, a put's among them, clicks into place and
+// types. They run last to first, so each one's place on screen has not moved
+// yet. Then the screen is read again, or the keyboard goes to the app when
+// the command left insert mode.
+func (h *handlerState) vimApplyEdits(edits []vim.Edit) {
+	session := h.vim
+	before := session.before
+	anchor := vimCaretIn(before, edits[0].Start)
+
+	// A change leaves its text selected for the first key typed to replace.
+	// Erasing it first would let the app's smart delete take a neighboring
+	// space with it.
+	if len(edits) == 1 && edits[0].Text == "" && edits[0].End > edits[0].Start &&
+		session.machine.Mode() == vim.Insert {
+		if !h.vimSelectIn(before, edits[0].Start, edits[0].End) {
+			h.vimStopEdit(anchor)
+
+			return
+		}
+
+		session.edits = nil
+		session.eraseOnEscape = true
+
+		h.vimStartTyping(anchor, false)
+
+		return
+	}
+
+	held, heldErr := h.actionService.CursorPosition(h.ctx)
+
+	// after is the change made last, which is later in the text, and typed
+	// how many characters the caret sits past its start.
+	var after *vim.Edit
+
+	typed := 0
+
+	// lineEdits are the changes made since the last click, first to last,
+	// all on one line of before, which the screen has to show before a click
+	// on another line.
+	var lineEdits []vim.Edit
+
+	clicked := true
+
+	for index, edit := range slices.Backward(edits) {
+		// OnApply refused any edit with text no key types.
+		keys, _ := vimEditKeys(edit.Text)
+
+		// A deletion of only the padding before a line's first character, as
+		// dw from column 0 makes, takes nothing the app has. Erasing with
+		// nothing selected would take the character before the caret, the
+		// line break, and join the line to the one above.
+		if edit.Text == "" && before.AppChars(edit.Start, edit.End) == 0 {
+			continue
+		}
+
+		chained := after != nil && vimSameRun(before, edit.Start, after.Start)
+
+		if !chained && lineEdits != nil {
+			if !h.vimAwaitLine(before, lineEdits) {
+				session.notice = fmt.Sprintf(
+					"stopped with %d left, the app did not show the last change", index+1)
+
+				break
+			}
+
+			lineEdits = nil
+		}
+
+		switch {
+		case chained:
+			// The caret is just past what the change after this one typed, on
+			// the same run of text, so arrow keys reach this one without a
+			// click, which would move the pointer and wait for the app.
+			h.vimFeed(
+				slices.Repeat(
+					[]string{vimKeyLeft},
+					typed+before.AppChars(edit.End, after.Start),
+				)...)
+			h.vimFeed(
+				slices.Repeat([]string{vimKeyExtendBack}, before.AppChars(edit.Start, edit.End))...)
+			h.vimTypeOver(edit, keys)
+		case edit.End > edit.Start:
+			if clicked = h.vimSelectIn(before, edit.Start, edit.End); clicked {
+				h.vimTypeOver(edit, keys)
+			}
+		default:
+			if clicked = h.vimClick(vimCaretIn(before, edit.Start)); clicked {
+				h.vimFeed(keys...)
+			}
+		}
+
+		if !clicked {
+			break
+		}
+
+		lineEdits = append([]vim.Edit{edit}, lineEdits...)
+
+		after, typed = &edit, len(keys)
+	}
+
+	session.edits = nil
+
+	// With the pointer held, the clicks that placed the caret leave it where
+	// the user had it.
+	if !session.follow && heldErr == nil {
+		_ = h.actionService.MoveCursorToPoint(h.ctx, held)
+	}
+
+	if !clicked {
+		h.vimStopEdit(anchor)
+
+		return
+	}
+
+	if session.machine.Mode() == vim.Insert {
+		h.vimStartTyping(h.vimTypingStart(before, edits[0], anchor), false)
+
+		return
+	}
+
+	session.lastInsert = nil
+
+	h.rereadVim(anchor)
+}
+
+// vimTypingStart is where typing begins after the edit that started insert
+// mode, which is anchor unless the edit typed a line break. Then the machine's
+// cursor is on a line the screen does not show yet: below for o, or above for
+// O, whose break leaves the app's caret on the line it pushed down, so the
+// caret goes back over what follows the cursor. Typing begins at the start
+// of that line, a line height below anchor for each break before the cursor.
+func (h *handlerState) vimTypingStart(
+	before *screentext.Text,
+	edit vim.Edit,
+	anchor image.Point,
+) image.Point {
+	if !strings.Contains(edit.Text, "\n") {
+		return anchor
+	}
+
+	cursor := min(max(h.vim.host.Cursor()-edit.Start, 0), len(edit.Text))
+
+	// The x keeps the text after the cursor from being read as an indent.
+	back := utf8.RuneCountInString(vimWithoutIndent("x"+edit.Text[cursor:])) - 1
+	h.vimFeed(slices.Repeat([]string{vimKeyLeft}, back)...)
+
+	box, found := before.Box(before.AppStart(before.LineStart(before.LineOf(edit.Start))))
+	if !found {
+		return anchor
+	}
+
+	breaks := strings.Count(edit.Text[:cursor], "\n")
+
+	return image.Pt(box.Min.X-1, anchor.Y+breaks*box.Dy()*vimLineSpacing/vimHalf)
+}
+
+// vimEditKeys returns the keys that type an edit's text into the app, and
+// false when a character in it has no key. The text is as vim read it, so
+// it leaves out the padding that indents a line, which the app adds itself,
+// and the icons, which the app has no text for, each with the space after.
+func vimEditKeys(text string) ([]string, bool) {
+	text = strings.ReplaceAll(text, screentext.IconGlyph+" ", "")
+	text = strings.ReplaceAll(text, screentext.IconGlyph, "")
+
+	return screentext.FeedKeys(vimWithoutIndent(text))
+}
+
+// vimYank copies the text a yank took, as it was read, without touching the
+// app, and flashes where it was taken from so the copy shows. Icons in it are
+// left out, since the app has no text for them.
+func (h *handlerState) vimYank(read string) {
+	session := h.vim
+	text := session.host.Screen()
+
+	spans, _ := session.machine.Flash()
+	session.flash = nil
+
+	if len(spans) > 0 {
+		parts := make([]string, 0, len(spans))
+		for _, span := range spans {
+			parts = append(parts, text.AppText(span[0], span[1]))
+		}
+
+		read = strings.Join(parts, "\n")
+	}
+
+	for _, span := range spans {
+		for _, seg := range lineSegments(text, span[0], span[1]) {
+			if r, ok := lineRect(text, seg[0], seg[1]); ok {
+				session.flash = append(session.flash, r)
+			}
+		}
+	}
+
+	session.notice = vimCopiedNotice(read)
+
+	session.flashSeq++
+	outer, seq := h.outer, session.flashSeq
+	time.AfterFunc(vimFlashDuration, func() { outer.clearVimFlash(session, seq) })
+
+	clipboard, logger, parent := h.clipboard, h.logger, h.ctx
+	if clipboard == nil {
+		return
+	}
+
+	go func() {
+		ctx, cancel := context.WithTimeout(parent, vimClipboardTimeout)
+		defer cancel()
+
+		err := clipboard.WriteText(ctx, read)
+		if err != nil {
+			logger.Warn("Failed to copy the yank to the clipboard", zap.Error(err))
+		}
+	}()
+}
+
+// vimCopiedNotice says how much a yank copied.
+func vimCopiedNotice(read string) string {
+	if lines := strings.Count(strings.TrimSuffix(read, "\n"), "\n") + 1; lines > 1 {
+		return "copied " + strconv.Itoa(lines) + " lines"
+	}
+
+	return "copied " + strconv.Itoa(utf8.RuneCountInString(read)) + " characters"
+}
+
+// clearVimFlash takes a yank's flash off the screen, for the session and
+// yank that made it.
+func (h *Handler) clearVimFlash(session *vimSession, seq uint64) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.vim != session || session.flashSeq != seq || session.flash == nil {
+		return
+	}
+
+	session.flash = nil
+
+	h.redrawFrame(h.vimFrame(), "update vim overlay")
+}
+
+// vimUndo sends the app its own undo or redo and reads the screen again.
+func (h *handlerState) vimUndo(chord string) {
+	at := h.vimCursorPoint()
+
+	if h.vimFeed(chord) {
+		h.rereadVim(at)
+	}
+}
+
+// vimScroll scrolls the app under the cursor and leaves the text read stale.
+// Scroll events go to the window under the pointer, so a session holding the
+// pointer still moves it there and back. The screen is read off h.mu once
+// the app has moved it and it stops moving, and the next scroll cancels that
+// read, so a run of scrolls reads only the screen it ends on.
+func (h *handlerState) vimScroll(scroll vimScrollKey) {
+	session := h.vim
+
+	// A held key repeats faster than the app scrolls. A scroll key that
+	// arrives within vimScrollSettle of the last scroll is dropped, so a
+	// held key scrolls at a pace the app keeps up with.
+	if time.Since(session.scrolled) < vimScrollSettle {
+		return
+	}
+
+	session.scrolled = time.Now()
+	session.afterScroll = ""
+
+	point := h.vimCursorPoint()
+	text := session.host.Screen()
+
+	sideways := scroll.direction == services.ScrollDirectionLeft ||
+		scroll.direction == services.ScrollDirectionRight
+
+	step := int(float64(session.shown.Dy()) * scroll.fraction)
+
+	switch {
+	case scroll.pixels > 0:
+		step = scroll.pixels
+	case sideways && scroll.columns > 0:
+		step = scroll.columns * text.CellWidth()
+	case sideways:
+		step = int(float64(session.shown.Dx()) * scroll.fraction)
+	case scroll.lines > 0:
+		box, _ := text.Box(session.host.Cursor())
+		step = scroll.lines * max(box.Dy()*vimLineSpacing/vimHalf, 1)
+	}
+
+	held, heldErr := h.actionService.CursorPosition(h.ctx)
+	if !session.follow {
+		_ = h.actionService.MoveCursorToPoint(h.ctx, point)
+	}
+
+	err := h.scrollService.Scroll(h.ctx, scroll.direction, services.ScrollAmountChar, step, 0)
+	if err != nil {
+		h.logger.Warn("Vim scroll failed", zap.Error(err))
+	}
+
+	if !session.follow && heldErr == nil {
+		_ = h.actionService.MoveCursorToPoint(h.ctx, held)
+	}
+
+	near := point
+	if session.stale {
+		near = session.staleNear
+	}
+
+	if !scroll.stays {
+		switch scroll.direction {
+		case services.ScrollDirectionDown:
+			near.Y -= step
+		case services.ScrollDirectionUp:
+			near.Y += step
+		case services.ScrollDirectionRight:
+			near.X -= step
+		case services.ScrollDirectionLeft:
+			near.X += step
+		}
+	}
+
+	// The text read is for the screen before the scroll, so applyVimRefine
+	// drops an accurate read of it when it lands.
+	session.stale, session.staleNear = true, near
+	session.generation++
+	session.refined = nil
+	session.scrollSeq++
+
+	// The frame is drawn before the read starts, so its first capture already
+	// has the moved frame to leave out.
+	h.cancelYoungRefine()
+	h.redrawFrame(h.vimFrame(), "update vim overlay")
+	h.readVimAfterScroll()
+}
+
+// vimMouseAtCursor runs a mouse action, such as a click, at the character
+// under the cursor as many times as times, at most vimMaxClicks, so two
+// clicks are a double click. The mode stays open and reads the screen again,
+// since the action most likely changed it. A press only redraws. The screen
+// changes on its release, and reading it while the button is down shows the
+// overlay again, which ends the app's drag.
+func (h *handlerState) vimMouseAtCursor(name action.Name, times int) {
+	// A move changes nothing on screen, so it needs neither the action chain
+	// nor a read.
+	if name == action.NameMoveMouse {
+		h.moveToVimCursor()
+
+		return
+	}
+
+	clicks := slices.Repeat([]string{string(name)}, min(max(times, 1), vimMaxClicks))
+	chain := strings.Join(clicks, ",")
+
+	after := func() { h.startVim(h.vimSessionActivation()) }
+	if name == action.NameLeftMouseDown || name == action.NameRightMouseDown ||
+		name == action.NameMiddleMouseDown {
+		after = func() { h.redrawFrame(h.vimFrame(), "update vim overlay") }
+	}
+
+	// The real cursor glides there first when smooth_cursor asks for it, and
+	// the action waits for it to land, as an action hotkey's does. A held
+	// cursor would otherwise jump, since the click warps it.
+	point := h.vimCursorPoint()
+	ctx, cancel := context.WithTimeout(h.ctx, vimGlideLimit)
+
+	err := h.actionService.MoveCursorToPointAndWait(ctx, point)
+	if err != nil {
+		h.logger.Debug("Vim cursor glide did not land", zap.Error(err))
+	}
+
+	cancel()
+
+	h.executeActionAtPoint(&chain, nil, point, true, after)
+}

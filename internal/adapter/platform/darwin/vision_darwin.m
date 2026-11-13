@@ -1,6 +1,7 @@
 #import "vision.h"
 
 #import <CoreGraphics/CoreGraphics.h>
+#import <CoreText/CoreText.h>
 #import <Foundation/Foundation.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import <Vision/Vision.h>
@@ -691,4 +692,759 @@ CGContextRef NeruCreateBGRABitmapContext(
     void *data, size_t width, size_t height, size_t stride, CGColorSpaceRef space) {
 	return CGBitmapContextCreate(
 	    data, width, height, 8, stride, space, kCGBitmapByteOrder32Little | kCGImageAlphaPremultipliedFirst);
+}
+
+#pragma mark - Read lines
+
+/// The ranges of the runs of non-whitespace in text.
+static NSArray<NSValue *> *tokenRanges(NSString *text) {
+	NSMutableArray<NSValue *> *ranges = [NSMutableArray array];
+	NSCharacterSet *space = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+	NSUInteger i = 0, n = text.length;
+	while (i < n) {
+		while (i < n && [space characterIsMember:[text characterAtIndex:i]])
+			i++;
+		NSUInteger start = i;
+		while (i < n && ![space characterIsMember:[text characterAtIndex:i]])
+			i++;
+		if (i > start)
+			[ranges addObject:[NSValue valueWithRange:NSMakeRange(start, i - start)]];
+	}
+	return ranges;
+}
+
+/// A captured image's pixels as 8-bit RGBA, for measuring glyphs.
+typedef struct {
+	uint8_t *data;
+	size_t width;
+	size_t height;
+	size_t stride;
+} NeruPixels;
+
+/// Draws image into a buffer the caller frees with free(pixels.data).
+static NeruPixels pixelsOf(CGImageRef image) {
+	NeruPixels px = {0};
+	px.width = CGImageGetWidth(image);
+	px.height = CGImageGetHeight(image);
+	px.stride = px.width * 4;
+	px.data = calloc(px.height, px.stride);
+	if (!px.data)
+		return px;
+	CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+	CGContextRef context = CGBitmapContextCreate(
+	    px.data, px.width, px.height, 8, px.stride, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+	CGColorSpaceRelease(space);
+	if (!context) {
+		free(px.data);
+		px.data = NULL;
+		return px;
+	}
+	CGContextDrawImage(context, CGRectMake(0, 0, px.width, px.height), image);
+	CGContextRelease(context);
+	return px;
+}
+
+// bordersOf looks borderReachLines times a word's height above and below it.
+// A row is a border when at least borderCoverPercent of the samples across the
+// word's line differ from its background by more than borderContrast in a
+// channel and lie within borderContrast of each other, which a line of text
+// never does. line_pieces.go does the same in Go.
+static const int borderReachLines = 3;
+static const int borderCoverPercent = 90;
+static const int borderContrast = 12;
+static const int borderSamples = 64;
+
+static const uint8_t *pixelAt(NeruPixels px, size_t x, size_t y) { return px.data + y * px.stride + x * 4; }
+
+static BOOL contrasts(const uint8_t *a, const uint8_t *b) {
+	for (int channel = 0; channel < 3; channel++) {
+		if (abs((int)a[channel] - (int)b[channel]) > borderContrast)
+			return YES;
+	}
+	return NO;
+}
+
+enum { rawBackgroundSlots = 64 };
+
+/// Counts color once among the first rawBackgroundSlots colors seen.
+static void tallyColor(uint32_t color, uint32_t *colors, int *counts, int *used) {
+	for (int i = 0; i < *used; i++) {
+		if (colors[i] == color) {
+			counts[i]++;
+			return;
+		}
+	}
+	if (*used < rawBackgroundSlots) {
+		colors[*used] = color;
+		counts[*used] = 1;
+		(*used)++;
+	}
+}
+
+static uint32_t colorAt(NeruPixels px, long x, long y) {
+	const uint8_t *p = pixelAt(px, (size_t)x, (size_t)y);
+	return (uint32_t)p[0] << 16 | (uint32_t)p[1] << 8 | p[2];
+}
+
+/// The most common exact color along the edges of box, as RGB in out.
+static BOOL rawBackgroundOf(NeruPixels px, CGRect box, uint8_t out[3]) {
+	long left = MAX((long)floor(box.origin.x) - 1, 0), top = MAX((long)floor(box.origin.y) - 1, 0);
+	long right = MIN((long)ceil(CGRectGetMaxX(box)) + 1, (long)px.width);
+	long bottom = MIN((long)ceil(CGRectGetMaxY(box)) + 1, (long)px.height);
+	if (!px.data || right <= left || bottom <= top)
+		return NO;
+
+	uint32_t colors[rawBackgroundSlots];
+	int counts[rawBackgroundSlots];
+	int used = 0;
+	for (long x = left; x < right; x++) {
+		tallyColor(colorAt(px, x, top), colors, counts, &used);
+		tallyColor(colorAt(px, x, bottom - 1), colors, counts, &used);
+	}
+	for (long y = top; y < bottom; y++) {
+		tallyColor(colorAt(px, left, y), colors, counts, &used);
+		tallyColor(colorAt(px, right - 1, y), colors, counts, &used);
+	}
+	int best = 0;
+	for (int i = 1; i < used; i++) {
+		if (counts[i] > counts[best] || (counts[i] == counts[best] && colors[i] < colors[best]))
+			best = i;
+	}
+	out[0] = colors[best] >> 16 & 0xFF;
+	out[1] = colors[best] >> 8 & 0xFF;
+	out[2] = colors[best] & 0xFF;
+	return YES;
+}
+
+static BOOL borderRow(NeruPixels px, long y, long left, long right, const uint8_t background[3]) {
+	left = MAX(left, 0);
+	right = MIN(right, (long)px.width);
+	if (right <= left)
+		return NO;
+	long step = MAX((right - left) / borderSamples, 1);
+	int samples = 0, covered = 0;
+	const uint8_t *first = NULL;
+	for (long x = left; x < right; x += step) {
+		samples++;
+		const uint8_t *p = pixelAt(px, (size_t)x, (size_t)y);
+		if (!contrasts(p, background))
+			continue;
+		if (!first)
+			first = p;
+		if (!contrasts(p, first))
+			covered++;
+	}
+	return samples > 0 && covered * 100 >= samples * borderCoverPercent;
+}
+
+/// How far above and below box, a word, the nearest border runs across the
+/// columns left to right of its line, in pixels, or zero for none within reach.
+static void bordersOf(NeruPixels px, CGRect box, long left, long right, double *above, double *below) {
+	*above = 0;
+	*below = 0;
+	uint8_t background[3];
+	if (right <= left || !rawBackgroundOf(px, box, background))
+		return;
+	long top = (long)floor(box.origin.y), bottom = (long)ceil(CGRectGetMaxY(box));
+	long reach = borderReachLines * (bottom - top);
+	for (long y = top - 1; y >= MAX(0, top - reach); y--) {
+		if (borderRow(px, y, left, right, background)) {
+			*above = top - y;
+			break;
+		}
+	}
+	for (long y = bottom; y < MIN((long)px.height, bottom + reach); y++) {
+		if (borderRow(px, y, left, right, background)) {
+			*below = y - bottom + 1;
+			break;
+		}
+	}
+}
+
+/// The luma of the pixel at x, y, top-left origin, from 0 to 255.
+static int lumaAt(NeruPixels px, size_t x, size_t y) {
+	const uint8_t *p = px.data + y * px.stride + x * 4;
+	return (p[0] * 299 + p[1] * 587 + p[2] * 114) / 1000;
+}
+
+/// The columns of a word's box, in pixels, that each of its count glyphs
+/// covers, read from where ink is: a column holds ink when a pixel in it
+/// stands apart from the box's background. Runs of ink columns are glyphs.
+/// More runs than glyphs, as a quote mark's two strokes make, are joined
+/// across the narrowest gaps. Fewer runs, glyphs that touch, return nil.
+/// ink reports the outermost ink columns whatever the count.
+/// The color behind a word: the most common color along its box's edges, at
+/// four bits a channel, as 0xRRGGBB. It is zero when there are no pixels.
+static uint32_t backgroundOf(NeruPixels px, CGRect box) {
+	if (!px.data)
+		return 0;
+
+	size_t x0 = (size_t)MAX(floor(CGRectGetMinX(box)) - 2, 0);
+	size_t x1 = (size_t)MIN(ceil(CGRectGetMaxX(box)) + 2, px.width);
+	size_t y0 = (size_t)MAX(floor(CGRectGetMinY(box)) - 2, 0);
+	size_t y1 = (size_t)MIN(ceil(CGRectGetMaxY(box)) + 2, px.height);
+	if (x1 <= x0 + 1 || y1 <= y0 + 1)
+		return 0;
+
+	uint16_t counts[1 << 12] = {0};
+	uint16_t best = 0;
+	for (size_t i = 0; i < 2 * (x1 - x0) + 2 * (y1 - y0); i++) {
+		// Walk the top and bottom rows, then the left and right columns.
+		size_t width = x1 - x0, height = y1 - y0, x, y;
+		if (i < 2 * width) {
+			x = x0 + i % width;
+			y = i < width ? y0 : y1 - 1;
+		} else {
+			size_t j = i - 2 * width;
+			x = j < height ? x0 : x1 - 1;
+			y = y0 + j % height;
+		}
+		const uint8_t *p = px.data + y * px.stride + x * 4;
+		uint16_t key = (uint16_t)(((p[0] >> 4) << 8) | ((p[1] >> 4) << 4) | (p[2] >> 4));
+		if (counts[key] < UINT16_MAX)
+			counts[key]++;
+		if (counts[key] > counts[best])
+			best = key;
+	}
+
+	uint32_t red = ((best >> 8) & 15) << 4, green = ((best >> 4) & 15) << 4, blue = (best & 15) << 4;
+	return (red << 16) | (green << 8) | blue;
+}
+
+/// The cell of each of count glyphs in box, measured from the runs of ink.
+/// seeds, when set, are the columns the recognizer placed each character in.
+/// Each boundary between two of them then moves to the nearest blank column
+/// within window pixels. ink is set to where the word's ink runs.
+static NSArray<NSValue *> *glyphColumns(
+    NeruPixels px, CGRect box, NSUInteger count, NSArray<NSValue *> *seeds, NSUInteger window, NSRange *ink) {
+	*ink = NSMakeRange(NSNotFound, 0);
+	if (!px.data || count == 0)
+		return nil;
+
+	size_t x0 = (size_t)MAX(floor(CGRectGetMinX(box)) - 2, 0);
+	size_t x1 = (size_t)MIN(ceil(CGRectGetMaxX(box)) + 2, px.width);
+	size_t y0 = (size_t)MAX(floor(CGRectGetMinY(box)), 0);
+	size_t y1 = (size_t)MIN(ceil(CGRectGetMaxY(box)), px.height);
+	if (x1 <= x0 + 1 || y1 <= y0 + 1)
+		return nil;
+
+	// The background is the most common luma along the box's edges.
+	int histogram[256] = {0};
+	for (size_t x = x0; x < x1; x++) {
+		histogram[lumaAt(px, x, y0)]++;
+		histogram[lumaAt(px, x, y1 - 1)]++;
+	}
+	for (size_t y = y0; y < y1; y++) {
+		histogram[lumaAt(px, x0, y)]++;
+		histogram[lumaAt(px, x1 - 1, y)]++;
+	}
+	int background = 0;
+	for (int i = 1; i < 256; i++)
+		if (histogram[i] > histogram[background])
+			background = i;
+
+	NSMutableArray<NSValue *> *runs = [NSMutableArray array];
+	NSInteger start = -1;
+	for (size_t x = x0; x <= x1; x++) {
+		BOOL inked = NO;
+		for (size_t y = y0; x < x1 && y < y1 && !inked; y++)
+			inked = abs(lumaAt(px, x, y) - background) > 64;
+		if (inked && start < 0)
+			start = (NSInteger)x;
+		if (!inked && start >= 0) {
+			[runs addObject:[NSValue valueWithRange:NSMakeRange((NSUInteger)start, x - (NSUInteger)start)]];
+			start = -1;
+		}
+	}
+	if (runs.count == 0)
+		return nil;
+
+	NSRange first = runs.firstObject.rangeValue, last = runs.lastObject.rangeValue;
+	*ink = NSMakeRange(first.location, NSMaxRange(last) - first.location);
+
+	// Many wide characters, such as 川 or 明, have gaps inside them, and
+	// punctuation such as 」 is set narrower, so neither the gaps nor an even
+	// split find where they meet. The recognizer places each one within a
+	// point or two, and moving each boundary to the nearest blank column puts
+	// it in the gap between the two characters.
+	if (seeds) {
+		BOOL (^blank)(NSInteger) = ^BOOL(NSInteger x) {
+			for (NSValue *run in runs)
+				if (NSLocationInRange((NSUInteger)x, run.rangeValue))
+					return NO;
+			return YES;
+		};
+		NSMutableArray<NSNumber *> *edges = [NSMutableArray arrayWithObject:@(ink->location)];
+		for (NSUInteger i = 1; i < seeds.count; i++) {
+			NSInteger edge = (NSInteger)(NSMaxRange(seeds[i - 1].rangeValue) + seeds[i].rangeValue.location) / 2;
+			for (NSInteger d = 0; d <= (NSInteger)window; d++) {
+				if (blank(edge - d)) {
+					edge -= d;
+					break;
+				}
+				if (blank(edge + d)) {
+					edge += d;
+					break;
+				}
+			}
+			[edges addObject:@(MAX(edge, edges.lastObject.integerValue + 1))];
+		}
+		[edges addObject:@(MAX((NSInteger)NSMaxRange(*ink), edges.lastObject.integerValue + 1))];
+		NSMutableArray<NSValue *> *cells = [NSMutableArray arrayWithCapacity:seeds.count];
+		for (NSUInteger i = 0; i < seeds.count; i++) {
+			NSUInteger left = edges[i].unsignedIntegerValue;
+			[cells addObject:[NSValue valueWithRange:NSMakeRange(left, edges[i + 1].unsignedIntegerValue - left)]];
+		}
+		return cells;
+	}
+
+	while (runs.count > count) {
+		NSUInteger narrowest = 0;
+		NSUInteger narrowestGap = NSUIntegerMax;
+		for (NSUInteger i = 0; i + 1 < runs.count; i++) {
+			NSUInteger gap = runs[i + 1].rangeValue.location - NSMaxRange(runs[i].rangeValue);
+			if (gap < narrowestGap) {
+				narrowestGap = gap;
+				narrowest = i;
+			}
+		}
+		NSRange a = runs[narrowest].rangeValue, b = runs[narrowest + 1].rangeValue;
+		runs[narrowest] = [NSValue valueWithRange:NSMakeRange(a.location, NSMaxRange(b) - a.location)];
+		[runs removeObjectAtIndex:narrowest + 1];
+	}
+
+	if (runs.count != count)
+		return nil;
+
+	// Each glyph's cell runs to the middle of the gaps either side of its
+	// ink, and the outer ones half a gap past it, so the cells meet where
+	// the characters do.
+	CGFloat halfGap = 1;
+	if (runs.count > 1) {
+		CGFloat gaps = 0;
+		for (NSUInteger i = 0; i + 1 < runs.count; i++)
+			gaps += runs[i + 1].rangeValue.location - NSMaxRange(runs[i].rangeValue);
+		halfGap = MAX(gaps / (runs.count - 1) / 2, 1);
+	}
+	NSMutableArray<NSValue *> *cells = [NSMutableArray arrayWithCapacity:runs.count];
+	for (NSUInteger i = 0; i < runs.count; i++) {
+		NSRange run = runs[i].rangeValue;
+		CGFloat left = i == 0 ? run.location - halfGap : (NSMaxRange(runs[i - 1].rangeValue) + run.location) / 2.0;
+		CGFloat right =
+		    i + 1 == runs.count ? NSMaxRange(run) + halfGap : (NSMaxRange(run) + runs[i + 1].rangeValue.location) / 2.0;
+		[cells
+		    addObject:[NSValue valueWithRange:NSMakeRange((NSUInteger)MAX(left, 0), (NSUInteger)MAX(right - left, 1))]];
+	}
+	return cells;
+}
+
+/// Whether the composed character c takes two cells, as Chinese, Japanese and
+/// Korean characters and fullwidth forms do.
+static BOOL isWide(NSString *c) {
+	UTF32Char u = 0;
+	if (![c getBytes:&u
+	             maxLength:sizeof(u)
+	            usedLength:NULL
+	              encoding:NSUTF32LittleEndianStringEncoding
+	               options:0
+	                 range:NSMakeRange(0, c.length)
+	        remainingRange:NULL])
+		return NO;
+	return (u >= 0x1100 && u <= 0x115F) || (u >= 0x2E80 && u <= 0x303E) || (u >= 0x3041 && u <= 0x33FF) ||
+	       (u >= 0x3400 && u <= 0x4DBF) || (u >= 0x4E00 && u <= 0x9FFF) || (u >= 0xA000 && u <= 0xA4CF) ||
+	       (u >= 0xAC00 && u <= 0xD7A3) || (u >= 0xF900 && u <= 0xFAFF) || (u >= 0xFE30 && u <= 0xFE4F) ||
+	       (u >= 0xFF00 && u <= 0xFF60) || (u >= 0xFFE0 && u <= 0xFFE6) || (u >= 0x20000 && u <= 0x3FFFD);
+}
+
+/// The columns the recognizer placed each composed character of the word at
+/// range in. Returns nil when the word has no wide character, since the gaps
+/// between its characters already show where they meet.
+static NSArray<NSValue *> *seedsOf(
+    VNRecognizedText *text, NSRange range, NSArray<NSValue *> *characters, CGFloat imageW) {
+	BOOL wide = NO;
+	for (NSValue *character in characters) {
+		NSRange at = NSMakeRange(range.location + character.rangeValue.location, character.rangeValue.length);
+		wide = wide || isWide([text.string substringWithRange:at]);
+	}
+	if (!wide)
+		return nil;
+
+	NSMutableArray<NSValue *> *seeds = [NSMutableArray arrayWithCapacity:characters.count];
+	for (NSValue *character in characters) {
+		NSRange at = NSMakeRange(range.location + character.rangeValue.location, character.rangeValue.length);
+		NSError *error = nil;
+		VNRectangleObservation *box = [text boundingBoxForRange:at error:&error];
+		if (error || !box)
+			return nil;
+		CGRect b = box.boundingBox;
+		[seeds addObject:[NSValue valueWithRange:NSMakeRange(
+		                                             (NSUInteger)MAX(b.origin.x * imageW, 0),
+		                                             (NSUInteger)MAX(b.size.width * imageW, 1))]];
+	}
+	return seeds;
+}
+
+/// Whether text is written right to left, by its first letter.
+static BOOL isRightToLeft(NSString *text) {
+	NSCharacterSet *letters = [NSCharacterSet letterCharacterSet];
+	for (NSUInteger i = 0; i < text.length; i++) {
+		unichar c = [text characterAtIndex:i];
+		if (![letters characterIsMember:c])
+			continue;
+		return (c >= 0x0590 && c <= 0x08FF) || (c >= 0xFB1D && c <= 0xFDFF) || (c >= 0xFE70 && c <= 0xFEFF);
+	}
+	return NO;
+}
+
+/// The ranges of the composed characters in text.
+static NSArray<NSValue *> *characterRanges(NSString *text) {
+	NSMutableArray<NSValue *> *ranges = [NSMutableArray array];
+	[text enumerateSubstringsInRange:NSMakeRange(0, text.length)
+	                         options:NSStringEnumerationByComposedCharacterSequences
+	                      usingBlock:^(NSString *piece, NSRange range, NSRange enclosing, BOOL *stop) {
+		                      [ranges addObject:[NSValue valueWithRange:range]];
+	                      }];
+	return ranges;
+}
+
+/// The Chinese, Japanese or Korean recognition language the user reads, from
+/// the first of the system's preferred languages that is one, or override
+/// when set, or nil when the user reads none of them.
+static NSString *wideLanguage(NSString *override) {
+	if (override.length > 0)
+		return override;
+
+	for (NSString *preferred in [NSLocale preferredLanguages]) {
+		NSString *tag = preferred.lowercaseString;
+		if ([tag hasPrefix:@"zh-hant"] || [tag hasPrefix:@"zh-tw"] || [tag hasPrefix:@"zh-hk"] ||
+		    [tag hasPrefix:@"zh-mo"] || [tag hasPrefix:@"yue"])
+			return @"zh-Hant";
+		if ([tag hasPrefix:@"zh"])
+			return @"zh-Hans";
+		if ([tag hasPrefix:@"ja"])
+			return @"ja-JP";
+		if ([tag hasPrefix:@"ko"])
+			return @"ko-KR";
+	}
+	return nil;
+}
+
+/// Whether text has a character that takes two cells.
+static BOOL hasWide(NSString *text) {
+	__block BOOL wide = NO;
+	[text enumerateSubstringsInRange:NSMakeRange(0, text.length)
+	                         options:NSStringEnumerationByComposedCharacterSequences
+	                      usingBlock:^(NSString *piece, NSRange range, NSRange enclosing, BOOL *stop) {
+		                      wide = isWide(piece);
+		                      *stop = wide;
+	                      }];
+	return wide;
+}
+
+/// The top candidate's text of an observation.
+static NSString *topText(VNRecognizedTextObservation *observation) {
+	return [[observation topCandidates:1] firstObject].string ?: @"";
+}
+
+/// The detected lines, with a line replaced by the wide-language read of it
+/// when that read has a wide character and detection's has none. That is a
+/// Chinese word read as Latin noise. A line detection read with wide
+/// characters stays, since detection reads Korean and Japanese that the
+/// Chinese model would garble. A wide-language line detection missed is
+/// added. Two reads are the same line when their boxes overlap by at least
+/// half the smaller box.
+static NSArray<VNRecognizedTextObservation *> *mergeWideLines(
+    NSArray<VNRecognizedTextObservation *> *detected, NSArray<VNRecognizedTextObservation *> *wide) {
+	NSMutableArray<VNRecognizedTextObservation *> *merged = [NSMutableArray arrayWithArray:detected ?: @[]];
+	for (VNRecognizedTextObservation *line in wide) {
+		if (!hasWide(topText(line)))
+			continue;
+		CGRect box = line.boundingBox;
+		NSInteger same = -1;
+		for (NSUInteger i = 0; i < merged.count; i++) {
+			CGRect other = merged[i].boundingBox;
+			CGRect overlap = CGRectIntersection(box, other);
+			CGFloat smaller = MIN(box.size.width * box.size.height, other.size.width * other.size.height);
+			if (!CGRectIsNull(overlap) && smaller > 0 && overlap.size.width * overlap.size.height >= smaller / 2) {
+				same = (NSInteger)i;
+				break;
+			}
+		}
+		if (same < 0)
+			[merged addObject:line];
+		else if (!hasWide(topText(merged[(NSUInteger)same])))
+			merged[(NSUInteger)same] = line;
+	}
+	return merged;
+}
+
+/// How often a read with a cancel flag looks at it.
+static const int64_t readCancelPollMS = 10;
+
+/// Waits for group by deadline, and reports whether it finished. With a cancel
+/// flag it wakes every readCancelPollMS to look at it, and gives up once set.
+static BOOL waitForRead(dispatch_group_t group, dispatch_time_t deadline, const int *cancel) {
+	if (!cancel)
+		return dispatch_group_wait(group, deadline) == 0;
+	while (!__atomic_load_n(cancel, __ATOMIC_ACQUIRE)) {
+		dispatch_time_t slice = dispatch_time(DISPATCH_TIME_NOW, readCancelPollMS * NSEC_PER_MSEC);
+		if (dispatch_group_wait(group, MIN(slice, deadline)) == 0)
+			return YES;
+		if (slice >= deadline)
+			return NO;
+	}
+	return NO;
+}
+
+void NeruCancelRead(int *flag) { __atomic_store_n(flag, 1, __ATOMIC_RELEASE); }
+
+/// Reads image's lines by deadline as NeruReadLines does, with captured as
+/// the global rect the image shows. It stops once *cancel is set, when cancel
+/// is not NULL.
+static NeruTextResult *readLines(
+    CGImageRef image, CGRect captured, int accurate, NSString *languageOverride, dispatch_time_t deadline,
+    const int *cancel) {
+	@autoreleasepool {
+		VNRecognizeTextRequest *request = [[VNRecognizeTextRequest alloc] init];
+		request.recognitionLevel = accurate ? VNRequestTextRecognitionLevelAccurate : VNRequestTextRecognitionLevelFast;
+		// Off, since it rewrites paths, flags and identifiers into words.
+		request.usesLanguageCorrection = NO;
+		// Only the accurate level reads more than Latin script, and with no
+		// language set it reads English alone. Detecting the script reads
+		// Chinese, Japanese, Korean, Thai and the rest in any mix.
+		if (@available(macOS 13.0, *))
+			request.automaticallyDetectsLanguage = accurate != 0;
+		request.minimumTextHeight = 0;
+		NSMutableArray<VNRequest *> *requests = [NSMutableArray arrayWithObject:request];
+
+		// Detection picks one model per line, so a Chinese word in an English
+		// line reads as Latin noise. The user's own Chinese, Japanese or Korean
+		// model, with English, reads such lines whole.
+		VNRecognizeTextRequest *wide = nil;
+		NSString *language = accurate ? wideLanguage(languageOverride) : nil;
+		if (language) {
+			wide = [[VNRecognizeTextRequest alloc] init];
+			wide.recognitionLevel = VNRequestTextRecognitionLevelAccurate;
+			wide.usesLanguageCorrection = NO;
+			wide.recognitionLanguages = @[ language, @"en-US" ];
+			wide.minimumTextHeight = 0;
+			[requests addObject:wide];
+		}
+
+		__block NSArray<VNRecognizedTextObservation *> *lines = nil;
+		dispatch_group_t group = dispatch_group_create();
+		CFRetain(image);
+		dispatch_group_async(group, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+			VNImageRequestHandler *handler = [[VNImageRequestHandler alloc] initWithCGImage:image options:@{}];
+			NSError *error = nil;
+			[handler performRequests:requests error:&error];
+			if (!error)
+				lines = wide ? mergeWideLines(request.results, wide.results) : request.results;
+			CGImageRelease(image);
+		});
+		// A read given up on is canceled too, so Vision stops working on it.
+		if (!waitForRead(group, deadline, cancel)) {
+			for (VNRequest *pending in requests)
+				[pending cancel];
+			return NULL;
+		}
+		if (!lines)
+			return NULL;
+
+		NSMutableArray<NSDictionary *> *pieces = [NSMutableArray array];
+		NeruPixels px = pixelsOf(image);
+		CGFloat imageW = (CGFloat)CGImageGetWidth(image), imageH = (CGFloat)CGImageGetHeight(image);
+		CGFloat toPointsX = captured.size.width / imageW, toPointsY = captured.size.height / imageH;
+		int lineIndex = 0;
+		for (VNRecognizedTextObservation *observation in lines) {
+			VNRecognizedText *top = [[observation topCandidates:1] firstObject];
+			if (!top || top.string.length == 0)
+				continue;
+
+			CGRect lineBox = observation.boundingBox;  // normalized, bottom-left origin
+			long lineLeft = (long)floor(lineBox.origin.x * imageW);
+			long lineRight = (long)ceil(CGRectGetMaxX(lineBox) * imageW);
+
+			NSArray<NSValue *> *words = tokenRanges(top.string);
+			for (NSUInteger wordIndex = 0; wordIndex < words.count; wordIndex++) {
+				NSRange range = words[wordIndex].rangeValue;
+				NSError *error = nil;
+				VNRectangleObservation *box = [top boundingBoxForRange:range error:&error];
+				if (error || !box)
+					continue;
+				CGRect b = box.boundingBox;  // normalized, bottom-left origin
+				CGRect pixel = CGRectMake(
+				    b.origin.x * imageW, (1.0 - b.origin.y - b.size.height) * imageH, b.size.width * imageW,
+				    b.size.height * imageH);
+
+				// Vision's word boxes run a little past the ink, and it places
+				// no character exactly, so each glyph is measured from the
+				// pixels, or at least the word is cut to its ink.
+				NSString *word = [top.string substringWithRange:range];
+				NSArray<NSValue *> *characters = characterRanges(word);
+				NSRange ink;
+				// A seed can be off by up to three points either way.
+				NSUInteger window = (NSUInteger)ceil(3 / toPointsX);
+				NSArray<NSValue *> *glyphs =
+				    glyphColumns(px, pixel, characters.count, seedsOf(top, range, characters, imageW), window, &ink);
+				// The cells run left to right and the characters in reading
+				// order, so a word written right to left is left whole.
+				if (isRightToLeft(word))
+					glyphs = nil;
+				uint32_t background = backgroundOf(px, pixel);
+				double borderAbove = 0, borderBelow = 0;
+				bordersOf(px, pixel, lineLeft, lineRight, &borderAbove, &borderBelow);
+				if (ink.location != NSNotFound) {
+					pixel.origin.x = ink.location;
+					pixel.size.width = ink.length;
+				}
+
+				NSUInteger parts = glyphs ? characters.count : 1;
+				for (NSUInteger i = 0; i < parts; i++) {
+					NSString *text = glyphs ? [word substringWithRange:characters[i].rangeValue] : word;
+					CGFloat x = glyphs ? glyphs[i].rangeValue.location : pixel.origin.x;
+					CGFloat w = glyphs ? glyphs[i].rangeValue.length : pixel.size.width;
+					[pieces addObject:@{
+						@"text" : text,
+						@"x" : @(captured.origin.x + x * toPointsX),
+						@"y" : @(captured.origin.y + pixel.origin.y * toPointsY),
+						@"w" : @(w * toPointsX),
+						@"h" : @(pixel.size.height * toPointsY),
+						@"line" : @(lineIndex),
+						@"word" : @(wordIndex),
+						@"background" : @(background),
+						@"borderAbove" : @(borderAbove * toPointsY),
+						@"borderBelow" : @(borderBelow * toPointsY),
+					}];
+				}
+			}
+			lineIndex++;
+		}
+		free(px.data);
+
+		NeruTextResult *result = calloc(1, sizeof(NeruTextResult));
+		if (!result)
+			return NULL;
+		if (pieces.count == 0)
+			return result;
+
+		result->pieces = calloc(pieces.count, sizeof(NeruTextPiece));
+		if (!result->pieces) {
+			free(result);
+			return NULL;
+		}
+		result->count = (int)pieces.count;
+		for (NSUInteger i = 0; i < pieces.count; i++) {
+			NSDictionary *piece = pieces[i];
+			result->pieces[i] = (NeruTextPiece){
+			    .text = strdup([piece[@"text"] UTF8String]),
+			    .x = [piece[@"x"] doubleValue],
+			    .y = [piece[@"y"] doubleValue],
+			    .width = [piece[@"w"] doubleValue],
+			    .height = [piece[@"h"] doubleValue],
+			    .line = [piece[@"line"] intValue],
+			    .word = [piece[@"word"] intValue],
+			    .background = [piece[@"background"] unsignedIntValue],
+			    .borderAbove = [piece[@"borderAbove"] doubleValue],
+			    .borderBelow = [piece[@"borderBelow"] doubleValue],
+			};
+		}
+		return result;
+	}
+}
+
+NeruTextResult *NeruReadLines(CGRect rect, double scale, int accurate, int64_t timeoutMS) {
+	@autoreleasepool {
+		// One deadline covers the capture and the read together.
+		dispatch_time_t deadline = dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC);
+		CGRect captured = CGRectZero;
+		CGImageRef image = NeruCaptureRectAtScale(rect, scale, &captured, timeoutMS);
+		if (!image)
+			return NULL;
+
+		NeruTextResult *result = readLines(image, captured, accurate, nil, deadline, NULL);
+		CGImageRelease(image);
+		return result;
+	}
+}
+
+NeruTextResult *NeruReadImageLines(
+    CGImageRef image, CGRect bounds, int accurate, const char *language, int64_t timeoutMS, const int *cancel) {
+	NSString *override = language && language[0] ? [NSString stringWithUTF8String:language] : nil;
+	return readLines(
+	    image, bounds, accurate, override, dispatch_time(DISPATCH_TIME_NOW, timeoutMS * NSEC_PER_MSEC), cancel);
+}
+
+CGImageRef NeruTextSampleImage(void) {
+	@autoreleasepool {
+		// One line per model Vision compiles on first use. Latin text also
+		// brings in the models Cyrillic, Thai, Chinese, Japanese and Korean
+		// read with, and Arabic and Devanagari each have one of their own.
+		NSArray<NSString *> *lines = @[ @"Neru reads text", @"مرحبا بالعالم", @"नमस्ते दुनिया", @"你好世界" ];
+		const size_t width = 900, lineHeight = 90, height = lineHeight * lines.count;
+		CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+		CGContextRef context =
+		    CGBitmapContextCreate(NULL, width, height, 8, 0, space, (CGBitmapInfo)kCGImageAlphaPremultipliedLast);
+		CGColorSpaceRelease(space);
+		if (!context)
+			return NULL;
+
+		CGContextSetRGBFillColor(context, 1, 1, 1, 1);
+		CGContextFillRect(context, CGRectMake(0, 0, width, height));
+
+		// CoreText falls back to a font that has each script's glyphs.
+		CTFontRef font = CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, 48, NULL);
+		if (!font) {
+			CGContextRelease(context);
+			return NULL;
+		}
+		CGColorRef black = CGColorCreateGenericGray(0, 1);
+		NSDictionary *attributes = @{
+			(__bridge NSString *)kCTFontAttributeName : (__bridge id)font,
+			(__bridge NSString *)kCTForegroundColorAttributeName : (__bridge id)black,
+		};
+		for (NSUInteger index = 0; index < lines.count; index++) {
+			NSAttributedString *text = [[NSAttributedString alloc] initWithString:lines[index] attributes:attributes];
+			CTLineRef line = CTLineCreateWithAttributedString((__bridge CFAttributedStringRef)text);
+			// The context's origin is its bottom left, so the first line is
+			// drawn highest.
+			CGContextSetTextPosition(context, 20, (CGFloat)(height - (index + 1) * lineHeight + 25));
+			CTLineDraw(line, context);
+			CFRelease(line);
+		}
+		CGColorRelease(black);
+		CFRelease(font);
+
+		CGImageRef image = CGBitmapContextCreateImage(context);
+		CGContextRelease(context);
+		return image;
+	}
+}
+
+int NeruImagesEqual(CGImageRef first, CGImageRef second) {
+	if (!first || !second || CGImageGetWidth(first) != CGImageGetWidth(second) ||
+	    CGImageGetHeight(first) != CGImageGetHeight(second) ||
+	    CGImageGetBytesPerRow(first) != CGImageGetBytesPerRow(second) ||
+	    CGImageGetBitsPerPixel(first) != CGImageGetBitsPerPixel(second))
+		return 0;
+
+	CFDataRef firstData = CGDataProviderCopyData(CGImageGetDataProvider(first));
+	CFDataRef secondData = CGDataProviderCopyData(CGImageGetDataProvider(second));
+	int equal =
+	    firstData && secondData && CFDataGetLength(firstData) == CFDataGetLength(secondData) &&
+	    memcmp(CFDataGetBytePtr(firstData), CFDataGetBytePtr(secondData), (size_t)CFDataGetLength(firstData)) == 0;
+	if (firstData)
+		CFRelease(firstData);
+	if (secondData)
+		CFRelease(secondData);
+	return equal;
+}
+
+void NeruFreeTextResult(NeruTextResult *result) {
+	if (!result)
+		return;
+	for (int i = 0; i < result->count; i++)
+		free(result->pieces[i].text);
+	free(result->pieces);
+	free(result);
 }

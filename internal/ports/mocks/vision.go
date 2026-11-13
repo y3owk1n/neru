@@ -18,6 +18,7 @@ import (
 type MockVisionPort struct {
 	HealthFunc         func(context.Context) error
 	ReadTextFunc       func(context.Context, image.Rectangle) (string, error)
+	ReadLinesFunc      func(context.Context, image.Rectangle, ports.TextLevel) ([][]ports.TextPiece, error)
 	DetectElementsFunc func(
 		context.Context,
 		image.Rectangle,
@@ -29,12 +30,19 @@ type MockVisionPort struct {
 	DetectSegmentsFunc func(context.Context, image.Rectangle, config.HintsSegmentConfig) ([]*element.Element, error)
 	// ExcludesOwnWindows is what CaptureExcludesOwnWindows answers.
 	ExcludesOwnWindows bool
+	// AccurateReadSame makes AccurateReadDiffers answer false. The zero value
+	// has the accurate read differ, as on macOS.
+	AccurateReadSame bool
+	// Preparing is what PrepareAccurateRead returns. Nil has it return a
+	// closed channel, as where nothing compiles.
+	Preparing chan struct{}
 
 	mu       sync.Mutex
 	detectN  int
 	captureN int
 	contourN int
 	segmentN int
+	prepareN int
 }
 
 // Health implements ports.VisionPort.
@@ -141,6 +149,15 @@ func (m *MockVisionPort) DetectContoursCallCount() int {
 	return m.contourN
 }
 
+// DetectSegmentsAsRead implements ports.VisionPort, as DetectSegments.
+func (m *MockVisionPort) DetectSegmentsAsRead(
+	ctx context.Context,
+	region image.Rectangle,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
+	return m.DetectSegments(ctx, region, cfg)
+}
+
 // DetectSegmentsCallCount reports how many times DetectSegments was called.
 func (m *MockVisionPort) DetectSegmentsCallCount() int {
 	m.mu.Lock()
@@ -152,6 +169,47 @@ func (m *MockVisionPort) DetectSegmentsCallCount() int {
 // CaptureExcludesOwnWindows implements ports.VisionPort.
 func (m *MockVisionPort) CaptureExcludesOwnWindows() bool { return m.ExcludesOwnWindows }
 
+// ReadLinesOnceChanged implements ports.VisionPort. It reads as ReadLines
+// does at TextFast, through ReadLinesFunc.
+func (m *MockVisionPort) ReadLinesOnceChanged(
+	ctx context.Context,
+	region image.Rectangle,
+) ([][]ports.TextPiece, error) {
+	return m.ReadLines(ctx, region, ports.TextFast)
+}
+
+// AccurateReadDiffers implements ports.VisionPort.
+func (m *MockVisionPort) AccurateReadDiffers() bool { return !m.AccurateReadSame }
+
+// PrepareAccurateRead implements ports.VisionPort. It returns Preparing, or
+// a closed channel when that is nil.
+func (m *MockVisionPort) PrepareAccurateRead() <-chan struct{} {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.prepareN++
+
+	if m.Preparing != nil {
+		return m.Preparing
+	}
+
+	prepared := make(chan struct{})
+	close(prepared)
+
+	return prepared
+}
+
+// PrepareCallCount reports how many times PrepareAccurateRead was called.
+func (m *MockVisionPort) PrepareCallCount() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.prepareN
+}
+
+// ForgetLastRead implements ports.VisionPort. It remembers nothing to forget.
+func (m *MockVisionPort) ForgetLastRead() {}
+
 // ReadText implements ports.VisionPort. Without ReadTextFunc it reports
 // CodeNotSupported, as Linux and Windows do.
 func (m *MockVisionPort) ReadText(ctx context.Context, rect image.Rectangle) (string, error) {
@@ -160,6 +218,20 @@ func (m *MockVisionPort) ReadText(ctx context.Context, rect image.Rectangle) (st
 	}
 
 	return "", derrors.New(derrors.CodeNotSupported, "text reading not supported")
+}
+
+// ReadLines implements ports.VisionPort. Without ReadLinesFunc it reports
+// CodeNotSupported, as Linux and Windows do.
+func (m *MockVisionPort) ReadLines(
+	ctx context.Context,
+	region image.Rectangle,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	if m.ReadLinesFunc != nil {
+		return m.ReadLinesFunc(ctx, region, level)
+	}
+
+	return nil, derrors.New(derrors.CodeNotSupported, "reading lines not supported")
 }
 
 // Ensure MockVisionPort implements ports.VisionPort.

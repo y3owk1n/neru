@@ -74,6 +74,12 @@ type Manager struct {
 	// Cairo, X11 and Wayland calls are not thread-safe.
 	renderMu sync.Mutex
 
+	// vimScene and vimStyle are the vim frame last drawn, and vimSpin turns
+	// its notice spinner while it shows a notice. renderMu guards all three.
+	vimSpin  *manager.VimSpin
+	vimScene manager.VimScene
+	vimStyle manager.VimStyle
+
 	backend linuxOverlayBackend
 	x11     *x11Overlay
 	wlroots *wlrootsOverlay
@@ -141,6 +147,7 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 
 	if instance.x11 != nil || instance.wlroots != nil {
 		platformlinux.SetOwnWindowsHider(instance.hideForCapture)
+		platformlinux.SetOwnWindowsDrawnOn(instance.drawnOn)
 	}
 
 	return instance
@@ -184,6 +191,8 @@ func (m *Manager) Hide() {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	m.stopVimSpinLocked()
+
 	if m.x11 != nil {
 		m.x11.Hide()
 	} else if m.wlroots != nil {
@@ -216,6 +225,8 @@ func (m *Manager) Clear() {
 
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
+
+	m.stopVimSpinLocked()
 
 	if m.x11 != nil {
 		m.x11.Clear()
@@ -271,12 +282,14 @@ func (m *Manager) SetActiveScreenOrigin(origin image.Point) {
 // Destroy cleans up the overlay Manager.
 func (m *Manager) Destroy() {
 	platformlinux.SetOwnWindowsHider(nil)
+	platformlinux.SetOwnWindowsDrawnOn(nil)
 
 	// Capture and nil the backend pointers under the lock, then release it
 	// before calling Destroy. The wlroots Destroy waits for the
 	// keyboardPoller goroutine, which takes renderMu every iteration, so
 	// holding renderMu here would deadlock.
 	m.renderMu.Lock()
+	m.stopVimSpinLocked()
 	x11 := m.x11
 	wlroots := m.wlroots
 	m.x11 = nil
@@ -356,6 +369,9 @@ func (m *Manager) ConfigureComponents(cfg *config.Config, pointer manager.Pointe
 
 // Every backend reports headlessness through manager.HeadlessReporter.
 var _ manager.HeadlessReporter = (*Manager)(nil)
+
+// Linux draws vim mode's surface on the shared overlay.
+var _ manager.VimDrawer = (*Manager)(nil)
 
 // Headless reports whether no backend surface was created: no display server,
 // a failed backend init, or a build without cgo.
@@ -989,6 +1005,35 @@ func (m *Manager) DrawMonitorSelect(
 	)
 }
 
+// DrawVim paints vim mode's surface. The adapter has already brought the
+// shared window up, so this only draws.
+func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error {
+	m.cancelBackendAnimation()
+
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 == nil && m.wlroots == nil {
+		return derrors.New(derrors.CodeNotSupported, "vim overlay not implemented on linux backend")
+	}
+
+	m.vimScene, m.vimStyle = scene, style
+	m.drawVimLocked(scene)
+
+	switch {
+	case scene.Notice == "":
+		m.stopVimSpinLocked()
+	case m.vimSpin == nil:
+		m.vimSpin = manager.StartVimSpin(&m.renderMu, func(step int) {
+			spun := m.vimScene
+			spun.Spin = step
+			m.drawVimLocked(spun)
+		})
+	}
+
+	return nil
+}
+
 // HideMonitorSelect hides the monitor_select overlay, clearing its panels.
 func (m *Manager) HideMonitorSelect() {
 	m.Hide()
@@ -1092,6 +1137,22 @@ func (m *Manager) HideIndicator(indicator ports.Indicator) {
 	case ports.VirtualPointerIndicator:
 		// Returned above.
 	}
+}
+
+// drawVimLocked paints scene with the last vim style on whichever backend is
+// up. The caller holds renderMu.
+func (m *Manager) drawVimLocked(scene manager.VimScene) {
+	if m.x11 != nil {
+		m.x11.DrawVim(scene, m.vimStyle)
+	} else if m.wlroots != nil {
+		m.wlroots.DrawVim(scene, m.vimStyle)
+	}
+}
+
+// stopVimSpinLocked stops the notice spinner. The caller holds renderMu.
+func (m *Manager) stopVimSpinLocked() {
+	m.vimSpin.Stop()
+	m.vimSpin = nil
 }
 
 // drawRegionGrid paints one region divided into cells on the shared surface,
@@ -1458,22 +1519,61 @@ func (m *Manager) syncSublayerKeysLocked(target *string) {
 	*target = m.GridOverlay().Config().SublayerKeys
 }
 
-// hideForCapture runs capture with the overlay cleared, then restores exactly
-// what it showed. It holds renderMu throughout, so no draw lands between the
-// clear and the capture. On Wayland the keyboard poller reads under the same
-// lock, so keys typed meanwhile are read once it ends. The click indicator
-// has its own surface and stays in the capture.
-func (m *Manager) hideForCapture(capture func() error) error {
+// drawnOn returns where the overlay drew since it was last cleared, in global
+// pixels, for the captures that leave it up.
+func (m *Manager) drawnOn() []image.Rectangle {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
 	if m.x11 != nil {
-		return m.x11.withBlanked(capture)
+		return m.x11.drawnOn()
 	}
 
 	if m.wlroots != nil {
-		return m.wlroots.withBlanked(capture)
+		return m.wlroots.drawnOn()
+	}
+
+	return nil
+}
+
+// hideForCapture runs capture with the overlay cleared inside region, then
+// restores exactly what it showed. It clears nothing when nothing it drew is
+// inside region. It holds renderMu throughout, so no draw lands between the
+// clear and the capture. On Wayland the keyboard poller reads under the same
+// lock, so keys typed meanwhile are read once it ends. The click indicator
+// has its own surface and stays in the capture.
+func (m *Manager) hideForCapture(region image.Rectangle, capture func() error) error {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	if m.x11 != nil && drawnInside(m.x11.showsNothing(), m.x11.drawnOn(), region) {
+		return m.x11.withBlanked(region, capture)
+	}
+
+	if m.wlroots != nil && drawnInside(m.wlroots.showsNothing(), m.wlroots.drawnOn(), region) {
+		return m.wlroots.withBlanked(region, capture)
 	}
 
 	return capture()
+}
+
+// drawnInside reports whether an overlay shows anything a capture of region
+// would see. It counts an overlay that keeps no record of where it drew as
+// showing something everywhere, unless it shows nothing at all.
+func drawnInside(showsNothing bool, drawnOn []image.Rectangle, region image.Rectangle) bool {
+	if showsNothing {
+		return false
+	}
+
+	if len(drawnOn) == 0 || region.Empty() {
+		return true
+	}
+
+	for _, drawn := range drawnOn {
+		if drawn.Overlaps(region) {
+			return true
+		}
+	}
+
+	return false
 }

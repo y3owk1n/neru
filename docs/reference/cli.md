@@ -87,7 +87,7 @@ Print the daemon state and the current mode.
 
 The human form prints `Status` (`running`, or `stopped` after `neru stop`) and
 `Mode` (`idle`, `hints`, `grid`, `recursive_grid`, `bisect`, `scroll`,
-`monitor_select`, or the name of the open [declared mode](configuration.md#modes)).
+`monitor_select`, `vim`, or the name of the open [declared mode](configuration.md#modes)).
 It then prints `Config`, `Platform`, the adapter profile, and the runtime
 toggles as `yes` or `no`. `Cursor follows selection` appears only while it has
 a value. With `--json`, the object goes to stdout alone, and errors go to
@@ -409,7 +409,7 @@ Reopen the mode after the action runs. Needs --action.
 
 #### `--toggle`
 
-Shorthand `-t`. Takes no value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode`.
+Shorthand `-t`. Takes no value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `scroll` · `monitor_select` · `mode` · `vim`.
 
 Open the mode, or leave it if it is already open.
 
@@ -457,7 +457,7 @@ How hints find elements: axtree (accessibility tree), vision (OCR), contour (sha
 
 #### `--capture-scope`
 
-Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect`.
+Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `vim`.
 
 Region to work in: window (the focused window) or screen (the whole screen). A comma-separated list cycles, moving to the next value each time the command runs while the mode is open, as in --capture-scope=window,screen. With --toggle, running the command on the last value leaves the mode instead of wrapping.
 
@@ -493,7 +493,7 @@ Open recursive grid already zoomed to this depth at the cursor.
 
 #### `--cursor-selection-mode`
 
-Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect`.
+Takes a value. Modes: `hints` · `grid` · `recursive_grid` · `bisect` · `vim`.
 
 Whether the real cursor follows the selection (follow) or stays put (hold).
 
@@ -508,7 +508,7 @@ confirm a mode opened, read `mode` from [`neru status --json`](#neru-status),
 or wait for the `mode_enter` line of `neru watch --event mode_enter`.
 
 Errors: `ERR_MODE_DISABLED` when the config sets `enabled = false` for the
-mode, which hints, grid, recursive_grid, bisect and monitor_select can do.
+mode, which hints, grid, recursive_grid, bisect, monitor_select and vim can do.
 `ERR_NOT_RUNNING` after `neru stop`. A flag the mode refuses fails too. The CLI
 refuses it before sending, and the daemon answers `ERR_INVALID_INPUT`.
 
@@ -639,6 +639,100 @@ It needs more than one display. With one, the command succeeds and opens
 nothing. Labels come from
 `monitor_select.characters`, default `123456789`, and `Escape` cancels. Takes
 the `monitor_select` flags in the [mode flag reference](#mode-flag-reference).
+
+### neru vim
+
+```
+neru vim [flags]
+```
+
+Read the text in the focused window, or the whole screen with
+`--capture-scope screen`, and move a cursor over it with vim's keys. Motions,
+counts, text objects, search, registers, macros and `.` work as in vim. Marks
+do not, because every scroll and edit reads the screen again and a mark would
+point at other text. For the same reason a read of the screen ends visual
+mode, as when `j` past the last line scrolls the app. Vim mode makes each
+edit in the app under the cursor, by clicking the caret into place,
+selecting with Shift+Right and typing, then reads the screen again.
+
+Vim mode's own keys in the table below, such as `s`, `gc` and `Ctrl+D`, are
+mappings that [`[vim.keymaps]`](configuration.md#vim-keymaps) can move or
+turn off.
+
+| Keys | Does |
+| :--- | :--- |
+| `i`, `a`, `I`, `A`, `o`, `O` | Click the app's caret into place, then type into the app until `Escape` |
+| `c`, `d`, `x`, `r`, `J` and the rest | Select the text, then erase it or type over it |
+| `p`, `P` | Click into place and type the register's text, without its `□` icons. Vim mode never touches the clipboard |
+| `u`, `Ctrl+R` | The app's own undo and redo. A count repeats it, up to eight times |
+| `.` | Repeat the last change. A change typed into the app repeats with what was typed |
+| `y` + motion | Copy the text as read, without touching the app. The copied text flashes and the status bar says how much |
+| `Return`, `gc`, `gr`, `gm` | Click the character under the cursor, left with `Return` or `gc`, right with `gr` and middle with `gm`. A count clicks that many times, up to three, so `2gc` or `2` `Return` double clicks. Vim mode stays open and reads the screen again |
+| `gh`, `:movemouse` | Move the real cursor to the character under the cursor without a click, gliding when `smooth_cursor.move_mouse_enabled` is on, for a session opened with `--cursor-selection-mode hold`. Motions after it leave the real cursor where it is |
+| `gs` + motion, or `Return` in visual mode | Drag across the text so the app selects it, then leave. Works on text that cannot be edited |
+| `s` + characters + label | Type any number of characters to find, then a match's label to jump there, or `Return` for the nearest. `Backspace` takes back a character. A label is never the character after a match, so typing more of the text never jumps |
+| `]i`, `[i` | Move to the next or the previous icon, with a count to skip |
+| `Ctrl+W` + `h`, `j`, `k`, `l` | Move to the container left, below, above or right, within the block the cursor is in until that block ends |
+| `Ctrl+W` + `w`, `W` | Move to the next or the previous container |
+| `ic`, `ac` | The container's text, or with the blank line after it, as `yic` copies a card. A count takes the block around it, as `y2ic` copies the column the card is in |
+| `Ctrl+D`, `Ctrl+U`, `Ctrl+F`, `Ctrl+B`, `Ctrl+E`, `Ctrl+Y` | Scroll the app at once. The overlay stays up while the page moves and the status bar says `reading…`, and vim reads the screen again once it stops, so a run of scrolls reads only the screen it ends on. A key that acts on the text before that read lands reads the screen first, and vim mode drops it with a notice when that read finds nothing. `j` and `k` past the edge scroll too |
+| `zh`, `zl`, `zH`, `zL` | Scroll the app left or right eight characters, or the count with one, or half the width read with `zH` and `zL` |
+| `zz` | Scroll the app until the cursor's line is in the middle of the region read, or line n of the text read with a count |
+| `Ctrl+L` | Read the screen again, keeping registers, macros and the last search |
+| `:s` | Replace as in vim. While it is typed, each place it would change is highlighted and the status bar counts them. One command changes at most 64 places, and the changes on one line take one click. Across lines it waits for the screen to show each line changed before it clicks the next, and stops with what it left in the status bar when the screen does not show it within a second |
+| `:q` | Leave |
+| `:leftclick`, `:rightclick`, `:middleclick` + optional number | Click at the cursor that many times, once without one, as `:leftclick 2` |
+| `:leftdown`, `:leftup`, `:rightdown`, `:rightup`, `:middledown`, `:middleup` | Press or release the button at the cursor, so a motion between them drags. Leaving the mode releases a button still held |
+| `Tab`, `Shift+Tab` | On the `:` line, cycle forward or back through the commands that start with the name typed. The status bar lists them, and after the last the name typed comes back |
+| `Escape` | Cancel what is pending, then leave |
+
+Vim mode groups the words of a column, a sidebar or a card into a container,
+using the gaps between words, the color behind them and the borders between
+them, such as a card's edge or an input's outline. It lays each container out
+as its own block, so `j`, `k`, `w` and search stay inside the one you are
+reading, and it outlines the one the cursor is in. Containers nest, cut apart
+at the gaps that run all the way across the screen, so a card sits in a column
+and the column in the page. The block around the cursor's container is
+outlined fainter.
+
+Vim mode reads the screen twice. A fast read opens the mode at once, and an
+accurate read replaces it when it finishes. The status bar says `reading…`
+until then. The accurate read also finds icons and pictures with no text,
+such as an icon-only button, and puts a `□` where each one is, so `w`, `j` and
+`s` reach it and `Return` clicks it. A yank leaves the `□` out. The box beside
+the cursor shows the word under it as read. The counts in one command, such
+as both in `99d99j`, multiply to at most 9999, and vim mode drops a digit
+past that. One command changes at most 64 places and sends the app at most
+2000 keys, a Shift+Right for each character it selects and a key for each it
+types.
+
+The fast read knows Latin script only. The accurate read finds each line's
+script, so it reads Chinese, Japanese, Korean, Thai, Russian and the other
+languages macOS knows. It reads each line in one script. When your macOS
+languages include Chinese, Japanese or Korean, it also reads with that
+language, so a word of it in an English line is read correctly. Linux reads
+fewer scripts, which [platform support](platform-support.md#notes) lists. Until the
+accurate read finishes, a line in another script shows as noise. A wide character such as 中
+takes two columns, and a character the app moves over in one step, such as
+a Thai consonant with its vowel sign, is one character to vim. Arabic and
+Hebrew are read and moved over, but laid out left to right, so an edit in
+them selects the wrong text. Japanese and Korean on one line can be read as
+one of the two. After an install or a macOS update, macOS compiles the
+accurate read's models once, which takes about a minute. Neru starts that as
+it launches when a hotkey, hook or macro opens vim mode, and otherwise at the
+first `neru vim`. It runs in a separate process, so moving around keeps
+working meanwhile, and a card says what the wait is when vim mode opens
+before it finishes.
+
+Typing into the app re-sends each key, so an input method's composition does
+not work there, and `i` over text that cannot be edited sends the keys to the
+app as shortcuts. Vim mode types every edit key by key too, so it refuses
+an edit whose text has a character no key types, such as a letter outside
+ASCII, and the status bar says why. A drag and every edit change the app's
+own selection. Vim mode also reads the window's title and toolbar as text,
+so an edit there, such as `A` on the title line, renames or types into it. Takes the `vim` flags in
+the [mode flag reference](#mode-flag-reference). The scope and appearance are
+under [`[vim]`](configuration.md#vim).
 
 ### neru mode
 

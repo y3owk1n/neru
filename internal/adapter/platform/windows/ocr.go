@@ -51,6 +51,9 @@ type OCRWord struct {
 	// every word carries 1. The engine has already dropped what it could not
 	// read, and a floor a caller compares against keeps everything.
 	Confidence float64
+	// Line counts the engine's lines from 0, in the order it read them, so
+	// the words of one line share it.
+	Line int
 }
 
 // OCRStats describes the work one recognition did, so a caller can log it.
@@ -290,6 +293,13 @@ func RecognizeText(
 	bridge := worker()
 
 	err := bridge.do(func() error {
+		// A read canceled while it waited behind another on the worker is
+		// dropped before it converts the frame or starts the engine.
+		ctxErr := ctx.Err()
+		if ctxErr != nil {
+			return derrors.Wrap(ctxErr, derrors.CodeContextCanceled, "text recognition canceled")
+		}
+
 		engineErr := bridge.ensureEngine()
 		if engineErr != nil {
 			return engineErr
@@ -558,8 +568,8 @@ func collectWords(result unsafe.Pointer, wordLevel bool, factor int) ([]OCRWord,
 
 	var words []OCRWord
 
-	for i := range lineCount {
-		line, lineErr := lines.at(i)
+	for index := range lineCount {
+		line, lineErr := lines.at(index)
 		if lineErr != nil {
 			return nil, derrors.Wrap(
 				lineErr,
@@ -568,7 +578,7 @@ func collectWords(result unsafe.Pointer, wordLevel bool, factor int) ([]OCRWord,
 			)
 		}
 
-		words, err = appendLine(words, line, wordLevel, factor)
+		words, err = appendLine(words, line, int(index), wordLevel, factor)
 		winrtReleaseObject(line)
 
 		if err != nil {
@@ -579,10 +589,12 @@ func collectWords(result unsafe.Pointer, wordLevel bool, factor int) ([]OCRWord,
 	return words, nil
 }
 
-// appendLine appends line's words, or the line as one run, to words.
+// appendLine appends line's words, or the line as one run, to words, each
+// numbered index.
 func appendLine(
 	words []OCRWord,
 	line unsafe.Pointer,
+	index int,
 	wordLevel bool,
 	factor int,
 ) ([]OCRWord, error) {
@@ -636,6 +648,7 @@ func appendLine(
 				Text:       inspectableText(word, ocrWordText),
 				Bounds:     bounds,
 				Confidence: 1,
+				Line:       index,
 			})
 		} else {
 			lineBounds = lineBounds.Union(bounds)
@@ -649,6 +662,7 @@ func appendLine(
 			Text:       inspectableText(line, ocrLineText),
 			Bounds:     lineBounds,
 			Confidence: 1,
+			Line:       index,
 		})
 	}
 

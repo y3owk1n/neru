@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Windows answers this port with two native pieces: screen capture through GDI
@@ -156,6 +157,10 @@ func toRecognizedWords(words []platformwindows.OCRWord) []recognizedWord {
 	return converted
 }
 
+// AccurateReadDiffers is false. Windows.Media.Ocr has one level, so an
+// accurate read is the fast read again.
+func (a *Adapter) AccurateReadDiffers() bool { return false }
+
 // CaptureExcludesOwnWindows is true from Windows 10 version 2004, where each
 // capture leaves Neru's own windows out through their display affinity. On an
 // older build the BitBlt reads the overlay along with everything else on
@@ -208,6 +213,15 @@ func (a *Adapter) DetectSegments(
 		return nil, err
 	}
 
+	return detectSegmentsIn(ctx, frame, cfg)
+}
+
+// detectSegmentsIn runs the segment detector on frame.
+func detectSegmentsIn(
+	ctx context.Context,
+	frame detectionFrame,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
 	dpi := platformwindows.DPIScaleAt(regionCenter(frame.region))
 
 	rects, err := segment.Detect(ctx, frame.img, dpi, cfg.Targets)
@@ -238,7 +252,12 @@ func (a *Adapter) captureDetectionFrame(
 		return detectionFrame{}, err
 	}
 
-	return detectionFrame{img: img, origin: region.Min, region: region, scale: 1}, nil
+	return detectionFrameOf(img, region), nil
+}
+
+// detectionFrameOf wraps img, a capture of region, for a detector.
+func detectionFrameOf(img *image.RGBA, region image.Rectangle) detectionFrame {
+	return detectionFrame{img: img, origin: region.Min, region: region, scale: 1}
 }
 
 // Health reports whether the vision strategy can run on this machine.
@@ -258,6 +277,15 @@ func (a *Adapter) Health(ctx context.Context) error {
 
 	return platformwindows.OCRHealth()
 }
+
+// captureProbe captures region for the captures that watch a region settle.
+// A Windows capture already leaves Neru's windows out, so it is captureRegion.
+func (a *Adapter) captureProbe(ctx context.Context, region image.Rectangle) (*image.RGBA, error) {
+	return a.captureRegion(ctx, region)
+}
+
+// overlayDrawnOn is nil, since the probes leave Neru's windows out.
+func (a *Adapter) overlayDrawnOn() []image.Rectangle { return nil }
 
 // captureRegion captures region, global top-left origin, Y down, unscaled
 // pixels, off the desktop. An empty rectangle means the whole active screen,
@@ -312,8 +340,111 @@ func scaleRects(rects []image.Rectangle, factor float64) []image.Rectangle {
 	return out
 }
 
+// linesFromWords lays the words Windows.Media.Ocr read off img, which shows
+// region, out as ReadLines pieces, a character at a time.
+func linesFromWords(
+	words []platformwindows.OCRWord,
+	img *image.RGBA,
+	region image.Rectangle,
+) [][]ports.TextPiece {
+	symbols := make([]lineSymbol, 0, len(words))
+
+	word, line := 0, -1
+
+	for _, found := range words {
+		if found.Line != line {
+			word, line = 0, found.Line
+		}
+
+		symbols = append(symbols,
+			wordSymbols(img, found.Text, found.Bounds.Add(img.Rect.Min), found.Line, word)...)
+		word++
+	}
+
+	return piecesFromSymbols(symbols, img, region)
+}
+
 // ReadText reports CodeNotSupported. Windows.Media.Ocr already reads text
 // accurately in the detection pass, so copy_text keeps the text the hint has.
 func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
 	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Windows")
 }
+
+// ReadLines captures region and has Windows.Media.Ocr read it a word at a
+// time, in the user's profile languages, and splits each word into its
+// characters by their ink (wordSymbols). The engine has one level, so a fast
+// and an accurate read are the same read.
+func (a *Adapter) ReadLines(
+	ctx context.Context,
+	region image.Rectangle,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	if region.Empty() {
+		err := platformwindows.OCRHealth()
+		if err != nil {
+			return nil, err
+		}
+
+		return nil, derrors.New(
+			derrors.CodeInvalidInput,
+			"reading lines needs a region with an area",
+		)
+	}
+
+	img, err := a.captureRegion(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	lines, err := a.readFrameLines(ctx, region, img, level)
+	if err == nil && level == ports.TextFast {
+		a.lastRead.remember(region, img, lines)
+	}
+
+	return lines, err
+}
+
+// readFrameLines reads img, a capture of region, at level.
+func (a *Adapter) readFrameLines(
+	ctx context.Context,
+	region image.Rectangle,
+	img *image.RGBA,
+	level ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	timeoutMS := 0
+	if deadline, ok := ctx.Deadline(); ok {
+		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
+	}
+
+	words, stats, err := platformwindows.RecognizeText(ctx, img, platformwindows.OCRParams{
+		WordLevel: true,
+		TimeoutMS: timeoutMS,
+	})
+	if err != nil {
+		if derrors.IsNotSupported(err) {
+			return nil, err
+		}
+
+		return nil, derrors.Wrapf(
+			err,
+			derrors.GetCode(err),
+			"reading lines failed after %s (frame %dx%d)",
+			stats.Recognition,
+			img.Rect.Dx(),
+			img.Rect.Dy(),
+		)
+	}
+
+	lines := linesFromWords(words, img, region)
+
+	a.logger.Debug("Read lines",
+		zap.Bool("accurate", level == ports.TextAccurate),
+		zap.Int("line_count", len(lines)),
+		zap.Duration("recognition", stats.Recognition))
+
+	return lines, nil
+}
+
+// accurateReadPreparation is nil. Windows.Media.Ocr compiles nothing on first use, so
+// there is nothing to prepare.
+func (a *Adapter) accurateReadPreparation() func() error { return nil }

@@ -185,6 +185,91 @@ func (MonitorSelectFrame) Mode() domain.Mode { return domain.ModeMonitorSelect }
 
 func (MonitorSelectFrame) frame() {}
 
+// VimFrame is the vim surface: the text read off the screen, drawn as the
+// cursor on one character, the visual selection, the search matches, an
+// outline around the container the cursor is in, a status bar along the
+// region read, and a lens showing the word under the cursor as it was read.
+// Every rectangle is in global coordinates. Translating them into the
+// overlay's screen-local space is the adapter's business.
+type VimFrame struct {
+	// Screen is the active display.
+	Screen image.Rectangle
+	// Region is what was read, the focused window or the screen. The status
+	// bar runs along its bottom edge.
+	Region image.Rectangle
+	// Cursor is the character under the cursor. Pending draws it as an
+	// outline, while an operator waits for its motion.
+	Cursor  image.Rectangle
+	Pending bool
+	// Selection is the visual selection, a rectangle per line.
+	Selection []image.Rectangle
+	// Matches are the search matches, or an s jump's while one is typed,
+	// and Current indexes the one the cursor is on, or is -1.
+	Matches []image.Rectangle
+	Current int
+	// Container is the block of text the cursor is in, such as a column or
+	// a card, outlined so the reach of j, k and the ic object shows.
+	Container image.Rectangle
+	// Block is the block Container sits in, outlined fainter, so 2ic's reach
+	// shows. It is empty when that is the whole screen.
+	Block image.Rectangle
+	// Status is the status bar along Region's bottom edge. An empty Mode
+	// draws no bar.
+	Status VimStatus
+	// Lens is the word under the cursor as read, split around the character
+	// the cursor is on. An empty At shows no lens.
+	Lens VimLens
+	// Labels name an s jump's matches, each drawn over the character after
+	// its match.
+	Labels []VimLabel
+	// Notice is a wait the user should see, drawn as a card with a spinner
+	// near the top of Region: a title, then a detail after a newline. Empty
+	// draws none.
+	Notice string
+}
+
+// VimStatus is vim's status bar: a chip naming the mode, the text after it,
+// such as the command being typed or a message, and the text at the bar's
+// right end, such as where the cursor is among the matches. Typed says Text
+// is being typed, so a bar too narrow for it cuts its start rather than its
+// end, keeping what is typed next in view.
+type VimStatus struct {
+	Mode  string
+	Kind  VimModeKind
+	Text  string
+	Right string
+	Typed bool
+}
+
+// VimModeKind sorts vim's modes by how the status bar's chip shows them.
+type VimModeKind int
+
+const (
+	// VimModeNormal is normal mode.
+	VimModeNormal VimModeKind = iota
+	// VimModeVisual is any of the visual modes.
+	VimModeVisual
+	// VimModeOther is a mode waiting on input: a command line, a jump, an
+	// operator waiting for its motion, or typing into the app.
+	VimModeOther
+)
+
+// VimLabel is one jump target's label and the character it sits on.
+type VimLabel struct {
+	Text   string
+	Bounds image.Rectangle
+}
+
+// VimLens is the word under the vim cursor, split around its character.
+type VimLens struct {
+	Before, At, After string
+}
+
+// Mode names the mode a vim frame draws.
+func (VimFrame) Mode() domain.Mode { return domain.ModeVim }
+
+func (VimFrame) frame() {}
+
 // ScrollFrame is the scroll surface, which draws nothing, because scroll mode
 // is a mode the indicators report, not a surface with content of its own.
 //
@@ -383,6 +468,13 @@ type OverlayPort interface {
 	// coordinate rule in AGENTS.md already carries for drawn overlay content.
 	// ports.TextInputFrame has always been fed this space.
 	HintSearchBounds(screen image.Rectangle) image.Rectangle
+
+	// VimStatusBar reports the strip vim mode's status bar covers at the
+	// bottom of region, in region's coordinates, so vim reads only the text
+	// above it. The text under the bar is hidden while vim is up, and leaving
+	// it out keeps a capture from having to take the bar off the screen. The
+	// overlay sizes the bar, so asking beats deriving it a second time.
+	VimStatusBar(region image.Rectangle) image.Rectangle
 
 	// UpdateGridMatches narrows the grid on screen to the cells whose label
 	// starts with prefix. With SetGridHideUnmatched it is the incremental

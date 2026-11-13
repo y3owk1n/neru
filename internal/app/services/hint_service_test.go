@@ -950,11 +950,42 @@ func (m *mockVisionPort) DetectSegments(
 	return m.detectedElements, nil
 }
 
+func (m *mockVisionPort) DetectSegmentsAsRead(
+	ctx context.Context,
+	region image.Rectangle,
+	cfg config.HintsSegmentConfig,
+) ([]*element.Element, error) {
+	return m.DetectSegments(ctx, region, cfg)
+}
+
 func (m *mockVisionPort) CaptureScreen(context.Context) (*image.RGBA, error) {
 	return nil, derrors.New(derrors.CodeBridgeFailed, "capture screen not implemented")
 }
 
 func (m *mockVisionPort) CaptureExcludesOwnWindows() bool { return false }
+
+func (m *mockVisionPort) AccurateReadDiffers() bool { return true }
+
+func (m *mockVisionPort) ForgetLastRead() {}
+
+func (m *mockVisionPort) PrepareAccurateRead() <-chan struct{} {
+	prepared := make(chan struct{})
+	close(prepared)
+
+	return prepared
+}
+
+func (m *mockVisionPort) ReadLinesOnceChanged(
+	ctx context.Context, region image.Rectangle,
+) ([][]ports.TextPiece, error) {
+	return m.ReadLines(ctx, region, ports.TextFast)
+}
+
+func (m *mockVisionPort) ReadLines(
+	context.Context, image.Rectangle, ports.TextLevel,
+) ([][]ports.TextPiece, error) {
+	return nil, derrors.New(derrors.CodeNotSupported, "not used by hints")
+}
 
 func (m *mockVisionPort) ReadText(context.Context, image.Rectangle) (string, error) {
 	return "", derrors.New(derrors.CodeNotSupported, "not supported")

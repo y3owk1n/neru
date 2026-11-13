@@ -22,7 +22,7 @@ On Linux, Neru supports X11 and the Wayland desktops listed in
 - **Alpha**: core navigation works, but hint coverage is incomplete and per-app
   config does not re-apply on focus change.
 
-Windows has no known gaps, and Linux has one, under [Known gaps](#known-gaps).
+Windows has one known gap and Linux has two, under [Known gaps](#known-gaps).
 Both stay Beta because CI proves them rather than daily use. A Beta platform
 becomes Stable after six releases in a row with no bug filed against it alone.
 
@@ -42,6 +42,7 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | Menu bar, Dock and other system surfaces in hints | ✅ | ➖ | ➖          | ➖            | ➖      |
 | Scroll mode                    | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Monitor select                 | ✅    | ✅        | ✅                | ✅            | ✅      |
+| Vim mode                       | ✅    | ⚠️ ¹⁶     | ⚠️ ¹⁶             | ⚠️ ¹⁶         | ⚠️ ¹⁷   |
 | Clicks, drag, modified clicks  | ✅    | ✅        | ✅ ⁴              | ✅ ⁴          | ✅      |
 | Smooth cursor and held-key glide | ✅  | ✅        | ✅                | ✅            | ✅      |
 | Smooth scroll                  | ✅    | ⚠️ ⁵      | ✅ ⁵              | ⚠️ ⁵          | ✅      |
@@ -162,6 +163,31 @@ copies what the hints pass read. Linux and Windows always copy what the hints
 pass read, since their OCR reads small UI text word for word from the whole
 screen. `contour` and `segment` hints there have nothing to copy.
 
+¹⁶ **Linux vim mode reads Latin script, plus the languages in other scripts
+the daemon's locale names** in `LANGUAGE`, `LC_ALL`, `LC_MESSAGES` or `LANG`,
+such as Chinese or Russian, when their tesseract data is installed beside
+`eng.traineddata`. The accurate read reads them, so until that finishes a line
+in one shows as noise. Vim mode reads a line that mixes English with a word of
+Russian or Arabic as English.
+tesseract reads Korean less reliably than Chinese and Japanese, so a Korean
+line can come back in pieces. It reads 「 and 」 as Latin letters, and its
+`tessdata_fast` models misread more than the standard ones distributions ship. On niri, as on the other wlroots
+compositors under [wlroots compositors](../guide/linux-desktops.md#wlroots-compositors),
+a tiled window gives no bounds, and vim mode reads the whole screen. Floating
+the window reads just the window. On Wayland, edits and typing need the
+keyboard proxy, which needs a readable `/dev/input` and a writable
+`/dev/uinput`. Without it Neru holds the keyboard through its own overlay
+while a mode is open, where a key it typed would come back to it. So there,
+while a mode is open, vim mode refuses each edit and says why in its status
+line, and `action feed` is refused too.
+
+¹⁷ **Windows vim mode reads one language**, the first in the account's
+language list that has an OCR pack, since Windows.Media.Ocr builds its engine
+from that list. A pack for a language further down goes unused. The engine
+gives a box for each word only, so vim mode places each character by its own
+ink. In a word whose letters touch, the cursor can sit a little off a
+character.
+
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.
 
@@ -206,8 +232,10 @@ Linux and Windows have no exclusives.
 A gap is anything you can write that means less on a platform than on macOS.
 A boundary is a requirement the platform imposes, not something Neru lacks.
 
-**Linux**: one gap.
+**Linux**: two gaps.
 
+- **Vim mode reads Latin script and the languages the locale names**, with
+  their tesseract language data installed. macOS reads every script it knows.
 - **A Wayland monitor's resolution or scale change** needs a
   [daemon restart](../guide/troubleshooting.md#restart-the-daemon) before
   overlays fit it again. Plugging in or removing a monitor is tracked live.
@@ -230,7 +258,12 @@ These are boundaries, not gaps:
   `general.hide_overlay_in_screen_share` and `neru toggle-screen-share` do
   nothing there.
 
-**Windows**: none. These are boundaries, not gaps:
+**Windows**: one gap.
+
+- **Vim mode reads one language**, the first in the account's language list
+  that has an OCR pack. macOS reads every script it knows.
+
+These are boundaries, not gaps:
 
 - **Windows running as administrator.** While an elevated app has focus,
   hotkeys fire and the cursor moves, but the mode sees no keys and every

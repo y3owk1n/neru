@@ -157,6 +157,29 @@ func CaptureScreenRegion(
 	backend string,
 	region image.Rectangle,
 ) (*image.RGBA, error) {
+	return captureScreenRegion(ctx, backend, region, true)
+}
+
+// CaptureScreenRegionWithOverlay captures region as CaptureScreenRegion does,
+// but leaves Neru's overlay on the screen, so it does not blink. It is for a
+// caller that compares captures of a part of the screen the overlay does not
+// change while it watches, such as vim mode waiting for a scroll to settle.
+func CaptureScreenRegionWithOverlay(
+	ctx context.Context,
+	backend string,
+	region image.Rectangle,
+) (*image.RGBA, error) {
+	return captureScreenRegion(ctx, backend, region, false)
+}
+
+// captureScreenRegion captures region, taking the overlay off the screen
+// around the frame read when hideOverlay is set.
+func captureScreenRegion(
+	ctx context.Context,
+	backend string,
+	region image.Rectangle,
+	hideOverlay bool,
+) (*image.RGBA, error) {
 	err := ctx.Err()
 	if err != nil {
 		return nil, derrors.Wrap(err, derrors.CodeContextCanceled, "screen capture canceled")
@@ -168,7 +191,7 @@ func CaptureScreenRegion(
 			return nil, err
 		}
 
-		return withOwnWindowsHidden(func() (*image.RGBA, error) {
+		return withOwnWindowsHidden(hideOverlay, resolved, func() (*image.RGBA, error) {
 			err := captureCanceled(ctx)
 			if err != nil {
 				return nil, err
@@ -187,7 +210,7 @@ func CaptureScreenRegion(
 			return nil, err
 		}
 
-		return kdeCaptureRegion(ctx, resolved)
+		return kdeCaptureRegion(ctx, resolved, hideOverlay)
 	}
 
 	if backendUsesWlrClientStack(backend) {
@@ -196,7 +219,7 @@ func CaptureScreenRegion(
 			return nil, err
 		}
 
-		return withOwnWindowsHidden(func() (*image.RGBA, error) {
+		return withOwnWindowsHidden(hideOverlay, resolved, func() (*image.RGBA, error) {
 			err := captureCanceled(ctx)
 			if err != nil {
 				return nil, err

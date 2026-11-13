@@ -39,6 +39,12 @@ type Manager struct {
 	renderMu sync.Mutex
 	win      *winOverlay
 
+	// vimScene and vimStyle are the vim frame last drawn, and vimSpin turns
+	// its notice spinner while it shows a notice. renderMu guards all three.
+	vimSpin  *manager.VimSpin
+	vimScene manager.VimScene
+	vimStyle manager.VimStyle
+
 	// indicatorWin is a small dedicated layered window for the mode
 	// indicator badge. It is created lazily on first use and repositioned
 	// every tick. Keeping it separate from the main overlay avoids the
@@ -127,6 +133,8 @@ func (m *Manager) Hide() {
 		m.mouseActionCancel = nil
 	}
 
+	m.stopVimSpinLocked()
+
 	if m.win != nil {
 		m.win.Hide()
 	}
@@ -148,6 +156,8 @@ func (m *Manager) Hide() {
 func (m *Manager) Clear() {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
+
+	m.stopVimSpinLocked()
 
 	if m.win != nil {
 		m.win.forgetTransition()
@@ -205,6 +215,8 @@ func (m *Manager) Destroy() {
 		m.mouseActionCancel()
 		m.mouseActionCancel = nil
 	}
+
+	m.stopVimSpinLocked()
 
 	if m.win != nil {
 		m.win.Destroy()
@@ -348,6 +360,48 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 
 	return nil
 }
+
+// VimScale is the DPI factor of the monitor region is on, which DrawVim
+// scales the vim surface's fonts by.
+func (m *Manager) VimScale(region image.Rectangle) float64 {
+	const halves = 2
+
+	return winplatform.DPIScaleAt(region.Min.Add(region.Size().Div(halves)))
+}
+
+// DrawVim paints vim mode's surface. The adapter has already brought the
+// window up, so this only draws.
+func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error {
+	m.renderMu.Lock()
+	defer m.renderMu.Unlock()
+
+	m.ensureWinOverlayLocked()
+
+	if m.win == nil {
+		return derrors.New(
+			derrors.CodeNotSupported,
+			"vim overlay not drawn: the windows overlay has no window",
+		)
+	}
+
+	m.vimScene, m.vimStyle = scene, style
+	m.win.DrawVim(scene, style)
+
+	switch {
+	case scene.Notice == "":
+		m.stopVimSpinLocked()
+	case m.vimSpin == nil:
+		m.vimSpin = manager.StartVimSpin(&m.renderMu, func(step int) {
+			spun := m.vimScene
+			spun.Spin = step
+			m.win.DrawVim(spun, m.vimStyle)
+		})
+	}
+
+	return nil
+}
+
+var _ manager.VimDrawer = (*Manager)(nil)
 
 // resolveHintBadgeOffset maps a configured placement onto the offset this
 // overlay draws it with. It is the one place the placement vocabulary is read
@@ -1210,4 +1264,10 @@ func (m *Manager) syncSublayerKeysLocked() {
 	}
 
 	m.win.sublayerKeys = m.GridOverlay().Config().SublayerKeys
+}
+
+// stopVimSpinLocked stops the notice spinner. The caller holds renderMu.
+func (m *Manager) stopVimSpinLocked() {
+	m.vimSpin.Stop()
+	m.vimSpin = nil
 }

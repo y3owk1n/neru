@@ -41,6 +41,10 @@ var x11ModifierKeysyms = []struct {
 type x11ModifierHold struct {
 	display *C.Display
 	plan    modifierstate.Plan
+
+	// unannounced skips telling the event tap about each key, for a caller
+	// whose keys the tap never reads (x11FeedKey).
+	unannounced bool
 }
 
 // x11HoldModifiers makes the X server present exactly modifiers, and returns
@@ -65,9 +69,20 @@ type x11ModifierHold struct {
 // events. With a mode active they reach the tap's XGrabKeyboard, but an action
 // fired with no grab presents them to the focused window.
 func x11HoldModifiers(display *C.Display, modifiers action.Modifiers) x11ModifierHold {
+	return x11HoldModifiersFor(display, modifiers, false)
+}
+
+// x11HoldModifiersFor is x11HoldModifiers, with unannounced for a caller
+// whose keys never reach the event tap.
+func x11HoldModifiersFor(
+	display *C.Display,
+	modifiers action.Modifiers,
+	unannounced bool,
+) x11ModifierHold {
 	hold := x11ModifierHold{
-		display: display,
-		plan:    modifierstate.PlanFor(x11ModifierKeys(display), modifiers),
+		display:     display,
+		plan:        modifierstate.PlanFor(x11ModifierKeys(display), modifiers),
+		unannounced: unannounced,
 	}
 
 	for _, edit := range hold.plan.Suppress {
@@ -91,7 +106,9 @@ func x11HoldModifiers(display *C.Display, modifiers action.Modifiers) x11Modifie
 // of the same modifier in the one-cgo-call gap here is matched instead of ours.
 // XTest has no way to tag the event, which is why this channel exists.
 func (h x11ModifierHold) inject(edit modifierstate.Edit, pressed bool) {
-	recordSyntheticModifier(edit.Modifier, pressed)
+	if !h.unannounced {
+		recordSyntheticModifier(edit.Modifier, pressed)
+	}
 
 	state := C.int(0)
 	if pressed {

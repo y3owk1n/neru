@@ -384,6 +384,36 @@ sub_key_preview_font_size = 8
 sub_key_preview_autohide_multiplier = 1.5
 sub_key_preview_label_char = ""
 
+# Vim mode
+# See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#vim
+[vim]
+enabled = true
+capture_scope = "window"                    # window | screen
+
+[vim.ui]
+font_size = 13
+font_family = ""
+# Colors follow [theme] unless set here:
+# cursor_color, selection_color, match_color, container_color,
+# status_background_color, status_text_color
+
+# Map keys to other keys inside vim, in vim's notation, as noremap does. The
+# right side runs vim's own keys, so write vim mode's commands as
+# <Plug>(name). "<Nop>" makes the keys do nothing.
+[vim.keymaps.normal]
+# "<Space>j" = "<Plug>(jump)"
+# "s" = "<Nop>"
+# "H" = "^"
+
+[vim.keymaps.visual]
+# "H" = "^"
+
+# A key bound here runs its action and vim never sees it, so every key stays
+# vim's until bound. Per-app bindings and capture scopes go in [[vim.app_configs]].
+[vim.hotkeys]
+# "Ctrl+c" = "idle"
+# "Ctrl+h" = "hints"
+
 # Virtual pointer
 # See https://github.com/y3owk1n/neru/blob/main/docs/reference/configuration.md#virtual_pointer
 [virtual_pointer.ui]
@@ -500,6 +530,10 @@ text = "Bisect"
 [mode_indicator.monitor_select]
 enabled = false
 text = "Monitor Select"
+
+[mode_indicator.vim]
+enabled = false
+text = "Vim"
 
 [mode_indicator.ui]
 font_size = 10

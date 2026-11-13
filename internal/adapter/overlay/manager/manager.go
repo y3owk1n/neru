@@ -2,6 +2,7 @@ package manager
 
 import (
 	"image"
+	"math"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/grid"
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/hints"
@@ -30,6 +31,8 @@ const (
 	ModeBisect Mode = Mode(domain.ModeNameBisect)
 	// ModeMonitorSelect is the monitor_select mode.
 	ModeMonitorSelect Mode = Mode(domain.ModeNameMonitorSelect)
+	// ModeVim is the vim mode.
+	ModeVim Mode = Mode(domain.ModeNameVim)
 )
 
 // StateChange is a change in overlay mode.
@@ -147,6 +150,119 @@ type MonitorSelectStyle struct {
 type MonitorSelector interface {
 	DrawMonitorSelect(targets []MonitorSelectTarget, style MonitorSelectStyle) error
 	HideMonitorSelect()
+}
+
+// VimStyle is how the vim surface draws, resolved from [vim.ui], the hint
+// badge and the theme. It holds every value a backend draws with, so the
+// macOS bridge and LayoutVim only lay it out.
+type VimStyle struct {
+	// FontSize and FontFamily set the status bar and the notice.
+	FontSize              int
+	FontFamily            string
+	CursorColor           string
+	SelectionColor        string
+	MatchColor            string
+	ContainerColor        string
+	StatusBackgroundColor string
+	StatusTextColor       string
+	// Badge styles the jump labels, the lens and the notice, which draw as
+	// hint badges.
+	Badge VimBadge
+	// ModeColor fills the status bar's mode chip in normal mode, and
+	// VisualModeColor fills it in visual mode. OnModeColor is the text on
+	// both, and on the cursor's character in the lens. Any other mode draws
+	// an outlined chip.
+	ModeColor       string
+	VisualModeColor string
+	OnModeColor     string
+}
+
+// VimBadge is a box vim draws over the text, styled as a hint badge. Padding
+// is resolved, and a negative BorderRadius is the hint badge's automatic one.
+type VimBadge struct {
+	FontSize     int
+	FontFamily   string
+	Background   string
+	Text         string
+	Border       string
+	BorderWidth  int
+	PaddingX     int
+	PaddingY     int
+	BorderRadius int
+}
+
+// VimModeKind is how the status bar's mode chip draws.
+type VimModeKind int
+
+const (
+	// VimModeNormal fills the chip with ModeColor.
+	VimModeNormal VimModeKind = iota
+	// VimModeVisual fills the chip with VisualModeColor.
+	VimModeVisual
+	// VimModeOther outlines the chip, for a mode waiting on input.
+	VimModeOther
+)
+
+// VimScene is a vim frame in the overlay's screen-local space.
+type VimScene struct {
+	Region    image.Rectangle
+	Cursor    image.Rectangle
+	Pending   bool
+	Selection []image.Rectangle
+	Matches   []image.Rectangle
+	Current   int
+	Container image.Rectangle
+	Block     image.Rectangle
+	// Mode is the status bar's chip and ModeKind how it draws. Status is the
+	// text after it and StatusRight the text at the bar's right end. An
+	// empty Mode draws no bar. StatusTyped cuts a Status too long for the
+	// bar from its start, since it is being typed, and otherwise from its
+	// end.
+	Mode        string
+	ModeKind    VimModeKind
+	Status      string
+	StatusRight string
+	StatusTyped bool
+	Lens        [3]string
+	Labels      []VimLabel
+	Notice      string
+	// Spin is the notice spinner's step. A backend advances it while a notice
+	// shows (VimSpin).
+	Spin int
+}
+
+// VimLabel is a jump label in screen-local space.
+type VimLabel struct {
+	Text   string
+	Bounds image.Rectangle
+}
+
+// VimDrawer is the optional extension a backend implements when it can draw
+// the vim surface. A backend without it makes the mode report
+// CodeNotSupported.
+type VimDrawer interface {
+	DrawVim(scene VimScene, style VimStyle) error
+}
+
+// VimScaler is the optional extension a backend implements when it draws the
+// vim surface's fonts scaled, as Windows does by the monitor's DPI factor. It
+// answers the factor for region, so the strip vim leaves for its status bar
+// is as tall as the bar drawn.
+type VimScaler interface {
+	VimScale(region image.Rectangle) float64
+}
+
+// ScaleVimStyle returns style with its font sizes and badge padding scaled by
+// scale, as a backend that draws in pixels scales points.
+func ScaleVimStyle(style VimStyle, scale float64) VimStyle {
+	scaled := func(points int) int { return int(math.Round(float64(points) * scale)) }
+
+	style.FontSize = scaled(style.FontSize)
+	style.Badge.FontSize = scaled(style.Badge.FontSize)
+	style.Badge.PaddingX = scaled(style.Badge.PaddingX)
+	style.Badge.PaddingY = scaled(style.Badge.PaddingY)
+
+	return style
 }
 
 // Interface is the overlay window management contract.

@@ -36,9 +36,11 @@ int neru_eventtap_grab_keyboard(Display *display) {
 	    CurrentTime);
 }
 
+// Synced, so a key another connection sends after this returns reaches the
+// focused window instead of the grab.
 void neru_eventtap_ungrab_keyboard(Display *display) {
 	XUngrabKeyboard(display, CurrentTime);
-	XFlush(display);
+	XSync(display, False);
 }
 
 int neru_eventtap_pending(Display *display) { return XPending(display); }

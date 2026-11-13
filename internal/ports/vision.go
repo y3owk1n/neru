@@ -52,6 +52,18 @@ type VisionPort interface {
 		cfg config.HintsSegmentConfig,
 	) ([]*element.Element, error)
 
+	// DetectSegmentsAsRead runs the segment detector as DetectSegments does,
+	// on the frame the last fast read of region captured when there is one,
+	// so it looks at the screen that read looked at and captures nothing. A
+	// Linux capture takes the overlay off the screen, so this is what keeps a
+	// read's icon pass from blinking it. A platform whose read keeps a frame the
+	// detector cannot take captures afresh. So does a region with no read.
+	DetectSegmentsAsRead(
+		ctx context.Context,
+		region image.Rectangle,
+		cfg config.HintsSegmentConfig,
+	) ([]*element.Element, error)
+
 	// CaptureScreen returns the current screen image. Which screen "current"
 	// means is the platform's own answer. macOS captures the primary display,
 	// Linux the screen holding the cursor, because Wayland exposes no primary
@@ -74,9 +86,80 @@ type VisionPort interface {
 	// screen content and must never be logged.
 	ReadText(ctx context.Context, rect image.Rectangle) (string, error)
 
+	// PrepareAccurateRead starts, the first time it is called, whatever makes
+	// the first ReadLines at TextAccurate as fast as the ones after it, and
+	// returns a channel closed once that is done. It never blocks. On macOS,
+	// Vision compiles its recognition models the first time an app reads
+	// with them after an install or a macOS update, which takes up to a
+	// minute, so there the adapter reads a sample of every script Vision
+	// reads. An accurate read started before the channel
+	// closes would compile the same models a second time, so callers wait
+	// for it first. Where nothing compiles, the channel comes back closed.
+	PrepareAccurateRead() <-chan struct{}
+
+	// ReadLines captures region, in global coordinates, and returns its text
+	// a line at a time, top to bottom, each line's whitespace-separated words
+	// with their bounds. An accurate read spells small text right where a
+	// fast one misreads it, and on macOS its first use compiles a model, which
+	// PrepareAccurateRead does ahead of time. The caller bounds the read with
+	// ctx. The text is screen content and must never be logged. Platforms
+	// without it report CodeNotSupported, for any region.
+	// An empty region captures nothing, so it asks whether lines can be read
+	// at all: CodeNotSupported where they cannot, CodeInvalidInput where they
+	// can.
+	ReadLines(ctx context.Context, region image.Rectangle, level TextLevel) ([][]TextPiece, error)
+
+	// ReadLinesOnceChanged reads region as ReadLines does at TextFast, once
+	// it has changed from what the last fast read of it captured and has
+	// stopped changing, as after a scroll the app may still be animating.
+	// One that does not change within a bound, as a scroll at the end of a
+	// page, gives the last read's lines again without reading. Canceling ctx
+	// stops it.
+	ReadLinesOnceChanged(ctx context.Context, region image.Rectangle) ([][]TextPiece, error)
+
+	// AccurateReadDiffers reports whether ReadLines at TextAccurate reads
+	// anything TextFast does not. Where it does not, a caller holding a fast
+	// read keeps it rather than reading the same thing twice. The accurate
+	// read is there for accuracy, not for a newer frame, so keeping the fast
+	// one loses nothing.
+	AccurateReadDiffers() bool
+
 	// CaptureExcludesOwnWindows reports whether a capture leaves Neru's own
 	// windows out of the frame. When it does not, a hints refresh that reads
 	// the screen takes the old labels off first, or it reads them back as
 	// targets.
 	CaptureExcludesOwnWindows() bool
+
+	// ForgetLastRead lets go of the frame the last fast line read captured,
+	// which ReadLinesOnceChanged keeps to tell a change from, for a caller
+	// done reading the screen for now. A whole screen's frame is tens of
+	// megabytes.
+	ForgetLastRead()
+}
+
+// TextLevel is how carefully ReadLines reads.
+type TextLevel int
+
+const (
+	// TextFast reads quickly and misreads small text.
+	TextFast TextLevel = iota
+	// TextAccurate reads slowly and gets small text right.
+	TextAccurate
+)
+
+// TextPiece is a word of a line read off the screen and the global bounds it
+// was read from. Word numbers the words of its line.
+type TextPiece struct {
+	Text   string
+	Bounds image.Rectangle
+	Word   int
+	// Background is the color behind its word, as 0xRRGGBB, or zero when
+	// the platform does not say.
+	Background uint32
+	// BorderAbove and BorderBelow are how far the nearest border above and
+	// below its word is from the word's box, or zero when the reader found
+	// none within a few lines. A border is a line across the word's whole
+	// line that is no text, as a card's edge, an input's outline or a rule
+	// between sections draws.
+	BorderAbove, BorderBelow int
 }

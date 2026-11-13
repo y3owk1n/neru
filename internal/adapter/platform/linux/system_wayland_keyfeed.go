@@ -212,6 +212,13 @@ func feedKeyLibei(modifiers []string, keycode uint32) error {
 	return err
 }
 
+// ParseFeedKey splits a key in the form FeedKey takes into its modifier names
+// (ctrl, shift, alt, cmd) and the main key's evdev keycode, for the X11
+// backend, which injects keys through XTest instead.
+func ParseFeedKey(key string) ([]string, uint32, error) {
+	return parseKeyString(key)
+}
+
 // parseKeyString splits a canonical key string into lowercase modifier names
 // and the main key's evdev keycode.
 func parseKeyString(key string) ([]string, uint32, error) {

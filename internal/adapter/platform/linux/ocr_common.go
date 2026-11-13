@@ -6,6 +6,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -55,6 +56,7 @@ const (
 	ocrStatusRecognize
 	ocrStatusBusy
 	ocrStatusTimeout
+	ocrStatusCanceled
 )
 
 // OCRWord is one run of recognized text, with Bounds relative to the top-left
@@ -66,6 +68,16 @@ type OCRWord struct {
 	// Confidence is 0..1, normalized from tesseract's 0..100 to match
 	// hints.vision.minimum_confidence and the macOS backend.
 	Confidence float64
+}
+
+// OCRSymbol is one character of a line read, with the box of its ink in the
+// image's own coordinates. Line and Word count from 0 in reading order, so the
+// characters of a word share a word number within their line.
+type OCRSymbol struct {
+	Text   string
+	Bounds image.Rectangle
+	Line   int
+	Word   int
 }
 
 // OCRStats describes the work one recognition did, in durations and counts
@@ -83,6 +95,13 @@ type OCRParams struct {
 	WordLevel bool
 	// TimeoutMS bounds the recognition. Zero or less means no deadline.
 	TimeoutMS int
+	// Language is the tesseract language to read in, such as "chi_sim+eng".
+	// Empty means eng. Any other language runs on an engine of its own, so a
+	// slow read in it never holds up one in eng.
+	Language string
+	// Done stops the recognition once it closes, as a context's Done does.
+	// A stopped recognition returns no lines. Nil runs it to the end.
+	Done <-chan struct{}
 }
 
 // ocrError maps a native OCR status onto the shared error vocabulary. Only
@@ -112,6 +131,8 @@ func ocrError(status ocrStatus) error {
 			"the OCR engine was busy with an earlier frame or behind an input method "+
 				"opening for hint search, so try again",
 		)
+	case ocrStatusCanceled:
+		return derrors.New(derrors.CodeContextCanceled, "text recognition was canceled")
 	case ocrStatusTimeout:
 		return derrors.New(
 			derrors.CodeActionFailed,
@@ -132,6 +153,132 @@ func ocrError(status ocrStatus) error {
 			"text recognition failed for an unknown reason",
 		)
 	}
+}
+
+// localeEnvVars are where the locale says what the user reads, in the order
+// gettext asks them. LANGUAGE is a colon-separated list.
+var localeEnvVars = []string{"LANGUAGE", "LC_ALL", "LC_MESSAGES", "LANG"}
+
+// tesseractTraditionalChinese is tesseract's name for Traditional Chinese.
+const tesseractTraditionalChinese = "chi_tra"
+
+// localeScripts maps a locale's language, and for Chinese its region or
+// script, to the tesseract language that reads it, for the languages eng reads
+// as Latin noise: those written in another script. Traditional Chinese comes
+// first so zh_TW is not read as zh.
+var localeScripts = []struct{ prefix, language string }{
+	{"zh_tw", tesseractTraditionalChinese},
+	{"zh_hk", tesseractTraditionalChinese},
+	{"zh_mo", tesseractTraditionalChinese},
+	{"zh_hant", tesseractTraditionalChinese},
+	{"yue", tesseractTraditionalChinese},
+	{"zh", "chi_sim"},
+	{"ja", "jpn"},
+	{"ko", "kor"},
+	{"ru", "rus"},
+	{"uk", "ukr"},
+	{"be", "bel"},
+	{"bg", "bul"},
+	{"sr", "srp"},
+	{"mk", "mkd"},
+	{"kk", "kaz"},
+	{"el", "ell"},
+	{"he", "heb"},
+	{"yi", "yid"},
+	{"ar", "ara"},
+	{"fa", "fas"},
+	{"ur", "urd"},
+	{"hi", "hin"},
+	{"mr", "mar"},
+	{"ne", "nep"},
+	{"bn", "ben"},
+	{"pa", "pan"},
+	{"gu", "guj"},
+	{"ta", "tam"},
+	{"te", "tel"},
+	{"kn", "kan"},
+	{"ml", "mal"},
+	{"si", "sin"},
+	{"th", "tha"},
+	{"lo", "lao"},
+	{"km", "khm"},
+	{"my", "mya"},
+	{"ka", "kat"},
+	{"hy", "hye"},
+	{"am", "amh"},
+}
+
+// localeLanguages is the tesseract language for each language in another
+// script the locale names, in the order it names them, once each, as macOS
+// reads in the preferred languages.
+func localeLanguages(env func(string) string) []string {
+	var languages []string
+
+	for _, name := range localeEnvVars {
+		for tag := range strings.SplitSeq(env(name), ":") {
+			tag = strings.ToLower(strings.ReplaceAll(strings.TrimSpace(tag), "-", "_"))
+
+			for _, script := range localeScripts {
+				rest, ok := strings.CutPrefix(tag, script.prefix)
+				if ok && (rest == "" || strings.ContainsRune("_.@", rune(rest[0]))) {
+					if !slices.Contains(languages, script.language) {
+						languages = append(languages, script.language)
+					}
+
+					break
+				}
+			}
+		}
+	}
+
+	return languages
+}
+
+// SecondLanguage is the tesseract language spec, such as "rus+eng", for a
+// second read of the text eng reads as Latin noise. It lists the languages in
+// other scripts the locale names, then eng. It is "" when the locale names
+// none whose data is installed beside eng's. When some data is missing, the
+// error is CodeNotSupported naming those files, and the spec still lists the
+// installed ones.
+func SecondLanguage() (string, error) {
+	languages := localeLanguages(os.Getenv)
+	if len(languages) == 0 {
+		return "", nil
+	}
+
+	dir, err := tessdataDir()
+	if err != nil {
+		return "", err
+	}
+
+	var installed, missing []string
+
+	for _, language := range languages {
+		info, statErr := os.Stat(filepath.Join(dir, language+".traineddata"))
+		if statErr != nil || info.IsDir() {
+			missing = append(missing, language+".traineddata")
+		} else {
+			installed = append(installed, language)
+		}
+	}
+
+	spec := ""
+	if len(installed) > 0 {
+		spec = strings.Join(append(installed, ocrLanguage), "+")
+	}
+
+	if len(missing) > 0 {
+		return spec, derrors.Newf(
+			derrors.CodeNotSupported,
+			"the locale reads %s, which was not found in %s, so text in it reads as Latin; "+
+				"install it beside %s",
+			strings.Join(missing, ", "),
+			dir,
+			ocrLanguageData,
+		)
+	}
+
+	return spec, nil
 }
 
 // resolveTessdataDir finds the directory holding the language data, or reports

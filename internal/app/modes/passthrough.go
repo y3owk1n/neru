@@ -60,7 +60,7 @@ func (h *handlerState) syncModifierPassthrough(mode domain.Mode) {
 
 		// A hint character held with a select_with modifier set is label
 		// input, so it is held back for the same reason.
-		selectWithChords = h.selectWithChords()
+		selectWithChords = append(h.selectWithChords(), h.vimChords()...)
 		for _, chord := range selectWithChords {
 			blacklist = append(blacklist, configpkg.CanonicalHotkeyForPlatform(chord))
 		}

@@ -28,8 +28,10 @@ void neru_x11_overlay_clear(NeruX11Overlay *overlay);
 // manager runs, whose repaint a capture has to wait for. It returns the copy
 // for neru_x11_overlay_unblank, or NULL when the window is not on screen. It
 // also returns NULL, with *failed set and the window untouched, when the copy
-// could not be made.
-cairo_surface_t *neru_x11_overlay_blank(NeruX11Overlay *overlay, int *composited, int *failed);
+// could not be made. With a width and height above zero it clears only that
+// rectangle, and the rest of the window stays on screen.
+cairo_surface_t *neru_x11_overlay_blank(
+    NeruX11Overlay *overlay, int x, int y, int width, int height, int *composited, int *failed);
 void neru_x11_overlay_unblank(NeruX11Overlay *overlay, cairo_surface_t *saved);
 void neru_x11_overlay_clear_buffered(NeruX11Overlay *overlay);
 void neru_x11_overlay_clear_rect(NeruX11Overlay *overlay, int x, int y, int width, int height);

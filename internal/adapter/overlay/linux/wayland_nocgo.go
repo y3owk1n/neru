@@ -104,4 +104,12 @@ func (o *wlrootsOverlay) setKeyboardCaptureEnabled(bool) {}
 func (o *wlrootsOverlay) startPoller()                   {}
 
 // withBlanked runs capture as it is, because this build draws no overlay.
-func (o *wlrootsOverlay) withBlanked(capture func() error) error { return capture() }
+func (o *wlrootsOverlay) withBlanked(_ image.Rectangle, capture func() error) error {
+	return capture()
+}
+
+func (o *wlrootsOverlay) showsNothing() bool { return true }
+
+func (o *wlrootsOverlay) drawnOn() []image.Rectangle { return nil }
+
+func (o *wlrootsOverlay) DrawVim(manager.VimScene, manager.VimStyle) {}

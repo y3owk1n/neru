@@ -13,7 +13,10 @@ import (
 
 // The Linux tap is the only tap the factory builds, so a build where it does
 // not implement the sink must not link.
-var _ tap.SyntheticModifierSink = (*eventtaplinux.EventTap)(nil)
+var (
+	_ tap.SyntheticModifierSink = (*eventtaplinux.EventTap)(nil)
+	_ tap.KeyboardYielder       = (*eventtaplinux.EventTap)(nil)
+)
 
 // initializePlatformLogger is a no-op on Linux.
 func initializePlatformLogger(_ *zap.Logger) {}
@@ -47,6 +50,31 @@ func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 	}
 
 	nativelinux.SetSyntheticModifierSink(sink)
+}
+
+// registerKeyboardYielder hands the live tap's yield to key feeding, so a key
+// Neru types while a mode holds the keyboard reaches the focused window instead
+// of coming back to the tap. On X11 the tap steps aside for it, and on the
+// Wayland overlay-keyboard fallback, where it cannot, a typed key is refused.
+// A nil tap releases the slot.
+func registerKeyboardYielder(built tap.Tap, logger *zap.Logger) {
+	if built == nil {
+		nativelinux.SetKeyboardYielder(nil)
+
+		return
+	}
+
+	yielder, ok := built.(tap.KeyboardYielder)
+	if !ok {
+		logger.Warn(
+			"Event tap cannot release its grab for typed keys, " +
+				"so on X11 the keys Neru types during a mode come back to it",
+		)
+
+		return
+	}
+
+	nativelinux.SetKeyboardYielder(yielder)
 }
 
 // platformQuit unblocks the systray loop so App.Quit() (tray menu or signal)

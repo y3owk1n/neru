@@ -357,4 +357,69 @@ void NeruShowMonitorSelectPanels(MonitorSelectTargetData *targets, int count, Mo
 /// Hide all monitor select overlay panels.
 void NeruHideMonitorSelectPanels(void);
 
+#pragma mark - Vim
+
+/// Vim surface style. Every value is resolved in Go.
+typedef struct {
+	int fontSize;                 ///< Status bar and notice font size
+	char *fontFamily;             ///< Font family (empty = monospaced system font)
+	char *cursorColor;            ///< Cursor bar, and its fill at a share of its alpha
+	char *selectionColor;         ///< Visual selection fill
+	char *matchColor;             ///< Search match underline and current match fill
+	char *containerColor;         ///< Outline of the container the cursor is in
+	char *statusBackgroundColor;  ///< Status bar background
+	char *statusTextColor;        ///< Status bar text
+	int badgeFontSize;            ///< Jump label and lens font size, the hint badge's
+	char *badgeFontFamily;        ///< Jump label and lens font family
+	char *badgeBackground;        ///< Jump label, lens and notice fill
+	char *badgeText;              ///< Jump label, lens and notice text
+	char *badgeBorder;            ///< Jump label, lens and notice border, and the status bar's top rule
+	int badgeBorderWidth;         ///< Badge border width
+	int badgePaddingX;            ///< Badge horizontal padding, resolved
+	int badgePaddingY;            ///< Badge vertical padding, resolved
+	int badgeBorderRadius;        ///< Badge corner radius (-1 = automatic, capped at 6)
+	char *modeColor;              ///< Mode chip fill in normal mode, and the notice spinner
+	char *visualModeColor;        ///< Mode chip fill in visual mode
+	char *onModeColor;            ///< Text on a filled mode chip and on the lens's marked character
+} VimStyle;
+
+/// How the status bar's mode chip draws.
+typedef enum {
+	VimModeNormal = 0,  ///< Filled with modeColor
+	VimModeVisual = 1,  ///< Filled with visualModeColor
+	VimModeOther = 2,   ///< Outlined, for a mode waiting on input
+} VimModeKind;
+
+/// Vim surface content. Rectangles are overlay-local with a top-left origin.
+typedef struct {
+	CGRect region;       ///< What was read; the status bar runs along its bottom
+	CGRect cursor;       ///< Character under the cursor (empty = none)
+	int pending;         ///< Draw the cursor as an outline (1) or filled (0)
+	CGRect *selection;   ///< Visual selection, one rectangle per line
+	int selectionCount;  ///< Number of selection rectangles
+	CGRect *matches;     ///< Search matches
+	int matchCount;      ///< Number of matches
+	int currentMatch;    ///< Index of the match under the cursor, or -1
+	CGRect container;    ///< The container the cursor is in (empty = none)
+	CGRect block;        ///< The block the container sits in, outlined fainter (empty = none)
+	char *mode;          ///< Status bar mode chip (empty = no bar)
+	int modeKind;        ///< How the chip draws, a VimModeKind
+	char *status;        ///< Status bar text after the chip
+	char *statusRight;   ///< Status bar text at its right end
+	int statusTyped;  ///< Cut a status too long for the bar from its start (1), since it is being typed, or its end (0)
+	char *lensBefore;     ///< Lens text before the cursor's character
+	char *lensAt;         ///< The cursor's character (empty = no lens)
+	char *lensAfter;      ///< Lens text after the cursor's character
+	char **labels;        ///< Jump labels
+	CGRect *labelBounds;  ///< The character each jump label sits on
+	int labelCount;       ///< Number of jump labels
+	char *notice;  ///< A wait to show as a card with a spinner, title and detail split by a newline (empty = none)
+} VimScene;
+
+/// Draw the vim surface, replacing what it drew before.
+void NeruDrawVim(OverlayWindow window, VimScene scene, VimStyle style);
+
+/// Take the vim surface off the overlay.
+void NeruClearVim(OverlayWindow window);
+
 #endif  // OVERLAY_H

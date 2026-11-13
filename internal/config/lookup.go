@@ -1,9 +1,28 @@
 package config
 
 import (
+	"errors"
 	"math/bits"
 	"strings"
 )
+
+// errModeBound stops BindsMode's walk at the first binding it finds.
+var errModeBound = errors.New("mode bound")
+
+// BindsMode reports whether any action the configuration can dispatch opens
+// the mode named modeName: a global or per-mode binding, a per-app override of
+// one, a hook or a macro body.
+func (c *Config) BindsMode(modeName string) bool {
+	err := c.eachBindingAction(func(_, actionStr string) error {
+		if fields := strings.Fields(actionStr); len(fields) > 0 && fields[0] == modeName {
+			return errModeBound
+		}
+
+		return nil
+	})
+
+	return errors.Is(err, errModeBound)
+}
 
 // HotkeysForModeAndApp returns the effective per-mode hotkeys map for the given mode
 // and focused app bundle ID. For modes without app-specific overrides, it returns the
@@ -33,6 +52,8 @@ func (c *Config) HotkeysForModeAndApp(
 		appConfig = c.Bisect.AppConfigForBundleID(bundleID)
 	case ModeNameScroll:
 		appConfig = c.Scroll.AppConfigForBundleID(bundleID)
+	case ModeNameVim:
+		appConfig = c.Vim.AppConfigForBundleID(bundleID)
 	case ModeNameMonitorSelect:
 		return base
 	default:
@@ -364,6 +385,45 @@ func (c *RecursiveGridConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 // AppConfigForBundleID returns the matching scroll app config for the given bundle ID.
 // Bundle ID matching is case-insensitive (after trimming whitespace).
 func (c *ScrollConfig) AppConfigForBundleID(bundleID string) *AppConfig {
+	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
+
+	for idx := range c.AppConfigs {
+		if strings.ToLower(strings.TrimSpace(c.AppConfigs[idx].BundleID)) == lowerBundleID {
+			return &c.AppConfigs[idx]
+		}
+	}
+
+	return nil
+}
+
+// HasAppHotkeyOverrides reports whether any [[vim.app_configs]] entry binds a
+// hotkey.
+func (c *VimConfig) HasAppHotkeyOverrides() bool {
+	for idx := range c.AppConfigs {
+		if len(c.AppConfigs[idx].Hotkeys) > 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// HasAppCaptureScopeOverrides reports whether any [[vim.app_configs]] entry
+// sets a capture scope, so an activation knows whether asking which
+// application is focused can change anything.
+func (c *VimConfig) HasAppCaptureScopeOverrides() bool {
+	return hasAppCaptureScopeOverrides(c.AppConfigs)
+}
+
+// CaptureScopeForApp returns what vim mode reads for the given bundle ID. It
+// is the app config's capture_scope when one is set, else the section's.
+func (c *VimConfig) CaptureScopeForApp(bundleID string) string {
+	return captureScopeForApp(c.AppConfigForBundleID(bundleID), c.CaptureScope)
+}
+
+// AppConfigForBundleID returns the matching vim app config for the given
+// bundle ID.
+func (c *VimConfig) AppConfigForBundleID(bundleID string) *AppConfig {
 	lowerBundleID := strings.ToLower(strings.TrimSpace(bundleID))
 
 	for idx := range c.AppConfigs {

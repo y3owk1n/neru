@@ -99,8 +99,13 @@ var globalScreenCastState = &screenCastState{}
 //
 // Every step derives from ctx, the caller's budget. This backend is three round
 // trips deep, so its own timeouts cap each step rather than the whole cost, and
-// a hint activation holds the mode handler's lock across the call.
-func kdeCaptureRegion(ctx context.Context, region image.Rectangle) (*image.RGBA, error) {
+// a hint activation holds the mode handler's lock across the call. The frame
+// read takes the overlay off the screen when hideOverlay is set.
+func kdeCaptureRegion(
+	ctx context.Context,
+	region image.Rectangle,
+	hideOverlay bool,
+) (*image.RGBA, error) {
 	if !nativeBackendsCompiledIn {
 		return nil, derrors.New(
 			derrors.CodeNotSupported,
@@ -159,6 +164,8 @@ func kdeCaptureRegion(ctx context.Context, region image.Rectangle) (*image.RGBA,
 		local,
 		stream.bounds.Dx(),
 		stream.bounds.Dy(),
+		hideOverlay,
+		region,
 	)
 }
 

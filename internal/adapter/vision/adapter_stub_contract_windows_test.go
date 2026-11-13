@@ -10,9 +10,11 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	platformwindows "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // Windows implements both halves of ports.VisionPort, capture through BitBlt
@@ -42,6 +44,17 @@ func TestVisionAdapter_RecognitionAnswersOnWindows(t *testing.T) {
 		{
 			name: "Health",
 			call: func() error { return adapter.Health(ctx) },
+		},
+		{
+			name: "ReadLines",
+			call: func() error {
+				lines, err := adapter.ReadLines(ctx, image.Rect(0, 0, 100, 100), ports.TextFast)
+				if err != nil && lines != nil {
+					t.Errorf("ReadLines returned %d lines alongside its error", len(lines))
+				}
+
+				return err
+			},
 		},
 		{
 			name: "DetectElements",
@@ -232,5 +245,47 @@ func TestVisionAdapter_ReadTextDefersToThePassOnWindows(t *testing.T) {
 	text, err := vision.NewAdapter(nil).ReadText(context.Background(), image.Rect(0, 0, 100, 100))
 	if !derrors.IsNotSupported(err) || text != "" {
 		t.Fatalf("ReadText = %q, %v, want no text and CodeNotSupported", text, err)
+	}
+}
+
+// TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoes pins that the
+// read vim mode makes after a scroll answers a region with no area the way a
+// fast ReadLines does, so a machine with no OCR language pack refuses it with
+// the same reason.
+func TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoes(t *testing.T) {
+	adapter := vision.NewAdapter(nil)
+
+	lines, err := adapter.ReadLinesOnceChanged(context.Background(), image.Rectangle{})
+	_, fastErr := adapter.ReadLines(context.Background(), image.Rectangle{}, ports.TextFast)
+
+	if lines != nil || derrors.GetCode(err) != derrors.GetCode(fastErr) {
+		t.Fatalf("ReadLinesOnceChanged(empty) = %v, %v, want no lines and %v", lines, err, fastErr)
+	}
+}
+
+// TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead pins the question
+// vim mode asks before it captures anything. An empty region answers
+// what the OCR engine answers where lines cannot be read, CodeNotSupported
+// naming the language pack on a machine with none, and CodeInvalidInput where
+// they can, never nothing at all.
+func TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead(t *testing.T) {
+	lines, err := vision.NewAdapter(nil).ReadLines(
+		context.Background(), image.Rectangle{}, ports.TextFast,
+	)
+	if lines != nil || err == nil {
+		t.Fatalf("ReadLines(empty) = %v, %v, want nothing and an error", lines, err)
+	}
+
+	engine := platformwindows.OCRHealth()
+	if engine != nil && derrors.GetCode(err) != derrors.GetCode(engine) {
+		t.Fatalf(
+			"ReadLines(empty) = %v with no OCR engine (%v), want the engine's answer",
+			err,
+			engine,
+		)
+	}
+
+	if engine == nil && derrors.GetCode(err) != derrors.CodeInvalidInput {
+		t.Fatalf("ReadLines(empty) = %v with an OCR engine, want CodeInvalidInput", err)
 	}
 }

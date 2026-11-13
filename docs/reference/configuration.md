@@ -136,8 +136,8 @@ also accepts two-letter sequences such as `gg`. Neru refuses the file when:
   `"Ctrl+Space"` and `"Control+Space"`. `[hotkeys]` refuses this too. A key
   that matches a default this way replaces the default.
 
-Every built-in mode except `monitor_select` ships these, plus the defaults
-listed in its own section:
+Every built-in mode except `monitor_select` and `vim` ships these, plus the
+defaults listed in its own section:
 
 ```toml
 "Escape"    = "idle"
@@ -155,7 +155,7 @@ listed in its own section:
 ### Per-app hotkey overrides
 
 `[[<mode>.app_configs]]` overrides `[<mode>.hotkeys]` for `hints`, `grid`,
-`recursive_grid`, `bisect`, `scroll` and declared modes
+`recursive_grid`, `bisect`, `vim`, `scroll` and declared modes
 (`[[modes.<name>.app_configs]]`), under the same
 [merging rules](#merging-behavior).
 
@@ -283,7 +283,7 @@ indicator = "Window"
 
 The name is the table key: letters, digits, `_` and `-`, starting with a
 letter. Neru refuses the built-in mode names (`hints`, `grid`,
-`recursive_grid`, `bisect`, `scroll`, `monitor_select`, `idle`) and `mode`. The
+`recursive_grid`, `bisect`, `scroll`, `monitor_select`, `vim`, `idle`) and `mode`. The
 indicator style comes
 from [`[mode_indicator.ui]`](#mode_indicator).
 
@@ -1101,6 +1101,132 @@ accepted and do nothing.
 `[[bisect.app_configs]]` takes `bundle_id`, `capture_scope` and
 [`hotkeys`](#per-app-hotkey-overrides), as in [grid](#grid).
 
+## [vim]
+
+Settings for vim mode. How the mode behaves is in
+[`neru vim`](cli.md#neru-vim).
+
+```toml
+[vim]
+capture_scope = "screen"
+
+[vim.ui]
+cursor_color = "#FF8800AA"
+
+[vim.keymaps.normal]
+"<Space>j" = "<Plug>(jump)"
+
+[vim.hotkeys]
+"Ctrl+c" = "idle"
+```
+
+### Vim options
+
+| Option          | Type   | Default    | Description                                                                                         |
+| --------------- | ------ | ---------- | --------------------------------------------------------------------------------------------------- |
+| `enabled`       | bool   | `true`     | Turn the mode on or off                                                                             |
+| `capture_scope` | string | `"window"` | What is read: `window` (the screen if nothing is focused) or `screen`. `--capture-scope` overrides it |
+
+### Vim UI
+
+| Option                    | Type   | Default | Description                                                                                                  |
+| ------------------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------ |
+| `font_size`               | int    | `13`    | Status bar and notice font size                                                                              |
+| `font_family`             | string | `""`    | Status bar and notice font. Accepts [generic aliases](#fonts), and empty means a monospaced face             |
+| `cursor_color`            | color  | derived | Bar down the cursor's left edge. The cursor's fill is this color at about a third of its alpha. Also the fill of the cursor's character in the lens |
+| `selection_color`         | color  | derived | Fill of the visual selection                                                                                 |
+| `match_color`             | color  | derived | Underline of each search match, and outline of the one under the cursor                                      |
+| `container_color`         | color  | derived | Outline of the container the cursor is in, and at a third of its opacity of the block around it. A fully transparent color hides both |
+| `status_background_color` | color  | derived | Background of the status bar                                                                                 |
+| `status_text_color`       | color  | derived | Text of the status bar, and of the mode chip while vim waits on input                                        |
+
+Vim draws jump labels and the lens as hint badges, in the font, colors,
+border and padding of [`[hints.ui]`](#hints). The waiting notice takes the
+hint badge's colors, border and corners, in the font above. The status bar's
+mode chip is `theme.accent` in normal mode and `theme.accent_alt` in visual
+mode, with text in `theme.on_accent_alt`. While vim waits on a command, a
+jump, a motion or typing, the chip is an outline in the hint border color.
+
+### Vim keymaps
+
+`[vim.keymaps.normal]` and `[vim.keymaps.visual]` map keys to other keys
+inside vim, the way vim's `nnoremap` and `xnoremap` do. Both sides are in
+vim's notation, such as `"<Space>j"`, `"<C-j>"` or `"<CR>"`, and letter case
+counts, so `H` and `h` are different keys. Both tables ship empty.
+
+```toml
+[vim.keymaps.normal]
+"H" = "^"
+"L" = "$"
+"<Space>j" = "<Plug>(jump)"
+"s" = "<Nop>"
+"S" = "<Plug>(read-screen)<Plug>(jump)"
+
+[vim.keymaps.visual]
+"H" = "^"
+```
+
+- The keys a mapping runs are vim's own and never mapped again, so mapping
+  `"<Space>j" = "s"` runs vim's own `s`, which changes a character. Write
+  vim mode's commands as `<Plug>(name)`, with the names in the table below.
+- One mapping can run several commands, in order, as `S` above reads the
+  screen and then starts a jump. One key runs at most eight of them.
+- `"<Nop>"` makes the keys do nothing.
+- A key that starts a longer mapping waits one second for the rest of it,
+  then runs as typed.
+- Your mapping of a key replaces vim mode's own mapping of it, which the
+  table below lists. A default key you map to something else no longer runs
+  its command.
+- Mappings apply in normal and visual mode. Vim mode never maps keys typed on
+  the `:` line, after an operator such as `d`, after `f` or `r`, during an
+  `s` jump, or into the app after `i`.
+- Neru refuses a mapping of `Escape`, which always cancels and leaves. It
+  also refuses keys it never reads, such as `<Del>` and `<S-Left>`, a name
+  vim does not know, such as `<M-j>`, a `<Plug>` name vim mode does not
+  have, and two spellings of one sequence, such as `"<Space>j"` and
+  `"<space>j"`. Write `<lt>` for a literal `<`. A refused mapping refuses the
+  whole file, as any invalid option does.
+- `[vim.hotkeys]` runs first. A key bound there never reaches these tables.
+
+| Command                     | Mapped by default to | Does                                                              |
+| --------------------------- | -------------------- | ----------------------------------------------------------------- |
+| `<Plug>(jump)`              | `s`                  | Start a jump                                                      |
+| `<Plug>(read-screen)`       | `<C-l>`              | Read the screen again                                             |
+| `<Plug>(left-click)`        | `<CR>`, `gc`         | Click at the cursor. A count clicks that many times, up to three |
+| `<Plug>(right-click)`       | `gr`                 | Right click at the cursor, with a count as above                 |
+| `<Plug>(middle-click)`      | `gm`                 | Middle click at the cursor, with a count as above                |
+| `<Plug>(move-mouse)`        | `gh`                 | Move the real cursor to the vim cursor                            |
+| `<Plug>(scroll-line-down)`  | `<C-e>`              | Scroll the app down two lines                                     |
+| `<Plug>(scroll-line-up)`    | `<C-y>`              | Scroll the app up two lines                                       |
+| `<Plug>(scroll-half-down)`  | `<C-d>`              | Scroll the app down half the region read                          |
+| `<Plug>(scroll-half-up)`    | `<C-u>`              | Scroll the app up half the region read                            |
+| `<Plug>(scroll-page-down)`  | `<C-f>`              | Scroll the app down most of the region read                       |
+| `<Plug>(scroll-page-up)`    | `<C-b>`              | Scroll the app up most of the region read                         |
+| `<Plug>(scroll-left)`       | `zh`                 | Scroll the app left eight characters, or the count                |
+| `<Plug>(scroll-right)`      | `zl`                 | Scroll the app right eight characters, or the count               |
+| `<Plug>(scroll-half-left)`  | `zH`                 | Scroll the app left half the width read                           |
+| `<Plug>(scroll-half-right)` | `zL`                 | Scroll the app right half the width read                          |
+| `<Plug>(center-line)`       | `zz`                 | Scroll the app until the cursor's line is in the middle. `zz` runs vim's own `zz` first, so a count picks the line |
+| `<Plug>(next-icon)`         | `]i`                 | Move to the next icon                                             |
+| `<Plug>(prev-icon)`         | `[i`                 | Move to the previous icon                                         |
+
+Visual mode maps `<CR>` to `gs`, the drag operator.
+
+### Vim hotkeys
+
+`[vim.hotkeys]` ships empty, because every key in vim mode is vim's own. A key
+you bind there runs its action instead, and vim never sees it. Binding
+`"Escape"` means Escape no longer leaves visual mode either. A two-letter sequence such
+as `"jk"` takes its first key as the start of the sequence, so `j` on its own
+would no longer move. While vim types into the app, the keys bound here type
+as they would without vim. Otherwise the table follows
+[per-mode hotkeys](#per-mode-hotkeys).
+
+### Vim per-app config
+
+`[[vim.app_configs]]` takes `bundle_id`, `capture_scope` and
+[`hotkeys`](#per-app-hotkey-overrides), as in [grid](#grid).
+
 ## [scroll]
 
 Keyboard-driven scrolling.
@@ -1269,7 +1395,7 @@ text = "H"
 ### Per-mode
 
 Each mode has a `[mode_indicator.<mode>]` table for `scroll`, `hints`, `grid`,
-`recursive_grid`, `bisect` and `monitor_select`. Only `scroll` is shown by
+`recursive_grid`, `bisect`, `monitor_select` and `vim`. Only `scroll` is shown by
 default, and the default `text` is the mode's name in title case, such as
 `Recursive Grid`.
 

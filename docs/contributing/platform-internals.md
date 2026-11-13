@@ -64,18 +64,21 @@ the footnotes below give the mechanism behind its limits.
 | **Secure input detection**    | private macOS API     | always false        | always false              | always false         | always false              |
 | **System cursor hide**        | `CGDisplayHideCursor` | none                | none                      | none                 | none                      |
 | **`monitor_select` mode**     | native panels         | Cairo panels        | Cairo panels              | Cairo panels         | layered panels            |
+| **`vim` mode**                | CALayers on the shared window | Cairo on the shared overlay | Cairo on the shared overlay | Cairo on the shared overlay | the shared overlay window |
 | **Native hint-search field**  | text view in a key panel | XIM window ⁴        | layer-shell field ⁴       | layer-shell field ⁴  | `EDIT` control in a tool window ⁴ |
 | **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁵ | `BitBlt` ⁵        |
 | **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁶ | tesseract and contour ⁶ | tesseract and contour ⁶ | `Windows.Media.Ocr` and contour ⁶ |
-| **Key feed (`action feed`)** | `CGEventPost`         | uinput               | uinput / virtual-keyboard | uinput               | `SendInput`               |
+| **Key feed (`action feed`)** | `CGEventPost`         | XTest                | uinput / virtual-keyboard | uinput               | `SendInput`               |
 | **Service management (`neru services`)** | launchd user agent | systemd user unit only ² | systemd user unit only ² | systemd user unit only ² | Task Scheduler logon task |
 
 Each footnote gives the mechanism. The effect a user sees is in the
 [user notes](../reference/platform-support.md#notes) and the [font rules](../reference/configuration.md#fonts).
 
 ¹ **Font resolution.** Linux and Windows resolve a family at load and fall back
-when it is missing. macOS and the non-CGO Linux build let the renderer
-substitute at draw time. **Text measurement** sizes boxes from the text,
+when it is missing. Linux also draws and measures text a family has no glyphs
+for, such as Chinese in a Latin font, in the first font fontconfig finds that
+has them, since Cairo's text API never falls back by itself. macOS and the
+non-CGO Linux build let the renderer substitute at draw time. **Text measurement** sizes boxes from the text,
 except on the non-CGO Linux build, which has no Cairo and estimates.
 
 ² **Service management** writes a systemd user unit tied to
@@ -142,7 +145,19 @@ snap refuses those strategies while a mode is open.
 
 ⁶ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing
-`eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. Windows uses
+`eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. A vim accurate
+read reads the frame a second time in the languages of other scripts the
+locale names, such as Chinese or Russian. With none named, vim keeps the fast
+read and reads nothing a second time. That read runs on an engine with a
+lock of its own, so the fast read a keystroke waits on never queues behind it.
+Its line replaces eng's where it has a wide character or mostly non-Latin
+letters and eng's has neither. A few Cyrillic lookalikes that a Russian read
+puts in an English line do not count. tesseract's boxes for Chinese and Japanese
+characters drift by most of a character, so a run of them becomes one word,
+cut into cells of even pitch at blank columns where it can be. The second read
+scales the frame to two pixels a point, because at one tesseract keeps eng's
+reading of small Chinese.
+Windows uses
 `Windows.Media.Ocr`, which reports no per-word confidence. On both, the
 contour detector finds rectangles in the same frame, with its shipped
 thresholds. macOS places hints with Vision's fast recognizer over the whole
@@ -247,6 +262,18 @@ inside a mode, and the mode's own binding for the same chord wins. Only chords
 with Ctrl, Alt or Cmd fall through, because a bare key is a hint label or grid
 key. On Linux the mode owns the keyboard, so a chord bound in the compositor
 cannot fire while a mode is open.
+
+**Keys Neru types while a mode is open.** Vim mode types into the focused app
+while the mode holds the keyboard. An X11 key event carries no origin, so under
+the grab each typed key would come straight back to Neru. The X11 tap releases
+the grab for each key, sends it through XTest, and grabs again once the server
+has handled it. A key the user presses in that moment goes to the app. The
+Wayland evdev proxy never grabs Neru's own devices, and macOS and Windows tag
+injected keys. The wl-keyboard fallback takes the keyboard through Neru's own
+overlay surface, where typed keys also come back to Neru. A key sent through
+uinput or the compositor gives no sign of when it has gone to the app, so
+nothing can step aside for it. There the tap answers that keys do not reach
+the app, and vim mode refuses each edit before it clicks or types.
 
 **One key, one name.** Every backend names a key by the character it types,
 or by keysym name when it types none, so `Shift+;` has one name everywhere. On
@@ -357,6 +384,21 @@ Mode logic is shared. Only these rows differ, by rendering or element discovery.
 | **Hints**         | Label arrow / tail             | NSBezierPath            | Cairo triangle          | triangle |
 | **Scroll**        | Smooth scroll animation        | continuous              | continuous (X11: whole notches) | 120ths of a notch |
 | **Monitor select**| Whole mode                     | native panels           | Cairo panels            | one layered window per display |
+| **Vim**           | Whole mode                     | Vision line reads with per-character boxes, CALayers on the shared window | tesseract character boxes placed by their ink, Cairo on the shared overlay | Windows.Media.Ocr word boxes split into characters by their ink, the shared overlay window |
+
+On macOS vim mode's accurate read runs in a helper process. It is the same
+binary, started with the hidden `read-text-lines` command for each read, and
+the daemon sends it the captured pixels through a pipe. The first time Vision
+meets a script, it compiles a model for it, which takes seconds, and every
+other read in the process waits for the compile. So the daemon itself runs
+only fast reads. Vision keeps what it compiled in a cache keyed by the app's
+bundle ID, or its executable's name, and the macOS build, so the compile comes
+back after an install, a macOS update or a renamed binary, not after a
+rebuild. The vision adapter has the helper read a sample of Latin, Arabic,
+Devanagari and Chinese text, which compiles all of it. That starts at launch
+when the configuration can open vim mode, and otherwise at the first vim
+session, and vim mode's accurate reads wait for it rather than compile the
+same models in a second process.
 
 Everything else is the same on all three, including label placement, the
 search badge, label sizing, virtual pointer indicators, transition animations,

@@ -163,6 +163,21 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 	// This runs after the hotkeys, as it does at startup (Run), because what
 	// it arms can run an action sequence.
 	a.applyMissionControlDetection(loadResult.Config)
+
+	a.prepareVimRead(loadResult.Config)
+}
+
+// prepareVimRead has the vision port prepare accurate reads when cfg can open
+// vim mode, so on macOS the compile after an install or an update happens at
+// launch rather than in the first session. Only vim mode reads accurately, so
+// with a configuration that never opens it, vim mode starts the preparation
+// itself at the first `neru vim`.
+func (a *App) prepareVimRead(cfg *config.Config) {
+	if a.vision == nil || !cfg.Vim.Enabled || !cfg.BindsMode(config.ModeNameVim) {
+		return
+	}
+
+	a.vision.PrepareAccurateRead()
 }
 
 // applyMissionControlDetection arms or disarms Mission Control detection for

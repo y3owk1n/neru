@@ -5,6 +5,7 @@
 
 #include <errno.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,26 +17,41 @@
 // Only the engine is cached, never a frame. Every recognition ends in
 // neru_ocr_reset_locked, so between calls nothing derived from a screen stays.
 //
-// Recognition is serialized on this mutex. TessBaseAPI is not thread-safe, and
-// the IPC handler and a mode can arrive at once.
+// Recognition is serialized on its engine's mutex. TessBaseAPI is not
+// thread-safe, and the IPC handler and a mode can arrive at once.
 //
 // Nothing waits on it forever (neru_ocr_lock). Tesseract checks its deadline
 // only *between* recognition units, so one pathological frame can overrun it,
 // and a plain lock would block every later activation in uncancellable cgo. A
 // bounded wait turns that into one failed activation that says so.
-static pthread_mutex_t neru_ocr_mutex = PTHREAD_MUTEX_INITIALIZER;
-static TessBaseAPI *neru_ocr_api;
+typedef struct {
+	pthread_mutex_t mutex;
+	TessBaseAPI *api;
+	char *datapath;
+	char *language;
+	// locale_busy is set when the last engine creation gave up waiting for the
+	// locale guard (locale_guard.h), so the caller reports busy rather than
+	// unusable language data. Guarded by mutex.
+	int locale_busy;
+} NeruOCREngine;
 
-// neru_ocr_locale_busy is set when the last engine creation gave up waiting for
-// the locale guard (locale_guard.h), so the caller reports busy rather than
-// unusable language data. Guarded by neru_ocr_mutex.
-static int neru_ocr_locale_busy;
+// Each slot (NeruOCRConfig.engine) caches its own engine under its own lock,
+// so a slow read in a second language never holds up a read in the first.
+static NeruOCREngine neru_ocr_engines[NERU_OCR_ENGINES] = {
+    {.mutex = PTHREAD_MUTEX_INITIALIZER},
+    {.mutex = PTHREAD_MUTEX_INITIALIZER},
+};
+
+// neru_ocr_engine_for is the slot config names, the first when it names none.
+static NeruOCREngine *neru_ocr_engine_for(const NeruOCRConfig *config) {
+	int slot = config != NULL && config->engine > 0 && config->engine < NERU_OCR_ENGINES ? config->engine : 0;
+
+	return &neru_ocr_engines[slot];
+}
 
 // NERU_OCR_LOCALE_WAIT_MS bounds the wait for the locale guard, which the X11
 // hint-search field holds while an input-method server answers.
 #define NERU_OCR_LOCALE_WAIT_MS 1000
-static char *neru_ocr_datapath;
-static char *neru_ocr_language;
 
 // How long a caller with no budget of its own waits for the engine. Long enough
 // to queue behind a normal recognition (tens of milliseconds), short enough
@@ -53,9 +69,9 @@ static int64_t neru_ocr_now_ms(void) {
 	return (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
 }
 
-// neru_ocr_lock takes the engine lock, waiting at most wait_ms. Returns
+// neru_ocr_lock takes engine's lock, waiting at most wait_ms. Returns
 // NERU_OCR_OK when it holds the lock, NERU_OCR_ERR_BUSY otherwise.
-static int neru_ocr_lock(int wait_ms) {
+static int neru_ocr_lock(NeruOCREngine *engine, int wait_ms) {
 	if (wait_ms <= 0) {
 		wait_ms = NERU_OCR_DEFAULT_WAIT_MS;
 	}
@@ -64,7 +80,7 @@ static int neru_ocr_lock(int wait_ms) {
 	if (clock_gettime(CLOCK_REALTIME, &deadline) != 0) {
 		// No clock to build a deadline from. Blocking is still better than
 		// refusing every recognition on a machine whose clock call failed.
-		return pthread_mutex_lock(&neru_ocr_mutex) == 0 ? NERU_OCR_OK : NERU_OCR_ERR_BUSY;
+		return pthread_mutex_lock(&engine->mutex) == 0 ? NERU_OCR_OK : NERU_OCR_ERR_BUSY;
 	}
 
 	deadline.tv_sec += wait_ms / 1000;
@@ -75,7 +91,7 @@ static int neru_ocr_lock(int wait_ms) {
 		deadline.tv_nsec -= 1000000000L;
 	}
 
-	return pthread_mutex_timedlock(&neru_ocr_mutex, &deadline) == 0 ? NERU_OCR_OK : NERU_OCR_ERR_BUSY;
+	return pthread_mutex_timedlock(&engine->mutex, &deadline) == 0 ? NERU_OCR_OK : NERU_OCR_ERR_BUSY;
 }
 
 // Screens are close enough to 96 dpi, and saying so silences tesseract's
@@ -97,40 +113,40 @@ static int neru_ocr_string_equal(const char *a, const char *b) {
 	return strcmp(a, b) == 0;
 }
 
-static void neru_ocr_release_locked(void) {
-	if (neru_ocr_api != NULL) {
-		TessBaseAPIEnd(neru_ocr_api);
-		TessBaseAPIDelete(neru_ocr_api);
-		neru_ocr_api = NULL;
+static void neru_ocr_release_locked(NeruOCREngine *engine) {
+	if (engine->api != NULL) {
+		TessBaseAPIEnd(engine->api);
+		TessBaseAPIDelete(engine->api);
+		engine->api = NULL;
 	}
 
-	free(neru_ocr_datapath);
-	neru_ocr_datapath = NULL;
-	free(neru_ocr_language);
-	neru_ocr_language = NULL;
+	free(engine->datapath);
+	engine->datapath = NULL;
+	free(engine->language);
+	engine->language = NULL;
 }
 
-// neru_ocr_acquire_locked returns the engine for this datapath and language,
+// neru_ocr_acquire_locked returns engine's tesseract for this datapath and language,
 // creating it on first use and rebuilding it if either changed. NULL means
 // tesseract refused to initialize, which for a caller that resolved the
 // datapath itself means unreadable or unusable language data.
-static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
+static TessBaseAPI *neru_ocr_acquire_locked(NeruOCREngine *engine, const NeruOCRConfig *config) {
 	if (config == NULL || config->datapath == NULL || config->language == NULL) {
 		return NULL;
 	}
 
-	if (neru_ocr_api != NULL && neru_ocr_string_equal(neru_ocr_datapath, config->datapath) &&
-	    neru_ocr_string_equal(neru_ocr_language, config->language)) {
-		return neru_ocr_api;
+	if (engine->api != NULL && neru_ocr_string_equal(engine->datapath, config->datapath) &&
+	    neru_ocr_string_equal(engine->language, config->language)) {
+		return engine->api;
 	}
 
-	neru_ocr_release_locked();
+	neru_ocr_release_locked(engine);
 
 	// Tesseract asserts the C locale while it builds the engine, and the X11
 	// hint-search field leaves it briefly (locale_guard.h).
-	neru_ocr_locale_busy = 0;
+	engine->locale_busy = 0;
 	if (neru_locale_guard_timedlock(NERU_OCR_LOCALE_WAIT_MS) != 0) {
-		neru_ocr_locale_busy = 1;
+		engine->locale_busy = 1;
 
 		return NULL;
 	}
@@ -165,23 +181,23 @@ static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
 	TessBaseAPISetVariable(api, "tessedit_write_images", "F");
 	TessBaseAPISetVariable(api, "debug_file", "/dev/null");
 
-	neru_ocr_datapath = strdup(config->datapath);
-	neru_ocr_language = strdup(config->language);
+	engine->datapath = strdup(config->datapath);
+	engine->language = strdup(config->language);
 
-	if (neru_ocr_datapath == NULL || neru_ocr_language == NULL) {
+	if (engine->datapath == NULL || engine->language == NULL) {
 		TessBaseAPIEnd(api);
 		TessBaseAPIDelete(api);
-		free(neru_ocr_datapath);
-		neru_ocr_datapath = NULL;
-		free(neru_ocr_language);
-		neru_ocr_language = NULL;
+		free(engine->datapath);
+		engine->datapath = NULL;
+		free(engine->language);
+		engine->language = NULL;
 
 		return NULL;
 	}
 
-	neru_ocr_api = api;
+	engine->api = api;
 
-	return neru_ocr_api;
+	return engine->api;
 }
 
 // neru_ocr_reset_locked drops the frame and the recognition results. Every path
@@ -195,14 +211,16 @@ static TessBaseAPI *neru_ocr_acquire_locked(const NeruOCRConfig *config) {
 static void neru_ocr_reset_locked(TessBaseAPI *api) { TessBaseAPIClear(api); }
 
 int neru_ocr_probe(const NeruOCRConfig *config) {
-	int locked = neru_ocr_lock(config != NULL ? config->timeoutMS : 0);
+	NeruOCREngine *engine = neru_ocr_engine_for(config);
+
+	int locked = neru_ocr_lock(engine, config != NULL ? config->timeoutMS : 0);
 	if (locked != NERU_OCR_OK) {
 		return locked;
 	}
 
-	TessBaseAPI *api = neru_ocr_acquire_locked(config);
-	int busy = neru_ocr_locale_busy;
-	pthread_mutex_unlock(&neru_ocr_mutex);
+	TessBaseAPI *api = neru_ocr_acquire_locked(engine, config);
+	int busy = engine->locale_busy;
+	pthread_mutex_unlock(&engine->mutex);
 
 	if (api == NULL) {
 		return busy ? NERU_OCR_ERR_BUSY : NERU_OCR_ERR_INIT;
@@ -294,6 +312,108 @@ static int neru_ocr_collect(
 	return NERU_OCR_OK;
 }
 
+// neru_ocr_canceled is the monitor's cancel callback. cancel_this is the
+// config's cancel flag.
+static bool neru_ocr_canceled(void *cancel_this, int words) {
+	(void)words;
+	return __atomic_load_n((int *)cancel_this, __ATOMIC_ACQUIRE) != 0;
+}
+
+void neru_ocr_cancel(int *flag) {
+	if (flag != NULL) {
+		__atomic_store_n(flag, 1, __ATOMIC_RELEASE);
+	}
+}
+
+// neru_ocr_run_locked takes engine and recognizes pixels within the caller's
+// deadline. On NERU_OCR_OK it returns with the tesseract in *api and engine's
+// mutex held, for the caller to collect the result, then reset the engine and
+// unlock. On any other status the mutex is released.
+static int neru_ocr_run_locked(
+    NeruOCREngine *engine, const unsigned char *pixels, int width, int height, int stride, const NeruOCRConfig *config,
+    int *elapsedMS, TessBaseAPI **api_out) {
+	if (pixels == NULL || width <= 0 || height <= 0 || stride < width * NERU_OCR_BYTES_PER_PIXEL) {
+		return NERU_OCR_ERR_IMAGE;
+	}
+
+	int locked = neru_ocr_lock(engine, config->timeoutMS);
+	if (locked != NERU_OCR_OK) {
+		return locked;
+	}
+
+	TessBaseAPI *api = neru_ocr_acquire_locked(engine, config);
+	if (api == NULL) {
+		int busy = engine->locale_busy;
+		pthread_mutex_unlock(&engine->mutex);
+
+		return busy ? NERU_OCR_ERR_BUSY : NERU_OCR_ERR_INIT;
+	}
+
+	TessBaseAPISetImage(api, pixels, width, height, NERU_OCR_BYTES_PER_PIXEL, stride);
+	TessBaseAPISetSourceResolution(api, NERU_OCR_SOURCE_DPI);
+
+	// The deadline and the cancel flag are why recognition goes through a
+	// monitor at all. Tesseract has no other way to stop, and a caller blocked
+	// in cgo cannot be canceled from Go.
+	ETEXT_DESC *monitor = NULL;
+	if (config->timeoutMS > 0 || config->cancel != NULL) {
+		monitor = TessMonitorCreate();
+		if (monitor == NULL) {
+			neru_ocr_reset_locked(api);
+			pthread_mutex_unlock(&engine->mutex);
+
+			return NERU_OCR_ERR_ALLOC;
+		}
+
+		if (config->timeoutMS > 0) {
+			TessMonitorSetDeadlineMSecs(monitor, config->timeoutMS);
+		}
+
+		if (config->cancel != NULL) {
+			TessMonitorSetCancelFunc(monitor, neru_ocr_canceled);
+			TessMonitorSetCancelThis(monitor, config->cancel);
+		}
+	}
+
+	int64_t started = neru_ocr_now_ms();
+
+	int recognized = TessBaseAPIRecognize(api, monitor);
+
+	int64_t elapsed = neru_ocr_now_ms() - started;
+	*elapsedMS = (int)(elapsed > 0 ? elapsed : 0);
+
+	if (monitor != NULL) {
+		TessMonitorDelete(monitor);
+	}
+
+	// A canceled read returns nothing, whether tesseract stopped or finished
+	// first, so a caller never takes the part read before the cancel.
+	if (config->cancel != NULL && __atomic_load_n(config->cancel, __ATOMIC_ACQUIRE) != 0) {
+		neru_ocr_reset_locked(api);
+		pthread_mutex_unlock(&engine->mutex);
+
+		return NERU_OCR_ERR_CANCELED;
+	}
+
+	if (recognized != 0) {
+		neru_ocr_reset_locked(api);
+		pthread_mutex_unlock(&engine->mutex);
+
+		// Tesseract has one failure code for a missed deadline and an unreadable
+		// frame, which want opposite responses. Recognition that ran to the
+		// budget was stopped by it.
+		if (config->timeoutMS > 0 && elapsed >= (int64_t)config->timeoutMS) {
+			return NERU_OCR_ERR_TIMEOUT;
+		}
+
+		return NERU_OCR_ERR_RECOGNIZE;
+	}
+
+	*api_out = api;
+
+	return NERU_OCR_OK;
+}
+
 int neru_ocr_recognize(
     const unsigned char *pixels, int width, int height, int stride, const NeruOCRConfig *config, NeruOCRResult *out) {
 	if (out == NULL) {
@@ -304,65 +424,11 @@ int neru_ocr_recognize(
 	out->count = 0;
 	out->elapsedMS = 0;
 
-	if (pixels == NULL || width <= 0 || height <= 0 || stride < width * NERU_OCR_BYTES_PER_PIXEL) {
-		return NERU_OCR_ERR_IMAGE;
-	}
-
-	int locked = neru_ocr_lock(config->timeoutMS);
-	if (locked != NERU_OCR_OK) {
-		return locked;
-	}
-
-	TessBaseAPI *api = neru_ocr_acquire_locked(config);
-	if (api == NULL) {
-		int busy = neru_ocr_locale_busy;
-		pthread_mutex_unlock(&neru_ocr_mutex);
-
-		return busy ? NERU_OCR_ERR_BUSY : NERU_OCR_ERR_INIT;
-	}
-
-	TessBaseAPISetImage(api, pixels, width, height, NERU_OCR_BYTES_PER_PIXEL, stride);
-	TessBaseAPISetSourceResolution(api, NERU_OCR_SOURCE_DPI);
-
-	// The deadline is why recognition goes through a monitor at all. Tesseract
-	// has no other way to stop, and a caller blocked in cgo cannot be canceled
-	// from Go.
-	ETEXT_DESC *monitor = NULL;
-	if (config->timeoutMS > 0) {
-		monitor = TessMonitorCreate();
-		if (monitor == NULL) {
-			neru_ocr_reset_locked(api);
-			pthread_mutex_unlock(&neru_ocr_mutex);
-
-			return NERU_OCR_ERR_ALLOC;
-		}
-
-		TessMonitorSetDeadlineMSecs(monitor, config->timeoutMS);
-	}
-
-	int64_t started = neru_ocr_now_ms();
-
-	int recognized = TessBaseAPIRecognize(api, monitor);
-
-	int64_t elapsed = neru_ocr_now_ms() - started;
-	out->elapsedMS = (int)(elapsed > 0 ? elapsed : 0);
-
-	if (monitor != NULL) {
-		TessMonitorDelete(monitor);
-	}
-
-	if (recognized != 0) {
-		neru_ocr_reset_locked(api);
-		pthread_mutex_unlock(&neru_ocr_mutex);
-
-		// Tesseract has one failure code for a missed deadline and an unreadable
-		// frame, which want opposite responses. Recognition that ran to the
-		// budget was stopped by it.
-		if (config->timeoutMS > 0 && elapsed >= (int64_t)config->timeoutMS) {
-			return NERU_OCR_ERR_TIMEOUT;
-		}
-
-		return NERU_OCR_ERR_RECOGNIZE;
+	NeruOCREngine *engine = neru_ocr_engine_for(config);
+	TessBaseAPI *api = NULL;
+	int ran = neru_ocr_run_locked(engine, pixels, width, height, stride, config, &out->elapsedMS, &api);
+	if (ran != NERU_OCR_OK) {
+		return ran;
 	}
 
 	TessPageIteratorLevel level = config->wordLevel ? RIL_WORD : RIL_TEXTLINE;
@@ -379,7 +445,7 @@ int neru_ocr_recognize(
 	}
 
 	neru_ocr_reset_locked(api);
-	pthread_mutex_unlock(&neru_ocr_mutex);
+	pthread_mutex_unlock(&engine->mutex);
 
 	if (status != NERU_OCR_OK) {
 		NeruOCRResult partial = {words, count};
@@ -392,6 +458,145 @@ int neru_ocr_recognize(
 	out->count = count;
 
 	return NERU_OCR_OK;
+}
+
+// neru_ocr_collect_symbols walks the result a character at a time, numbering
+// each one's line and its word within the line.
+static int neru_ocr_collect_symbols(TessResultIterator *iterator, NeruOCRSymbol **symbols, int *count, int *capacity) {
+	const TessPageIterator *page = TessResultIteratorGetPageIteratorConst(iterator);
+	if (page == NULL) {
+		return NERU_OCR_OK;
+	}
+
+	int line = -1;
+	int word = -1;
+
+	do {
+		if (TessPageIteratorIsAtBeginningOf(page, RIL_TEXTLINE)) {
+			line++;
+			word = -1;
+		}
+		if (TessPageIteratorIsAtBeginningOf(page, RIL_WORD)) {
+			word++;
+		}
+
+		int left = 0;
+		int top = 0;
+		int right = 0;
+		int bottom = 0;
+		if (!TessPageIteratorBoundingBox(page, RIL_SYMBOL, &left, &top, &right, &bottom) || right <= left ||
+		    bottom <= top) {
+			continue;
+		}
+
+		char *text = TessResultIteratorGetUTF8Text(iterator, RIL_SYMBOL);
+		if (text == NULL) {
+			continue;
+		}
+
+		int status = NERU_OCR_OK;
+		if (*count == *capacity) {
+			int next = (*capacity == 0) ? NERU_OCR_INITIAL_CAPACITY : (*capacity * 2);
+			NeruOCRSymbol *grown = realloc(*symbols, (size_t)next * sizeof(NeruOCRSymbol));
+			if (grown == NULL) {
+				status = NERU_OCR_ERR_ALLOC;
+			} else {
+				*symbols = grown;
+				*capacity = next;
+			}
+		}
+
+		char *copy = status == NERU_OCR_OK ? strdup(text) : NULL;
+		if (status == NERU_OCR_OK && copy == NULL) {
+			status = NERU_OCR_ERR_ALLOC;
+		}
+
+		// The tesseract-owned string held screen text. Wipe it before handing
+		// it back rather than leaving a readable copy in freed heap.
+		neru_capture_wipe((unsigned char *)text, strlen(text));
+		TessDeleteText(text);
+
+		if (status != NERU_OCR_OK) {
+			return status;
+		}
+
+		(*symbols)[*count] = (NeruOCRSymbol){
+		    .text = copy,
+		    .x = left,
+		    .y = top,
+		    .width = right - left,
+		    .height = bottom - top,
+		    .line = line < 0 ? 0 : line,
+		    .word = word < 0 ? 0 : word,
+		};
+		(*count)++;
+	} while (TessResultIteratorNext(iterator, RIL_SYMBOL));
+
+	return NERU_OCR_OK;
+}
+
+int neru_ocr_recognize_lines(
+    const unsigned char *pixels, int width, int height, int stride, const NeruOCRConfig *config, NeruOCRLines *out) {
+	if (out == NULL) {
+		return NERU_OCR_ERR_IMAGE;
+	}
+
+	out->symbols = NULL;
+	out->count = 0;
+	out->elapsedMS = 0;
+
+	NeruOCREngine *engine = neru_ocr_engine_for(config);
+	TessBaseAPI *api = NULL;
+	int ran = neru_ocr_run_locked(engine, pixels, width, height, stride, config, &out->elapsedMS, &api);
+	if (ran != NERU_OCR_OK) {
+		return ran;
+	}
+
+	NeruOCRSymbol *symbols = NULL;
+	int count = 0;
+	int capacity = 0;
+	int status = NERU_OCR_OK;
+
+	TessResultIterator *iterator = TessBaseAPIGetIterator(api);
+	if (iterator != NULL) {
+		status = neru_ocr_collect_symbols(iterator, &symbols, &count, &capacity);
+		TessResultIteratorDelete(iterator);
+	}
+
+	neru_ocr_reset_locked(api);
+	pthread_mutex_unlock(&engine->mutex);
+
+	if (status != NERU_OCR_OK) {
+		NeruOCRLines partial = {symbols, count, 0};
+		neru_ocr_lines_free(&partial);
+
+		return status;
+	}
+
+	out->symbols = symbols;
+	out->count = count;
+
+	return NERU_OCR_OK;
+}
+
+void neru_ocr_lines_free(NeruOCRLines *lines) {
+	if (lines == NULL) {
+		return;
+	}
+
+	for (int i = 0; i < lines->count; i++) {
+		char *text = lines->symbols[i].text;
+		if (text == NULL) {
+			continue;
+		}
+
+		neru_capture_wipe((unsigned char *)text, strlen(text));
+		free(text);
+	}
+
+	free(lines->symbols);
+	lines->symbols = NULL;
+	lines->count = 0;
 }
 
 void neru_ocr_result_free(NeruOCRResult *result) {

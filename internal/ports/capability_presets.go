@@ -142,12 +142,15 @@ func LinuxCapabilities() PlatformCapabilities {
 				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +
 				"ScreenCast session on KDE and COSMIC, which asks for screen-sharing consent " +
 				"once), with button shapes from the contour detector over the same " +
-				"frame; text needs a cgo build and the tesseract eng language data installed",
+				"frame; text needs a cgo build and the tesseract eng language data installed, " +
+				"which vim mode also reads a character at a time, with a second read in the " +
+				"languages of other scripts the locale names when their data is installed",
 		),
 		KeyFeed: supportedCapability(
-			"key injection via a uinput virtual keyboard when /dev/uinput is " +
-				"writable (works on X11, wlroots, KWin, and cosmic-comp), falling back to " +
-				"zwp_virtual_keyboard_v1 on wlroots compositors and cosmic-comp",
+			"key injection via XTest on X11, and on Wayland a uinput virtual keyboard " +
+				"when /dev/uinput is writable (wlroots, KWin, and cosmic-comp), falling back to " +
+				"zwp_virtual_keyboard_v1 on wlroots compositors and cosmic-comp; refused while a " +
+				"mode holds the keyboard through the overlay, where the key would come back to Neru",
 		),
 		Systray: supportedCapability(
 			"tray icon available via the D-Bus StatusNotifierItem + dbusmenu protocols",
@@ -215,7 +218,8 @@ func WindowsCapabilities() PlatformCapabilities {
 		Vision: supportedCapability(
 			"vision element detection via Windows.Media.Ocr over a BitBlt screen " +
 				"capture, with button shapes from the contour detector over the same " +
-				"frame; text needs an OCR language pack for one of the account's languages",
+				"frame; text needs an OCR language pack for one of the account's languages, " +
+				"and vim mode splits each word it reads into characters by their ink",
 		),
 		KeyFeed: supportedCapability("key injection available via SendInput"),
 		Systray: supportedCapability(

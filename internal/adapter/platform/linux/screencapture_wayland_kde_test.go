@@ -112,7 +112,7 @@ func TestPipewireCaptureError_TreatsEveryPipewireFailureAsRetriable(t *testing.T
 func TestKdeCaptureRegion_RefusesBeforeAskingThePortalWithNoStoredGrant(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 
-	img, err := kdeCaptureRegion(context.Background(), twoMonitorStreams()[0].bounds)
+	img, err := kdeCaptureRegion(context.Background(), twoMonitorStreams()[0].bounds, true)
 	if err == nil {
 		t.Fatal("kdeCaptureRegion() error = nil, want a refusal with no grant stored")
 	}

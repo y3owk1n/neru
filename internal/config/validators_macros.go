@@ -284,6 +284,7 @@ func (c *Config) modeBindingTables() []modeBindingTable {
 		{field: ModeNameBisect + ".hotkeys", table: c.Bisect.Hotkeys},
 		{field: ModeNameScroll + ".hotkeys", table: c.Scroll.Hotkeys},
 		{field: ModeNameMonitorSelect + ".hotkeys", table: c.MonitorSelect.Hotkeys},
+		{field: ModeNameVim + ".hotkeys", table: c.Vim.Hotkeys},
 	}
 
 	type appTable struct {
@@ -297,6 +298,7 @@ func (c *Config) modeBindingTables() []modeBindingTable {
 		{configs: c.RecursiveGrid.AppConfigs, modeName: ModeNameRecursiveGrid},
 		{configs: c.Bisect.AppConfigs, modeName: ModeNameBisect},
 		{configs: c.Scroll.AppConfigs, modeName: ModeNameScroll},
+		{configs: c.Vim.AppConfigs, modeName: ModeNameVim},
 	}, len(c.Modes))
 
 	// Declared modes are walked in name order so a fault is reported at the

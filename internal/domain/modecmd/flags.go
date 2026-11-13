@@ -362,8 +362,11 @@ func matchesForm(arg, form string) bool {
 // The modes each group of flags belongs to.
 var (
 	// selectionModes make a selection the user then acts on, so they take the
-	// flags that describe what happens to it.
-	selectionModes = []domain.Mode{domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid}
+	// flags that describe what happens to it. Vim clicks with keys of its own
+	// and stays open after, so it takes none of them.
+	selectionModes = []domain.Mode{
+		domain.ModeHints, domain.ModeGrid, domain.ModeRecursiveGrid,
+	}
 
 	// enterableModes are the modes a user enters. Every mode except idle,
 	// which is the departure rather than an arrival.
@@ -375,6 +378,7 @@ var (
 		domain.ModeScroll,
 		domain.ModeMonitorSelect,
 		domain.ModeCustom,
+		domain.ModeVim,
 	}
 
 	// hintsOnly are the flags that describe element detection, which only
@@ -389,16 +393,17 @@ var (
 		domain.ModeGrid,
 		domain.ModeRecursiveGrid,
 		domain.ModeBisect,
+		domain.ModeVim,
 	}
 
-	// scopedModes are the modes that read a capture scope: hints, whose
-	// capture strategies scan it, and the region modes, whose region starts
-	// as it.
+	// scopedModes are the modes that read a capture scope: hints and vim,
+	// whose capture scans it, and the region modes, whose region starts as it.
 	scopedModes = []domain.Mode{
 		domain.ModeHints,
 		domain.ModeGrid,
 		domain.ModeRecursiveGrid,
 		domain.ModeBisect,
+		domain.ModeVim,
 	}
 
 	// gridOnly is the one flag about the subgrid.

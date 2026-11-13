@@ -113,7 +113,9 @@ func (a *App) Run() error {
 	// apply lock stops a reload from running between the read and the write,
 	// and each reload applies it again (reconfigureAfterUpdate).
 	a.configApplyMu.Lock()
-	a.applyMissionControlDetection(a.configSnapshot())
+	current := a.configSnapshot()
+	a.applyMissionControlDetection(current)
+	a.prepareVimRead(current)
 	a.configApplyMu.Unlock()
 
 	a.setupSleepObserver()

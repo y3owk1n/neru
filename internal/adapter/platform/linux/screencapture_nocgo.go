@@ -39,9 +39,12 @@ func pipewireCaptureNode(
 	crop image.Rectangle,
 	logicalWidth int,
 	logicalHeight int,
+	hideOverlay bool,
+	region image.Rectangle,
 ) (*image.RGBA, error) {
 	_, _, _ = ctx, remoteFD, nodeID
 	_, _, _ = crop, logicalWidth, logicalHeight
+	_, _ = hideOverlay, region
 
 	return nil, derrors.New(
 		derrors.CodeNotSupported,
