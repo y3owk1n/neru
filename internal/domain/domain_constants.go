@@ -143,6 +143,17 @@ const (
 	LabelDirectionNormal = "normal"
 )
 
+// Hint label hand alternation, the values hints.label_alternation accepts.
+const (
+	// LabelAlternationNone puts no constraint on consecutive label keys. This
+	// is the default.
+	LabelAlternationNone = "none"
+
+	// LabelAlternationHalves alternates label keys between the first and the
+	// second half of hints.hint_characters.
+	LabelAlternationHalves = "halves"
+)
+
 // How the real cursor behaves while a selection is being made, the values
 // --cursor-selection-mode accepts.
 const (

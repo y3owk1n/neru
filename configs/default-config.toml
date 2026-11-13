@@ -119,6 +119,7 @@ strategy = "axtree"                         # axtree, vision, contour, segment
 capture_scope = "window"                    # window, screen
 hint_characters = "asdfghjkl"
 label_direction = "normal"                  # normal, reverse
+label_alternation = "none"                  # none, halves
 max_depth = 50                              # 0 = unlimited
 include_menubar_hints = false
 additional_menubar_hints_targets = [

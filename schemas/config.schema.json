@@ -701,6 +701,9 @@
         "include_stage_manager_hints": {
           "type": "boolean"
         },
+        "label_alternation": {
+          "type": "string"
+        },
         "label_direction": {
           "type": "string"
         },

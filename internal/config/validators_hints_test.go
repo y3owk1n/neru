@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain"
 )
 
 const (
@@ -110,6 +111,31 @@ func TestValidateHints_LabelDirection(t *testing.T) {
 					testCase.direction,
 					err,
 				)
+			}
+		})
+	}
+}
+
+func TestValidateHints_LabelAlternation(t *testing.T) {
+	tests := []struct {
+		alternation string
+		wantErr     bool
+	}{
+		{alternation: domain.LabelAlternationNone, wantErr: false},
+		{alternation: domain.LabelAlternationHalves, wantErr: false},
+		{alternation: "", wantErr: false},
+		{alternation: "thirds", wantErr: true},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.alternation, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			cfg.Hints.LabelAlternation = testCase.alternation
+
+			err := cfg.ValidateHints(nil)
+			if (err != nil) != testCase.wantErr {
+				t.Fatalf("ValidateHints() with label_alternation=%q: err = %v, wantErr %v",
+					testCase.alternation, err, testCase.wantErr)
 			}
 		})
 	}

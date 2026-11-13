@@ -586,6 +586,7 @@ type HintsConfig struct {
 	CaptureScope      string              `json:"captureScope"      toml:"capture_scope"`
 	HintCharacters    string              `json:"hintCharacters"    toml:"hint_characters"`
 	LabelDirection    string              `json:"labelDirection"    toml:"label_direction"`
+	LabelAlternation  string              `json:"labelAlternation"  toml:"label_alternation"`
 	MaxDepth          int                 `json:"maxDepth"          toml:"max_depth"`
 	UI                HintsUI             `json:"ui"                toml:"ui"`
 	SearchInputUI     SearchInputUI       `json:"searchInputUi"     toml:"search_input_ui"`

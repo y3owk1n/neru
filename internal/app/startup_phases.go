@@ -177,10 +177,7 @@ func registerOppositeLabelDirectionGenerator(
 		return
 	}
 
-	oppositeGen, oppositeGenErr := domainHint.NewAlphabetGenerator(
-		cfg.Hints.HintCharacters,
-		oppositeDirection,
-	)
+	oppositeGen, oppositeGenErr := newHintGenerator(cfg, oppositeDirection)
 	if oppositeGenErr != nil {
 		app.logger.Warn(
 			"Failed to build opposite-direction hint generator",
@@ -192,6 +189,24 @@ func registerOppositeLabelDirectionGenerator(
 	}
 
 	hintService.UpdateGenerator(app.ctx, oppositeGen)
+}
+
+// newHintGenerator builds the hint label generator for one label direction
+// from the hints config.
+func newHintGenerator(
+	cfg *config.Config,
+	direction domainHint.LabelDirection,
+) (*domainHint.AlphabetGenerator, error) {
+	generator, err := domainHint.NewAlphabetGenerator(cfg.Hints.HintCharacters, direction)
+	if err != nil {
+		return nil, err
+	}
+
+	generator.UpdateLabelAlternation(
+		domainHint.LabelAlternationFromString(cfg.Hints.LabelAlternation),
+	)
+
+	return generator, nil
 }
 
 // initializeApplicationState sets up the core application state objects.

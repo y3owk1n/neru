@@ -273,6 +273,7 @@ func PlatformSupport() parity.Declaration {
 			"hints.strategy",
 			"hints.hint_characters",
 			"hints.label_direction",
+			"hints.label_alternation",
 			"hints.ui.font_size",
 			"hints.ui.font_family",
 			"hints.ui.border_radius",

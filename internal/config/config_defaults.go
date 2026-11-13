@@ -393,12 +393,13 @@ func defaultHotkeys() HotkeysConfig {
 
 func defaultHints() HintsConfig {
 	return HintsConfig{
-		Enabled:        true,
-		Strategy:       domain.StrategyAXTree,
-		CaptureScope:   domain.CaptureScopeWindow,
-		HintCharacters: "asdfghjkl",
-		LabelDirection: domain.LabelDirectionNormal,
-		MaxDepth:       DefaultMaxDepth,
+		Enabled:          true,
+		Strategy:         domain.StrategyAXTree,
+		CaptureScope:     domain.CaptureScopeWindow,
+		HintCharacters:   "asdfghjkl",
+		LabelDirection:   domain.LabelDirectionNormal,
+		LabelAlternation: domain.LabelAlternationNone,
+		MaxDepth:         DefaultMaxDepth,
 		Hotkeys: map[string]StringOrStringArray{
 			KeyDisplayEscape:    {CmdIdle},
 			"/":                 {"action search_hints"},

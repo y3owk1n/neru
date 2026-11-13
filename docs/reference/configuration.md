@@ -581,6 +581,7 @@ font_size = 12
 | `capture_scope`                    | string       | `"window"`               | Region `vision`, `contour` and `segment` scan: `"window"` (the screen if nothing is focused) or `"screen"`. Overridable per app and with `neru hints --capture-scope` |
 | `hint_characters`                  | string       | `"asdfghjkl"`            | Characters used for labels. Refused if empty, shorter than 2, non-ASCII, or with a repeated character |
 | `label_direction`                  | string       | `"normal"`               | `"normal"` or `"reverse"`, see [Choosing a label direction](#choosing-a-label-direction). Overridable per app and with `neru hints --label-direction`      |
+| `label_alternation`                | string       | `"none"`                 | `"none"` or `"halves"`, see [Alternating hands](#alternating-hands) |
 | `max_depth`                        | int          | `50`                     | Deepest accessibility tree level to read, `0` for unlimited                                                                                                               |
 | `include_menubar_hints`            | bool         | `false`                  | Show hints on menubar items                                                                                                                                |
 | `include_dock_hints`               | bool         | `false`                  | Show hints on Dock items, and on Mission Control's windows and desktops while `detect_mission_control` is on                                              |
@@ -612,6 +613,21 @@ keystrokes. Use `reverse` when many hints cluster in one region or you
 regularly need more than `len(hint_characters)` hints, since it spreads first
 characters evenly. Set it per app in the [per-app config](#hints-per-app-config)
 or per activation with [`neru hints --label-direction`](cli.md#neru-hints).
+
+#### Alternating hands
+
+`label_alternation = "halves"` makes each key of a multi-character label come
+from the opposite hand to the key before it. The first half of
+`hint_characters` is one hand and the second half the other, with the extra
+character in the first half for an odd count. So write each hand's characters
+together. The default `asdfghjkl` splits into `asdfg` and `hjkl`, and order
+within each half still sets which keys are preferred.
+
+Alternation fits fewer labels of each length. With L and R characters in the
+two halves and N in all, it applies from N+1 hints up to `L*R*N`, which is 180
+for the default. Labels reach three characters after `2*L*R` hints (40)
+instead of after `N*N` (81). Above `L*R*N` hints, or with fewer than four characters, labels
+are the same as with `"none"`. It works with both label directions.
 
 ### Clickable roles
 
