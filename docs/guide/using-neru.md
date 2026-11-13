@@ -24,7 +24,7 @@ so you can correct a near miss before you click.
 
 `Primary+Shift+Space`, or `neru hints`.
 
-![Animated demo of hints mode](https://github.com/user-attachments/assets/a19ef869-6400-4b5f-b3c6-92af69c2a76b)
+![Animated demo of hints mode](https://github.com/user-attachments/assets/4327c027-d3c8-4915-a740-a0c9c46b386d)
 
 1. Press the hotkey. Every clickable element in the focused window gets a
    short label such as `as` or `f`. A disabled element, such as a greyed-out
@@ -56,7 +56,7 @@ and `NERU_Y`. See [Scripting](scripting.md#hand-the-picked-point-to-a-script).
 
 `Primary+Shift+C`, or `neru recursive_grid`.
 
-![Animated demo of recursive grid mode](https://github.com/user-attachments/assets/d82e14fa-0ac4-4081-9a0a-f99243d1da5b)
+![Animated demo of recursive grid mode](https://github.com/user-attachments/assets/f72b43fb-9745-4c17-a80d-15ca4077a5a2)
 
 1. Press the hotkey. The screen splits into a grid with one key per cell, by
    default 3x3 with `r t y`, `f g h`, `v b n`. Size and keys are under
@@ -73,7 +73,7 @@ nothing from the app, so it works in canvases, games and remote desktops.
 
 `Primary+Shift+B`, or `neru bisect`.
 
-![Animated demo of bisect mode](https://github.com/user-attachments/assets/913e9d15-7f42-470d-b5cf-7a55065789fe)
+![Animated demo of bisect mode](https://github.com/user-attachments/assets/6b18396a-9bb8-4d1b-a8f8-270c19c0f727)
 
 Bisect halves the screen instead of splitting it into cells, so there are no
 labels to read.
@@ -91,7 +91,7 @@ labels to read.
 
 `Primary+Shift+G`, or `neru grid`.
 
-![Animated demo of grid mode](https://github.com/user-attachments/assets/392fcfa1-9779-464c-8bac-a05a6afc73c3)
+![Animated demo of grid mode](https://github.com/user-attachments/assets/b0759650-a3fa-43f3-9123-237124afe870)
 
 1. Press the hotkey. The screen fills with labeled cells.
 2. Type a cell's label. A 3x3 subgrid opens inside it.
@@ -117,7 +117,11 @@ list the keys for paging, jumping to the top and scrolling sideways.
 
 ## Vim
 
-`neru vim`. It has no default hotkey, so bind one:
+`neru vim`.
+
+![Animated demo of vim mode](https://github.com/user-attachments/assets/3b8a4ccb-f102-4971-902e-c4097d14afe5)
+
+Vim mode has no default hotkey, so bind one:
 
 ```toml
 [hotkeys]
