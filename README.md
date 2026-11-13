@@ -21,7 +21,7 @@ Hints, grids and vim keys for your whole desktop. Free, open source, one binary,
 
 ---
 
-https://github.com/user-attachments/assets/f4c86753-0109-47c9-a94e-775af2546a17
+https://github.com/user-attachments/assets/322e2666-d961-46a9-bd7c-39e42fda8819
 
 Neru does what Vimium does in the browser, for every app, window, menu bar and dock item on your screen. Press a hotkey, type the label on the element you want, and the cursor jumps there and clicks.
 
