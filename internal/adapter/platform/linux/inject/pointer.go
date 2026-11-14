@@ -41,13 +41,17 @@ func EnsureMouseUp() {
 	}
 }
 
-// MoveMouseToPoint moves the mouse.
-func MoveMouseToPoint(point image.Point, _ bool) {
-	if currentLinuxBackend() == linuxBackendX11 {
-		_ = x11MoveMouseToPoint(point)
-	} else if currentLinuxBackend() == linuxBackendWayland {
-		_ = wlrootsMoveMouseToPoint(point)
+// MoveMouseToPoint moves the cursor to point.
+func MoveMouseToPoint(point image.Point) error {
+	switch currentLinuxBackend() {
+	case linuxBackendX11:
+		return x11MoveMouseToPoint(point)
+	case linuxBackendWayland:
+		return wlrootsMoveMouseToPoint(point)
+	case linuxBackendUnknown:
 	}
+
+	return noMouseBackend("move")
 }
 
 // noMouseBackend is what a mouse action answers with neither X11 nor Wayland

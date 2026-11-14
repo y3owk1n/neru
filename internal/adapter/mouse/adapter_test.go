@@ -22,6 +22,7 @@ const releaseHeld = "release held buttons"
 // it reports as held down, and scrollErr is what a scroll returns.
 type recorder struct {
 	held      []action.MouseButton
+	moveErr   error
 	scrollErr error
 	calls     []string
 }
@@ -45,7 +46,11 @@ func (r *recorder) backend() backend {
 
 			return nil
 		},
-		move: func(point image.Point) { r.calls = append(r.calls, "move to "+point.String()) },
+		move: func(point image.Point) error {
+			r.calls = append(r.calls, "move to "+point.String())
+
+			return r.moveErr
+		},
 		scroll: func(deltaX, deltaY int, _ action.Modifiers) error {
 			r.calls = append(r.calls, "scroll")
 
@@ -141,7 +146,7 @@ func TestAdapter_PerformActionAtPoint_ToggleFollowsTheHeldButtons(t *testing.T) 
 	}
 }
 
-func TestAdapter_PerformActionAtPoint_MoveMouseMovesAndReportsNothing(t *testing.T) {
+func TestAdapter_PerformActionAtPoint_MoveMouseMoves(t *testing.T) {
 	t.Parallel()
 
 	rec := &recorder{}
@@ -154,6 +159,19 @@ func TestAdapter_PerformActionAtPoint_MoveMouseMovesAndReportsNothing(t *testing
 
 	if want := []string{"move to (3,4)"}; !slices.Equal(rec.calls, want) {
 		t.Errorf("calls = %q, want %q", rec.calls, want)
+	}
+}
+
+func TestAdapter_PerformActionAtPoint_ReportsAFailedMove(t *testing.T) {
+	t.Parallel()
+
+	rec := &recorder{moveErr: errInjection}
+
+	err := newAdapter(nil, rec.backend()).
+		PerformActionAtPoint(t.Context(), action.TypeMoveMouse, image.Pt(3, 4), 0)
+	if got := derrors.GetCode(err); got != derrors.CodeActionFailed {
+		t.Errorf("PerformActionAtPoint(move_mouse) error code = %v, want %v (error %v)",
+			got, derrors.CodeActionFailed, err)
 	}
 }
 

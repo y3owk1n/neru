@@ -14,9 +14,8 @@ import (
 // The mode handler calls it while holding its lock, so an implementation takes
 // only its own leaf locks and never calls back into the app.
 //
-// Implementations must report derrors.CodeNotSupported when the platform has no
-// injection path, and the mouse_buttons and scroll entries in
-// PlatformCapabilities must agree.
+// A platform with no injection path refuses every call, and the mouse_buttons
+// and scroll entries in PlatformCapabilities must agree.
 type MousePort interface {
 	// PerformActionAtPoint executes a mouse action at the specified point.
 	//
@@ -24,9 +23,9 @@ type MousePort interface {
 	// as a left release would. Any other click first releases every held
 	// button. A toggle resolves against the buttons this process holds:
 	// a held button is released and a free one pressed. move_mouse and
-	// move_mouse_relative move the cursor there and report nothing. A scroll
-	// action is refused with CodeInvalidInput, because scrolls go through
-	// Scroll.
+	// move_mouse_relative move the cursor there. A scroll action is refused,
+	// because scrolls go through Scroll. Every failure, a platform without
+	// injection included, comes back as CodeActionFailed wrapping the reason.
 	PerformActionAtPoint(
 		ctx context.Context,
 		actionType action.Type,

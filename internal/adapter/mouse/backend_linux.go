@@ -26,7 +26,7 @@ func platformBackend() backend {
 		},
 		down:   inject.MouseDownAtPoint,
 		up:     inject.MouseUpAtPoint,
-		move:   func(point image.Point) { inject.MoveMouseToPoint(point, false) },
+		move:   inject.MoveMouseToPoint,
 		scroll: inject.ScrollAtCursor,
 	}
 }

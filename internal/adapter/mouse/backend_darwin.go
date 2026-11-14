@@ -24,9 +24,13 @@ func platformBackend() backend {
 
 			return darwin.LeftClickAtPoint(point, false, modifiers)
 		},
-		down:   darwin.MouseDownAtPoint,
-		up:     darwin.MouseUpAtPoint,
-		move:   func(point image.Point) { darwin.MoveMouse(point, false) },
+		down: darwin.MouseDownAtPoint,
+		up:   darwin.MouseUpAtPoint,
+		move: func(point image.Point) error {
+			darwin.MoveMouse(point, false)
+
+			return nil
+		},
 		scroll: darwin.ScrollAtCursor,
 	}
 }

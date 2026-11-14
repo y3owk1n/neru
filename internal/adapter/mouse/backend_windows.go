@@ -3,8 +3,6 @@
 package mouse
 
 import (
-	"image"
-
 	"github.com/y3owk1n/neru/internal/adapter/platform/windows"
 )
 
@@ -15,7 +13,7 @@ func platformBackend() backend {
 		click:      windows.ClickAt,
 		down:       windows.MouseDown,
 		up:         windows.MouseUp,
-		move:       func(point image.Point) { _ = windows.MoveMouseTo(point) },
+		move:       windows.MoveMouseTo,
 		scroll:     windows.ScrollWheel,
 	}
 }

@@ -18,7 +18,7 @@ type backend struct {
 	click      func(point image.Point, button action.MouseButton, modifiers action.Modifiers) error
 	down       func(point image.Point, button action.MouseButton, modifiers action.Modifiers) error
 	up         func(point image.Point, button action.MouseButton, modifiers action.Modifiers) error
-	move       func(point image.Point)
+	move       func(point image.Point) error
 	scroll     func(deltaX, deltaY int, modifiers action.Modifiers) error
 }
 
@@ -152,9 +152,7 @@ func (a *Adapter) perform(
 		action.TypeLeftMouseToggle, action.TypeRightMouseToggle, action.TypeMiddleMouseToggle:
 		err = a.pressOrRelease(actionType, point, modifiers)
 	case action.TypeMoveMouse, action.TypeMoveMouseRelative:
-		a.backend.move(point)
-
-		return nil
+		err = a.backend.move(point)
 	case action.TypeScroll:
 		return derrors.Newf(
 			derrors.CodeInvalidInput,

@@ -22,7 +22,7 @@ func platformBackend() backend {
 		click:      refuse,
 		down:       refuse,
 		up:         refuse,
-		move:       func(image.Point) {},
+		move:       func(image.Point) error { return errNotSupported() },
 		scroll: func(int, int, action.Modifiers) error {
 			return errNotSupported()
 		},

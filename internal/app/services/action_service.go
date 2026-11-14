@@ -58,7 +58,7 @@ func (s *ActionService) UpdateConfig(cfg config.MouseActionConfig) {
 }
 
 // PerformActionAtPoint executes an action at the specified point.
-// This parses the action string to a domain type and delegates to the accessibility port.
+// This parses the action string to a domain type and delegates to the mouse port.
 func (s *ActionService) PerformActionAtPoint(
 	ctx context.Context,
 	actionString string,

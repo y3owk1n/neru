@@ -142,6 +142,19 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 			return err
 		})
 
+	// Mouse injection needs cgo and an X11 or Wayland session. Without either,
+	// every click, press, release and scroll is refused (platform/linux/inject).
+	if !nativeBackendsCompiledIn ||
+		(s.backend != backendX11 && !s.waylandUsesWlrClientStack()) {
+		refused := ports.FeatureCapability{
+			Status: ports.FeatureStatusStub,
+			Detail: "mouse injection needs a CGO-enabled build in an X11 or Wayland " +
+				"session, so it is refused here",
+		}
+		capabilities.MouseButtons = refused
+		capabilities.Scroll = refused
+	}
+
 	// Hyprland scrolls through the uinput wheel. Without it the scroll falls back
 	// to the virtual pointer and still returns nil, but Chromium and Electron
 	// there ignore that. The probe creates and destroys the same wheel device, so
