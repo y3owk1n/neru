@@ -86,7 +86,7 @@ func TestHeldRepeatConfig_HeldMotion(t *testing.T) {
 		cfg     config.HeldRepeatConfig
 		actions []string
 		want    motion.Direction
-		step    int
+		step    float64
 		ok      bool
 	}{
 		{"right", accelOn, []string{testMotionRight}, motion.Direction{X: 1}, 10, true},
@@ -99,11 +99,11 @@ func TestHeldRepeatConfig_HeldMotion(t *testing.T) {
 			true,
 		},
 		{
-			"up-left reduces to signs, largest axis is the step",
+			"up-left keeps its heading, the step is its length",
 			accelOn,
-			[]string{"action move_mouse_relative --dx -30 --dy -5"},
-			motion.Direction{X: -1, Y: -1},
-			30,
+			[]string{"action move_mouse_relative --dx -30 --dy -40"},
+			motion.Direction{X: -0.6, Y: -0.8},
+			50,
 			true,
 		},
 		{
@@ -155,7 +155,7 @@ func TestHeldRepeatConfig_HeldMotion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, step, ok := tt.cfg.HeldMotion(tt.actions)
 			if got != tt.want || step != tt.step || ok != tt.ok {
-				t.Errorf("HeldMotion = (%+v, %d, %v), want (%+v, %d, %v)",
+				t.Errorf("HeldMotion = (%+v, %v, %v), want (%+v, %v, %v)",
 					got, step, ok, tt.want, tt.step, tt.ok)
 			}
 		})

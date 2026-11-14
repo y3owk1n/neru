@@ -30,7 +30,7 @@ type heldKey struct {
 // binding steps, which is what sets the glide's speed.
 type heldEntry struct {
 	dir       motion.Direction
-	step      int
+	step      float64
 	pressedAt time.Time
 	// interval is one step's worth of travel as configured at press time, so
 	// a reload mid-hold does not skew what a tap is owed.
@@ -104,7 +104,7 @@ func (c *Controller) Group(name string) *Group {
 
 // Press adds key to the held set, pointing in dir with a binding that steps
 // stepPx per interval, and starts the loop when idle.
-func (g *Group) Press(key string, dir motion.Direction, stepPx int) {
+func (g *Group) Press(key string, dir motion.Direction, stepPx float64) {
 	if g == nil {
 		return
 	}
@@ -191,7 +191,7 @@ func (c *Controller) release(key heldKey) bool {
 		return true
 	}
 
-	owed := float64(entry.step) * (1 - held.Seconds()/entry.interval.Seconds())
+	owed := entry.step * (1 - held.Seconds()/entry.interval.Seconds())
 	c.taps = append(c.taps, tap{dir: entry.dir, distance: owed})
 
 	return true
@@ -203,7 +203,7 @@ func (c *Controller) release(key heldKey) bool {
 type tickInput struct {
 	taps []tap
 	dir  motion.Direction
-	step int
+	step float64
 	ramp motion.Ramp
 }
 

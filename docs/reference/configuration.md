@@ -1537,10 +1537,11 @@ accel_enabled = true
 
 ### Glide
 
-A held key bound to a lone `move_mouse_relative` glides the cursor in the
-direction of its `--dx`/`--dy` instead of repeating. Speed is the binding's step
-per `interval_ms` (10px every 50ms is 200px/s) from key down to release, so
-`initial_delay_ms` does not apply. Two held keys move diagonally at the same
+A held key bound to a lone `move_mouse_relative` glides the cursor along its
+`--dx`/`--dy` instead of repeating, at the same angle its taps move. Speed is
+the length of the binding's step per `interval_ms`, so 10px every 50ms is
+200px/s, and `--dx 30 --dy 40` steps 50px. The glide runs from key down to
+release, so `initial_delay_ms` does not apply. Two held keys move diagonally at the same
 speed, opposite keys cancel, and the larger step sets the speed. A short tap
 travels about one step. The glide works across monitors, and a click during it
 acts at the cursor's live position.
