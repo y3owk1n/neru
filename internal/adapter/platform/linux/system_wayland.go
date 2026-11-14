@@ -72,6 +72,40 @@ func WaylandSyncModifiers(timeout time.Duration) bool {
 	return wlrootsSync(timeout)
 }
 
+// ModifierReportMark holds how many modifier bits the compositor had reported
+// on before a pointer action pressed its modifiers.
+type ModifierReportMark struct {
+	risen uint32
+	ok    bool
+}
+
+// WaylandMarkModifierReports records how many modifier bits the compositor has
+// reported on so far, for WaylandAwaitModifierReports. Only libei needs it. On
+// wlroots the modifiers and the pointer event share a connection and arrive in
+// order.
+func WaylandMarkModifierReports() ModifierReportMark {
+	hasVirtualPointer, err := wlrootsHasVirtualPointer()
+	if err == nil && hasVirtualPointer {
+		return ModifierReportMark{}
+	}
+
+	risen, ok := libeiModifiersRisen()
+
+	return ModifierReportMark{risen: risen, ok: ok}
+}
+
+// WaylandAwaitModifierReports waits, up to a short timeout, until the
+// compositor reports count modifiers down that were pressed after mark. Over
+// libei nothing orders a modifier on the keyboard device with the pointer event
+// after it, and Mutter delivers the click first (#1912).
+func WaylandAwaitModifierReports(mark ModifierReportMark, count int) {
+	if !mark.ok || count <= 0 {
+		return
+	}
+
+	libeiAwaitModifiersRisen(mark.risen, uint32(count))
+}
+
 // WaylandKeyEvent presses or releases one key by evdev keycode on the virtual
 // keyboard. It injects releases for keys held before an evdev grab and released
 // during it, keeping the compositor's key state consistent.

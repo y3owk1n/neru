@@ -29,6 +29,10 @@ const libeiConnectTimeoutMs = 1500
 // dialog, and only the first grant on a machine costs the long wait.
 const libeiWarmupTimeoutMs = 120000
 
+// libeiModifierReportTimeoutMs bounds the wait for the compositor to report
+// modifiers just pressed. Mutter answered within 7 ms with every core busy.
+const libeiModifierReportTimeoutMs = 25
+
 // libeiState owns the libei/RemoteDesktop session used for input injection on
 // compositors without zwlr_virtual_pointer_v1 (KWin/KDE). It is established on
 // first input, so read-only probes never trigger the consent prompt.
@@ -295,6 +299,41 @@ func libeiKey(keycode int, pressed bool) error {
 					"remote-desktop \"\"` first to clear the saved grant",
 			)
 		},
+	)
+}
+
+// libeiModifiersRisen reads the session's count of modifier bits turned on,
+// for libeiAwaitModifiersRisen. The bool is false when there is no session to
+// ask or another call holds it.
+func libeiModifiersRisen() (uint32, bool) {
+	if !globalLibeiState.mu.TryLock() {
+		return 0, false
+	}
+
+	defer globalLibeiState.mu.Unlock()
+
+	if !globalLibeiState.ready {
+		return 0, false
+	}
+
+	return uint32(C.neru_ei_modifiers_risen(globalLibeiState.client)), true
+}
+
+// libeiAwaitModifiersRisen waits, up to libeiModifierReportTimeoutMs, until
+// the compositor reports count more modifier bits on than it had at since.
+func libeiAwaitModifiersRisen(since, count uint32) {
+	if !globalLibeiState.mu.TryLock() {
+		return
+	}
+
+	defer globalLibeiState.mu.Unlock()
+
+	if !globalLibeiState.ready {
+		return
+	}
+
+	C.neru_ei_await_modifiers_risen(
+		globalLibeiState.client, C.uint32_t(since), C.uint32_t(count), libeiModifierReportTimeoutMs,
 	)
 }
 

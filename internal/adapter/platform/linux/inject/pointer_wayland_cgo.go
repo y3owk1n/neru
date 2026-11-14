@@ -4,10 +4,13 @@ package inject
 
 import (
 	"image"
+	"math/bits"
 	"os"
 	"sync"
+	"time"
 
 	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
+	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -324,12 +327,29 @@ func wlrootsClickButtonAtPoint(
 	return nil
 }
 
-// wlrootsPressModifiers presses the modifiers a pointer action presents. A
-// failure unwinds only what went down, which is pressWaylandModifiers' job.
+// wlrootsPressModifiers presses the modifiers a pointer action presents. Where
+// the compositor could deliver the pointer event first, it then waits for the
+// compositor to report them down. A failure unwinds only what went down, which
+// is pressWaylandModifiers' job.
+//
+// Mutter reports a modifier once its own state has it, before the key has gone
+// through the input method to the app. On GNOME a fixed settle covers that last
+// step. Without it a click with two modifiers lost one now and then (#1912).
 func wlrootsPressModifiers(modifiers action.Modifiers) error {
-	_, err := pressWaylandModifiers(modifiers)
+	mark := linux.WaylandMarkModifierReports()
 
-	return err
+	pressed, err := pressWaylandModifiers(modifiers)
+	if err != nil {
+		return err
+	}
+
+	linux.WaylandAwaitModifierReports(mark, bits.OnesCount(uint(pressed)))
+
+	if pressed != 0 && platform.DetectLinuxBackend() == platform.BackendWaylandGNOME {
+		time.Sleep(modifierSettleDelay)
+	}
+
+	return nil
 }
 
 // wlrootsReleaseModifiers lets go of the modifiers a pointer action presented.

@@ -1,5 +1,6 @@
 #include "libei_client.h"
 
+#include <errno.h>
 #include <libei.h>
 #include <liboeffis.h>
 #include <poll.h>
@@ -24,6 +25,11 @@ struct NeruEiClient {
 	int keyboard_emulating;
 
 	uint32_t seq;
+
+	// The depressed modifiers as the compositor last reported them, and a
+	// running count of the bits its reports have turned on.
+	uint32_t mods_depressed;
+	uint32_t mods_risen;
 };
 
 static int64_t now_ms(void) {
@@ -99,6 +105,12 @@ static void drain(NeruEiClient *c) {
 				c->keyboard_resumed = 0;
 				c->keyboard_emulating = 0;
 			}
+			break;
+		}
+		case EI_EVENT_KEYBOARD_MODIFIERS: {
+			uint32_t mods = ei_event_keyboard_get_xkb_mods_depressed(e);
+			c->mods_risen += (uint32_t)__builtin_popcount(mods & ~c->mods_depressed);
+			c->mods_depressed = mods;
 			break;
 		}
 		case EI_EVENT_DEVICE_REMOVED: {
@@ -392,6 +404,33 @@ int neru_ei_key(NeruEiClient *c, int keycode, int pressed) {
 	ei_device_frame(c->keyboard, ei_now(c->ei));
 	ei_dispatch(c->ei);
 	return 1;
+}
+
+uint32_t neru_ei_modifiers_risen(NeruEiClient *c) {
+	if (!c) {
+		return 0;
+	}
+	pump(c);
+	return c->mods_risen;
+}
+
+void neru_ei_await_modifiers_risen(NeruEiClient *c, uint32_t since, uint32_t count, int timeout_ms) {
+	if (!c) {
+		return;
+	}
+	pump(c);
+	int64_t deadline = now_ms() + timeout_ms;
+	int efd = ei_get_fd(c->ei);
+	while (c->mods_risen - since < count) {
+		int ready = wait_readable(efd, deadline);
+		if (ready == 0 || (ready < 0 && errno != EINTR)) {
+			return;
+		}
+		if (ready > 0) {
+			ei_dispatch(c->ei);
+			drain(c);
+		}
+	}
 }
 
 int neru_ei_has_keyboard(NeruEiClient *c) {
