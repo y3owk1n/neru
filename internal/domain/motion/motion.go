@@ -6,16 +6,15 @@ package motion
 import (
 	"image"
 	"math"
+	"slices"
 	"time"
 )
 
-// diagonalScale is cos(45 degrees), the per-axis share of a unit diagonal.
-const diagonalScale = math.Sqrt2 / 2
-
-// Direction is the axis-wise sum of the held direction keys, each axis
-// clamped to -1..1, so opposite keys cancel and two keys make a diagonal.
+// Direction is a heading. FromDelta gives a binding's unit heading, and
+// Combine sums the held keys' headings. The integrator scales any non-zero
+// heading to unit length, so a diagonal is no faster than a straight line.
 type Direction struct {
-	X, Y int
+	X, Y float64
 }
 
 // IsZero reports whether no axis is active.
@@ -23,31 +22,39 @@ func (d Direction) IsZero() bool {
 	return d.X == 0 && d.Y == 0
 }
 
-// Combine sums directions axis-wise and clamps each axis to -1..1.
+// Combine sums the distinct headings, so opposite keys cancel, two straight
+// keys make a diagonal, and two keys bound to the same step count once.
 func Combine(dirs ...Direction) Direction {
 	var sum Direction
-	for _, dir := range dirs {
+
+	for i, dir := range dirs {
+		if slices.Contains(dirs[:i], dir) {
+			continue
+		}
+
 		sum.X += dir.X
 		sum.Y += dir.Y
 	}
 
-	return Direction{X: clampAxis(sum.X), Y: clampAxis(sum.Y)}
+	return sum
 }
 
-// FromDelta reduces a discrete step to the direction it points in.
-func FromDelta(dx, dy int) Direction {
-	return Direction{X: clampAxis(dx), Y: clampAxis(dy)}
-}
-
-func clampAxis(v int) int {
-	switch {
-	case v < 0:
-		return -1
-	case v > 0:
-		return 1
-	default:
-		return 0
+// FromDelta returns the unit heading of a discrete step, so a held key glides
+// at the angle its taps move.
+func FromDelta(deltaX, deltaY int) Direction {
+	length := math.Hypot(float64(deltaX), float64(deltaY))
+	if length == 0 {
+		return Direction{}
 	}
+
+	return Direction{X: float64(deltaX) / length, Y: float64(deltaY) / length}
+}
+
+// unit scales a non-zero heading to length one.
+func (d Direction) unit() (float64, float64) {
+	length := math.Hypot(d.X, d.Y)
+
+	return d.X / length, d.Y / length
 }
 
 // Ramp is what the held_repeat accel options say, before a binding's step
@@ -69,8 +76,8 @@ type Params struct {
 // ParamsFor resolves the ramp for a binding that moves stepPx per Interval.
 // A zero Duration reaches the cap at once. A Multiplier under 1 is treated
 // as 1, so speed never ramps down.
-func (r Ramp) ParamsFor(stepPx int) Params {
-	base := float64(stepPx) / r.Interval.Seconds()
+func (r Ramp) ParamsFor(stepPx float64) Params {
+	base := stepPx / r.Interval.Seconds()
 	maxSpeed := base * math.Max(r.Multiplier, 1)
 
 	if r.Duration <= 0 {
@@ -115,13 +122,7 @@ func (i *Integrator) Step(params Params, dir Direction, elapsed time.Duration) i
 	secs := elapsed.Seconds()
 	i.speed = math.Min(math.Max(i.speed+params.Acceleration*secs, params.Speed), params.MaxSpeed)
 
-	unitX, unitY := float64(dir.X), float64(dir.Y)
-	if dir.X != 0 && dir.Y != 0 {
-		// A diagonal is no faster than a straight line.
-		unitX *= diagonalScale
-		unitY *= diagonalScale
-	}
-
+	unitX, unitY := dir.unit()
 	i.x += unitX * i.speed * secs
 	i.y += unitY * i.speed * secs
 	i.clamp()
@@ -130,15 +131,14 @@ func (i *Integrator) Step(params Params, dir Direction, elapsed time.Duration) i
 }
 
 // Nudge moves distance pixels in dir at once, outside the velocity ramp,
-// and returns the position to post. A diagonal nudge covers distance along
-// the diagonal, not per axis.
+// and returns the position to post. It measures distance along the heading,
+// not per axis.
 func (i *Integrator) Nudge(dir Direction, distance float64) image.Point {
-	unitX, unitY := float64(dir.X), float64(dir.Y)
-	if dir.X != 0 && dir.Y != 0 {
-		unitX *= diagonalScale
-		unitY *= diagonalScale
+	if dir.IsZero() {
+		return i.Position()
 	}
 
+	unitX, unitY := dir.unit()
 	i.x += unitX * distance
 	i.y += unitY * distance
 	i.clamp()

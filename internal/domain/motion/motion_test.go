@@ -33,6 +33,16 @@ func TestCombine_OppositeKeysCancel(t *testing.T) {
 			motion.Direction{X: 1, Y: 1},
 		},
 		{"two rights stay one right", []motion.Direction{{X: 1}, {X: 1}}, motion.Direction{X: 1}},
+		{
+			"two keys on the same uneven step keep its heading",
+			[]motion.Direction{motion.FromDelta(10, 5), motion.FromDelta(10, 5)},
+			motion.FromDelta(10, 5),
+		},
+		{
+			"opposite uneven steps cancel",
+			[]motion.Direction{motion.FromDelta(10, 5), motion.FromDelta(-10, -5)},
+			motion.Direction{},
+		},
 		{"nothing held is zero", nil, motion.Direction{}},
 	}
 
@@ -124,6 +134,22 @@ func TestIntegrator_Step_DiagonalIsNoFasterThanStraight(t *testing.T) {
 			want,
 			straightPos.X,
 		)
+	}
+}
+
+func TestIntegrator_Step_UnevenStepGlidesAtItsOwnAngle(t *testing.T) {
+	params := ramp.ParamsFor(stepPx)
+	integ := motion.NewIntegrator(image.Point{}, image.Rectangle{})
+
+	var pos image.Point
+	for range 100 {
+		pos = integ.Step(params, motion.FromDelta(10, 5), tick)
+	}
+
+	// A 10 by 5 step moves twice as far across as down, about 27 degrees,
+	// not the 45 degrees of a diagonal.
+	if pos.X < 2*pos.Y-1 || pos.X > 2*pos.Y+1 {
+		t.Errorf("uneven glide ended at %v, want x about twice y", pos)
 	}
 }
 

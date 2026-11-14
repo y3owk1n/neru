@@ -1,6 +1,7 @@
 package config
 
 import (
+	"math"
 	"slices"
 	"time"
 
@@ -27,12 +28,13 @@ func (c HeldRepeatConfig) AccelAppliesTo(name string) bool {
 	return c.AccelEnabled && slices.Contains(c.AccelTargets, name)
 }
 
-// HeldMotion reports whether a held binding glides, with the direction it
-// points in and its step size. Only a lone move_mouse_relative with parsable,
-// non-zero --dx/--dy qualifies, and only while held_repeat.enabled is set.
+// HeldMotion reports whether a held binding glides, with the heading it
+// points in and the length of its step. Only a lone move_mouse_relative with
+// parsable, non-zero --dx/--dy qualifies, and only while held_repeat.enabled
+// is set.
 // The flags are read with the executor's quote-aware grammar, so a binding
 // that runs also glides.
-func (c HeldRepeatConfig) HeldMotion(actions []string) (motion.Direction, int, bool) {
+func (c HeldRepeatConfig) HeldMotion(actions []string) (motion.Direction, float64, bool) {
 	if !c.Enabled || action.Name(HeldRepeatActionName(actions)) != action.NameMoveMouseRelative {
 		return motion.Direction{}, 0, false
 	}
@@ -47,7 +49,7 @@ func (c HeldRepeatConfig) HeldMotion(actions []string) (motion.Direction, int, b
 		return motion.Direction{}, 0, false
 	}
 
-	return dir, max(absInt(deltaX), absInt(deltaY)), true
+	return dir, math.Hypot(float64(deltaX), float64(deltaY)), true
 }
 
 // Ramp is the glide's speed in the units the integrator takes. A binding's
@@ -66,12 +68,4 @@ func (c HeldRepeatConfig) Ramp() motion.Ramp {
 	}
 
 	return ramp
-}
-
-func absInt(v int) int {
-	if v < 0 {
-		return -v
-	}
-
-	return v
 }
