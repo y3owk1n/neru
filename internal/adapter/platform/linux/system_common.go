@@ -142,11 +142,10 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 			return err
 		})
 
-	// Hyprland scrolls through the uinput wheel, and without it falls back to
-	// the virtual pointer while still returning nil, which Chromium and Electron
-	// there ignore. The probe creates and destroys the same wheel device,
-	// exercising every ioctl the real path runs. Every other Wayland session
-	// scrolls through the virtual pointer or libei and never opens the wheel.
+	// Hyprland scrolls through the uinput wheel. Without it the scroll falls back
+	// to the virtual pointer and still returns nil, but Chromium and Electron
+	// there ignore that. The probe creates and destroys the same wheel device, so
+	// it runs every ioctl the real path does.
 	if s.uinputScroll {
 		capabilities.Scroll = scrollCapability(capabilities.Scroll, uinputScrollDeviceError())
 	}
