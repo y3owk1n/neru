@@ -8,7 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 )
 
 // TreeNode is a node in the accessibility element hierarchy (Linux stub).
@@ -29,7 +29,7 @@ func (n *TreeNode) Parent() *TreeNode { return nil }
 // FindClickableElements is a Linux stub.
 func (n *TreeNode) FindClickableElements(
 	keptRoles map[string]struct{},
-	configProvider config.Provider,
+	settingsSource ax.SettingsSource,
 	ignoreClickableCheck bool,
 ) []*TreeNode {
 	return nil
@@ -56,8 +56,8 @@ func (o *TreeOptions) SetMaxDepth(depth int) {}
 // SetBundleID is a Linux stub.
 func (o *TreeOptions) SetBundleID(bundleID string) {}
 
-// SetConfigProvider is a Linux stub.
-func (o *TreeOptions) SetConfigProvider(cp config.Provider) {}
+// SetSettingsSource is a Linux stub.
+func (o *TreeOptions) SetSettingsSource(_ ax.SettingsSource) {}
 
 // SetFilterFunc is a Linux stub.
 func (o *TreeOptions) SetFilterFunc(fn func(*ElementInfo) bool) {}
@@ -74,7 +74,7 @@ func BuildTree(_ context.Context, _ *Element, _ TreeOptions) (*TreeNode, error) 
 }
 
 // ProcessClickableNodes processes the clickable nodes in the tree (Linux stub).
-func ProcessClickableNodes(root *TreeNode, cfg config.HintsConfig) []*TreeNode {
+func ProcessClickableNodes(_ *TreeNode) []*TreeNode {
 	return nil
 }
 

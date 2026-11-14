@@ -16,7 +16,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sys/windows"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 // Real UI Automation test against a fixture window this process owns. The
@@ -154,7 +156,7 @@ func TestBuildTree_ReportsControlsNestedBelowTheWindow(t *testing.T) {
 		t.Fatalf("BuildTree took %v and failed: %v", time.Since(started), err)
 	}
 
-	hints := ProcessClickableNodes(tree, config.HintsConfig{})
+	hints := ProcessClickableNodes(tree)
 
 	want := map[string]int{uiaControlButton: 2, uiaControlCheckBox: 1, uiaControlEdit: 1}
 	got := make(map[string]int, len(want))
@@ -212,7 +214,7 @@ func TestBuildTree_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 		{"one level", 1, []string{depth1}},
 		{"two levels", 2, []string{depth1, depth2}},
 		{"unlimited", 0, []string{depth1, depth2}},
-		{"the default", config.DefaultMaxDepth, []string{depth1, depth2}},
+		{"the default", element.DefaultMaxDepth, []string{depth1, depth2}},
 	}
 
 	// The cases run inline, not as subtests. t.Run would move each one to
@@ -233,7 +235,7 @@ func TestBuildTree_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 			t.Fatalf("%s: BuildTree failed: %v", test.name, err)
 		}
 
-		hints := ProcessClickableNodes(tree, config.HintsConfig{})
+		hints := ProcessClickableNodes(tree)
 
 		got := make([]string, 0, len(hints))
 		for _, hint := range hints {
@@ -248,10 +250,10 @@ func TestBuildTree_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 	}
 }
 
-// staticConfig is a config.Provider that always returns the same configuration.
-type staticConfig struct{ cfg *config.Config }
-
-func (s staticConfig) Get() *config.Config { return s.cfg }
+// staticSettings is a settings source that always returns cfg.
+func staticSettings(cfg *config.Config) ax.SettingsSource {
+	return func() ax.Settings { return cfg }
+}
 
 func TestBuildTree_KeepsDisabledControlsWhenTheClickableCheckIsIgnored(t *testing.T) {
 	runtime.LockOSThread()
@@ -281,7 +283,7 @@ func TestBuildTree_KeepsDisabledControlsWhenTheClickableCheckIsIgnored(t *testin
 
 		opts := DefaultTreeOptions(zap.NewNop())
 		opts.SetRoles(roles)
-		opts.SetConfigProvider(staticConfig{cfg})
+		opts.SetSettingsSource(staticSettings(cfg))
 
 		ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
 
@@ -357,11 +359,11 @@ func TestBuildTree_VisibleCheckDropsCoveredControlsOnly(t *testing.T) {
 	// The default depth reads through FindAll, a lower one walks. The cases
 	// run inline, not as subtests, for the reason
 	// TestBuildTree_ReadsNoDeeperThanMaxDepth gives.
-	for _, depth := range []int{config.DefaultMaxDepth, 5} {
+	for _, depth := range []int{element.DefaultMaxDepth, 5} {
 		opts := DefaultTreeOptions(zap.NewNop())
 		opts.SetRoles(map[string]struct{}{uiaControlButton: {}})
 		opts.SetMaxDepth(depth)
-		opts.SetConfigProvider(staticConfig{cfg})
+		opts.SetSettingsSource(staticSettings(cfg))
 
 		ctx, cancel := context.WithTimeout(context.Background(), fixtureDeadline)
 
@@ -373,7 +375,7 @@ func TestBuildTree_VisibleCheckDropsCoveredControlsOnly(t *testing.T) {
 			t.Fatalf("depth %d: BuildTree failed: %v", depth, err)
 		}
 
-		hints := ProcessClickableNodes(tree, config.HintsConfig{})
+		hints := ProcessClickableNodes(tree)
 
 		got := make([]string, 0, len(hints))
 		for _, hint := range hints {
@@ -434,7 +436,7 @@ func TestBuildTree_ReportsTextIdentifierAndFocusButNoDisabledOrPassword(t *testi
 			t.Fatalf("BuildTree failed: %v", err)
 		}
 
-		return ProcessClickableNodes(tree, config.HintsConfig{})
+		return ProcessClickableNodes(tree)
 	}
 
 	var editValues []string

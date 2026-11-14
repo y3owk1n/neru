@@ -9,7 +9,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
-// The sink is a process-global slot, like the config provider beside it,
+// The sink is a process-global slot, like the logger slot beside it,
 // because the injection entry points are package-level functions named by
 // ../backend_linux.go. The interface is tap.SyntheticModifierSink. The live
 // tap is wired at daemon startup and cleared at teardown (see

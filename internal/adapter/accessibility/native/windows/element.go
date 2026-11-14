@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
@@ -68,7 +68,7 @@ func (e *Element) MenuBar() *Element { return nil }
 func (e *Element) IsClickable(
 	info *ElementInfo,
 	_ map[string]struct{},
-	_ config.Provider,
+	_ ax.SettingsSource,
 	_ bool,
 ) bool {
 	if info != nil {

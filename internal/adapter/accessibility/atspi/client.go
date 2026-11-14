@@ -19,7 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/native"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 var errClientClosed = errors.New("AT-SPI client is closed")
@@ -129,7 +129,7 @@ type Client struct {
 	*native.Client
 
 	logger         *zap.Logger
-	configProvider config.Provider
+	settingsSource ax.SettingsSource
 	windowOrigin   windowOriginSource
 
 	// originFailure is the origin source's last failure reason, so a
@@ -166,15 +166,15 @@ type Client struct {
 // New builds the Linux accessibility client. AT-SPI is activated lazily on
 // the first hints request, so hints-disabled sessions never touch the
 // session-wide a11y status. Only the window-origin source is backend-specific.
-func New(logger *zap.Logger, configProvider config.Provider) *Client {
+func New(logger *zap.Logger, settingsSource ax.SettingsSource) *Client {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
 	return &Client{
-		Client:         native.New(logger, configProvider),
+		Client:         native.New(logger, settingsSource),
 		logger:         logger.Named("accessibility.atspi"),
-		configProvider: configProvider,
+		settingsSource: settingsSource,
 		windowOrigin:   newWindowOriginSource(platform.DetectLinuxBackend(), logger),
 	}
 }
@@ -506,7 +506,7 @@ func (c *Client) scan(
 	// Fast path: one Collection.GetMatches call, falling back to the walk when the
 	// toolkit lacks Collection. Collection cannot stop at a depth, so a limit below
 	// the default goes to the walk.
-	if depth == 0 || depth >= config.DefaultMaxDepth {
+	if depth == 0 || depth >= element.DefaultMaxDepth {
 		nodes, ok := c.collectViaCollection(ctx, conn, root, roles, anyState, place, readState)
 		if ok {
 			return nodes, scanPathCollection, 0
@@ -529,11 +529,11 @@ func (c *Client) scan(
 // for appID. A scan then keeps elements of the clickable roles that the app
 // reports as disabled.
 func (c *Client) ignoresClickableCheck(appID string) bool {
-	if c.configProvider == nil {
+	if c.settingsSource == nil {
 		return false
 	}
 
-	cfg := c.configProvider.Get()
+	cfg := c.settingsSource()
 
 	return cfg != nil && cfg.ShouldIgnoreClickableCheckForApp(appID)
 }
@@ -545,16 +545,16 @@ func (c *Client) treeDepth(maxDepth int) int {
 		return maxDepth
 	}
 
-	if c.configProvider == nil {
-		return config.DefaultMaxDepth
+	if c.settingsSource == nil {
+		return element.DefaultMaxDepth
 	}
 
-	cfg := c.configProvider.Get()
+	cfg := c.settingsSource()
 	if cfg == nil {
-		return config.DefaultMaxDepth
+		return element.DefaultMaxDepth
 	}
 
-	return cfg.Hints.MaxDepth
+	return cfg.HintsMaxDepth()
 }
 
 // collectViaCollection fetches clickable elements with one

@@ -20,10 +20,13 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
+
+// defaultChildrenCapacity is the child slice capacity a tree node starts with.
+const defaultChildrenCapacity = 8
 
 // Pre-allocated common errors.
 var errRootElementNil = derrors.New(derrors.CodeAccessibilityFailed, "root element is nil")
@@ -160,9 +163,9 @@ type TreeOptions struct {
 	maxDepth       int
 	logger         *zap.Logger
 	stats          *treeStats
-	bundleID       string          // Bundle ID for auto-detecting Chromium/Electron strict filtering
-	configProvider config.Provider // For checking user-configured Chromium/Electron bundles
-	bundleType     string          // "electron", "chromium", "firefox", "webkit", or ""
+	bundleID       string            // Bundle ID for auto-detecting Chromium/Electron strict filtering
+	settingsSource ax.SettingsSource // Per-app clickable and visible checks
+	bundleType     string            // "electron", "chromium", "firefox", "webkit", or ""
 }
 
 // FilterFunc returns the filter function.
@@ -190,9 +193,10 @@ func (o *TreeOptions) SetBundleID(bundleID string) {
 	o.bundleID = bundleID
 }
 
-// SetConfigProvider sets the config provider for checking user-configured Chromium/Electron bundles.
-func (o *TreeOptions) SetConfigProvider(cp config.Provider) {
-	o.configProvider = cp
+// SetSettingsSource sets where the tree reads the per-app clickable and
+// visible checks.
+func (o *TreeOptions) SetSettingsSource(source ax.SettingsSource) {
+	o.settingsSource = source
 }
 
 // SetFilterFunc sets the filter function.
@@ -217,7 +221,7 @@ func (o *TreeOptions) SetMaxDepth(depth int) {
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{
 		filterFunc: nil,
-		maxDepth:   config.DefaultMaxDepth,
+		maxDepth:   element.DefaultMaxDepth,
 		logger:     logger,
 	}
 }
@@ -301,7 +305,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	}
 	opts.bundleType = DetectBundleType(opts.bundleID)
 
-	node := getTreeNode(root, info, nil, config.DefaultChildrenCapacity)
+	node := getTreeNode(root, info, nil, defaultChildrenCapacity)
 
 	opts.stats = stats
 	buildTreeRecursive(ctx, node, 1, opts, windowBounds, windowBounds)
@@ -690,7 +694,7 @@ func shouldIncludeElement(
 // Search text is already accumulated during tree building via accumulateSearchText.
 func (n *TreeNode) FindClickableElements(
 	allowedRoles map[string]struct{},
-	configProvider config.Provider,
+	settingsSource ax.SettingsSource,
 	ignoreClickableCheck bool,
 ) []*TreeNode {
 	var result []*TreeNode
@@ -698,7 +702,7 @@ func (n *TreeNode) FindClickableElements(
 		if !node.element.IsClickable(
 			node.info,
 			allowedRoles,
-			configProvider,
+			settingsSource,
 			ignoreClickableCheck,
 		) {
 			return true

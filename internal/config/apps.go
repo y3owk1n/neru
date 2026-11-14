@@ -95,6 +95,12 @@ func (c *Config) ShouldEnableVisibleCheckForApp(bundleID string) bool {
 	return c.Hints.MergedForApp(bundleID).VisibleCheckEnabled
 }
 
+// HintsMaxDepth returns hints.max_depth, how deep the accessibility backends
+// walk a tree when the caller names no depth.
+func (c *Config) HintsMaxDepth() int {
+	return c.Hints.MaxDepth
+}
+
 // hasEmptyRoles reports whether the slice contains any empty or
 // whitespace-only entries. Used by MergedForApp to decide whether to
 // rebuild ClickableRoles for filtering.

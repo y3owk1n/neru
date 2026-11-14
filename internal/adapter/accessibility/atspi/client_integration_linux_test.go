@@ -22,6 +22,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
 // Both scan paths run against a fake application exported on a private
@@ -685,7 +686,7 @@ func TestClient_Scan_ReadsNoDeeperThanMaxDepth(t *testing.T) {
 		{"one level", 1, []string{depth1}, scanPathWalk},
 		{"two levels", 2, []string{depth1, depth2}, scanPathWalk},
 		{"unlimited", 0, all, scanPathCollection},
-		{"the default", config.DefaultMaxDepth, all, scanPathCollection},
+		{"the default", element.DefaultMaxDepth, all, scanPathCollection},
 	}
 
 	for _, test := range tests {
@@ -801,10 +802,10 @@ func TestClient_HitReaches_KeepsOnlyElementsTheirPointLandsOn(t *testing.T) {
 	}
 }
 
-// staticConfig is a config.Provider that always returns the same configuration.
-type staticConfig struct{ cfg *config.Config }
-
-func (s staticConfig) Get() *config.Config { return s.cfg }
+// staticSettings is a settings source that always returns cfg.
+func staticSettings(cfg *config.Config) ax.SettingsSource {
+	return func() ax.Settings { return cfg }
+}
 
 func TestClient_Scan_KeepsDisabledElementsWhenTheClickableCheckIsIgnored(t *testing.T) {
 	address := startPrivateBus(t)
@@ -830,7 +831,7 @@ func TestClient_Scan_KeepsDisabledElementsWhenTheClickableCheckIsIgnored(t *test
 	cfg := config.DefaultConfig()
 	cfg.Hints.AppConfigs = []config.AppConfig{{BundleID: ignoredApp, IgnoreClickableCheck: &ignore}}
 
-	client := New(zap.NewNop(), staticConfig{cfg})
+	client := New(zap.NewNop(), staticSettings(cfg))
 	roles := rolesSet(resolveLinuxRoles(t, "button"))
 
 	tests := []struct {
@@ -845,7 +846,7 @@ func TestClient_Scan_KeepsDisabledElementsWhenTheClickableCheckIsIgnored(t *test
 		depth int
 		want  string
 	}{
-		{config.DefaultMaxDepth, scanPathCollection},
+		{element.DefaultMaxDepth, scanPathCollection},
 		{5, scanPathWalk},
 	}
 

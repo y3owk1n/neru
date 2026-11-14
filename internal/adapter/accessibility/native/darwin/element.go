@@ -19,8 +19,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -712,7 +712,7 @@ func CurrentCursorPosition() image.Point {
 func (e *Element) IsClickable(
 	info *ElementInfo,
 	allowedRoles map[string]struct{},
-	configProvider config.Provider,
+	settingsSource ax.SettingsSource,
 	ignoreClickableCheck bool,
 ) bool {
 	if e.ref == nil {
@@ -757,7 +757,7 @@ func (e *Element) IsClickable(
 
 		// Resolve visibility check from config (per-app override, then global).
 		// visible_check_enabled defaults to false, meaning skipVisCheck is true by default.
-		skipVisCheck := !resolveVisibleCheckEnabled(info.PID(), configProvider)
+		skipVisCheck := !resolveVisibleCheckEnabled(info.PID(), settingsSource)
 
 		isWidget := strings.HasPrefix(info.Identifier(), "widget-local:")
 
@@ -787,24 +787,24 @@ func (e *Element) IsClickable(
 var (
 	pidBundleCache       = map[int]string{}
 	pidVisibleCheckCache = map[int]bool{}
-	lastConfigPointer    *config.Config
+	lastSettings         ax.Settings
 	pidBundleCacheMu     sync.RWMutex
 )
 
 // resolveVisibleCheckEnabled checks the config to determine if the visibility
 // hit-test should be performed for the given PID. Returns true if the visibility
 // check should run, false to skip it.
-func resolveVisibleCheckEnabled(pid int, configProvider config.Provider) bool {
-	var cfg *config.Config
-	if configProvider != nil {
-		cfg = configProvider.Get()
+func resolveVisibleCheckEnabled(pid int, settingsSource ax.SettingsSource) bool {
+	var cfg ax.Settings
+	if settingsSource != nil {
+		cfg = settingsSource()
 	}
 
 	pidBundleCacheMu.Lock()
-	if cfg != lastConfigPointer {
+	if cfg != lastSettings {
 		pidVisibleCheckCache = make(map[int]bool)
 		pidBundleCache = make(map[int]string)
-		lastConfigPointer = cfg
+		lastSettings = cfg
 	}
 	enabled, ok := pidVisibleCheckCache[pid]
 	pidBundleCacheMu.Unlock()
@@ -838,7 +838,7 @@ func resolveVisibleCheckEnabled(pid int, configProvider config.Provider) bool {
 	res := cfg.ShouldEnableVisibleCheckForApp(bundleID)
 
 	pidBundleCacheMu.Lock()
-	if cfg == lastConfigPointer {
+	if cfg == lastSettings {
 		pidVisibleCheckCache[pid] = res
 	}
 	pidBundleCacheMu.Unlock()
