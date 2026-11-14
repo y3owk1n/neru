@@ -153,6 +153,12 @@ const (
 	drawRoundedStroke
 	drawTriangle
 	drawText
+	// drawRoundedGradientFill fills a rounded rectangle from color at its
+	// top edge to color2 at its bottom edge.
+	drawRoundedGradientFill
+	// drawAlphaMask paints color through alpha, an 8-bit mask the size of
+	// rect.
+	drawAlphaMask
 )
 
 // drawCmd is one queued primitive. Commands are kept in the order they were
@@ -163,6 +169,8 @@ type drawCmd struct {
 	kind     drawKind
 	rect     image.Rectangle
 	color    uint32
+	color2   uint32
+	alpha    []byte
 	radius   float64
 	width    int
 	vertices [triangleVertices]image.Point
@@ -710,6 +718,41 @@ func (o *OverlayWindow) StrokeRoundedRect(
 		radius: radius,
 		width:  max(int(lineWidth), 1),
 	})
+}
+
+// FillRoundedRectGradient fills a rounded rectangle with a vertical gradient
+// from the ARGB color top at its top edge to bottom at its bottom edge. Like
+// FillRoundedRect, a rectangle hanging off the surface is queued whole, because
+// both its shape and its gradient are measured from the whole rectangle.
+func (o *OverlayWindow) FillRoundedRectGradient(
+	bounds image.Rectangle,
+	radius float64,
+	top, bottom uint32,
+) {
+	if o == nil || bounds.Empty() || bounds.Intersect(o.localBounds()).Empty() {
+		return
+	}
+
+	o.queue(drawCmd{
+		kind:   drawRoundedGradientFill,
+		rect:   bounds,
+		color:  top,
+		color2: bottom,
+		radius: max(radius, 0),
+	})
+}
+
+// PaintAlphaMask paints the ARGB color through alpha, an 8-bit coverage mask
+// the size of bounds stored row by row, over bounds. A hint shadow is painted
+// this way. The mask is read when the frame paints, so the caller must not
+// change it afterwards.
+func (o *OverlayWindow) PaintAlphaMask(bounds image.Rectangle, alpha []byte, color uint32) {
+	if o == nil || bounds.Empty() || len(alpha) != bounds.Dx()*bounds.Dy() ||
+		bounds.Intersect(o.localBounds()).Empty() {
+		return
+	}
+
+	o.queue(drawCmd{kind: drawAlphaMask, rect: bounds, alpha: alpha, color: color})
 }
 
 // FillTriangle fills the triangle through the three points with an ARGB color,

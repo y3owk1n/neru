@@ -385,6 +385,7 @@ Mode logic is shared. Only these rows differ, by rendering or element discovery.
 | **Hints**         | Element discovery              | full AX tree            | AT-SPI, toolkit-dependent | UIA, control view only |
 | **Hints**         | `vision` strategy + per-app overrides | Vision framework, text and rectangles | tesseract for text, the contour detector for rectangles | `Windows.Media.Ocr` for text, the contour detector for rectangles, no confidence |
 | **Hints**         | Label arrow / tail             | NSBezierPath            | Cairo triangle          | triangle |
+| **Hints**         | Label gradient and shadow      | NSGradient, Core Animation layer shadow | Cairo linear gradient, shared blurred mask | Direct2D gradient brush or GDI row fills, shared blurred mask |
 | **Scroll**        | Smooth scroll animation        | continuous              | continuous (X11: whole notches) | 120ths of a notch |
 | **Monitor select**| Whole mode                     | native panels           | Cairo panels            | one layered window per display |
 | **Vim**           | Whole mode                     | Vision line reads with per-character boxes, CALayers on the shared window | tesseract character boxes placed by their ink, Cairo on the shared overlay | Windows.Media.Ocr word boxes split into characters by their ink, the shared overlay window |

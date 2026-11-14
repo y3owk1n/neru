@@ -471,18 +471,32 @@ type MonitorSelectConfig struct {
 }
 
 // HintsUI defines the visual/appearance settings for hints mode.
+//
+// The gradient and the two shadows are off until their color is set, so the
+// shadow offsets and blur take effect only alongside one. They follow CSS: the
+// gradient runs from background_color at the top to background_gradient_color
+// at the bottom, the shadow is a box-shadow whose blur is the CSS blur radius,
+// and the text shadow is a text-shadow with no blur.
 type HintsUI struct {
-	FontSize         int    `json:"fontSize"         toml:"font_size"`
-	FontFamily       string `json:"fontFamily"       toml:"font_family"`
-	BorderRadius     int    `json:"borderRadius"     toml:"border_radius"`
-	PaddingX         int    `json:"paddingX"         toml:"padding_x"`
-	PaddingY         int    `json:"paddingY"         toml:"padding_y"`
-	BorderWidth      int    `json:"borderWidth"      toml:"border_width"`
-	Placement        string `json:"placement"        toml:"placement"`
-	BackgroundColor  Color  `json:"backgroundColor"  toml:"background_color"`
-	TextColor        Color  `json:"textColor"        toml:"text_color"`
-	MatchedTextColor Color  `json:"matchedTextColor" toml:"matched_text_color"`
-	BorderColor      Color  `json:"borderColor"      toml:"border_color"`
+	FontSize                int    `json:"fontSize"                toml:"font_size"`
+	FontFamily              string `json:"fontFamily"              toml:"font_family"`
+	BorderRadius            int    `json:"borderRadius"            toml:"border_radius"`
+	PaddingX                int    `json:"paddingX"                toml:"padding_x"`
+	PaddingY                int    `json:"paddingY"                toml:"padding_y"`
+	BorderWidth             int    `json:"borderWidth"             toml:"border_width"`
+	Placement               string `json:"placement"               toml:"placement"`
+	ShadowOffsetX           int    `json:"shadowOffsetX"           toml:"shadow_offset_x"`
+	ShadowOffsetY           int    `json:"shadowOffsetY"           toml:"shadow_offset_y"`
+	ShadowBlur              int    `json:"shadowBlur"              toml:"shadow_blur"`
+	TextShadowOffsetX       int    `json:"textShadowOffsetX"       toml:"text_shadow_offset_x"`
+	TextShadowOffsetY       int    `json:"textShadowOffsetY"       toml:"text_shadow_offset_y"`
+	BackgroundColor         Color  `json:"backgroundColor"         toml:"background_color"`
+	BackgroundGradientColor Color  `json:"backgroundGradientColor" toml:"background_gradient_color"`
+	TextColor               Color  `json:"textColor"               toml:"text_color"`
+	MatchedTextColor        Color  `json:"matchedTextColor"        toml:"matched_text_color"`
+	BorderColor             Color  `json:"borderColor"             toml:"border_color"`
+	ShadowColor             Color  `json:"shadowColor"             toml:"shadow_color"`
+	TextShadowColor         Color  `json:"textShadowColor"         toml:"text_shadow_color"`
 }
 
 // BoundaryHighlightUI defines the optional target boundary highlight for hints mode.

@@ -2,7 +2,10 @@
 
 package windows
 
-import "math"
+import (
+	"image"
+	"math"
+)
 
 // The window's pixels are physical, so this backend multiplies every size
 // from config by the window's monitor scale (winplatform.OverlayWindow.Scale),
@@ -13,6 +16,12 @@ import "math"
 // scaledInt is size at scale, rounded to a pixel.
 func scaledInt(size int, scale float64) int {
 	return int(math.Round(float64(size) * scale))
+}
+
+// scaledPoint is an offset configured in points at scale. Unlike a size, a
+// negative offset is a direction rather than "auto", so it scales too.
+func scaledPoint(x, y int, scale float64) image.Point {
+	return image.Pt(scaledInt(x, scale), scaledInt(y, scale))
 }
 
 // scaledConfig is a configured pixel value at scale. A negative value is the

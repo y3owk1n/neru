@@ -23,6 +23,14 @@ type StyleMode struct {
 	textColor                string
 	matchedTextColor         string
 	borderColor              string
+	backgroundGradientColor  string
+	shadowColor              string
+	shadowOffsetX            int
+	shadowOffsetY            int
+	shadowBlur               int
+	textShadowColor          string
+	textShadowOffsetX        int
+	textShadowOffsetY        int
 	boundaryHighlightEnabled bool
 	boundaryBorderWidth      int
 	boundaryBorderRadius     int
@@ -62,6 +70,32 @@ func (s StyleMode) MatchedTextColor() string { return s.matchedTextColor }
 
 // BorderColor returns the border color.
 func (s StyleMode) BorderColor() string { return s.borderColor }
+
+// BackgroundGradientColor returns the color the background fades to at the
+// bottom of the badge, or "" for a flat background.
+func (s StyleMode) BackgroundGradientColor() string { return s.backgroundGradientColor }
+
+// ShadowColor returns the color of the shadow under the badge, or "" for none.
+func (s StyleMode) ShadowColor() string { return s.shadowColor }
+
+// ShadowOffsetX returns how far right of the badge its shadow falls, in points.
+func (s StyleMode) ShadowOffsetX() int { return s.shadowOffsetX }
+
+// ShadowOffsetY returns how far below the badge its shadow falls, in points.
+func (s StyleMode) ShadowOffsetY() int { return s.shadowOffsetY }
+
+// ShadowBlur returns the shadow's CSS blur radius in points.
+func (s StyleMode) ShadowBlur() int { return s.shadowBlur }
+
+// TextShadowColor returns the color of the copy of the label drawn under it,
+// or "" for none.
+func (s StyleMode) TextShadowColor() string { return s.textShadowColor }
+
+// TextShadowOffsetX returns how far right of the label its shadow falls, in points.
+func (s StyleMode) TextShadowOffsetX() int { return s.textShadowOffsetX }
+
+// TextShadowOffsetY returns how far below the label its shadow falls, in points.
+func (s StyleMode) TextShadowOffsetY() int { return s.textShadowOffsetY }
 
 // BoundaryHighlightEnabled returns whether target boundaries are drawn behind hints.
 func (s StyleMode) BoundaryHighlightEnabled() bool { return s.boundaryHighlightEnabled }
@@ -108,6 +142,15 @@ func BuildStyle(cfg config.HintsConfig, theme config.ThemeProvider) StyleMode {
 			config.HintsBorderColorLight,
 			config.HintsBorderColorDark,
 		),
+		// The gradient and the shadows have no theme default. Unset is off.
+		backgroundGradientColor:  cfg.UI.BackgroundGradientColor.ForTheme(theme, "", ""),
+		shadowColor:              cfg.UI.ShadowColor.ForTheme(theme, "", ""),
+		shadowOffsetX:            cfg.UI.ShadowOffsetX,
+		shadowOffsetY:            cfg.UI.ShadowOffsetY,
+		shadowBlur:               cfg.UI.ShadowBlur,
+		textShadowColor:          cfg.UI.TextShadowColor.ForTheme(theme, "", ""),
+		textShadowOffsetX:        cfg.UI.TextShadowOffsetX,
+		textShadowOffsetY:        cfg.UI.TextShadowOffsetY,
 		boundaryHighlightEnabled: cfg.BoundaryHighlight.Enabled,
 		boundaryBorderWidth:      cfg.BoundaryHighlight.BorderWidth,
 		boundaryBorderRadius:     cfg.BoundaryHighlight.BorderRadius,

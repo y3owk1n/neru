@@ -1,5 +1,6 @@
 #include "x11_overlay.h"
 
+#include "badge_paint.h"
 #include "font_fallback.h"
 #include "x11_system.h"
 
@@ -359,16 +360,23 @@ static void neru_x11_hint_badge_path(
 // connector tail as one continuous outline (see neru_x11_hint_badge_path).
 void neru_x11_overlay_hint_badge(
     NeruX11Overlay *overlay, double x, double y, double width, double height, double radius, int edge, double a_left,
-    double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke, double stroke_width) {
+    double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int fill_bottom, unsigned int stroke,
+    double stroke_width) {
 	cairo_t *cr = overlay->cr;
 	cairo_save(cr);
 	neru_x11_hint_badge_path(cr, x, y, width, height, radius, edge, a_left, a_right, tip_x, tip_y);
-	neru_x11_overlay_color(cr, fill);
+	neru_badge_set_fill(cr, y, height, fill, fill_bottom);
 	cairo_fill_preserve(cr);
 	neru_x11_overlay_color(cr, stroke);
 	cairo_set_line_width(cr, stroke_width);
 	cairo_stroke(cr);
 	cairo_restore(cr);
+}
+
+void neru_x11_overlay_alpha_mask(
+    NeruX11Overlay *overlay, const unsigned char *alpha, int width, int height, double x, double y,
+    unsigned int color) {
+	neru_badge_paint_mask(overlay->cr, alpha, width, height, x, y, color);
 }
 
 void neru_x11_overlay_text(

@@ -186,7 +186,7 @@ func (o *x11Overlay) roundedRectPrim(
 
 func (o *x11Overlay) hintBadgePrim(
 	badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
-	fill, border uint32, lineWidth float64,
+	fill, fillBottom, border uint32, lineWidth float64,
 ) {
 	C.neru_x11_overlay_hint_badge(
 		o.raw,
@@ -196,7 +196,21 @@ func (o *x11Overlay) hintBadgePrim(
 		C.int(edge),
 		C.double(arrow.BaseLeft.X), C.double(arrow.BaseRight.X),
 		C.double(arrow.Tip.X), C.double(arrow.Tip.Y),
-		C.uint(fill), C.uint(border), C.double(lineWidth),
+		C.uint(fill), C.uint(fillBottom), C.uint(border), C.double(lineWidth),
+	)
+}
+
+func (o *x11Overlay) alphaMaskPrim(bounds image.Rectangle, alpha []byte, color uint32) {
+	if len(alpha) == 0 || len(alpha) != bounds.Dx()*bounds.Dy() {
+		return
+	}
+
+	C.neru_x11_overlay_alpha_mask(
+		o.raw,
+		(*C.uchar)(unsafe.Pointer(&alpha[0])),
+		C.int(bounds.Dx()), C.int(bounds.Dy()),
+		C.double(bounds.Min.X), C.double(bounds.Min.Y),
+		C.uint(color),
 	)
 }
 

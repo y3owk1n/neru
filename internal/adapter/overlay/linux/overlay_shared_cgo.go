@@ -74,10 +74,15 @@ type overlaySurface interface {
 
 	rectPrim(bounds image.Rectangle, fill, border uint32, lineWidth float64)
 	roundedRectPrim(bounds image.Rectangle, radius float64, fill, border uint32, lineWidth float64)
+	// hintBadgePrim fills the badge from fill at its top edge to fillBottom
+	// at its bottom edge, flat when the two are the same color.
 	hintBadgePrim(
 		badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
-		fill, border uint32, lineWidth float64,
+		fill, fillBottom, border uint32, lineWidth float64,
 	)
+	// alphaMaskPrim paints color through alpha, an 8-bit mask the size of
+	// bounds stored row by row, over bounds.
+	alphaMaskPrim(bounds image.Rectangle, alpha []byte, color uint32)
 	textPrim(text, fontFamily string, centerX, centerY, fontSize float64, color uint32, bold bool)
 }
 
@@ -196,11 +201,25 @@ func (s *changeTrackedSurface) roundedRectPrim(
 
 func (s *changeTrackedSurface) hintBadgePrim(
 	badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
-	fill, border uint32, lineWidth float64,
+	fill, fillBottom, border uint32, lineWidth float64,
 ) {
 	// The arrow reaches past the badge, by less than the badge is tall.
 	s.mark(badgeRect.Inset(-badgeRect.Dy() - int(math.Ceil(lineWidth))))
-	s.overlaySurface.hintBadgePrim(badgeRect, radius, edge, arrow, fill, border, lineWidth)
+	s.overlaySurface.hintBadgePrim(
+		badgeRect,
+		radius,
+		edge,
+		arrow,
+		fill,
+		fillBottom,
+		border,
+		lineWidth,
+	)
+}
+
+func (s *changeTrackedSurface) alphaMaskPrim(bounds image.Rectangle, alpha []byte, color uint32) {
+	s.mark(bounds)
+	s.overlaySurface.alphaMaskPrim(bounds, alpha, color)
 }
 
 func (s *changeTrackedSurface) textPrim(
@@ -273,6 +292,11 @@ type sharedOverlay struct {
 	lastHints      []*hintscomponent.Hint
 	lastHintStyle  hintscomponent.StyleMode
 	lastHintOffset badge.HintOffset
+
+	// shadows keeps one blurred mask per hint badge shape, so a keystroke's
+	// repaint blurs nothing it blurred before. Hint draws reach it under
+	// renderMu.
+	shadows badge.ShadowCache
 
 	// renderMu serializes rendering with the manager (and, on Wayland, with
 	// the keyboard poller's wl_display access). The manager owns it and holds
@@ -919,15 +943,37 @@ func (o *sharedOverlay) repaintHints(
 		)
 
 		fill := badge.ParseHexARGB(style.BackgroundColor())
+		fillBottom := fill
+
+		if gradient := style.BackgroundGradientColor(); gradient != "" {
+			fillBottom = badge.ParseHexARGB(gradient)
+		}
+
 		border := badge.ParseHexARGB(style.BorderColor())
 		borderWidth := float64(max(style.BorderWidth(), 0))
+
+		// The shadow goes down first, so this badge covers its own shadow
+		// and a later badge covers this one's.
+		o.drawHintShadow(badgeRect, float64(radius), arrow, hasArrow, style)
 
 		// Badge and connector tail are drawn as one filled+stroked outline so
 		// translucent colors don't double-composite at the junction.
 		o.drawHintBadge(
 			badgeRect, float64(radius), hintTailEdge(badgeRect, arrow, hasArrow), arrow,
-			fill, border, borderWidth,
+			fill, fillBottom, border, borderWidth,
 		)
+
+		if textShadow := style.TextShadowColor(); textShadow != "" {
+			o.drawTextCentered(
+				label,
+				badgeRect.Add(o.devicePoint(style.TextShadowOffsetX(), style.TextShadowOffsetY())),
+				style.FontFamily(),
+				fontSize,
+				badge.ParseHexARGB(textShadow),
+				true,
+			)
+		}
+
 		o.drawTextCentered(
 			label, badgeRect,
 			style.FontFamily(),
@@ -1535,7 +1581,7 @@ func (o *sharedOverlay) drawRoundedRect(
 
 func (o *sharedOverlay) drawHintBadge(
 	badgeRect image.Rectangle, radius float64, edge int, arrow badge.HintArrow,
-	fill uint32, border uint32, lineWidth float64,
+	fill, fillBottom, border uint32, lineWidth float64,
 ) {
 	o.srf.hintBadgePrim(
 		badgeRect,
@@ -1543,9 +1589,36 @@ func (o *sharedOverlay) drawHintBadge(
 		edge,
 		arrow,
 		fill,
+		fillBottom,
 		border,
 		lineWidth*o.srf.surfaceScale(),
 	)
+}
+
+// drawHintShadow paints the shadow under a hint badge, arrow included, when
+// the style has one. The offset and the blur are points, scaled to the
+// device pixels the badge is placed in.
+func (o *sharedOverlay) drawHintShadow(
+	badgeRect image.Rectangle, radius float64, arrow badge.HintArrow, hasArrow bool,
+	style hintscomponent.StyleMode,
+) {
+	color := style.ShadowColor()
+	if color == "" {
+		return
+	}
+
+	blur := float64(style.ShadowBlur()) * o.srf.surfaceScale()
+	mask := o.shadows.HintShadow(badgeRect, radius, arrow, hasArrow, blur)
+	offset := o.devicePoint(style.ShadowOffsetX(), style.ShadowOffsetY())
+
+	o.srf.alphaMaskPrim(mask.Rect(badgeRect.Min, offset), mask.Alpha, badge.ParseHexARGB(color))
+}
+
+// devicePoint scales an offset given in points to the surface's device pixels.
+func (o *sharedOverlay) devicePoint(x, y int) image.Point {
+	scale := o.srf.surfaceScale()
+
+	return image.Pt(int(math.Round(float64(x)*scale)), int(math.Round(float64(y)*scale)))
 }
 
 // drawTextCentered applies the HiDPI scale to the font size, so callers pass

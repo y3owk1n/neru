@@ -19,6 +19,18 @@ const (
 	DefaultHintPaddingX = -1
 	// DefaultHintPaddingY is the default vertical padding for hints (-1 = auto).
 	DefaultHintPaddingY = -1
+	// DefaultHintShadowOffsetY puts the hint shadow just below the label once
+	// shadow_color turns it on.
+	DefaultHintShadowOffsetY = 3
+	// DefaultHintShadowBlur is the hint shadow's CSS blur radius in points,
+	// soft enough to read as a shadow rather than an outline.
+	DefaultHintShadowBlur = 7
+	// MaxHintShadowBlur bounds hints.ui.shadow_blur. A blur that size already
+	// spreads a label's shadow several times wider than the label.
+	MaxHintShadowBlur = 32
+	// DefaultHintTextShadowOffsetY puts the text shadow one point below the
+	// label text once text_shadow_color turns it on.
+	DefaultHintTextShadowOffsetY = 1
 	// DefaultHintBoundaryBorderRadius is the default radius for hint target boundaries.
 	DefaultHintBoundaryBorderRadius = -1
 	// DefaultHintBoundaryBorderWidth is the default stroke width for hint target boundaries.
@@ -406,17 +418,29 @@ func defaultHints() HintsConfig {
 		},
 
 		UI: HintsUI{
-			FontSize:         DefaultHintFontSize,
-			FontFamily:       "",
-			BorderRadius:     DefaultHintBorderRadius,
-			PaddingX:         DefaultHintPaddingX,
-			PaddingY:         DefaultHintPaddingY,
-			BorderWidth:      1,
-			Placement:        HintPlacementDefault,
-			BackgroundColor:  Color{},
-			TextColor:        Color{},
-			MatchedTextColor: Color{},
-			BorderColor:      Color{},
+			FontSize:     DefaultHintFontSize,
+			FontFamily:   "",
+			BorderRadius: DefaultHintBorderRadius,
+			PaddingX:     DefaultHintPaddingX,
+			PaddingY:     DefaultHintPaddingY,
+			BorderWidth:  1,
+			Placement:    HintPlacementDefault,
+			// The shadows draw nothing until their color is set, so these
+			// shape them only once one is.
+			ShadowOffsetX:     0,
+			ShadowOffsetY:     DefaultHintShadowOffsetY,
+			ShadowBlur:        DefaultHintShadowBlur,
+			TextShadowOffsetX: 0,
+			TextShadowOffsetY: DefaultHintTextShadowOffsetY,
+			BackgroundColor:   Color{},
+			// Empty is a flat background_color, with no gradient.
+			BackgroundGradientColor: Color{},
+			TextColor:               Color{},
+			MatchedTextColor:        Color{},
+			BorderColor:             Color{},
+			// Empty is no shadow and no text shadow.
+			ShadowColor:     Color{},
+			TextShadowColor: Color{},
 		},
 		SearchInputUI: SearchInputUI{
 			FontSize:        DefaultHintFontSize,

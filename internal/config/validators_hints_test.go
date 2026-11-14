@@ -41,6 +41,70 @@ func TestValidateHints_UIPlacement(t *testing.T) {
 	}
 }
 
+func TestValidateHints_UIShadowBlur(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		blur    int
+		wantErr bool
+	}{
+		{name: "the default blur", blur: config.DefaultHintShadowBlur},
+		{name: "a hard edge", blur: 0},
+		{name: "the largest blur", blur: config.MaxHintShadowBlur},
+		{name: "negative", blur: -1, wantErr: true},
+		{name: "past the largest blur", blur: config.MaxHintShadowBlur + 1, wantErr: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := config.DefaultConfig()
+			cfg.Hints.UI.ShadowBlur = test.blur
+
+			err := cfg.ValidateHints(nil)
+			if (err != nil) != test.wantErr {
+				t.Errorf("ValidateHints() with shadow_blur %d error = %v, want error %v",
+					test.blur, err, test.wantErr)
+			}
+		})
+	}
+}
+
+func TestValidateHints_UIShadowColors(t *testing.T) {
+	t.Parallel()
+
+	fields := map[string]func(*config.Config) *config.Color{
+		"background_gradient_color": func(c *config.Config) *config.Color {
+			return &c.Hints.UI.BackgroundGradientColor
+		},
+		"shadow_color":      func(c *config.Config) *config.Color { return &c.Hints.UI.ShadowColor },
+		"text_shadow_color": func(c *config.Config) *config.Color { return &c.Hints.UI.TextShadowColor },
+	}
+
+	for name, field := range fields {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := config.DefaultConfig()
+			*field(cfg) = config.Color{Light: "#4D000000", Dark: "#4D000000"}
+
+			err := cfg.ValidateHints(nil)
+			if err != nil {
+				t.Fatalf("ValidateHints() with a translucent %s = %v, want nil", name, err)
+			}
+
+			*field(cfg) = config.Color{Light: "yellow", Dark: "yellow"}
+
+			err = cfg.ValidateHints(nil)
+			if err == nil {
+				t.Fatalf("ValidateHints() with %s = yellow, want an error", name)
+			}
+		})
+	}
+}
+
 func TestValidateHints_PositiveUnitFloat(t *testing.T) {
 	// merge_iou_threshold cannot be 0
 	cfg := config.DefaultConfig()

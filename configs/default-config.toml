@@ -196,6 +196,19 @@ padding_x = -1                              # -1 = auto
 padding_y = -1                              # -1 = auto
 border_width = 1
 placement = "bottom"                        # top, center, bottom
+# A soft shadow under the label and a highlight under its text, drawn only
+# once shadow_color or text_shadow_color is set. Offsets and blur are in
+# points, like CSS box-shadow and text-shadow.
+shadow_offset_x = 0
+shadow_offset_y = 3
+shadow_blur = 7                             # 0 to 32, 0 = hard edge
+text_shadow_offset_x = 0
+text_shadow_offset_y = 1
+# No defaults, so these stay commented out. The gradient runs from
+# background_color at the top to background_gradient_color at the bottom.
+# background_gradient_color = "#FFC542"
+# shadow_color = "#4D000000"
+# text_shadow_color = "#99FFFFFF"
 
 [hints.search_input_ui]
 font_size = 10
