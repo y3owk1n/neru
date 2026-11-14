@@ -34,6 +34,10 @@ type heldEntry struct {
 	// traveled is how far the glide has moved along dir since the press, so a
 	// release knows what is left of one step.
 	traveled float64
+	// tapUntil ends the press's tap window. Past it a free glide has moved a
+	// full step, so a key still short of one was held against an edge or
+	// canceled by its opposite, and is owed nothing.
+	tapUntil time.Time
 }
 
 // tap is travel still owed to a key released before the glide moved it a
@@ -151,6 +155,7 @@ func (g *Group) ReleaseAll() {
 
 func (c *Controller) press(key heldKey, entry heldEntry) {
 	ramp := c.ramp()
+	entry.tapUntil = time.Now().Add(ramp.Interval + motion.Smoothing)
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -178,7 +183,7 @@ func (c *Controller) release(key heldKey) bool {
 	entry, ok := c.held[key]
 	delete(c.held, key)
 
-	if !ok || entry.traveled >= entry.step {
+	if !ok || entry.traveled >= entry.step || time.Now().After(entry.tapUntil) {
 		return ok
 	}
 
@@ -187,54 +192,52 @@ func (c *Controller) release(key heldKey) bool {
 	return true
 }
 
-// credit adds one tick's travel to every held key, measured along each key's
-// own heading, so a key steering one axis of a diagonal counts only its share.
-func (c *Controller) credit(movedX, movedY float64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for key, entry := range c.held {
-		entry.traveled += max(0, movedX*entry.dir.X+movedY*entry.dir.Y)
-		c.held[key] = entry
-	}
-}
-
-// tickInput is what one tick of the loop acts on: any taps owed since the
-// last tick, then the held set combined into where to go, the largest step
-// among the keys (which sets the speed), and the ramp as last read.
-type tickInput struct {
-	taps []tap
-	dir  motion.Direction
-	step float64
-	ramp motion.Ramp
-}
-
-// nextTick hands the loop its input and takes the owed taps. When nothing is
-// held and nothing is owed it marks the loop finished under the same lock
-// hold, so a press racing the last release either joins this loop or starts
-// the next one, never neither.
-func (c *Controller) nextTick() (tickInput, bool) {
+// advance runs one tick on integrator and returns the position to post. It
+// pays the owed taps, steps the held set's glide, and credits that travel to
+// the keys it moved, all under one lock hold, so a release cannot land between
+// the move and its credit and be paid for travel it already made. When
+// nothing is held and nothing is owed it marks the loop finished under the
+// same hold, so a press racing the last release either joins this loop or
+// starts the next one, never neither. The integrator is pure arithmetic, so
+// the hold stays short.
+func (c *Controller) advance(
+	integrator *motion.Integrator,
+	elapsed time.Duration,
+) (image.Point, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if len(c.held) == 0 && len(c.taps) == 0 {
 		c.running = false
 
-		return tickInput{}, false
+		return image.Point{}, false
 	}
 
-	input := tickInput{taps: c.taps, ramp: c.current}
+	for _, owed := range c.taps {
+		integrator.Nudge(owed.dir, owed.distance)
+	}
+
 	c.taps = nil
+
+	var step float64
 
 	dirs := make([]motion.Direction, 0, len(c.held))
 	for _, entry := range c.held {
 		dirs = append(dirs, entry.dir)
-		input.step = max(input.step, entry.step)
+		step = max(step, entry.step)
 	}
 
-	input.dir = motion.Combine(dirs...)
+	pos := integrator.Step(c.current.ParamsFor(step), motion.Combine(dirs...), elapsed)
 
-	return input, true
+	// Each key is credited along its own heading, so a key steering one axis
+	// of a diagonal counts only its share.
+	movedX, movedY := integrator.Moved()
+	for key, entry := range c.held {
+		entry.traveled += max(0, movedX*entry.dir.X+movedY*entry.dir.Y)
+		c.held[key] = entry
+	}
+
+	return pos, true
 }
 
 // finish marks loop id as no longer running, unless a newer loop has since
@@ -286,23 +289,12 @@ func (c *Controller) run(id uint64) {
 		case now = <-ticker.C:
 		}
 
-		input, ok := c.nextTick()
+		pos, ok := c.advance(integrator, min(now.Sub(last), MaxTickDelta))
 		if !ok {
 			return
 		}
 
-		for _, owed := range input.taps {
-			integrator.Nudge(owed.dir, owed.distance)
-		}
-
-		pos := integrator.Step(
-			input.ramp.ParamsFor(input.step),
-			input.dir,
-			min(now.Sub(last), MaxTickDelta),
-		)
 		last = now
-
-		c.credit(integrator.Moved())
 
 		if pos == posted {
 			continue

@@ -252,3 +252,26 @@ func TestGroup_Release_TapAcrossTicksStillTravelsOneStep(t *testing.T) {
 		t.Fatalf("tap landed at %v, want (90, 100)", last)
 	}
 }
+
+// TestGroup_Release_CanceledLongHoldOwesNoTap pins that a key held past its
+// tap window owes nothing on release, even when it never moved because its
+// opposite canceled it.
+func TestGroup_Release_CanceledLongHoldOwesNoTap(t *testing.T) {
+	rec := &recorder{}
+	keys := newController(t, rec).Group("test")
+
+	keys.Press("l", motion.Direction{X: 1}, 10)
+	time.Sleep(100 * time.Millisecond)
+	keys.Press("h", motion.Direction{X: -1}, 10)
+	time.Sleep(100 * time.Millisecond)
+
+	before, _ := rec.last()
+
+	keys.Release("h")
+	keys.Release("l")
+
+	last, _ := waitQuiet(t, rec)
+	if drift := last.X - before.X; drift < -3 || drift > 3 {
+		t.Fatalf("cursor moved from %v to %v after releasing a canceled hold", before, last)
+	}
+}
