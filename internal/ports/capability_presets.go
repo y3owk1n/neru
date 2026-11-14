@@ -23,6 +23,9 @@ func DarwinCapabilities() PlatformCapabilities {
 		Scroll: supportedCapability(
 			"scroll injection via Quartz scroll-wheel events, both axes",
 		),
+		MouseButtons: supportedCapability(
+			"clicks, presses and releases via Quartz mouse events",
+		),
 		Accessibility: supportedCapability(
 			"macOS accessibility integration available via AXUIElement",
 		),
@@ -73,11 +76,14 @@ func LinuxCapabilities() PlatformCapabilities {
 				"libei (KDE/GNOME/COSMIC). On Hyprland a uinput wheel device " +
 				"when /dev/uinput is writable",
 		),
+		MouseButtons: supportedCapability(
+			"clicks, presses and releases via XTest (X11), the wlroots virtual " +
+				"pointer, or libei (KDE/GNOME/COSMIC)",
+		),
 		Accessibility: supportedCapability(
-			"clickable-element discovery via AT-SPI (D-Bus) tree walk; " +
-				"click/scroll injection via XTest (X11) or virtual-pointer/libei " +
-				"(Wayland wlroots/KDE/COSMIC). Coverage depends on the app's AT-SPI " +
-				"support; hints.strategy = vision is the OCR fallback where it is thin",
+			"clickable-element discovery via AT-SPI (D-Bus) tree walk. Coverage " +
+				"depends on the app's AT-SPI support; hints.strategy = vision is the " +
+				"OCR fallback where it is thin",
 		),
 		Overlay: supportedCapability(
 			"native overlays available via X11 windows or Wayland layer-shell + Cairo",
@@ -179,6 +185,9 @@ func WindowsCapabilities() PlatformCapabilities {
 		),
 		Scroll: supportedCapability(
 			"scroll injection via SendInput mouse-wheel events on both axes",
+		),
+		MouseButtons: supportedCapability(
+			"clicks, presses and releases via SendInput mouse events",
 		),
 		Accessibility: supportedCapability(
 			"clickable-element discovery available via UI Automation (initial coverage)",

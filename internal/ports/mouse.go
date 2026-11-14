@@ -13,6 +13,10 @@ import (
 //
 // The mode handler calls it while holding its lock, so an implementation takes
 // only its own leaf locks and never calls back into the app.
+//
+// Implementations must report derrors.CodeNotSupported when the platform has no
+// injection path, and the mouse_buttons and scroll entries in
+// PlatformCapabilities must agree.
 type MousePort interface {
 	// PerformActionAtPoint executes a mouse action at the specified point.
 	//

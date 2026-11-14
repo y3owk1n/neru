@@ -41,6 +41,9 @@ const (
 	CapabilityCursor CapabilityKey = "cursor"
 	// CapabilityScroll covers scroll injection at the cursor.
 	CapabilityScroll CapabilityKey = "scroll"
+	// CapabilityMouseButtons covers mouse button injection: clicks, presses
+	// and releases at a point.
+	CapabilityMouseButtons CapabilityKey = "mouse_buttons"
 	// CapabilityAccessibility covers clickable-element discovery.
 	CapabilityAccessibility CapabilityKey = "accessibility"
 	// CapabilityOverlay covers native overlay windows.
@@ -79,6 +82,7 @@ type PlatformCapabilities struct {
 	Screen            FeatureCapability
 	Cursor            FeatureCapability
 	Scroll            FeatureCapability
+	MouseButtons      FeatureCapability
 	Accessibility     FeatureCapability
 	Overlay           FeatureCapability
 	Notifications     FeatureCapability
@@ -116,6 +120,11 @@ func (c PlatformCapabilities) Entries() []CapabilityEntry {
 		{Key: CapabilityScreen, Field: "Screen", FeatureCapability: c.Screen},
 		{Key: CapabilityCursor, Field: "Cursor", FeatureCapability: c.Cursor},
 		{Key: CapabilityScroll, Field: "Scroll", FeatureCapability: c.Scroll},
+		{
+			Key:               CapabilityMouseButtons,
+			Field:             "MouseButtons",
+			FeatureCapability: c.MouseButtons,
+		},
 		{
 			Key:               CapabilityAccessibility,
 			Field:             "Accessibility",
