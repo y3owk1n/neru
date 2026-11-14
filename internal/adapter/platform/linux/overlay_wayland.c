@@ -213,6 +213,9 @@ static void neru_overlay_release_screen(NeruWaylandOverlayScreen *scr) {
 	scr->registry_name = 0;
 }
 
+// Declared ahead so the seat can get its listener at bind time (see below).
+static const struct wl_seat_listener seat_listener;
+
 static void neru_overlay_registry_global(
     void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
 	NeruWaylandOverlay *overlay = (NeruWaylandOverlay *)data;
@@ -258,7 +261,14 @@ static void neru_overlay_registry_global(
 	} else if (strcmp(interface, "wp_fractional_scale_manager_v1") == 0) {
 		overlay->fractional_mgr = wl_registry_bind(registry, name, &wp_fractional_scale_manager_v1_interface, 1);
 	} else if (strcmp(interface, "wl_seat") == 0) {
+		// The listener goes on at bind, because the compositor sends the seat's
+		// capabilities right away and drops an event for a proxy with no
+		// listener. It requests the keyboard only when the seat has one,
+		// including a keyboard the seat gains later. Requesting one from a seat
+		// that has none is a protocol error, and the compositor drops the whole
+		// connection.
 		overlay->wl_seat = wl_registry_bind(registry, name, &wl_seat_interface, 5);
+		wl_seat_add_listener(overlay->wl_seat, &seat_listener, overlay);
 	}
 }
 
@@ -489,21 +499,14 @@ NeruWaylandOverlay *neru_wayland_overlay_new(void) {
 	overlay->outputs_configured = 1;
 	wl_display_roundtrip(overlay->display);  // get screen sizes
 
+	// Let the keyboard the seat listener requested deliver its keymap.
 	if (overlay->wl_seat) {
-		wl_seat_add_listener(overlay->wl_seat, &seat_listener, overlay);
 		wl_display_roundtrip(overlay->display);
 	}
 
-	overlay->xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-
-	// Try to get keyboard immediately and set up listener. Store it so a later
-	// capabilities event cannot add a second keyboard, which would push every
-	// key into the ring twice.
-	if (overlay->wl_seat && !overlay->wl_keyboard) {
-		overlay->wl_keyboard = wl_seat_get_keyboard(overlay->wl_seat);
-		if (overlay->wl_keyboard) {
-			wl_keyboard_add_listener(overlay->wl_keyboard, &keyboard_listener, overlay);
-		}
+	// The keymap handler builds its own context when a keymap arrives first.
+	if (!overlay->xkb_ctx) {
+		overlay->xkb_ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	}
 
 	return overlay;
