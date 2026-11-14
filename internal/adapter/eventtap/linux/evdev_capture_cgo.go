@@ -44,7 +44,9 @@ type waylandEvdevCapture struct {
 	hotplugWg     sync.WaitGroup
 
 	// xkbState is a C xkb_state from the compositor's keymap, used to resolve
-	// scan codes to key names that respect XKB options.
+	// scan codes to key names that respect XKB options. It can be non-nil
+	// with no keymap yet, while the seat has no keyboard, and every lookup
+	// then falls back to the evdev tables.
 	xkbState unsafe.Pointer // *C.neru_xkb_state
 
 	// appliedLayout is the requestedKeyboardLayout value last handed to
