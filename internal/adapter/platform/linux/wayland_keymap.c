@@ -262,14 +262,15 @@ neru_xkb_state *neru_xkb_state_create(void) {
 
 	// The first roundtrip binds the seat, the second delivers its
 	// capabilities and asks for the keyboard, and the third delivers the
-	// keymap.
+	// keymap. A keyboard the seat gains during the third gets its keymap
+	// through neru_xkb_state_dispatch.
 	wl_registry_add_listener(registry, &registry_listener, state);
 	wl_display_roundtrip(state->display);
 	wl_display_roundtrip(state->display);
 	wl_display_roundtrip(state->display);
 	wl_registry_destroy(registry);
 
-	if (!state->wl_seat || (state->wl_keyboard && !state->kr.state) || wl_display_get_error(state->display)) {
+	if (!state->wl_seat || wl_display_get_error(state->display)) {
 		neru_xkb_state_destroy(state);
 		return NULL;
 	}

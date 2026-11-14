@@ -35,10 +35,12 @@ func TestWaylandEvdevCapture_PollKeymap_ReadsAKeyboardTheSeatGainsLater(t *testi
 
 	t.Cleanup(keyboard.remove)
 
+	// liveKeyName has no fallback, so a name means lookups resolve through
+	// the compositor's keymap.
 	deadline := time.Now().Add(5 * time.Second)
-	for len(capture.keyboardLayouts().Names) == 0 {
+	for capture.liveKeyName(evdevKeyQ) == "" {
 		if time.Now().After(deadline) {
-			t.Fatal("no keymap arrived after the seat gained a keyboard")
+			t.Fatal("keys never resolved through a keymap after the seat gained a keyboard")
 		}
 
 		capture.pollKeymap()

@@ -8,10 +8,10 @@ struct neru_xkb_state;
 typedef struct neru_xkb_state neru_xkb_state;
 
 // Connect to the Wayland display and read the compositor's keymap through
-// wl_keyboard. A seat with no keyboard yet still yields a state, with no
-// keymap, and every name lookup fails until neru_xkb_state_dispatch delivers
-// one. Returns NULL when there is no display or seat, or the connection or the
-// keymap failed.
+// wl_keyboard. When the seat has no keyboard yet, or the keymap has not
+// arrived, it returns a state with no keymap, and every name lookup fails
+// until neru_xkb_state_dispatch delivers one. Returns NULL when there is no
+// display or seat, or the connection failed.
 neru_xkb_state *neru_xkb_state_create(void);
 
 // Read whatever the compositor has sent since the last call without blocking,
