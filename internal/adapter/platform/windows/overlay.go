@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
+	"unicode/utf16"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -170,6 +172,10 @@ type drawCmd struct {
 	font     string
 	fontSize float64
 	bold     bool
+	// typed is how many UTF-16 units of a hint label's text are already
+	// typed, drawn in typedColor (DrawHintLabel). Plain text has none.
+	typed      int
+	typedColor uint32
 }
 
 // bounds is the rectangle a command can touch, before clipping to the surface.
@@ -756,6 +762,42 @@ func (o *OverlayWindow) DrawTextCentered(
 		font:     fontFamily,
 		fontSize: fontSize,
 		bold:     bold,
+	})
+}
+
+// DrawHintLabel renders a hint label centered inside bounds, bold as every
+// overlay draws one, in color, with typed, the part of the label already typed,
+// in typedColor. A typed part the label does not start with colors nothing.
+func (o *OverlayWindow) DrawHintLabel(
+	label, typed string,
+	bounds image.Rectangle,
+	fontFamily string,
+	fontSize float64,
+	color, typedColor uint32,
+) {
+	if o == nil || label == "" || bounds.Empty() {
+		return
+	}
+
+	if fontFamily == "" {
+		fontFamily = defaultOverlayFont
+	}
+
+	typedUnits := 0
+	if strings.HasPrefix(label, typed) {
+		typedUnits = len(utf16.Encode([]rune(typed)))
+	}
+
+	o.queue(drawCmd{
+		kind:       drawText,
+		rect:       bounds,
+		color:      color,
+		text:       label,
+		font:       fontFamily,
+		fontSize:   fontSize,
+		bold:       true,
+		typed:      typedUnits,
+		typedColor: typedColor,
 	})
 }
 

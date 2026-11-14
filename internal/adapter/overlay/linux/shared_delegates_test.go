@@ -67,6 +67,10 @@ func (s *closedSurface) textPrim(_, _ string, _, _, _ float64, _ uint32, _ bool)
 	s.touched("textPrim")
 }
 
+func (s *closedSurface) labelPrim(_ string, _ int, _ string, _, _, _ float64, _, _ uint32, _ bool) {
+	s.touched("labelPrim")
+}
+
 // movedDelegate is one of the eighteen methods the two backends used
 // to declare identically and now share, called with arguments that would draw.
 // Passing empty ones would let a delegate look guarded when it was only

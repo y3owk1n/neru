@@ -125,9 +125,12 @@ void neru_wayland_overlay_hint_badge(
     NeruWaylandOverlay *overlay, double x, double y, double width, double height, double radius, int edge,
     double a_left, double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke,
     double stroke_width);
+// neru_wayland_overlay_text centers text's ink on (x, y) on every output. Its
+// first matched bytes, the typed part of a hint label, are drawn in
+// matched_color (neru_label_show).
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color, int bold);
+    unsigned int color, int bold, int matched, unsigned int matched_color);
 int neru_wayland_overlay_poll(NeruWaylandOverlay *overlay);
 const char *neru_wayland_overlay_get_key(NeruWaylandOverlay *overlay);
 

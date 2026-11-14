@@ -130,11 +130,6 @@ func (o *winOverlay) DrawHints(
 			hint.Position(), badgeWidth, badgeHeight, radius, offset,
 		)
 
-		textColor := style.TextColor()
-		if hint.MatchedPrefix() != "" {
-			textColor = style.MatchedTextColor()
-		}
-
 		bdr := float64(radius)
 		borderWidth := float64(max(style.BorderWidth(), 0)) * scale
 
@@ -156,15 +151,20 @@ func (o *winOverlay) DrawHints(
 		// drawTextCentered documents, and this is the surface that redraws on
 		// every keystroke. The window paints commands in the order they were
 		// queued, so this hint's fill, arrow, stroke and label land as one
-		// unit over every hint queued before it.
-		o.drawTextCentered(
-			hint.Label(),
-			bounds,
-			style.FontFamily(),
-			fontSize,
-			badge.ParseHexARGB(textColor),
-			true,
-		)
+		// unit over every hint queued before it. Only the typed part of the
+		// label takes the matched color, as on macOS, so the letters still to
+		// type stay readable.
+		if o.window != nil {
+			o.window.DrawHintLabel(
+				hint.Label(),
+				hint.TypedPrefix(),
+				bounds,
+				style.FontFamily(),
+				fontSize,
+				badge.ParseHexARGB(style.TextColor()),
+				badge.ParseHexARGB(style.MatchedTextColor()),
+			)
+		}
 	}
 
 	o.flushOverlay("hints")

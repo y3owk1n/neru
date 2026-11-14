@@ -1,6 +1,7 @@
 #include "overlay_wayland.h"
 
 #include "font_fallback.h"
+#include "label_text.h"
 #include "shm_file.h"
 #include "wlr_protocol/fractional-scale-v1.h"
 #include "wlr_protocol/layer-shell.h"
@@ -1242,7 +1243,7 @@ static const char *neru_resolve_font_family(const char *family) {
 
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color, int bold) {
+    unsigned int color, int bold, int matched, unsigned int matched_color) {
 	char resolved_family[256];
 	neru_font_family_for_text(neru_resolve_font_family(font_family), text, resolved_family, sizeof(resolved_family));
 
@@ -1261,10 +1262,9 @@ void neru_wayland_overlay_text(
 		    cr, resolved_family, CAIRO_FONT_SLANT_NORMAL, bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
 		cairo_set_font_size(cr, font_size);
 		cairo_text_extents(cr, text, &extents);
-		neru_wayland_overlay_color(cr, color);
 		cairo_move_to(
 		    cr, scr_x - (extents.width / 2.0) - extents.x_bearing, scr_y - (extents.height / 2.0) - extents.y_bearing);
-		cairo_show_text(cr, text);
+		neru_label_show(cr, text, matched, color, matched_color);
 		cairo_restore(cr);
 	}
 }

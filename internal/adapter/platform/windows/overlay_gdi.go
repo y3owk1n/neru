@@ -482,9 +482,41 @@ func (r *gdiTextRenderer) paint(pixels []byte, bufW, bufH int, cmd drawCmd) {
 		dtCenter|dtVCenter|dtSingleLine,
 	))
 
-	alphaCompositeTextAt(
+	// A hint label's typed letters take their own color, split off where
+	// their advance ends.
+	split := 0
+
+	if cmd.typed > 0 {
+		label := utf16Text[:len(utf16Text)-1]
+		full, fullOK := r.extent(label)
+		typed, typedOK := r.extent(label[:min(cmd.typed, len(label))])
+
+		if fullOK && typedOK {
+			split = typedSplit(texW, pad, textRect.Dx(), full, typed)
+		}
+	}
+
+	compositeLabelAt(
 		pixels, bufW, bufH,
 		r.scratch.pixels, texW, texH, stride, textX, textY,
-		cmd.color,
+		split, cmd.typedColor, cmd.color,
 	)
+}
+
+// extent is the advance of text in the font selected into the scratch DC.
+func (r *gdiTextRenderer) extent(text []uint16) (int, bool) {
+	if len(text) == 0 {
+		return 0, true
+	}
+
+	var size gdiSize
+
+	measured, _, _ := procGetTextExtentPoint32W.Call(
+		r.scratch.dc,
+		uintptr(unsafe.Pointer(&text[0])),
+		uintptr(len(text)),
+		uintptr(unsafe.Pointer(&size)),
+	)
+
+	return int(size.cx), measured != 0
 }

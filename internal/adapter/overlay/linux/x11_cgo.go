@@ -205,6 +205,14 @@ func (o *x11Overlay) textPrim(
 	centerX, centerY, fontSize float64, color uint32,
 	bold bool,
 ) {
+	o.labelPrim(text, 0, fontFamily, centerX, centerY, fontSize, color, color, bold)
+}
+
+func (o *x11Overlay) labelPrim(
+	text string, matched int, fontFamily string,
+	centerX, centerY, fontSize float64, color, matchedColor uint32,
+	bold bool,
+) {
 	cText := C.CString(text)
 	cFontFamily := C.CString(fontFamily)
 
@@ -221,6 +229,7 @@ func (o *x11Overlay) textPrim(
 		C.double(centerX),
 		C.double(centerY),
 		C.double(fontSize), C.uint(color), cBold,
+		C.int(matched), C.uint(matchedColor),
 	)
 }
 

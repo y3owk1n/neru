@@ -2,6 +2,8 @@ package hints
 
 import (
 	"image"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -43,6 +45,26 @@ func (h *Hint) Size() image.Point {
 // MatchedPrefix returns the matched prefix.
 func (h *Hint) MatchedPrefix() string {
 	return h.matchedPrefix
+}
+
+// TypedPrefix is the part of the label already typed: as many of the label's
+// leading characters as the matched prefix runs to, spelled as the label spells
+// them. A label draws these in the matched text color and the rest in the text
+// color. The macOS overlay colors the same characters, counting them itself.
+func (h *Hint) TypedPrefix() string {
+	typed := []rune(h.matchedPrefix)
+	end := 0
+
+	for index, char := range h.label {
+		if len(typed) == 0 || unicode.ToUpper(char) != unicode.ToUpper(typed[0]) {
+			break
+		}
+
+		typed = typed[1:]
+		end = index + utf8.RuneLen(char)
+	}
+
+	return h.label[:end]
 }
 
 // SearchInputFrame describes the search UI geometry in overlay-local coordinates.

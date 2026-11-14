@@ -97,6 +97,7 @@ const (
 	vtblD2DRTFillRoundedRectangle = 19
 	vtblD2DRTFillGeometry         = 23
 	vtblD2DRTDrawText             = 27
+	vtblD2DRTDrawTextLayout       = 28
 	vtblD2DRTSetTextAntialiasMode = 34
 	vtblD2DRTClear                = 47
 	vtblD2DRTBeginDraw            = 48
@@ -115,6 +116,12 @@ const (
 	vtblD2DSinkClose        = 9
 
 	vtblDWriteFactoryCreateTextFormat = 15
+	vtblDWriteFactoryCreateTextLayout = 18
+	vtblDWriteLayoutSetDrawingEffect  = 38
+
+	// maxCachedLabelLayouts bounds the text layouts kept for partly typed
+	// hint labels. Past it the cache is released and refilled.
+	maxCachedLabelLayouts             = 256
 	vtblDWriteFormatSetTextAlignment  = 3
 	vtblDWriteFormatSetParagraphAlign = 4
 	vtblDWriteFormatSetWordWrapping   = 5
@@ -542,9 +549,24 @@ type dcompSurface struct {
 	backBuf   comObject
 	canvas    comObject
 	brush     comObject
+	// typedBrush paints the typed letters of a hint label, which its layout
+	// names as their drawing effect.
+	typedBrush comObject
 	// painted is whether anything has been drawn on the canvas since it was
 	// last cleared. A clear of an empty canvas is skipped.
 	painted bool
+	// labels holds a text layout per partly typed hint label and box, with
+	// the typed letters set to draw in typedBrush.
+	labels map[labelKey]comObject
+}
+
+// labelKey is everything a hint label's layout depends on.
+type labelKey struct {
+	text, font    string
+	fontSize      float64
+	bold          bool
+	typed         int
+	width, height int
 }
 
 func newDCompSurface(hwnd windows.HWND, width, height int) (overlaySurface, error) {
@@ -713,6 +735,17 @@ func (s *dcompSurface) create(width, height int) error {
 		return err
 	}
 
+	err = s.context.hresult(
+		"ID2D1RenderTarget::CreateSolidColorBrush",
+		vtblD2DRTCreateSolidBrush,
+		ptrArg(unsafe.Pointer(&transparent)),
+		0,
+		outArg(&s.typedBrush),
+	)
+	if err != nil {
+		return err
+	}
+
 	// Start from a transparent canvas, because a fresh bitmap's contents are
 	// undefined.
 	s.context.call(vtblD2DDCSetTarget, objArg(s.canvas))
@@ -723,7 +756,11 @@ func (s *dcompSurface) create(width, height int) error {
 }
 
 func (s *dcompSurface) releaseObjects() {
+	// The layouts hold typedBrush, so they go first.
+	s.releaseLabels()
+
 	for _, obj := range []*comObject{
+		&s.typedBrush,
 		&s.brush,
 		&s.canvas,
 		&s.backBuf,
@@ -972,6 +1009,12 @@ func (s *dcompSurface) paintText(cmd drawCmd) {
 		return
 	}
 
+	if cmd.typed > 0 {
+		s.paintTypedLabel(cmd, format, utf16Text)
+
+		return
+	}
+
 	layout := rectF(cmd.rect)
 
 	s.context.call(
@@ -984,4 +1027,95 @@ func (s *dcompSurface) paintText(cmd drawCmd) {
 		0,
 		0,
 	)
+}
+
+// paintTypedLabel draws a hint label whose first letters are typed: a layout
+// of the label in its box, with the typed range set to draw in typedBrush, laid
+// out once per label and box. The rest draws in the text color.
+func (s *dcompSurface) paintTypedLabel(cmd drawCmd, format comObject, utf16Text []uint16) {
+	layout, ok := s.labelLayout(cmd, format, utf16Text)
+	if !ok {
+		return
+	}
+
+	const channelMax = float32(alphaMax)
+
+	typedColor := d2dColorF{
+		R: float32((cmd.typedColor>>redShift)&byteMask) / channelMax,
+		G: float32((cmd.typedColor>>greenShift)&byteMask) / channelMax,
+		B: float32(cmd.typedColor&byteMask) / channelMax,
+		A: float32(cmd.typedColor>>alphaShift) / channelMax,
+	}
+	s.typedBrush.call(vtblD2DBrushSetColor, ptrArg(unsafe.Pointer(&typedColor)))
+
+	s.context.call(
+		vtblD2DRTDrawTextLayout,
+		packedPoint(float32(cmd.rect.Min.X), float32(cmd.rect.Min.Y)),
+		objArg(layout),
+		objArg(s.brush),
+		0,
+	)
+}
+
+func (s *dcompSurface) labelLayout(
+	cmd drawCmd,
+	format comObject,
+	utf16Text []uint16,
+) (comObject, bool) {
+	key := labelKey{
+		text: cmd.text, font: cmd.font, fontSize: cmd.fontSize, bold: cmd.bold,
+		typed: cmd.typed, width: cmd.rect.Dx(), height: cmd.rect.Dy(),
+	}
+	if layout, ok := s.labels[key]; ok {
+		return layout, true
+	}
+
+	if s.labels == nil || len(s.labels) >= maxCachedLabelLayouts {
+		s.releaseLabels()
+		s.labels = make(map[labelKey]comObject)
+	}
+
+	var layout comObject
+
+	err := s.shared.dwriteFactory.hresult(
+		"IDWriteFactory::CreateTextLayout",
+		vtblDWriteFactoryCreateTextLayout,
+		ptrArg(unsafe.Pointer(&utf16Text[0])),
+		uintptr(len(utf16Text)-1),
+		objArg(format),
+		floatArg(float32(cmd.rect.Dx())),
+		floatArg(float32(cmd.rect.Dy())),
+		outArg(&layout),
+	)
+	if err != nil {
+		return comObject{}, false
+	}
+
+	// A DWRITE_TEXT_RANGE is eight bytes, the start and then the length,
+	// which travels by value in one register.
+	typedRange := uintptr(min(cmd.typed, len(utf16Text)-1)) << float32Bits
+
+	err = layout.hresult(
+		"IDWriteTextLayout::SetDrawingEffect",
+		vtblDWriteLayoutSetDrawingEffect,
+		objArg(s.typedBrush),
+		typedRange,
+	)
+	if err != nil {
+		layout.release()
+
+		return comObject{}, false
+	}
+
+	s.labels[key] = layout
+
+	return layout, true
+}
+
+func (s *dcompSurface) releaseLabels() {
+	for _, layout := range s.labels {
+		layout.release()
+	}
+
+	s.labels = nil
 }
