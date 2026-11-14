@@ -69,6 +69,12 @@ func libeiKey(keycode int, pressed bool) error {
 	)
 }
 
+func libeiModifiersRisen() (uint32, bool) {
+	return 0, false
+}
+
+func libeiAwaitModifiersRisen(_, _ uint32) {}
+
 func libeiHasKeyboard() (bool, bool) {
 	return false, false
 }
