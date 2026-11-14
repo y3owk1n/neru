@@ -1,5 +1,6 @@
 #include "overlay_wayland.h"
 
+#include "badge_paint.h"
 #include "font_fallback.h"
 #include "shm_file.h"
 #include "wlr_protocol/fractional-scale-v1.h"
@@ -1179,8 +1180,8 @@ static void neru_wayland_hint_badge_path(
 // optional connector tail as one continuous outline on every output.
 void neru_wayland_overlay_hint_badge(
     NeruWaylandOverlay *overlay, double x, double y, double width, double height, double radius, int edge,
-    double a_left, double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke,
-    double stroke_width) {
+    double a_left, double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int fill_bottom,
+    unsigned int stroke, double stroke_width) {
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 		if (!scr->cr)
@@ -1191,12 +1192,24 @@ void neru_wayland_overlay_hint_badge(
 		neru_wayland_hint_badge_path(
 		    cr, x - scr->x, y - scr->y, width, height, radius, edge, a_left - scr->x, a_right - scr->x, tip_x - scr->x,
 		    tip_y - scr->y);
-		neru_wayland_overlay_color(cr, fill);
+		neru_badge_set_fill(cr, y - scr->y, height, fill, fill_bottom);
 		cairo_fill_preserve(cr);
 		neru_wayland_overlay_color(cr, stroke);
 		cairo_set_line_width(cr, stroke_width);
 		cairo_stroke(cr);
 		cairo_restore(cr);
+	}
+}
+
+void neru_wayland_overlay_alpha_mask(
+    NeruWaylandOverlay *overlay, const unsigned char *alpha, int width, int height, double x, double y,
+    unsigned int color) {
+	for (int i = 0; i < overlay->nr_screens; i++) {
+		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+		if (!scr->cr)
+			continue;
+
+		neru_badge_paint_mask(scr->cr, alpha, width, height, x - scr->x, y - scr->y, color);
 	}
 }
 

@@ -58,9 +58,13 @@ func (s *closedSurface) roundedRectPrim(image.Rectangle, float64, uint32, uint32
 }
 
 func (s *closedSurface) hintBadgePrim(
-	image.Rectangle, float64, int, badge.HintArrow, uint32, uint32, float64,
+	image.Rectangle, float64, int, badge.HintArrow, uint32, uint32, uint32, float64,
 ) {
 	s.touched("hintBadgePrim")
+}
+
+func (s *closedSurface) alphaMaskPrim(image.Rectangle, []byte, uint32) {
+	s.touched("alphaMaskPrim")
 }
 
 func (s *closedSurface) textPrim(_, _ string, _, _, _ float64, _ uint32, _ bool) {

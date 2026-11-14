@@ -32,11 +32,15 @@ type recordedRect struct {
 //
 // A hint badge is deliberately not recorded in rects. The radius tests below
 // count the shapes a draw produced, and the badge beside each label would tell
-// them nothing they assert.
+// them nothing they assert. Badges and alpha masks go in their own lists, and
+// paints holds every badge, mask and text in the order it was painted.
 type recordingSurface struct {
 	scale        float64
 	rects        []recordedRect
 	texts        []recordedText
+	badges       []recordedBadge
+	masks        []recordedMask
+	paints       []string
 	clearedRects []image.Rectangle
 	clears       int
 	flushes      int
@@ -46,6 +50,26 @@ type recordingSurface struct {
 	// the writable one, so a clear before it wipes the buffer on screen and
 	// leaves the one about to be shown stale, and no counter can see that.
 	frameOps []string
+}
+
+// The names paints gives a hint badge and an alpha mask.
+const (
+	paintedBadge = "badge"
+	paintedMask  = "mask"
+)
+
+// recordedBadge is one hint badge a draw handed to its backend.
+type recordedBadge struct {
+	bounds     image.Rectangle
+	fill       uint32
+	fillBottom uint32
+}
+
+// recordedMask is one alpha mask a draw handed to its backend.
+type recordedMask struct {
+	bounds image.Rectangle
+	alpha  []byte
+	color  uint32
 }
 
 // recordedText is one string the surface was asked to paint, with everything
@@ -109,14 +133,27 @@ func (s *recordingSurface) roundedRectPrim(
 }
 
 func (s *recordingSurface) hintBadgePrim(
-	image.Rectangle, float64, int, badge.HintArrow, uint32, uint32, float64,
+	bounds image.Rectangle,
+	_ float64,
+	_ int,
+	_ badge.HintArrow,
+	fill, fillBottom, _ uint32,
+	_ float64,
 ) {
+	s.badges = append(s.badges, recordedBadge{bounds: bounds, fill: fill, fillBottom: fillBottom})
+	s.paints = append(s.paints, paintedBadge)
+}
+
+func (s *recordingSurface) alphaMaskPrim(bounds image.Rectangle, alpha []byte, color uint32) {
+	s.masks = append(s.masks, recordedMask{bounds: bounds, alpha: alpha, color: color})
+	s.paints = append(s.paints, paintedMask)
 }
 
 func (s *recordingSurface) textPrim(
 	text, fontFamily string, centerX, centerY, fontSize float64, color uint32,
 	bold bool,
 ) {
+	s.paints = append(s.paints, "text "+text)
 	s.texts = append(s.texts, recordedText{
 		text:       text,
 		fontFamily: fontFamily,
@@ -161,6 +198,9 @@ func (s *recordingSurface) paintedStrings() []string {
 func (s *recordingSurface) forget() {
 	s.rects = nil
 	s.texts = nil
+	s.badges = nil
+	s.masks = nil
+	s.paints = nil
 	s.clearedRects = nil
 	s.frameOps = nil
 	s.clears = 0

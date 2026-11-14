@@ -121,10 +121,18 @@ void neru_wayland_overlay_rect(
 void neru_wayland_overlay_rounded_rect(
     NeruWaylandOverlay *overlay, double x, double y, double width, double height, double radius, unsigned int fill,
     unsigned int stroke, double stroke_width);
+// fill_bottom is the fill at the badge's bottom edge, and the fill is a
+// vertical gradient from fill when they differ.
 void neru_wayland_overlay_hint_badge(
     NeruWaylandOverlay *overlay, double x, double y, double width, double height, double radius, int edge,
-    double a_left, double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke,
-    double stroke_width);
+    double a_left, double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int fill_bottom,
+    unsigned int stroke, double stroke_width);
+// neru_wayland_overlay_alpha_mask paints color through an 8-bit alpha mask of
+// width x height with its top-left corner at (x, y) on every output
+// (neru_badge_paint_mask).
+void neru_wayland_overlay_alpha_mask(
+    NeruWaylandOverlay *overlay, const unsigned char *alpha, int width, int height, double x, double y,
+    unsigned int color);
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color, int bold);

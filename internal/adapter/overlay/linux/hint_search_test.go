@@ -241,9 +241,11 @@ func (s *silentSurface) rectPrim(image.Rectangle, uint32, uint32, float64) {}
 func (s *silentSurface) roundedRectPrim(image.Rectangle, float64, uint32, uint32, float64) {}
 
 func (s *silentSurface) hintBadgePrim(
-	image.Rectangle, float64, int, badge.HintArrow, uint32, uint32, float64,
+	image.Rectangle, float64, int, badge.HintArrow, uint32, uint32, uint32, float64,
 ) {
 }
+
+func (s *silentSurface) alphaMaskPrim(image.Rectangle, []byte, uint32) {}
 
 func (s *silentSurface) textPrim(_, _ string, _, _, _ float64, _ uint32, _ bool) {}
 
