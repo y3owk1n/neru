@@ -61,6 +61,16 @@ const (
 	d2dFigureBeginFilled        = 0
 	d2dFigureEndClosed          = 1
 	d2dDefaultDPI               = 96
+	d2dBitmapOptionsNone        = 0
+	d2dCompositeModeSourceOver  = 0
+	d2dInterpolationNearest     = 0
+	// d2dGamma22 interpolates a gradient in sRGB, as CSS gradients do.
+	d2dGamma22     = 0
+	d2dExtendClamp = 0
+
+	// maxCachedBadgeResources bounds the gradient brushes and the shadow
+	// bitmaps a surface keeps. Past it the cache is released and refilled.
+	maxCachedBadgeResources = 256
 
 	dwriteFactoryTypeShared    = 0
 	dwriteFontWeightNormal     = 400
@@ -91,6 +101,8 @@ const (
 	vtblD2DDeviceCreateContext       = 4
 
 	vtblD2DRTCreateSolidBrush     = 8
+	vtblD2DRTCreateGradientStops  = 9
+	vtblD2DRTCreateLinearGradient = 10
 	vtblD2DRTDrawRectangle        = 16
 	vtblD2DRTFillRectangle        = 17
 	vtblD2DRTDrawRoundedRectangle = 18
@@ -107,6 +119,9 @@ const (
 	vtblD2DDCDrawImage            = 83
 
 	vtblD2DBrushSetColor = 8
+
+	vtblD2DLinearBrushSetStartPoint = 8
+	vtblD2DLinearBrushSetEndPoint   = 9
 
 	vtblD2DPathGeometryOpen = 17
 	vtblD2DSinkBeginFigure  = 5
@@ -258,6 +273,18 @@ type d2dColorF struct {
 
 type d2dPoint2F struct {
 	X, Y float32
+}
+
+// d2dGradientStop is a D2D1_GRADIENT_STOP.
+type d2dGradientStop struct {
+	Position float32
+	Color    d2dColorF
+}
+
+// d2dLinearGradientProps is a D2D1_LINEAR_GRADIENT_BRUSH_PROPERTIES. A badge
+// sets the points on the brush before each fill, so they start at zero.
+type d2dLinearGradientProps struct {
+	Start, End d2dPoint2F
 }
 
 type d2dBitmapProperties1 struct {
@@ -545,6 +572,27 @@ type dcompSurface struct {
 	// painted is whether anything has been drawn on the canvas since it was
 	// last cleared. A clear of an empty canvas is skipped.
 	painted bool
+	// gradients holds a linear gradient brush per pair of badge colors, and
+	// masks a bitmap per hint shadow mask and color. Both are device
+	// resources, released with the rest in releaseObjects.
+	gradients map[[2]uint32]comObject
+	masks     map[maskBitmapKey]maskBitmap
+}
+
+// maskBitmapKey names a shadow bitmap by the mask it was built from and the
+// color it was painted in. The mask is the badge's cached one, so the same
+// shape keeps meeting the same slice.
+type maskBitmapKey struct {
+	alpha *byte
+	color uint32
+}
+
+// maskBitmap is a shadow uploaded as a bitmap. It keeps the mask it was built
+// from, so the memory its key names cannot be reused for another mask while the
+// entry lives.
+type maskBitmap struct {
+	alpha  []byte
+	bitmap comObject
 }
 
 func newDCompSurface(hwnd windows.HWND, width, height int) (overlaySurface, error) {
@@ -723,6 +771,9 @@ func (s *dcompSurface) create(width, height int) error {
 }
 
 func (s *dcompSurface) releaseObjects() {
+	s.releaseGradients()
+	s.releaseMasks()
+
 	for _, obj := range []*comObject{
 		&s.brush,
 		&s.canvas,
@@ -830,16 +881,21 @@ func (s *dcompSurface) present() error {
 }
 
 func (s *dcompSurface) setColor(color uint32) {
+	colorF := toColorF(color)
+
+	s.brush.call(vtblD2DBrushSetColor, ptrArg(unsafe.Pointer(&colorF)))
+}
+
+// toColorF converts a straight-alpha ARGB color to Direct2D's.
+func toColorF(color uint32) d2dColorF {
 	const channelMax = float32(alphaMax)
 
-	colorF := d2dColorF{
+	return d2dColorF{
 		R: float32((color>>redShift)&byteMask) / channelMax,
 		G: float32((color>>greenShift)&byteMask) / channelMax,
 		B: float32(color&byteMask) / channelMax,
 		A: float32(color>>alphaShift) / channelMax,
 	}
-
-	s.brush.call(vtblD2DBrushSetColor, ptrArg(unsafe.Pointer(&colorF)))
 }
 
 func rectF(rect image.Rectangle) d2dRectF {
@@ -867,6 +923,13 @@ func strokeRect(rect image.Rectangle, width int) d2dRectF {
 }
 
 func (s *dcompSurface) paint(cmd drawCmd) {
+	// A gradient has two colors, and either end may be the transparent one.
+	if cmd.kind == drawRoundedGradientFill {
+		s.paintGradient(cmd)
+
+		return
+	}
+
 	if cmd.color>>alphaShift == 0 {
 		return
 	}
@@ -915,6 +978,10 @@ func (s *dcompSurface) paint(cmd drawCmd) {
 		s.paintTriangle(cmd)
 	case drawText:
 		s.paintText(cmd)
+	case drawAlphaMask:
+		s.paintMask(cmd)
+	case drawRoundedGradientFill:
+		// Painted above.
 	}
 }
 
@@ -984,4 +1051,185 @@ func (s *dcompSurface) paintText(cmd drawCmd) {
 		0,
 		0,
 	)
+}
+
+// paintGradient fills a rounded rectangle with the brush for its two colors,
+// pointed from the rectangle's top edge to its bottom edge.
+func (s *dcompSurface) paintGradient(cmd drawCmd) {
+	if cmd.color>>alphaShift == 0 && cmd.color2>>alphaShift == 0 {
+		return
+	}
+
+	brush, ok := s.gradientBrush(cmd.color, cmd.color2)
+	if !ok {
+		return
+	}
+
+	brush.call(vtblD2DLinearBrushSetStartPoint, packedPoint(0, float32(cmd.rect.Min.Y)))
+	brush.call(vtblD2DLinearBrushSetEndPoint, packedPoint(0, float32(cmd.rect.Max.Y)))
+
+	rounded := d2dRoundedRect{
+		Rect:    rectF(cmd.rect),
+		RadiusX: float32(cmd.radius),
+		RadiusY: float32(cmd.radius),
+	}
+	s.context.call(vtblD2DRTFillRoundedRectangle, ptrArg(unsafe.Pointer(&rounded)), objArg(brush))
+}
+
+// gradientBrush returns the linear gradient brush from top to bottom, making
+// it on first use. The brush holds its own reference to the stop collection,
+// so the collection is released once the brush exists.
+func (s *dcompSurface) gradientBrush(top, bottom uint32) (comObject, bool) {
+	key := [2]uint32{top, bottom}
+	if brush, ok := s.gradients[key]; ok {
+		return brush, true
+	}
+
+	if s.gradients == nil || len(s.gradients) >= maxCachedBadgeResources {
+		s.releaseGradients()
+		s.gradients = make(map[[2]uint32]comObject)
+	}
+
+	stops := [2]d2dGradientStop{
+		{Position: 0, Color: toColorF(top)},
+		{Position: 1, Color: toColorF(bottom)},
+	}
+
+	var collection comObject
+
+	err := s.context.hresult(
+		"ID2D1RenderTarget::CreateGradientStopCollection",
+		vtblD2DRTCreateGradientStops,
+		ptrArg(unsafe.Pointer(&stops[0])),
+		uintptr(len(stops)),
+		d2dGamma22,
+		d2dExtendClamp,
+		outArg(&collection),
+	)
+	if err != nil {
+		return comObject{}, false
+	}
+
+	defer collection.release()
+
+	props := d2dLinearGradientProps{}
+
+	var brush comObject
+
+	err = s.context.hresult(
+		"ID2D1RenderTarget::CreateLinearGradientBrush",
+		vtblD2DRTCreateLinearGradient,
+		ptrArg(unsafe.Pointer(&props)),
+		0,
+		objArg(collection),
+		outArg(&brush),
+	)
+	if err != nil {
+		return comObject{}, false
+	}
+
+	s.gradients[key] = brush
+
+	return brush, true
+}
+
+func (s *dcompSurface) releaseGradients() {
+	for _, brush := range s.gradients {
+		brush.release()
+	}
+
+	s.gradients = nil
+}
+
+// paintMask draws a hint shadow: its mask in its color, uploaded as a bitmap
+// the first time that mask meets that color.
+func (s *dcompSurface) paintMask(cmd drawCmd) {
+	if cmd.color>>alphaShift == 0 || len(cmd.alpha) != cmd.rect.Dx()*cmd.rect.Dy() ||
+		len(cmd.alpha) == 0 {
+		return
+	}
+
+	bitmap, ok := s.maskBitmap(cmd)
+	if !ok {
+		return
+	}
+
+	offset := d2dPoint2F{X: float32(cmd.rect.Min.X), Y: float32(cmd.rect.Min.Y)}
+	s.context.call(
+		vtblD2DDCDrawImage,
+		objArg(bitmap),
+		ptrArg(unsafe.Pointer(&offset)),
+		0,
+		d2dInterpolationNearest,
+		d2dCompositeModeSourceOver,
+	)
+}
+
+func (s *dcompSurface) maskBitmap(cmd drawCmd) (comObject, bool) {
+	key := maskBitmapKey{alpha: unsafe.SliceData(cmd.alpha), color: cmd.color}
+	if cached, ok := s.masks[key]; ok {
+		return cached.bitmap, true
+	}
+
+	if s.masks == nil || len(s.masks) >= maxCachedBadgeResources {
+		s.releaseMasks()
+		s.masks = make(map[maskBitmapKey]maskBitmap)
+	}
+
+	width := cmd.rect.Dx()
+	pixels := premultipliedMask(cmd.alpha, cmd.color)
+	props := d2dBitmapProperties1{
+		Format:    dxgiFormatB8G8R8A8UNorm,
+		AlphaMode: d2dAlphaModePremultiplied,
+		DpiX:      d2dDefaultDPI,
+		DpiY:      d2dDefaultDPI,
+		Options:   d2dBitmapOptionsNone,
+	}
+
+	var bitmap comObject
+
+	err := s.context.hresult(
+		"ID2D1DeviceContext::CreateBitmap",
+		vtblD2DDCCreateBitmap,
+		packedSizeU(width, cmd.rect.Dy()),
+		ptrArg(unsafe.Pointer(&pixels[0])),
+		uintptr(width*bytesPerPixel),
+		ptrArg(unsafe.Pointer(&props)),
+		outArg(&bitmap),
+	)
+	if err != nil {
+		return comObject{}, false
+	}
+
+	s.masks[key] = maskBitmap{alpha: cmd.alpha, bitmap: bitmap}
+
+	return bitmap, true
+}
+
+func (s *dcompSurface) releaseMasks() {
+	for _, cached := range s.masks {
+		cached.bitmap.release()
+	}
+
+	s.masks = nil
+}
+
+// premultipliedMask colors an 8-bit coverage mask into the premultiplied BGRA
+// pixels a Direct2D bitmap takes.
+func premultipliedMask(alpha []byte, color uint32) []byte {
+	colA := color >> alphaShift
+	colR := (color >> redShift) & byteMask
+	colG := (color >> greenShift) & byteMask
+	colB := color & byteMask
+
+	pixels := make([]byte, len(alpha)*bytesPerPixel)
+	for i, coverage := range alpha {
+		pixA := uint32(coverage) * colA / alphaMax
+		pixels[i*bytesPerPixel] = byte(colB * pixA / alphaMax)
+		pixels[i*bytesPerPixel+1] = byte(colG * pixA / alphaMax)
+		pixels[i*bytesPerPixel+2] = byte(colR * pixA / alphaMax)
+		pixels[i*bytesPerPixel+3] = byte(pixA)
+	}
+
+	return pixels
 }

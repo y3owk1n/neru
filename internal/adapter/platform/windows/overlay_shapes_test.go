@@ -291,3 +291,130 @@ func TestDrawPointerGlyph_TinySizeStillDraws(t *testing.T) {
 		}
 	}
 }
+
+// pixelAt returns the premultiplied B, G, R and A the rasterizer wrote at
+// (x, y) in a buffer of the given width.
+func pixelAt(pixels []byte, bufW, x, y int) [bytesPerPixel]byte {
+	idx := (y*bufW + x) * bytesPerPixel
+
+	return [bytesPerPixel]byte(pixels[idx : idx+bytesPerPixel])
+}
+
+// TestAlphaFillRoundedGradient_RunsFromTheTopColorToTheBottomColor pins the
+// direction and the ends of the gradient a hint badge is filled with: each row
+// takes the color at its center, so the first row is nearly the top color and
+// the last nearly the bottom one.
+func TestAlphaFillRoundedGradient_RunsFromTheTopColorToTheBottomColor(t *testing.T) {
+	t.Parallel()
+
+	const size = 20
+
+	pixels := make([]byte, size*size*bytesPerPixel)
+	rect := image.Rect(2, 2, 18, 18)
+
+	alphaFillRoundedGradient(pixels, size, size, rect, 0, 0xFFFF0000, 0xFF0000FF)
+
+	top := pixelAt(pixels, size, 10, rect.Min.Y)
+	bottom := pixelAt(pixels, size, 10, rect.Max.Y-1)
+	middle := pixelAt(pixels, size, 10, 9)
+
+	// Sixteen rows, so the first row's center is 1/32 of the way down.
+	if top != [bytesPerPixel]byte{8, 0, 247, 255} {
+		t.Errorf("top row = %v (BGRA), want nearly red", top)
+	}
+
+	if bottom != [bytesPerPixel]byte{247, 0, 8, 255} {
+		t.Errorf("bottom row = %v (BGRA), want nearly blue", bottom)
+	}
+
+	if middle[0] < 100 || middle[2] < 100 {
+		t.Errorf("middle row = %v (BGRA), want a mix of red and blue", middle)
+	}
+
+	if got := alphaAt(pixels, size, 1, 10); got != 0 {
+		t.Errorf("alpha left of the badge = %d, want 0", got)
+	}
+}
+
+// TestAlphaFillRoundedGradient_RoundsItsCorners pins that a gradient badge
+// keeps the rounded shape a flat one has.
+func TestAlphaFillRoundedGradient_RoundsItsCorners(t *testing.T) {
+	t.Parallel()
+
+	const size = 30
+
+	pixels := make([]byte, size*size*bytesPerPixel)
+
+	alphaFillRoundedGradient(
+		pixels,
+		size,
+		size,
+		image.Rect(5, 5, 25, 25),
+		6,
+		0xFFFFF785,
+		0xFFFFC542,
+	)
+
+	if got := alphaAt(pixels, size, 5, 5); got != 0 {
+		t.Errorf("alpha in the rounded-off corner = %d, want 0", got)
+	}
+
+	if got := alphaAt(pixels, size, 15, 5); got != alphaMax {
+		t.Errorf("alpha on the top edge between the corners = %d, want %d", got, alphaMax)
+	}
+}
+
+// TestAlphaCompositeMask_PaintsTheColorThroughTheMask pins how a hint shadow
+// reaches the buffer: the color's alpha scaled by the mask, nothing where the
+// mask is empty, and a mask hanging off the buffer clipped rather than wrapped.
+func TestAlphaCompositeMask_PaintsTheColorThroughTheMask(t *testing.T) {
+	t.Parallel()
+
+	const size = 4
+
+	pixels := make([]byte, size*size*bytesPerPixel)
+	mask := []byte{
+		0, 255, 128,
+		255, 0, 255,
+	}
+
+	alphaCompositeMask(pixels, size, size, image.Rect(2, 1, 5, 3), mask, 0x80000000)
+
+	tests := []struct {
+		x, y int
+		want byte
+	}{
+		{2, 1, 0},
+		{3, 1, 128},
+		{2, 2, 128},
+		{3, 2, 0},
+		{1, 1, 0},
+	}
+
+	for _, test := range tests {
+		if got := alphaAt(pixels, size, test.x, test.y); got != test.want {
+			t.Errorf("alpha at (%d,%d) = %d, want %d", test.x, test.y, got, test.want)
+		}
+	}
+}
+
+func TestLerpARGB_MixesEachChannel(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		share float64
+		want  uint32
+	}{
+		{0, 0xFF0000FF},
+		{1, 0x00FF0000},
+		{0.5, 0x80800080},
+		{-1, 0xFF0000FF},
+		{2, 0x00FF0000},
+	}
+
+	for _, test := range tests {
+		if got := lerpARGB(0xFF0000FF, 0x00FF0000, test.share); got != test.want {
+			t.Errorf("lerpARGB at %v = %08X, want %08X", test.share, got, test.want)
+		}
+	}
+}

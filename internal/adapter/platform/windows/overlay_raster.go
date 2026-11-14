@@ -33,6 +33,10 @@ func paintCommand(
 		alphaFillTriangle(pixels, bufW, bufH, cmd.vertices, cmd.color)
 	case drawText:
 		text.paint(pixels, bufW, bufH, cmd)
+	case drawRoundedGradientFill:
+		alphaFillRoundedGradient(pixels, bufW, bufH, cmd.rect, cmd.radius, cmd.color, cmd.color2)
+	case drawAlphaMask:
+		alphaCompositeMask(pixels, bufW, bufH, cmd.rect, cmd.alpha, cmd.color)
 	}
 
 	return cmd.bounds().Intersect(image.Rect(0, 0, bufW, bufH))
@@ -407,6 +411,85 @@ func alphaFillRoundedRegion(
 			}
 
 			blendPixel(pixels, row+col*bytesPerPixel, colR, colG, colB, pixelAlpha)
+		}
+	}
+}
+
+// alphaFillRoundedGradient fills a rounded rectangle with a vertical gradient,
+// a row at a time. Each row takes the color at its center between the top
+// edge and the bottom edge, and only the rows within reach of a rounded corner
+// go through the distance field. The rest are plain row fills.
+func alphaFillRoundedGradient(
+	pixels []byte,
+	bufW, bufH int,
+	rect image.Rectangle,
+	radius float64,
+	top, bottom uint32,
+) {
+	height := float64(rect.Dy())
+	corner := int(math.Ceil(radius)) + 1
+
+	for y := clamp(rect.Min.Y, bufH); y < clamp(rect.Max.Y, bufH); y++ {
+		color := lerpARGB(top, bottom, (float64(y-rect.Min.Y)+pixelHalf)/height)
+		row := image.Rect(rect.Min.X, y, rect.Max.X, y+1)
+
+		if radius > 0 && (y-rect.Min.Y < corner || rect.Max.Y-1-y < corner) {
+			alphaFillRoundedRegion(pixels, bufW, bufH, rect, row, radius, color)
+
+			continue
+		}
+
+		alphaFillRect(pixels, bufW, bufH, row, color)
+	}
+}
+
+// lerpARGB mixes two straight-alpha ARGB colors channel by channel, share of
+// the way down a gradient from top to bottom.
+func lerpARGB(top, bottom uint32, share float64) uint32 {
+	share = math.Max(0, math.Min(1, share))
+
+	var mixed uint32
+
+	for _, shift := range [...]uint32{alphaShift, redShift, greenShift, 0} {
+		topChannel := float64((top >> shift) & byteMask)
+		bottomChannel := float64((bottom >> shift) & byteMask)
+		mixed |= uint32(math.Round(topChannel+(bottomChannel-topChannel)*share)) << shift
+	}
+
+	return mixed
+}
+
+// alphaCompositeMask paints an ARGB color through an 8-bit coverage mask the
+// size of rect, stored row by row, clipping the mask to the buffer.
+func alphaCompositeMask(
+	pixels []byte,
+	bufW, bufH int,
+	rect image.Rectangle,
+	alpha []byte,
+	color uint32,
+) {
+	colA := color >> alphaShift
+	if colA == 0 || len(alpha) != rect.Dx()*rect.Dy() {
+		return
+	}
+
+	colR := (color >> redShift) & byteMask
+	colG := (color >> greenShift) & byteMask
+	colB := color & byteMask
+
+	visible := rect.Intersect(image.Rect(0, 0, bufW, bufH))
+
+	for y := visible.Min.Y; y < visible.Max.Y; y++ {
+		maskRow := (y - rect.Min.Y) * rect.Dx()
+		row := y * bufW * bytesPerPixel
+
+		for col := visible.Min.X; col < visible.Max.X; col++ {
+			coverage := uint32(alpha[maskRow+col-rect.Min.X])
+			if coverage == 0 {
+				continue
+			}
+
+			blendPixel(pixels, row+col*bytesPerPixel, colR, colG, colB, coverage*colA/alphaMax)
 		}
 	}
 }

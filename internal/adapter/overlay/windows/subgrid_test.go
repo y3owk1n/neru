@@ -32,10 +32,28 @@ type recordingWindow struct {
 	// sizes is, per entry of texts, the font size it was painted at, in
 	// device pixels.
 	sizes []float64
+	// textRects and textColors are, per entry of texts, the rectangle it was
+	// centered in and its color.
+	textRects  []image.Rectangle
+	textColors []uint32
 	// rects is every rectangle filled or stroked, in order.
 	rects []image.Rectangle
+	// fills is every rounded fill, flat or gradient, as its top and bottom
+	// colors, and masks every alpha mask painted, as where it landed.
+	fills [][2]uint32
+	masks []recordedMask
+	// triangles is the color of every triangle filled, in order.
+	triangles []uint32
+	// paints names every fill, mask and text in the order it was painted.
+	paints []string
 	// scale is what Scale answers. Zero means 1, a 100% display.
 	scale float64
+}
+
+// recordedMask is one alpha mask the overlay painted.
+type recordedMask struct {
+	bounds image.Rectangle
+	color  uint32
 }
 
 func (w *recordingWindow) HWND() windows.HWND { return 0 }
@@ -75,8 +93,25 @@ func (w *recordingWindow) StrokeRect(bounds image.Rectangle, _ uint32, _ float64
 	w.rects = append(w.rects, bounds)
 }
 
-func (w *recordingWindow) FillRoundedRect(bounds image.Rectangle, _ float64, _ uint32) {
+func (w *recordingWindow) FillRoundedRect(bounds image.Rectangle, _ float64, color uint32) {
 	w.rects = append(w.rects, bounds)
+	w.fills = append(w.fills, [2]uint32{color, color})
+	w.paints = append(w.paints, "fill")
+}
+
+func (w *recordingWindow) FillRoundedRectGradient(
+	bounds image.Rectangle,
+	_ float64,
+	top, bottom uint32,
+) {
+	w.rects = append(w.rects, bounds)
+	w.fills = append(w.fills, [2]uint32{top, bottom})
+	w.paints = append(w.paints, "fill")
+}
+
+func (w *recordingWindow) PaintAlphaMask(bounds image.Rectangle, _ []byte, color uint32) {
+	w.masks = append(w.masks, recordedMask{bounds: bounds, color: color})
+	w.paints = append(w.paints, "mask")
 }
 
 func (w *recordingWindow) StrokeRoundedRect(
@@ -88,24 +123,37 @@ func (w *recordingWindow) StrokeRoundedRect(
 	w.rects = append(w.rects, bounds)
 }
 
-func (w *recordingWindow) FillTriangle(_, _, _ image.Point, _ uint32) {}
+func (w *recordingWindow) FillTriangle(_, _, _ image.Point, color uint32) {
+	w.triangles = append(w.triangles, color)
+}
 
 func (w *recordingWindow) DrawTextCentered(
 	text string,
-	_ image.Rectangle,
+	bounds image.Rectangle,
 	_ string,
 	fontSize float64,
-	_ uint32,
+	color uint32,
 	bold bool,
 ) {
 	w.texts = append(w.texts, text)
 	w.bolds = append(w.bolds, bold)
 	w.sizes = append(w.sizes, fontSize)
+	w.textRects = append(w.textRects, bounds)
+	w.textColors = append(w.textColors, color)
+	w.paints = append(w.paints, "text "+text)
 }
 
-func (w *recordingWindow) DrawPointerGlyph(_ image.Point, _ int, char string, _ string, _ uint32) {
+func (w *recordingWindow) DrawPointerGlyph(
+	_ image.Point,
+	_ int,
+	char string,
+	_ string,
+	color uint32,
+) {
 	w.texts = append(w.texts, char)
 	w.bolds = append(w.bolds, false)
+	w.textRects = append(w.textRects, image.Rectangle{})
+	w.textColors = append(w.textColors, color)
 }
 
 func (w *recordingWindow) Flush() error { return nil }
@@ -115,7 +163,13 @@ func (w *recordingWindow) Flush() error { return nil }
 func (w *recordingWindow) forget() {
 	w.texts = nil
 	w.bolds = nil
+	w.textRects = nil
+	w.textColors = nil
 	w.rects = nil
+	w.fills = nil
+	w.masks = nil
+	w.triangles = nil
+	w.paints = nil
 }
 
 // fixedTheme is a ThemeProvider that answers one mode.

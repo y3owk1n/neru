@@ -49,6 +49,8 @@ type overlayWindow interface {
 	FillRect(bounds image.Rectangle, color uint32)
 	StrokeRect(bounds image.Rectangle, color uint32, lineWidth float64)
 	FillRoundedRect(bounds image.Rectangle, radius float64, color uint32)
+	FillRoundedRectGradient(bounds image.Rectangle, radius float64, top, bottom uint32)
+	PaintAlphaMask(bounds image.Rectangle, alpha []byte, color uint32)
 	StrokeRoundedRect(bounds image.Rectangle, radius float64, color uint32, lineWidth float64)
 	FillTriangle(vertexA, vertexB, vertexC image.Point, color uint32)
 	DrawTextCentered(
@@ -95,6 +97,11 @@ type winOverlay struct {
 	// accepted with is what is on screen, and re-resolving would hand a
 	// void-returning redraw a refusal it has nowhere to report.
 	lastHintOffset badge.HintOffset
+
+	// shadows keeps one blurred mask per hint badge shape, so a keystroke's
+	// redraw blurs nothing it blurred before. Hint draws reach it under
+	// renderMu.
+	shadows badge.ShadowCache
 
 	// The depth the recursive grid last drew, which is what a depth change
 	// zooms from (transition.go). hasLast says whether there is one. A clear,

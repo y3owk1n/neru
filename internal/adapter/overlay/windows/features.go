@@ -138,12 +138,32 @@ func (o *winOverlay) DrawHints(
 		bdr := float64(radius)
 		borderWidth := float64(max(style.BorderWidth(), 0)) * scale
 
-		o.window.FillRoundedRect(
-			bounds, bdr, badge.ParseHexARGB(style.BackgroundColor()),
-		)
+		fill := badge.ParseHexARGB(style.BackgroundColor())
+		fillBottom := fill
+
+		if gradient := style.BackgroundGradientColor(); gradient != "" {
+			fillBottom = badge.ParseHexARGB(gradient)
+		}
+
+		// The shadow goes down first, so this badge covers its own shadow
+		// and a later badge covers this one's.
+		o.drawHintShadow(bounds, bdr, arrow, hasArrow, style, scale)
+
+		if fillBottom == fill {
+			o.window.FillRoundedRect(bounds, bdr, fill)
+		} else {
+			o.window.FillRoundedRectGradient(bounds, bdr, fill, fillBottom)
+		}
 
 		if hasArrow {
-			o.drawHintArrow(arrow, style, borderWidth)
+			// The arrow takes the color of the edge it hangs from, as the
+			// Cairo gradient, which pads past both ends, colors it.
+			arrowFill := fill
+			if arrow.Tip.Y > bounds.Min.Y {
+				arrowFill = fillBottom
+			}
+
+			o.drawHintArrow(arrow, style, arrowFill, borderWidth)
 		}
 
 		if borderWidth > 0 {
@@ -157,6 +177,19 @@ func (o *winOverlay) DrawHints(
 		// every keystroke. The window paints commands in the order they were
 		// queued, so this hint's fill, arrow, stroke and label land as one
 		// unit over every hint queued before it.
+		if textShadow := style.TextShadowColor(); textShadow != "" {
+			o.drawTextCentered(
+				hint.Label(),
+				bounds.Add(
+					scaledPoint(style.TextShadowOffsetX(), style.TextShadowOffsetY(), scale),
+				),
+				style.FontFamily(),
+				fontSize,
+				badge.ParseHexARGB(textShadow),
+				true,
+			)
+		}
+
 		o.drawTextCentered(
 			hint.Label(),
 			bounds,
@@ -168,6 +201,28 @@ func (o *winOverlay) DrawHints(
 	}
 
 	o.flushOverlay("hints")
+}
+
+// drawHintShadow paints the shadow under a hint badge, arrow included, when
+// the style has one. The offset and the blur are points, scaled by the
+// monitor's DPI factor as the badge is.
+func (o *winOverlay) drawHintShadow(
+	bounds image.Rectangle,
+	radius float64,
+	arrow badge.HintArrow,
+	hasArrow bool,
+	style hintscomponent.StyleMode,
+	scale float64,
+) {
+	color := style.ShadowColor()
+	if color == "" {
+		return
+	}
+
+	mask := o.shadows.HintShadow(bounds, radius, arrow, hasArrow, float64(style.ShadowBlur())*scale)
+	offset := scaledPoint(style.ShadowOffsetX(), style.ShadowOffsetY(), scale)
+
+	o.window.PaintAlphaMask(mask.Rect(bounds.Min, offset), mask.Alpha, badge.ParseHexARGB(color))
 }
 
 // DrawVim paints vim mode's surface from manager.LayoutVim, replacing what
@@ -239,6 +294,7 @@ func (o *winOverlay) DrawVim(scene manager.VimScene, style manager.VimStyle) {
 func (o *winOverlay) drawHintArrow(
 	arrow badge.HintArrow,
 	style hintscomponent.StyleMode,
+	fill uint32,
 	borderWidth float64,
 ) {
 	if borderWidth > 0 {
@@ -249,10 +305,7 @@ func (o *winOverlay) drawHintArrow(
 		)
 	}
 
-	o.window.FillTriangle(
-		arrow.BaseLeft, arrow.Tip, arrow.BaseRight,
-		badge.ParseHexARGB(style.BackgroundColor()),
-	)
+	o.window.FillTriangle(arrow.BaseLeft, arrow.Tip, arrow.BaseRight, fill)
 }
 
 // outsetHintArrow grows an arrow by width pixels along the two edges that show:
