@@ -31,14 +31,11 @@ func (c *collector) snapshot() [][]string {
 	return append([][]string(nil), c.ticks...)
 }
 
-func runUntilIdle(t *testing.T, cfg config.HeldRepeatConfig, hold time.Duration) [][]string {
+func startRun(t *testing.T, cfg config.HeldRepeatConfig) (*collector, func()) {
 	t.Helper()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var col collector
-
+	col := &collector{}
 	done := make(chan struct{})
 
 	go func() {
@@ -47,14 +44,50 @@ func runUntilIdle(t *testing.T, cfg config.HeldRepeatConfig, hold time.Duration)
 		heldrepeat.Run(ctx, cfg, []string{testBinding}, col.dispatch)
 	}()
 
-	time.Sleep(hold)
-	cancel()
+	stop := func() {
+		t.Helper()
+		cancel()
 
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("Run did not return after cancellation")
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("Run did not return after cancellation")
+		}
 	}
+
+	return col, stop
+}
+
+func runUntilIdle(t *testing.T, cfg config.HeldRepeatConfig, hold time.Duration) [][]string {
+	t.Helper()
+
+	col, stop := startRun(t, cfg)
+
+	time.Sleep(hold)
+	stop()
+
+	return col.snapshot()
+}
+
+// runUntilTicks runs the repeat loop until it has dispatched want ticks. It
+// waits for a count rather than a fixed hold. How many ticks fit in a hold
+// depends on the timer resolution, which is about 15.6 ms on Windows.
+func runUntilTicks(t *testing.T, cfg config.HeldRepeatConfig, want int) [][]string {
+	t.Helper()
+
+	col, stop := startRun(t, cfg)
+	deadline := time.Now().Add(2 * time.Second)
+
+	for len(col.snapshot()) < want {
+		if time.Now().After(deadline) {
+			stop()
+			t.Fatalf("Run dispatched %d ticks in 2s, want %d", len(col.snapshot()), want)
+		}
+
+		time.Sleep(time.Millisecond)
+	}
+
+	stop()
 
 	return col.snapshot()
 }
@@ -78,10 +111,7 @@ func TestRunRepeatsTheBindingUnchanged(t *testing.T) {
 		Interval:     5,
 	}
 
-	ticks := runUntilIdle(t, cfg, 60*time.Millisecond)
-	if len(ticks) < 3 {
-		t.Fatalf("expected several ticks, got %d", len(ticks))
-	}
+	ticks := runUntilTicks(t, cfg, 3)
 
 	for idx, tick := range ticks {
 		if tick[0] != testBinding {
