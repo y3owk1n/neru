@@ -234,9 +234,13 @@ func waylandScrollContinuous(axis int, delta float64) error {
 	return libeiScrollContinuous(axis, delta)
 }
 
+// libeiWheelClick is one wheel click in libei's discrete units.
+const libeiWheelClick = 120
+
 // waylandScrollBatch routes a batched scroll like waylandScroll. wlroots
-// flushes it in one call. libei has no batch API, so KWin emits one event per
-// delta and ignores discretes.
+// flushes it in one call. libei has no batch API, so it emits one wheel click
+// per entry from discretes. Mutter treats a burst of pixel deltas as a touchpad
+// fling and keeps scrolling after it ends.
 func waylandScrollBatch(axis int, deltas, discretes []int) error {
 	hasVirtualPointer, err := wlrootsHasVirtualPointer()
 	if err != nil {
@@ -247,18 +251,16 @@ func waylandScrollBatch(axis int, deltas, discretes []int) error {
 		return wlrootsScrollBatch(axis, deltas, discretes)
 	}
 
-	// Attempt every delta even if one fails, so a device pause mid-batch does
-	// not strand a partial scroll. The first error is still reported.
-	var firstErr error
-
-	for _, d := range deltas {
-		err = libeiScroll(axis, d)
-		if err != nil && firstErr == nil {
-			firstErr = err
+	// Stop at the first failure. Without a libei session every click would wait
+	// out the connect timeout, and the scroll can run on the event tap.
+	for _, discrete := range discretes {
+		err = libeiScrollDiscrete(axis, discrete*libeiWheelClick)
+		if err != nil {
+			return err
 		}
 	}
 
-	return firstErr
+	return nil
 }
 
 func waylandModifierEvent(modifier string, isDown bool) error {

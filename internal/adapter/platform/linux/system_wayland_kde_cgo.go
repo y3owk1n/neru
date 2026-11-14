@@ -265,6 +265,18 @@ func libeiScrollContinuous(axis int, delta float64) error {
 	)
 }
 
+// libeiScrollDiscrete emits wheel clicks, in 120ths of a click.
+func libeiScrollDiscrete(axis, value120 int) error {
+	return globalLibeiState.execute(
+		func(c *C.NeruEiClient) bool {
+			return C.neru_ei_scroll_discrete(c, C.int(axis), C.int(value120)) != 0
+		},
+		func() error {
+			return derrors.New(derrors.CodeActionFailed, "libei failed to emit scroll event")
+		},
+	)
+}
+
 func libeiKey(keycode int, pressed bool) error {
 	pressedInt := C.int(0)
 	if pressed {

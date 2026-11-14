@@ -48,6 +48,10 @@ int neru_ei_button(NeruEiClient *c, int button, int pressed);
 // animated scroll sends. Returns 1 on success.
 int neru_ei_scroll(NeruEiClient *c, int axis, double delta);
 
+// Emit a wheel-click scroll. axis: 0 = vertical, 1 = horizontal. value120 is
+// in 120ths of a click (positive = down/right). Returns 1 on success.
+int neru_ei_scroll_discrete(NeruEiClient *c, int axis, int value120);
+
 // Press or release a keyboard key (evdev keycode). Returns 1 on success, 0 when
 // no keyboard device is available on the granted session.
 int neru_ei_key(NeruEiClient *c, int keycode, int pressed);

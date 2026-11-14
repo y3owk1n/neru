@@ -27,7 +27,7 @@ func (linuxDaemonHost) Run(application *app.App) error {
 	// Hold the keyboards now, while nothing is pressed, rather than under the
 	// binding that launches the first mode (WarmEvdevProxy). Without cgo,
 	// /dev/input or /dev/uinput access the first mode says what it fell back to.
-	if backend := platform.DetectLinuxBackend(); backend.IsWayland() {
+	if platform.DetectLinuxBackend().IsWayland() {
 		logger := application.Logger()
 
 		go func() {
@@ -42,9 +42,9 @@ func (linuxDaemonHost) Run(application *app.App) error {
 
 		// Create the scroll wheel now, so its settle wait happens at launch and not
 		// during the first scroll. A wheel that cannot be created is reported by
-		// the first scroll that falls back. The scroll path never uses the wheel
-		// on an unrecognized Wayland compositor, so none is created there.
-		if backend != platform.BackendWaylandOther {
+		// the first scroll that falls back. Only Hyprland scrolls through the
+		// wheel, so no other session gets one.
+		if platform.IsHyprlandSession() {
 			go func() {
 				err := eventtaplinux.WarmScrollDevice()
 				if err != nil {

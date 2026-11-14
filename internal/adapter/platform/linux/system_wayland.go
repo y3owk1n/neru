@@ -52,8 +52,8 @@ func WaylandScrollContinuous(axis int, delta float64) error {
 }
 
 // WlrootsScrollBatch sends multiple scroll events in a single flush. deltas and
-// discretes must have the same length. On KDE it emits one libei event per
-// delta, since the wlroots batch path fails on KWin.
+// discretes must have the same length. Without a virtual pointer (KDE, GNOME,
+// COSMIC) it emits one libei wheel click per entry of discretes.
 func WlrootsScrollBatch(axis int, deltas, discretes []int) error {
 	return waylandScrollBatch(axis, deltas, discretes)
 }

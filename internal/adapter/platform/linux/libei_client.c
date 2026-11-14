@@ -362,6 +362,24 @@ int neru_ei_scroll(NeruEiClient *c, int axis, double delta) {
 	return 1;
 }
 
+int neru_ei_scroll_discrete(NeruEiClient *c, int axis, int value120) {
+	if (!c) {
+		return 0;
+	}
+	pump(c);
+	if (!ensure_emulating(c, c->pointer, c->pointer_resumed, &c->pointer_emulating)) {
+		return 0;
+	}
+	if (axis == 1) {
+		ei_device_scroll_discrete(c->pointer, value120, 0);
+	} else {
+		ei_device_scroll_discrete(c->pointer, 0, value120);
+	}
+	ei_device_frame(c->pointer, ei_now(c->ei));
+	ei_dispatch(c->ei);
+	return 1;
+}
+
 int neru_ei_key(NeruEiClient *c, int keycode, int pressed) {
 	if (!c) {
 		return 0;
