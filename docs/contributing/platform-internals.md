@@ -44,7 +44,7 @@ the footnotes below give the mechanism behind its limits.
 | **Cursor position**           | `CGEventGetLocation`  | `XQueryPointer`     | `hyprctl` on Hyprland, else sync-surface cache | sync-surface cache | `GetCursorPos` |
 | **Cursor move**               | `CGEventPost` | XTest (`XTestFakeMotionEvent`) | `zwlr_virtual_pointer` | libei                | `SetCursorPos`, glided while a button is held |
 | **Mouse buttons / drag**      | `CGEventPost`         | XTest ⁷             | `zwlr_virtual_pointer` ⁷  | libei ⁷              | `SendInput` ⁷             |
-| **Scroll injection**          | both axes             | both axes ⁷         | both axes (uinput, virtual-pointer fallback) | both axes (uinput, libei fallback) | both axes ⁷               |
+| **Scroll injection**          | both axes             | both axes ⁷         | both axes, virtual pointer (uinput on Hyprland ⁹) | both axes, libei wheel clicks | both axes ⁷               |
 | **Modified scroll (`--modifier`)** | `CGEventSetFlags` on every chunk | XTest key hold ⁷ | virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | libei | `SendInput` key hold ⁷ |
 | **Smooth cursor animation**   | incl. relative, opt-in | incl. relative, opt-in | incl. relative, opt-in | incl. relative, opt-in | incl. relative, opt-in |
 | **Held-key glide (`held_repeat`)** | `CGEventPost` per tick | XTest per tick | virtual-pointer relative motion per tick | libei per tick | `SetCursorPos` per tick |
@@ -187,8 +187,11 @@ fallback) the click stays modified.
 on the tray icon, so with no tray they report `ERR_NOT_SUPPORTED`. Windows
 alerts are `MessageBoxW` and need no tray.
 
-⁹ **Hyprland modified scroll** goes out on the uinput wheel, because Hyprland
-drops a virtual-pointer scroll while a modifier is held.
+⁹ **Hyprland scroll** goes out on the uinput wheel, because Chromium and
+Electron there ignore a virtual-pointer scroll, and Hyprland drops one while a
+modifier is held. Everywhere else a scroll avoids the uinput wheel, because
+the compositor would apply the user's mouse settings to it, and natural
+scrolling would reverse it.
 
 ¹⁰ **windows/arm64 overlay** is GDI only, because the Direct2D binding is
 amd64-only.

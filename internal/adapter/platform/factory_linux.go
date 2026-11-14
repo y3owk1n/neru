@@ -11,11 +11,20 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// newLinuxSystemAdapter builds the adapter for backend and tells it whether
+// this session scrolls through the uinput wheel.
+func newLinuxSystemAdapter(backend LinuxBackend) *linux.SystemAdapter {
+	adapter := linux.NewSystemAdapter(backend.String())
+	adapter.SetUinputScroll(IsHyprlandSession())
+
+	return adapter
+}
+
 // NewSystemPort returns a Linux SystemPort implementation.
 func NewSystemPort() (ports.SystemPort, error) {
 	switch backend := detectLinuxBackend(); backend {
 	case BackendX11, BackendWaylandWlroots, BackendWaylandKDE, BackendWaylandCOSMIC:
-		return linux.NewSystemAdapter(backend.String()), nil
+		return newLinuxSystemAdapter(backend), nil
 	case BackendWaylandGNOME:
 		// Mutter's overlay is drawn on Xwayland. Without it every mode would be
 		// invisible, so refuse here.
@@ -23,7 +32,7 @@ func NewSystemPort() (ports.SystemPort, error) {
 			return nil, unsupportedLinuxBackendError(backend)
 		}
 
-		return linux.NewSystemAdapter(backend.String()), nil
+		return newLinuxSystemAdapter(backend), nil
 	case BackendUnknown, BackendWaylandOther:
 		return nil, unsupportedLinuxBackendError(backend)
 	default:

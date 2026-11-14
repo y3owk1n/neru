@@ -449,16 +449,15 @@ func scrollNotches(delta int) int {
 // layer below reads positive as right (X11 button 7, REL_HWHEEL, the Wayland
 // horizontal axis), so this negates deltaX once.
 //
-// A modifier is a real key press. On Wayland it goes out on the wlroots
-// virtual keyboard (libei on KDE), and mixing that with the uinput scroll
-// device leaves the compositor to merge seat state it need not merge, so a
-// modified scroll goes entirely through wlroots/libei, trading throughput
-// for a modifier that arrives.
+// On Wayland a scroll goes out on the wlroots virtual pointer, or libei on KDE
+// and GNOME. The uinput wheel is a real device to the compositor, which applies
+// its mouse settings to it, so with natural scrolling on a scroll down would go
+// up. A modifier is a real key press on the virtual keyboard or libei, on the
+// same seat as the scroll.
 //
-// Hyprland fails the other way round. Its virtual-pointer scroll goes missing
-// (#1474), so there the uinput batch stays and the modifier is pressed beside
-// it. KDE keeps the merge-free path, because its modifier goes out on libei,
-// further from the uinput scroll than wlroots is, not closer.
+// Hyprland is the exception. Its virtual-pointer scroll goes missing (#1474),
+// so there the uinput wheel carries the scroll and the modifier is pressed
+// beside it.
 //
 // With smooth_scroll.enabled the animator sends eased chunks, as on macOS,
 // modified scrolls and Hyprland included. The backend is checked before the
@@ -515,14 +514,13 @@ func scrollAtCursorNow(deltaX, deltaY int, modifiers action.Modifiers) error {
 		restore := liftPhysicalModifiers()
 		defer restore()
 
-		if modifiers != 0 {
-			if !hyprlandKeepsUinputScroll() {
-				// Uncapped, unlike X11's 50-click ceiling, because this is the event
-				// count the uinput batch would send anyway, only slower. A cap would
-				// make a modified go_bottom travel less than an unmodified one.
-				return wlrootsScrollAtCursor(deltaX, deltaY, modifiers)
-			}
+		if !hyprlandKeepsUinputScroll() {
+			// Uncapped, unlike X11's 50-click ceiling, so a go_bottom travels as far
+			// as it does on Hyprland's uinput wheel.
+			return wlrootsScrollAtCursor(deltaX, deltaY, modifiers)
+		}
 
+		if modifiers != 0 {
 			pressed, err := pressWaylandModifiers(modifiers)
 			if err != nil {
 				return err
@@ -673,9 +671,9 @@ func warnUinputScrollFallback(cause error) {
 	})
 }
 
-// hyprlandKeepsUinputScroll reports whether a modified scroll on this session
-// keeps the uinput batch and presses the modifier beside it, rather than moving
-// the whole scroll onto the wlroots virtual pointer.
+// hyprlandKeepsUinputScroll reports whether a scroll on this session goes
+// through the uinput wheel, with any modifier pressed beside it, rather than
+// the wlroots virtual pointer.
 func hyprlandKeepsUinputScroll() bool {
 	return currentLinuxBackend() == linuxBackendWayland && platform.IsHyprlandSession()
 }

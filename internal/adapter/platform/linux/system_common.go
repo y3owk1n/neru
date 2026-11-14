@@ -39,6 +39,7 @@ const (
 // SystemAdapter is a Linux system adapter.
 type SystemAdapter struct {
 	backend          string
+	uinputScroll     bool
 	cursorAnimator   *smoothCursorAnimator
 	relativeAnimator *relativeCursorAnimator
 	probes           *capabilityProbes
@@ -60,6 +61,13 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 	warmFocusedWindowSource(backend)
 
 	return adapter
+}
+
+// SetUinputScroll records whether this session scrolls through the uinput
+// wheel, which only Hyprland does. The factory decides it, because only the
+// backend detector may read the desktop identity.
+func (s *SystemAdapter) SetUinputScroll(enabled bool) {
+	s.uinputScroll = enabled
 }
 
 // PlatformLabel returns "linux/<backend>" from the backend cached at
@@ -134,11 +142,11 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 			return err
 		})
 
-	// Wayland scroll can lose its fast path while still returning nil. The
-	// uinput wheel falls back to the virtual pointer, which Chromium and
-	// Electron on Hyprland ignore. The probe creates and destroys the same
-	// wheel device, exercising every ioctl the real path runs.
-	if s.waylandUsesWlrClientStack() {
+	// Hyprland scrolls through the uinput wheel. Without it the scroll falls back
+	// to the virtual pointer and still returns nil, but Chromium and Electron
+	// there ignore that. The probe creates and destroys the same wheel device, so
+	// it runs every ioctl the real path does.
+	if s.uinputScroll {
 		capabilities.Scroll = scrollCapability(capabilities.Scroll, uinputScrollDeviceError())
 	}
 

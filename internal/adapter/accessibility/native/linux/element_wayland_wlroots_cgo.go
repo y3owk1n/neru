@@ -394,9 +394,10 @@ const (
 )
 
 // wlrootsScrollAtCursor emits the scroll on the wlroots virtual pointer, with
-// modifiers held on the virtual keyboard (libei on KDE). Both go through one
-// seat, which is why a modified scroll comes here. The release lets go only
-// of what this call pressed, so a modifier the user holds survives.
+// modifiers held on the virtual keyboard, or on libei for both where there is
+// no virtual pointer. Every Wayland scroll but Hyprland's comes here. The
+// release lets go only of what this call pressed, so a modifier the user holds
+// survives.
 func wlrootsScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		return derrors.New(

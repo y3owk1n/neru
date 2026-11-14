@@ -64,14 +64,14 @@ func LinuxCapabilities() PlatformCapabilities {
 		Cursor: supportedCapability(
 			"cursor movement/tracking available via XTest, Wayland virtual-pointer, or libei (KDE/COSMIC)",
 		),
-		// Live-probed by the Linux SystemAdapter on Wayland, which downgrades
+		// Live-probed by the Linux SystemAdapter on Hyprland, which downgrades
 		// this to a stub when /dev/uinput is not writable. The virtual-pointer
-		// fallback still scrolls most clients, but not Chromium or Electron on
-		// Hyprland. See linux.SystemAdapter.scrollCapability.
+		// fallback there misses Chromium and Electron. See
+		// linux.SystemAdapter.scrollCapability.
 		Scroll: supportedCapability(
-			"scroll injection via XTest (X11) or a uinput wheel device when " +
-				"/dev/uinput is writable (Wayland), falling back to the wlroots " +
-				"virtual pointer or libei (KDE/COSMIC)",
+			"scroll injection via XTest (X11), the wlroots virtual pointer, or " +
+				"libei (KDE/GNOME/COSMIC). On Hyprland a uinput wheel device " +
+				"when /dev/uinput is writable",
 		),
 		Accessibility: supportedCapability(
 			"clickable-element discovery via AT-SPI (D-Bus) tree walk; " +

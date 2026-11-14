@@ -51,6 +51,15 @@ func libeiScrollContinuous(axis int, delta float64) error {
 	)
 }
 
+func libeiScrollDiscrete(axis, value120 int) error {
+	_, _ = axis, value120
+
+	return derrors.New(
+		derrors.CodeNotSupported,
+		"libei backend requires CGO-enabled Linux builds",
+	)
+}
+
 func libeiKey(keycode int, pressed bool) error {
 	_, _ = keycode, pressed
 

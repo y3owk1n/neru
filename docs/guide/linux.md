@@ -167,7 +167,9 @@ With either one:
 
 ## Wayland scroll injection permissions
 
-Neru scrolls through a virtual wheel on `/dev/uinput`, which most distros make
+On Hyprland, Neru scrolls through a virtual wheel on `/dev/uinput`, because
+Chromium and Electron apps there ignore a scroll sent through the compositor.
+Elsewhere it scrolls through the compositor. Most distros make `/dev/uinput`
 root-only. The udev rule in [step 3](#setup-steps) opens it to the `input`
 group. The same device lets the keyboard proxy re-emit keys and gives
 `neru key` its fast path. Restart the daemon after adding the rule.
@@ -182,8 +184,8 @@ Without a writable `/dev/uinput`:
 
 - Modes capture keys through the overlay's keyboard focus, so a hotkey chord
   also reaches the focused app.
-- Scrolling goes through the compositor instead. Chromium and Electron apps on
-  Hyprland ignore it. `neru doctor` reports this under `scroll`.
+- On Hyprland, scrolling goes through the compositor instead, which Chromium
+  and Electron apps there ignore. `neru doctor` reports this under `scroll`.
 - Modified clicks may degrade, and `general.passthrough_unbounded_keys` does
   nothing.
 
