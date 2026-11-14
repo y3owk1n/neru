@@ -16,8 +16,8 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/app/services"
-	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/screentext"
 )
 
@@ -409,7 +409,7 @@ func (h *handlerState) vimRepeatInsert(count int) {
 	h.vimFeed(last.typed...)
 	session.typedKeys = last.typed
 
-	h.handleVimTypingKey(configpkg.KeyNameEscape)
+	h.handleVimTypingKey(keyvocab.KeyNameEscape)
 }
 
 // vimPendingCount returns the count typed so far when a count is all the
@@ -577,7 +577,7 @@ const vimCharKeys = `"fFtTrm'` + "`@q"
 func (h *handlerState) handleVimTypingKey(key string) {
 	session := h.vim
 
-	if configpkg.NormalizeKeyForComparison(key) == configpkg.KeyNameEscape {
+	if keyvocab.NormalizeKeyForComparison(key) == keyvocab.KeyNameEscape {
 		if session.eraseOnEscape {
 			h.vimFeed(vimKeyErase)
 		}
@@ -652,10 +652,10 @@ func vimTypedLength(keys []string) (int, bool) {
 	length := 0
 
 	for _, key := range keys {
-		switch name := configpkg.NormalizeKeyForComparison(key); {
-		case name == configpkg.KeyNameSpace:
+		switch name := keyvocab.NormalizeKeyForComparison(key); {
+		case name == keyvocab.KeyNameSpace:
 			length++
-		case name == configpkg.KeyNameDelete:
+		case name == keyvocab.KeyNameDelete:
 			length--
 			if length < 0 {
 				return 0, false

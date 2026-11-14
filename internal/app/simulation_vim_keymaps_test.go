@@ -11,6 +11,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -273,7 +274,7 @@ func TestSimulation_VimKeymapsHoldBackTheCtrlChordsTheyMap(t *testing.T) {
 	sim.pressHotkey(vimHotkey)
 	sim.waitMode(domain.ModeVim)
 
-	chord := config.CanonicalHotkeyForPlatform("Ctrl+J")
+	chord := keyvocab.CanonicalHotkeyForPlatform("Ctrl+J")
 
 	sim.waitFor("Ctrl+J held back from the app", func() bool {
 		_, blacklist := sim.tap.ModifierPassthrough()

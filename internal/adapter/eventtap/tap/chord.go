@@ -3,7 +3,6 @@ package tap
 import (
 	"strings"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
@@ -18,7 +17,7 @@ const (
 
 // CanonicalChord normalizes a modifier chord to a stable, order-independent
 // form for passthrough matching. Aliases are resolved and tokens lowercased via
-// config.NormalizeKeyForComparison, then the modifiers are re-emitted in a
+// keyvocab.NormalizeKeyForComparison, then the modifiers are re-emitted in a
 // fixed shift+ctrl+alt+cmd order with the base key last.
 //
 // Applying it to both the configured blacklist and intercepted entries and to
@@ -26,7 +25,7 @@ const (
 // order the user wrote their hotkeys in, or the order the backend assembles
 // modifiers in.
 func CanonicalChord(chord string) string {
-	normalized := config.NormalizeKeyForComparison(strings.TrimSpace(chord))
+	normalized := keyvocab.NormalizeKeyForComparison(strings.TrimSpace(chord))
 	if normalized == "" {
 		return ""
 	}

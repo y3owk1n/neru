@@ -2,7 +2,7 @@
 //
 // It backs the `neru key` action, which types into the focused application
 // rather than driving Neru's own modes. Key strings arrive in the canonical
-// form produced by config.CanonicalHotkeyForPlatform ("a", "Return", "Ctrl+c")
+// form produced by keyvocab.CanonicalHotkeyForPlatform ("a", "Return", "Ctrl+c")
 // and are normalized once in shared code before reaching a platform slot.
 //
 // Platform slots: keyfeed_darwin.go (CGEventPost), keyfeed_linux.go (a uinput

@@ -8,10 +8,10 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/bisect"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 func (h *ActionsHandler) handleFeedAction(
@@ -109,7 +109,7 @@ func (h *ActionsHandler) handleFeedToModeAction(args []string) ipc.Response {
 	h.logger.Debug("Feeding keys to mode system", zap.Int("key_count", len(keys)))
 
 	for _, key := range keys {
-		normalized := config.CanonicalHotkeyForPlatform(key)
+		normalized := keyvocab.CanonicalHotkeyForPlatform(key)
 		if normalized == "" {
 			return ipc.Response{
 				Success: false,

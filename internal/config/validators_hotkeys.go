@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
@@ -40,8 +41,8 @@ var validModifiers = map[string]bool{
 // sided names are left out because the hotkey backends match a modifier and
 // not the side it was pressed on.
 var primaryModifierNames = []string{
-	modifierDisplayCmd, "Command", modifierDisplaySuper, "Meta",
-	modifierDisplayCtrl, "Control", modifierDisplayAlt, "Option",
+	keyvocab.ModifierDisplayCmd, "Command", keyvocab.ModifierDisplaySuper, "Meta",
+	keyvocab.ModifierDisplayCtrl, "Control", keyvocab.ModifierDisplayAlt, "Option",
 }
 
 const minModifierComboParts = 2

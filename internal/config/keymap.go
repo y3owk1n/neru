@@ -4,6 +4,8 @@ import (
 	"maps"
 	"slices"
 	"strings"
+
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 // Keymap is the bindings in force: the ones a mode answers to, with the
@@ -88,10 +90,10 @@ func (c *Config) ResolveGlobalKeymap(focusedApp string) Keymap {
 // modifier, and drops the rest.
 //
 // It is the line between a shortcut and typing, drawn where
-// HasPassthroughModifier already draws it. A bare key or a Shift-only combo is
-// something a mode reads as input, such as a hint label, a grid cell key or a
-// navigation key, and a table that may shadow a mode's own keys must not offer
-// one.
+// keyvocab.HasPassthroughModifier already draws it. A bare key or a Shift-only
+// combo is something a mode reads as input, such as a hint label, a grid cell
+// key or a navigation key, and a table that may shadow a mode's own keys must
+// not offer one.
 //
 // The result binds no sequence starts. A two-keystroke sequence is spelled as a
 // pair of bare letters, so nothing that survives this filter could begin one.
@@ -105,7 +107,7 @@ func (k Keymap) ModifierChords() Keymap {
 	byKey := make(map[string]Binding, len(k.byKey))
 
 	for normalized, binding := range k.byKey {
-		if !HasPassthroughModifier(normalized) {
+		if !keyvocab.HasPassthroughModifier(normalized) {
 			continue
 		}
 
@@ -164,8 +166,9 @@ func (k Keymap) Len() int {
 }
 
 // Lookup returns the binding for a normalized key, and false when the keymap
-// binds it to nothing. The caller normalizes with NormalizeKeyForComparison,
-// because a keystroke is normalized once and then asked about more than once.
+// binds it to nothing. The caller normalizes with
+// keyvocab.NormalizeKeyForComparison, because a keystroke is normalized once
+// and then asked about more than once.
 func (k Keymap) Lookup(normalizedKey string) (Binding, bool) {
 	binding, ok := k.byKey[normalizedKey]
 

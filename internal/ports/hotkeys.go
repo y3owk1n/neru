@@ -23,7 +23,7 @@ type HotkeyCallback func()
 type HotkeyPort interface {
 	// Register binds keyString and returns an ID for later unregistration.
 	// keyString is in the canonical form produced by
-	// config.CanonicalHotkeyForPlatform (e.g. "Ctrl+Shift+Space").
+	// keyvocab.CanonicalHotkeyForPlatform (e.g. "Ctrl+Shift+Space").
 	Register(keyString string, callback HotkeyCallback) (HotkeyID, error)
 
 	// Unregister releases a single hotkey. Unknown IDs are ignored.

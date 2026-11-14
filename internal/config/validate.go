@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 // Validate validates the configuration, reporting only what stops it loading.
@@ -277,7 +278,7 @@ func (c *Config) ValidateGeneral(warnings *Warnings) error {
 			return err
 		}
 
-		if !HasPassthroughModifier(key) {
+		if !keyvocab.HasPassthroughModifier(key) {
 			return derrors.Newf(
 				derrors.CodeInvalidConfig,
 				"%s must include Cmd, Ctrl, Alt, or Option: %s",

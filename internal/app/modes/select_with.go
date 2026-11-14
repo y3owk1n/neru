@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -33,7 +34,7 @@ func (h *handlerState) routeSelectWithLabelKey(key string) bool {
 	// The cheap checks come first, so a bare label key, the common case, never
 	// settles here. handleHotkey settles once per keystroke and that is the
 	// one settle a keystroke may cost (keymap.go).
-	normalized := configpkg.NormalizeKeyForComparison(key)
+	normalized := keyvocab.NormalizeKeyForComparison(key)
 
 	idx := strings.LastIndex(normalized, "+")
 	if idx <= 0 || idx == len(normalized)-1 {
@@ -304,7 +305,7 @@ func (h *handlerState) selectWithChords() []string {
 	for _, modifiers := range h.selectWith.ModifierSets() {
 		for _, char := range hintCharacters {
 			chord := modifiers + "+" + string(char)
-			if configpkg.HasPassthroughModifier(chord) {
+			if keyvocab.HasPassthroughModifier(chord) {
 				chords = append(chords, chord)
 			}
 		}

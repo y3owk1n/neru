@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 // SelectWith is hints' select_with entries in force. Each is the steps a
@@ -108,7 +109,10 @@ func (p PrimaryModifierConfig) selectWithModifiers(key string) (string, bool) {
 
 	for _, part := range modifiers {
 		switch part {
-		case modifierNameCmd, modifierNameCtrl, modifierNameAlt, modifierNameShift:
+		case keyvocab.ModifierCmd,
+			keyvocab.ModifierCtrl,
+			keyvocab.ModifierAlt,
+			keyvocab.ModifierShift:
 		default:
 			return "", false
 		}

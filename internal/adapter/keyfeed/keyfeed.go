@@ -6,8 +6,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -59,7 +59,7 @@ func NormalizeKeyForFeed(key string) (string, error) {
 
 	isSingleUppercase := len(trimmed) == 1 && trimmed[0] >= 'A' && trimmed[0] <= 'Z'
 
-	normalized := config.CanonicalHotkeyForPlatform(trimmed)
+	normalized := keyvocab.CanonicalHotkeyForPlatform(trimmed)
 	if normalized == "" {
 		return "", derrors.New(derrors.CodeInvalidInput, "key is required")
 	}

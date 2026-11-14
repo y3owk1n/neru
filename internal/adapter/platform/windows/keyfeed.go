@@ -41,7 +41,7 @@ var extendedVirtualKeys = map[uint16]bool{
 
 // FeedKey presses and releases one key or chord in the focused application.
 //
-// key is the canonical form config.CanonicalHotkeyForPlatform produces on
+// key is the canonical form keyvocab.CanonicalHotkeyForPlatform produces on
 // Windows ("a", "Return", "Ctrl+Shift+Space"). Modifiers go down first, the
 // key is tapped, and the modifiers come up in reverse. A character that needs
 // Shift on the active layout ("!", "?") gets it added.
