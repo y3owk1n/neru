@@ -227,9 +227,12 @@ func (c *Config) validateHintCharacters() error {
 func (c *Config) validateHintColors() error {
 	return validateColors([]colorField{
 		{c.Hints.UI.BackgroundColor, "hints.ui.background_color"},
+		{c.Hints.UI.BackgroundGradientColor, "hints.ui.background_gradient_color"},
 		{c.Hints.UI.TextColor, "hints.ui.text_color"},
 		{c.Hints.UI.MatchedTextColor, "hints.ui.matched_text_color"},
 		{c.Hints.UI.BorderColor, "hints.ui.border_color"},
+		{c.Hints.UI.ShadowColor, "hints.ui.shadow_color"},
+		{c.Hints.UI.TextShadowColor, "hints.ui.text_shadow_color"},
 		{c.Hints.SearchInputUI.BackgroundColor, "hints.search_input_ui.background_color"},
 		{c.Hints.SearchInputUI.TextColor, "hints.search_input_ui.text_color"},
 		{c.Hints.SearchInputUI.BorderColor, "hints.search_input_ui.border_color"},
@@ -268,6 +271,16 @@ func (c *Config) validateHintLabelUI() error {
 
 	if c.Hints.UI.BorderWidth < 0 {
 		return derrors.New(derrors.CodeInvalidConfig, "hints.ui.border_width must be non-negative")
+	}
+
+	// The blur sizes the shadow every badge shape is blurred into, so it is
+	// bounded where an offset, which only moves the shadow, is not.
+	if c.Hints.UI.ShadowBlur < 0 || c.Hints.UI.ShadowBlur > MaxHintShadowBlur {
+		return derrors.Newf(
+			derrors.CodeInvalidConfig,
+			"hints.ui.shadow_blur must be between 0 and %d",
+			MaxHintShadowBlur,
+		)
 	}
 
 	return c.settleHintPlacement()

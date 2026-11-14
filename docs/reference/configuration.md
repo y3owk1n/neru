@@ -721,9 +721,23 @@ hints.clickable_roles: unknown role "AXButton": use "button"
 | `border_width`       | int    | `1`        | Border width in pixels                                                                                                        |
 | `placement`          | string | `"bottom"` | Label placement relative to the element: `top`, `center`, `bottom`. `top` and `bottom` draw a connector arrow |
 | `background_color`   | color  | derived    | Background color                                                                                                              |
+| `background_gradient_color` | color | none | Bottom color of a top-to-bottom gradient that starts at `background_color`. Unset draws a flat background |
 | `text_color`         | color  | derived    | Text color                                                                                                                    |
 | `matched_text_color` | color  | derived    | Text color for matched characters                                                                                             |
 | `border_color`       | color  | derived    | Border color                                                                                                                  |
+| `shadow_color`       | color  | none       | Color of a shadow under the label, including its connector arrow. Unset draws no shadow |
+| `shadow_offset_x`    | int    | `0`        | Shadow offset to the right in points, negative for left |
+| `shadow_offset_y`    | int    | `3`        | Shadow offset downward in points, negative for up |
+| `shadow_blur`        | int    | `7`        | Shadow blur radius in points, as in CSS `box-shadow`: `0` to `32`, `0` for a hard edge |
+| `text_shadow_color`  | color  | none       | Color of a copy of the label text drawn under it, as in CSS `text-shadow` with no blur. Unset draws none |
+| `text_shadow_offset_x` | int  | `0`        | Text shadow offset to the right in points, negative for left |
+| `text_shadow_offset_y` | int  | `1`        | Text shadow offset downward in points, negative for up |
+
+The shadow and the text shadow only appear once their color is set, so their
+offsets and blur do nothing on their own. The gradient, the shadow and the text
+shadow apply to hint labels only, not to vim mode's jump labels. See
+[Style hints like Vimium](../guide/recipes.md#style-hints-like-vimium) for an
+example.
 
 ### Boundary highlight
 
@@ -740,7 +754,7 @@ Element outlines for dense layouts, in `[hints.boundary_highlight]`.
 ### Search input UI
 
 `[hints.search_input_ui]` also takes the [hints UI](#hints-ui) options except
-`placement` and `matched_text_color`.
+`placement`, `matched_text_color`, the gradient and the shadows.
 
 | Option     | Type   | Default           | Description                                                                                             |
 | ---------- | ------ | ----------------- | ------------------------------------------------------------------------------------------------------- |

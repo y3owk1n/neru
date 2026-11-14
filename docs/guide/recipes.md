@@ -200,6 +200,38 @@ Find an element's role and text for `clickable_roles` or `--role` with one of:
 
 `neru roles` maps Neru's role names to the platform's.
 
+### Style hints like Vimium
+
+Vimium's link hints are yellow labels with a gradient, a soft shadow and a
+faint highlight under the letters. These are its stylesheet's values:
+
+```toml
+[hints.ui]
+font_family = "Helvetica"
+font_size = 11
+padding_x = 3
+padding_y = 0                         # Vimium's 1px top padding, see below
+border_radius = 3
+border_width = 1
+placement = "center"                  # Vimium's labels have no arrow
+background_color = "#FFF785"
+background_gradient_color = "#FFC542"
+text_color = "#302505"
+matched_text_color = "#D4AC3A"
+border_color = "#C38A22"
+shadow_color = "#4D000000"            # rgba(0, 0, 0, 0.3)
+shadow_offset_y = 3
+shadow_blur = 7
+text_shadow_color = "#99FFFFFF"       # rgba(255, 255, 255, 0.6)
+text_shadow_offset_y = 1
+```
+
+Colors with transparency are `#AARRGGBB`, so CSS `rgba(0, 0, 0, 0.3)` is
+`#4D000000`. Vimium pads a label 1px at the top and not at the bottom, and Neru
+pads both sides alike, so `padding_y = 0` gives the label Vimium's height on
+macOS. Vimium places a label on the element's top-left corner, and Neru centers
+it on the element instead.
+
 ## Cursor
 
 ### Put the cursor back after a click

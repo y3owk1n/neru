@@ -785,6 +785,9 @@
             "background_color": {
               "$ref": "#/definitions/color"
             },
+            "background_gradient_color": {
+              "$ref": "#/definitions/color"
+            },
             "border_color": {
               "$ref": "#/definitions/color"
             },
@@ -812,8 +815,29 @@
             "placement": {
               "type": "string"
             },
+            "shadow_blur": {
+              "type": "integer"
+            },
+            "shadow_color": {
+              "$ref": "#/definitions/color"
+            },
+            "shadow_offset_x": {
+              "type": "integer"
+            },
+            "shadow_offset_y": {
+              "type": "integer"
+            },
             "text_color": {
               "$ref": "#/definitions/color"
+            },
+            "text_shadow_color": {
+              "$ref": "#/definitions/color"
+            },
+            "text_shadow_offset_x": {
+              "type": "integer"
+            },
+            "text_shadow_offset_y": {
+              "type": "integer"
             }
           },
           "type": "object"
