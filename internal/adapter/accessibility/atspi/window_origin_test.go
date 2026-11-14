@@ -365,9 +365,9 @@ func TestClient_ReportOriginFailure_SaysOneSteadyReasonOnce(t *testing.T) {
 // TestNiriOriginSource_KeepsATiledWindowAnAnswer pins niri's exception on the
 // hint-placement path too.
 //
-// tile_pos_in_workspace_view is populated for floating windows only
-// (niri#2381), so a tiled window has no on-screen position and hints fall back
-// to window-relative coordinates. That is the compositor answering, and warning
+// Before niri#4711, tile_pos_in_workspace_view is populated for floating
+// windows only (niri#2381), so a tiled window has no on-screen position and
+// hints fall back to window-relative coordinates. That is the compositor answering, and warning
 // about it would fire on every activation on the compositor's ordinary layout.
 // The output query is not even made. Nothing is left to add an origin to, so a
 // broken output query, which the fake below is wired to have, must change
@@ -451,6 +451,20 @@ func TestNiriOriginTile(t *testing.T) {
 			942,
 			1058,
 			62,
+			true,
+		},
+		{
+			"bordered window starts inside its tile",
+			func() niriWindow {
+				w := makeWindow([]int{930, 926}, []float64{958, 52})
+				w.Layout.WindowOffsetInTile = []float64{8, 8}
+
+				return w
+			}(),
+			930,
+			926,
+			1066,
+			70,
 			true,
 		},
 		{"tiled window has no tile_pos", makeWindow([]int{946, 942}, nil), 946, 942, 0, 0, false},

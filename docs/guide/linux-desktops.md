@@ -89,9 +89,11 @@ Hints read window positions from the compositor.
 
 - **Sway, Hyprland, niri:** the compositor reports positions, so hints line
   up.
-- **niri tiled windows:** niri reports no position for them
+- **niri tiled windows:** niri 26.04 and earlier report no position for them
   ([niri#2381](https://github.com/niri-wm/niri/issues/2381)), so hints are
-  misaligned. Floating and fullscreen windows are fine.
+  misaligned. Floating and fullscreen windows are fine. Releases after 26.04
+  report tiled windows too
+  ([niri#4711](https://github.com/niri-wm/niri/pull/4711)), and hints line up.
 - **River, Wayfire, labwc:** the compositor reports no positions, so Neru
   places hints in native apps relative to the window, not the screen.
 

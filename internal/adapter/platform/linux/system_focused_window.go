@@ -234,16 +234,19 @@ func swayFocusedWindowBounds() (image.Rectangle, bool, error) {
 	), true, nil
 }
 
-// niriFocusedWindowBounds combines `niri msg -j focused-window` (window size and
-// tile position) with `niri msg -j focused-output` (the output's logical
-// origin). tile_pos_in_workspace_view is only populated for floating windows
-// (niri#2381), so a tiled window reports not-found with no error, which must
-// not be reported as a failure.
+// niriFocusedWindowBounds combines `niri msg -j focused-window` with `niri msg
+// -j focused-output`. The first gives the window size, its tile position and
+// its offset inside the tile (the border). The second gives the output's
+// logical origin. niri populates tile_pos_in_workspace_view for floating
+// windows, and for tiled windows from niri#4711 on, the first release after
+// 26.04. On an older niri a tiled window reports not-found with no error
+// (niri#2381), which must not be reported as a failure.
 func niriFocusedWindowBounds() (image.Rectangle, bool, error) {
 	var win struct {
 		Layout struct {
 			WindowSize             []int     `json:"window_size"`                //nolint:tagliatelle // niri wire format is snake_case.
 			TilePosInWorkspaceView []float64 `json:"tile_pos_in_workspace_view"` //nolint:tagliatelle // niri wire format is snake_case.
+			WindowOffsetInTile     []float64 `json:"window_offset_in_tile"`      //nolint:tagliatelle // niri wire format is snake_case.
 		} `json:"layout"`
 	}
 
@@ -270,8 +273,15 @@ func niriFocusedWindowBounds() (image.Rectangle, bool, error) {
 		return image.Rectangle{}, false, outErr
 	}
 
-	originX := out.Logical.X + int(tile[0])
-	originY := out.Logical.Y + int(tile[1])
+	// The tile includes niri's border and window_size does not, so the
+	// content starts window_offset_in_tile inside the tile.
+	offsetX, offsetY := 0.0, 0.0
+	if offset := win.Layout.WindowOffsetInTile; len(offset) >= coordPair {
+		offsetX, offsetY = offset[0], offset[1]
+	}
+
+	originX := out.Logical.X + int(tile[0]+offsetX)
+	originY := out.Logical.Y + int(tile[1]+offsetY)
 
 	return image.Rect(
 		originX,

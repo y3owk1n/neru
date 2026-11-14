@@ -326,9 +326,9 @@ func niriCLI(focusedWindow, focusedOutput string) map[string]string {
 // TestNiriFocusedWindowBounds_KeepsATiledWindowAnAnswer is the constraint that
 // decides the shape of the niri arm.
 //
-// niri populates tile_pos_in_workspace_view for floating windows only
-// (niri#2381), so a tiled window, the ordinary case on niri, has no on-screen
-// position to report. That is the compositor answering, not a query
+// Before niri#4711, niri populates tile_pos_in_workspace_view for floating
+// windows only (niri#2381), so a tiled window, the ordinary case on niri, has
+// no on-screen position to report. That is the compositor answering, not a query
 // that failed, and turning it into an error would warn a niri user on every
 // activation. The second query is not made either, because there is nothing
 // left for an output origin to be added to.
@@ -366,6 +366,13 @@ func TestNiriFocusedWindowBounds_SeparatesAFailedQueryFromAnEmptyDesktop(t *test
 			name:      "a floating window sits at the output origin plus its tile",
 			scripts:   niriCLI(floating, output),
 			wantRect:  image.Rect(1058, 62, 2004, 1004),
+			wantFound: true,
+		},
+		{
+			name: "a bordered window starts inside its tile",
+			scripts: niriCLI(`{"layout":{"window_size":[930,926],`+
+				`"tile_pos_in_workspace_view":[958,52],"window_offset_in_tile":[8,8]}}`, output),
+			wantRect:  image.Rect(1066, 70, 1996, 996),
 			wantFound: true,
 		},
 		{
