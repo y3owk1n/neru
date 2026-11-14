@@ -9,6 +9,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
@@ -23,8 +24,8 @@ func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
 
 	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameHints, ""), config.Keymap{})
 	want := []string{
-		config.CanonicalHotkeyForPlatform("Alt+K"),
-		config.CanonicalHotkeyForPlatform("Cmd+L"),
+		keyvocab.CanonicalHotkeyForPlatform("Alt+K"),
+		keyvocab.CanonicalHotkeyForPlatform("Cmd+L"),
 	}
 
 	if !slices.Equal(got, want) {
@@ -43,8 +44,8 @@ func TestModeModifierKeys_ScrollIncludesOnlyModifierHotkeys(t *testing.T) {
 
 	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameScroll, ""), config.Keymap{})
 	want := []string{
-		config.CanonicalHotkeyForPlatform("Cmd+Down"),
-		config.CanonicalHotkeyForPlatform("Cmd+Up"),
+		keyvocab.CanonicalHotkeyForPlatform("Cmd+Down"),
+		keyvocab.CanonicalHotkeyForPlatform("Cmd+Up"),
 	}
 
 	if !slices.Equal(got, want) {
@@ -248,7 +249,7 @@ func TestRefreshPassthroughForFocusedAppChange_RetargetsTheEventTap(t *testing.T
 
 	const unboundChord = "Cmd+Ctrl+J"
 
-	canonical := config.CanonicalHotkeyForPlatform
+	canonical := keyvocab.CanonicalHotkeyForPlatform
 
 	for _, mode := range passthroughModes {
 		t.Run(mode.name, func(t *testing.T) {
@@ -400,7 +401,7 @@ func TestRefreshPassthroughForFocusedAppChange_IsSafeWhileKeysAreHandled(t *test
 		sharedKey = "j"
 	)
 
-	canonical := config.CanonicalHotkeyForPlatform
+	canonical := keyvocab.CanonicalHotkeyForPlatform
 
 	cfg := perAppPassthroughConfig()
 	cfg.Grid.Hotkeys = map[string]config.StringOrStringArray{
@@ -454,7 +455,7 @@ func TestSyncModifierPassthrough_ConsumesTheGlobalChordsAModeFallsBackTo(t *test
 
 	const globalChord = "Super+;"
 
-	canonical := config.CanonicalHotkeyForPlatform
+	canonical := keyvocab.CanonicalHotkeyForPlatform
 
 	cfg := &config.Config{
 		General: config.GeneralConfig{PassthroughUnboundedKeys: true},
@@ -501,7 +502,7 @@ func TestSyncModifierPassthrough_ConsumesTheGlobalChordsAModeFallsBackTo(t *test
 func TestSyncModifierPassthrough_ConsumesTheSelectWithChords(t *testing.T) {
 	t.Parallel()
 
-	canonical := config.CanonicalHotkeyForPlatform
+	canonical := keyvocab.CanonicalHotkeyForPlatform
 
 	cfg := &config.Config{
 		General: config.GeneralConfig{PassthroughUnboundedKeys: true},

@@ -11,6 +11,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -76,7 +77,7 @@ func (b *Binder) registerHotkeys(bundleID string) {
 			continue
 		}
 
-		bindKey := config.CanonicalHotkeyForPlatform(trimmedKey)
+		bindKey := keyvocab.CanonicalHotkeyForPlatform(trimmedKey)
 		bindActions := actions
 
 		var registerHotkeyErr error
@@ -333,7 +334,7 @@ func (b *Binder) hotkeyActionsRepeatWhileHeld(actions []string, cfg *config.Conf
 func ModifiersFromKey(key string) action.Modifiers {
 	var mods action.Modifiers
 
-	for part := range strings.SplitSeq(config.NormalizeKeyForComparison(key), "+") {
+	for part := range strings.SplitSeq(keyvocab.NormalizeKeyForComparison(key), "+") {
 		switch strings.TrimSpace(part) {
 		case "cmd":
 			mods |= action.ModCmd

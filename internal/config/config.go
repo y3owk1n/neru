@@ -102,27 +102,6 @@ const DisabledSentinel = "__disabled__"
 // "config.override.toml", and "my-neru.toml" produces "my-neru.override.toml".
 const OverrideSuffix = ".override.toml"
 
-// The comparison forms the control characters a tap delivers resolve to, and
-// the modifier names. These are not a listing of the named keys.
-// internal/domain/keyvocab declares those, and every other named key reaches
-// its comparison form by being lowercased rather than by being named here.
-const (
-	minimumModifierParts = 2
-	KeyNameEscape        = "escape"
-	KeyNameReturn        = "return"
-	KeyNameTab           = "tab"
-	KeyNameSpace         = "space"
-	KeyNameDelete        = "delete"
-	modifierNameCmd      = "cmd"
-	modifierNameCtrl     = "ctrl"
-	modifierNameAlt      = "alt"
-	modifierNameShift    = "shift"
-	modifierDisplayCmd   = "Cmd"
-	modifierDisplayCtrl  = "Ctrl"
-	modifierDisplayAlt   = "Alt"
-	modifierDisplaySuper = "Super"
-)
-
 // Config is the complete application configuration structure.
 type Config struct {
 	General         GeneralConfig                  `json:"general"         toml:"general"`

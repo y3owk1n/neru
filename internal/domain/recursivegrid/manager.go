@@ -7,8 +7,8 @@ import (
 
 	"go.uber.org/zap"
 
-	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 // Manager handles recursive-grid navigation state and input processing.
@@ -168,7 +168,7 @@ func NewManagerWithLayers(
 func (m *Manager) HandleInput(key string) (image.Point, bool) {
 	// Normalize to canonical key form (handles named keys and fullwidth input),
 	// then lowercase for case-insensitive comparisons.
-	key = strings.ToLower(configpkg.NormalizeKeyForComparison(key))
+	key = strings.ToLower(keyvocab.NormalizeKeyForComparison(key))
 
 	cell := m.keyToCell(key)
 	if cell < 0 {
@@ -346,7 +346,7 @@ func (m *Manager) keyToCell(key string) Cell {
 	idx := 0
 
 	for _, k := range currentKeys {
-		normalizedMapped := strings.ToLower(configpkg.NormalizeKeyForComparison(string(k)))
+		normalizedMapped := strings.ToLower(keyvocab.NormalizeKeyForComparison(string(k)))
 		if strings.EqualFold(normalizedMapped, key) {
 			return Cell(idx)
 		}

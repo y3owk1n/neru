@@ -13,6 +13,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/keybinding"
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
@@ -38,7 +39,7 @@ func TestBinder_Register_PublishesOnlyTheChordsTheBackendTook(t *testing.T) {
 	manager := &portmocks.MockHotkeyPort{}
 	manager.RegisterFunc = func(keyString string, _ ports.HotkeyCallback) (ports.HotkeyID, error) {
 		// The shape of a chord another process already owns.
-		if keyString == config.CanonicalHotkeyForPlatform(refusedChord) {
+		if keyString == keyvocab.CanonicalHotkeyForPlatform(refusedChord) {
 			return 0, errChordTaken
 		}
 
@@ -60,12 +61,12 @@ func TestBinder_Register_PublishesOnlyTheChordsTheBackendTook(t *testing.T) {
 
 	binder.Register("")
 
-	want := config.CanonicalHotkeyForPlatform(takenChord)
+	want := keyvocab.CanonicalHotkeyForPlatform(takenChord)
 	if !slices.Contains(published, want) {
 		t.Errorf("published %v, want %q among them", published, want)
 	}
 
-	if refused := config.CanonicalHotkeyForPlatform(
+	if refused := keyvocab.CanonicalHotkeyForPlatform(
 		refusedChord,
 	); slices.Contains(
 		published,

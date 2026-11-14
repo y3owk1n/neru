@@ -225,7 +225,7 @@ func (h *Handler) ModeHotkeyOverride(key string) ([]string, bool) {
 		return nil, false
 	}
 
-	binding, ok := h.settledKeymap().Lookup(config.NormalizeKeyForComparison(key))
+	binding, ok := h.settledKeymap().Lookup(keyvocab.NormalizeKeyForComparison(key))
 	if !ok {
 		return nil, false
 	}
@@ -310,7 +310,7 @@ func (h *handlerState) handleHotkey(key string) (
 	}
 
 	currentModeName := domain.ModeString(h.appState.CurrentMode())
-	normalizedKey := config.NormalizeKeyForComparison(key)
+	normalizedKey := keyvocab.NormalizeKeyForComparison(key)
 
 	// Phase 1: complete pending sequence if available and still valid.
 	if h.hotkeyLastKey != "" {

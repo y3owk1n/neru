@@ -88,7 +88,7 @@ var modifierNameMap = map[string]string{
 }
 
 // FeedKey injects a key or chord such as "Ctrl+Shift+Space", already in
-// config.CanonicalHotkeyForPlatform form. It prefers uinput, otherwise the
+// keyvocab.CanonicalHotkeyForPlatform form. It prefers uinput, otherwise the
 // compositor's own path: zwp_virtual_keyboard_v1 on wlroots, libei on KWin
 // when the portal granted a keyboard.
 func FeedKey(key string) error {

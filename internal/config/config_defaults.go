@@ -7,6 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 const (
@@ -363,9 +364,9 @@ func defaultGeneral() GeneralConfig {
 // and Ctrl elsewhere, where Super usually belongs to the desktop.
 func defaultPrimaryModifier() PrimaryModifierConfig {
 	return PrimaryModifierConfig{
-		Darwin:  modifierDisplayCmd,
-		Linux:   modifierDisplayCtrl,
-		Windows: modifierDisplayCtrl,
+		Darwin:  keyvocab.ModifierDisplayCmd,
+		Linux:   keyvocab.ModifierDisplayCtrl,
+		Windows: keyvocab.ModifierDisplayCtrl,
 	}
 }
 

@@ -11,7 +11,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
@@ -450,7 +449,7 @@ func (et *EventTap) shouldPassthroughChord(chord string) bool {
 	enabled := et.passthroughEnabled
 	et.mu.RUnlock()
 
-	if !enabled || !config.HasPassthroughModifier(chord) {
+	if !enabled || !keyvocab.HasPassthroughModifier(chord) {
 		return false
 	}
 

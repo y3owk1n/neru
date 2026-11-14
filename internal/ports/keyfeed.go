@@ -15,7 +15,7 @@ type KeyFeedPort interface {
 	// Feed posts a single key or chord to the focused application.
 	//
 	// key uses the canonical form produced by
-	// config.CanonicalHotkeyForPlatform: "a", "B", "Return", "F1",
+	// keyvocab.CanonicalHotkeyForPlatform: "a", "B", "Return", "F1",
 	// "Ctrl+c", "Ctrl+Shift+Space". A single uppercase letter without an
 	// explicit modifier has Shift injected so it produces the uppercase
 	// character.

@@ -22,6 +22,7 @@ import (
 	"github.com/y3owk1n/neru/internal/config/loader"
 	"github.com/y3owk1n/neru/internal/derrors"
 	domainHint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -231,7 +232,7 @@ func processHotkeyBindings(cfg *config.Config, logger *zap.Logger) []string {
 		}
 
 		// Canonicalize the key to convert "Primary" to platform-specific modifier ("Cmd" on macOS)
-		canonicalKey := config.CanonicalHotkeyForPlatform(key)
+		canonicalKey := keyvocab.CanonicalHotkeyForPlatform(key)
 		keys = append(keys, canonicalKey)
 	}
 

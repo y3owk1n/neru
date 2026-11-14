@@ -454,10 +454,10 @@ func x11KeysymFor(key string) C.KeySym {
 // ("pageup" -> "PageUp"), so the switch above compares against the named-key
 // declaration. An unknown name is returned unchanged for XStringToKeysym.
 //
-// This is keyvocab.NormalizeKey without the alias fold, matching how config's
-// CanonicalHotkeyForPlatform canonicalizes hotkeys. A grab names a physical
-// key, and folding "Backspace" to "Delete" as the taps do once made it grab
-// forward-delete. So "Enter" stays "Enter", and only "esc", which the
+// This is keyvocab.NormalizeKey without the alias fold, matching how
+// keyvocab.CanonicalHotkeyForPlatform canonicalizes hotkeys. A grab names a
+// physical key, and folding "Backspace" to "Delete" as the taps do once made
+// it grab forward-delete. So "Enter" stays "Enter", and only "esc", which the
 // vocabulary keeps out of the named-key set, resolves through its alias.
 func x11CanonicalKeyName(key string) string {
 	if display, isNamed := keyvocab.NamedKeyDisplay(key); isNamed {

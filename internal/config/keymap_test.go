@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 const (
@@ -53,7 +54,7 @@ func TestConfig_ResolveKeymap_AppliesFocusedAppOverrides(t *testing.T) {
 
 	keymap := hintsKeymapConfig(t).ResolveKeymap(config.ModeNameHints, keymapTestApp)
 
-	binding, bound := keymap.Lookup(config.NormalizeKeyForComparison(testKeyReturn))
+	binding, bound := keymap.Lookup(keyvocab.NormalizeKeyForComparison(testKeyReturn))
 	if !bound {
 		t.Fatal("Return is not bound; the focused app's override replaced nothing")
 	}
@@ -63,11 +64,11 @@ func TestConfig_ResolveKeymap_AppliesFocusedAppOverrides(t *testing.T) {
 			binding.Steps, []string{rightClickStep})
 	}
 
-	if _, bound := keymap.Lookup(config.NormalizeKeyForComparison("g")); bound {
+	if _, bound := keymap.Lookup(keyvocab.NormalizeKeyForComparison("g")); bound {
 		t.Error("g is still bound; the disabled sentinel removed no inherited binding")
 	}
 
-	appOnly, found := keymap.Lookup(config.NormalizeKeyForComparison("x"))
+	appOnly, found := keymap.Lookup(keyvocab.NormalizeKeyForComparison("x"))
 	if !found {
 		t.Fatal("x is not bound; the focused app's own binding was dropped")
 	}
@@ -85,7 +86,7 @@ func TestConfig_ResolveKeymap_UnknownAppKeepsBaseBindings(t *testing.T) {
 	for _, focusedApp := range []string{"", keymapOtherApp} {
 		keymap := cfg.ResolveKeymap(config.ModeNameHints, focusedApp)
 
-		binding, bound := keymap.Lookup(config.NormalizeKeyForComparison(testKeyReturn))
+		binding, bound := keymap.Lookup(keyvocab.NormalizeKeyForComparison(testKeyReturn))
 		if !bound {
 			t.Fatalf("focused app %q: Return is not bound", focusedApp)
 		}
@@ -95,7 +96,7 @@ func TestConfig_ResolveKeymap_UnknownAppKeepsBaseBindings(t *testing.T) {
 				focusedApp, binding.Steps)
 		}
 
-		if _, bound := keymap.Lookup(config.NormalizeKeyForComparison("g")); !bound {
+		if _, bound := keymap.Lookup(keyvocab.NormalizeKeyForComparison("g")); !bound {
 			t.Errorf("focused app %q: g is unbound; another app's sentinel removed it",
 				focusedApp)
 		}
@@ -145,7 +146,7 @@ func TestConfig_ResolveKeymap_MatchesDifferentlySpelledKeys(t *testing.T) {
 			got)
 	}
 
-	binding, bound := keymap.Lookup(config.NormalizeKeyForComparison(testKeyReturn))
+	binding, bound := keymap.Lookup(keyvocab.NormalizeKeyForComparison(testKeyReturn))
 	if !bound {
 		t.Fatal("Return is not bound")
 	}
@@ -280,7 +281,7 @@ func TestConfig_ResolveGlobalKeymap_AppliesFocusedAppOverrides(t *testing.T) {
 
 	keymap := cfg.ResolveGlobalKeymap(keymapTestApp)
 
-	binding, bound := keymap.Lookup(config.NormalizeKeyForComparison(keymapCmdL))
+	binding, bound := keymap.Lookup(keyvocab.NormalizeKeyForComparison(keymapCmdL))
 	if !bound {
 		t.Fatal("Cmd+L is not bound; the focused app's override replaced nothing")
 	}
@@ -290,14 +291,14 @@ func TestConfig_ResolveGlobalKeymap_AppliesFocusedAppOverrides(t *testing.T) {
 			binding.Steps, []string{rightClickStep})
 	}
 
-	if _, bound := keymap.Lookup(config.NormalizeKeyForComparison("Cmd+G")); bound {
+	if _, bound := keymap.Lookup(keyvocab.NormalizeKeyForComparison("Cmd+G")); bound {
 		t.Error("Cmd+G is still bound; the disabled sentinel removed no global binding")
 	}
 
 	// The base table stands for an application with no entry of its own.
 	base := cfg.ResolveGlobalKeymap(keymapOtherApp)
 
-	baseBinding, bound := base.Lookup(config.NormalizeKeyForComparison(keymapCmdL))
+	baseBinding, bound := base.Lookup(keyvocab.NormalizeKeyForComparison(keymapCmdL))
 	if !bound || len(baseBinding.Steps) != 1 || baseBinding.Steps[0] != leftClickStep {
 		t.Errorf("Cmd+L runs %v for an app with no overrides, want the base %v",
 			baseBinding.Steps, []string{leftClickStep})
@@ -322,7 +323,7 @@ func TestKeymap_ModifierChordsKeepsOnlyShortcuts(t *testing.T) {
 	chords := cfg.ResolveGlobalKeymap("").ModifierChords()
 
 	for _, key := range []string{keymapCmdL, "Alt+J", "Primary+K"} {
-		if _, bound := chords.Lookup(config.NormalizeKeyForComparison(key)); !bound {
+		if _, bound := chords.Lookup(keyvocab.NormalizeKeyForComparison(key)); !bound {
 			t.Errorf("%s is not bound; a modifier chord was dropped", key)
 		}
 	}
@@ -330,7 +331,7 @@ func TestKeymap_ModifierChordsKeepsOnlyShortcuts(t *testing.T) {
 	// Shift-only combos and bare keys are a mode's own input, so they may not
 	// reach a table consulted while a mode is open.
 	for _, key := range []string{"Shift+M", "g", "gg"} {
-		if _, bound := chords.Lookup(config.NormalizeKeyForComparison(key)); bound {
+		if _, bound := chords.Lookup(keyvocab.NormalizeKeyForComparison(key)); bound {
 			t.Errorf("%s is bound; it is input a mode reads, not a shortcut", key)
 		}
 	}

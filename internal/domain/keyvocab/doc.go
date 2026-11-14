@@ -1,8 +1,8 @@
 // Package keyvocab owns the key and modifier vocabulary shared between the
 // event-tap backends, the configuration validators and the mode handler: the
-// named keys and their aliases, the canonical modifier spellings, and the
-// synthetic "__keyup_"/"__modifier_" wire events the taps emit and the modes
-// consume.
+// named keys and their aliases, the canonical modifier spellings, the
+// comparison form a keystroke is matched in, and the synthetic
+// "__keyup_"/"__modifier_" wire events the taps emit and the modes consume.
 //
 // This is the one home for those names (ADR 0008,
 // docs/adr/0008-a-vocabulary-has-one-home.md). A named key is added here and

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 const testHotkeyFieldName = "test_hotkey"
@@ -224,7 +225,7 @@ func TestValidateHotkeyBindings_DuplicateNormalizedKeys(t *testing.T) {
 				// but normalize to the same key.
 				_config.Hotkeys.Bindings = map[string][]string{
 					config.KeyDisplayEscape: {config.CmdIdle},
-					config.KeyNameEscape:    {config.ModeNameHints},
+					keyvocab.KeyNameEscape:  {config.ModeNameHints},
 				}
 
 				return _config

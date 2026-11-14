@@ -18,6 +18,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	domainhint "github.com/y3owk1n/neru/internal/domain/hint"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
@@ -434,8 +435,8 @@ func TestModeHotkeyOverride(t *testing.T) {
 	// on macOS), while the config stores the shared "Primary+..." alias. Build the
 	// lookup keys exactly as registerHotkeys does so the test exercises the real
 	// normalization path on every platform.
-	overrideKey := configpkg.CanonicalHotkeyForPlatform("Primary+Ctrl+F")
-	unboundGlobalKey := configpkg.CanonicalHotkeyForPlatform("Primary+Shift+G")
+	overrideKey := keyvocab.CanonicalHotkeyForPlatform("Primary+Ctrl+F")
+	unboundGlobalKey := keyvocab.CanonicalHotkeyForPlatform("Primary+Shift+G")
 
 	tests := []struct {
 		name        string

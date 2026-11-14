@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/app/sequence"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/config/loader"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -263,7 +264,7 @@ func TestRegisterHotkeysUsesReleasePathWhenSupported(t *testing.T) {
 	app.registerHotkeys("")
 
 	for rawKey := range cfg.Hotkeys.Bindings {
-		key := config.CanonicalHotkeyForPlatform(rawKey)
+		key := keyvocab.CanonicalHotkeyForPlatform(rawKey)
 
 		via, ok := fake.registeredViaRelease(key)
 		if !ok {
@@ -302,8 +303,8 @@ func TestDispatchModeAwareHeldHotkey_RepeatVsOnce(t *testing.T) {
 	app := newDispatchTestBinder(t, cfg, fake)
 	app.registerHotkeys("")
 
-	repeatKey := config.CanonicalHotkeyForPlatform("Ctrl+Alt+J")
-	onceKey := config.CanonicalHotkeyForPlatform("Ctrl+Alt+P")
+	repeatKey := keyvocab.CanonicalHotkeyForPlatform("Ctrl+Alt+J")
+	onceKey := keyvocab.CanonicalHotkeyForPlatform("Ctrl+Alt+P")
 
 	// Held-repeat binding: press starts a repeat, release stops it.
 	fake.pressCallback(repeatKey)()

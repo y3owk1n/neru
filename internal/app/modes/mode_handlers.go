@@ -9,12 +9,12 @@ import (
 
 	"go.uber.org/zap"
 
-	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -399,18 +399,18 @@ func (h *handlerState) handleSearchInputKey(key string) {
 	}
 
 	ctx := h.hints.Context
-	normalizedKey := configpkg.NormalizeKeyForComparison(key)
+	normalizedKey := keyvocab.NormalizeKeyForComparison(key)
 
 	switch normalizedKey {
-	case configpkg.KeyNameEscape:
+	case keyvocab.KeyNameEscape:
 		h.cancelHintSearch()
 
 		return
-	case configpkg.KeyNameReturn:
+	case keyvocab.KeyNameReturn:
 		h.confirmHintSearch()
 
 		return
-	case configpkg.KeyNameDelete:
+	case keyvocab.KeyNameDelete:
 		query := ctx.SearchQuery()
 		if query != "" {
 			_, size := utf8.DecodeLastRuneInString(query)
@@ -419,7 +419,7 @@ func (h *handlerState) handleSearchInputKey(key string) {
 		}
 
 		return
-	case configpkg.KeyNameSpace, shiftPrefix + configpkg.KeyNameSpace:
+	case keyvocab.KeyNameSpace, shiftPrefix + keyvocab.KeyNameSpace:
 		ctx.SetSearchQuery(ctx.SearchQuery() + " ")
 		h.applyHintSearchFilter()
 
@@ -681,7 +681,7 @@ func (h *handlerState) handleGridModeKey(key string) {
 }
 
 // shiftPrefix is how the Linux and Windows taps name a key typed with Shift
-// held, after NormalizeKeyForComparison.
+// held, after keyvocab.NormalizeKeyForComparison.
 const shiftPrefix = "shift+"
 
 // shiftedLetter turns "Shift+c", how the Linux and Windows taps name a capital,

@@ -36,6 +36,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/domain/event"
 	domainGrid "github.com/y3owk1n/neru/internal/domain/grid"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/ports"
 	"github.com/y3owk1n/neru/internal/ports/mocks"
 )
@@ -1750,7 +1751,7 @@ func (h *simHarness) press(keys ...string) {
 func (h *simHarness) pressHotkey(binding string) {
 	h.t.Helper()
 
-	canonical := config.CanonicalHotkeyForPlatform(binding)
+	canonical := keyvocab.CanonicalHotkeyForPlatform(binding)
 
 	var callback ports.HotkeyCallback
 

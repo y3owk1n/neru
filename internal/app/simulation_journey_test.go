@@ -27,6 +27,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -968,7 +969,7 @@ func TestSimulation_HintSearchNarrowsByTrailingLabel(t *testing.T) {
 			return len(sim.overlay.lastHintLabels()) == 2
 		})
 
-		sim.press(config.KeyNameSpace)
+		sim.press(keyvocab.KeyNameSpace)
 
 		labels := sim.overlay.lastHintLabels()
 		if len(labels) != 2 {
@@ -1036,7 +1037,7 @@ func TestSimulation_HintSearchConfirmClearsLabelHighlight(t *testing.T) {
 		t.Fatalf("no two labels share a first character: %v", starts)
 	}
 
-	sim.press(config.KeyNameSpace)
+	sim.press(keyvocab.KeyNameSpace)
 	sim.typeLabel(shared[0][:1])
 	sim.waitFor("hints narrowed to the label start", func() bool {
 		return len(sim.overlay.lastHintLabels()) == len(shared)
@@ -1084,10 +1085,10 @@ func TestSimulation_HintSearchConfirmOnLabel(t *testing.T) {
 	}
 
 	for range "cancel" {
-		sim.press(config.KeyNameDelete)
+		sim.press(keyvocab.KeyNameDelete)
 	}
 
-	sim.press("s", config.KeyNameSpace)
+	sim.press("s", keyvocab.KeyNameSpace)
 	sim.waitFor("both s matches kept after the space", func() bool {
 		return len(sim.overlay.lastHintLabels()) == 2
 	})
@@ -1126,7 +1127,7 @@ func TestSimulation_SearchHintsActionConfirmOnLabel(t *testing.T) {
 		return sim.overlay.searchInputAskCount() > 0
 	})
 
-	sim.press("s", config.KeyNameSpace)
+	sim.press("s", keyvocab.KeyNameSpace)
 	sim.waitFor("both s matches kept after the space", func() bool {
 		return len(sim.overlay.lastHintLabels()) == 2
 	})
@@ -1987,7 +1988,7 @@ func TestSimulation_HotkeyRegistration(t *testing.T) {
 
 	bindings := []string{hintsHotkey, gridHotkey, recursiveGridHotkey, scrollHotkey}
 	for _, binding := range bindings {
-		canonical := config.CanonicalHotkeyForPlatform(binding)
+		canonical := keyvocab.CanonicalHotkeyForPlatform(binding)
 		sim.waitFor("registration of "+canonical, func() bool {
 			return sim.hotkeys.callbackFor(canonical) != nil
 		})
@@ -2003,7 +2004,7 @@ func TestSimulation_DisabledModeBindingSkipped(t *testing.T) {
 	sim := newSimHarness(t, cfg, nil)
 
 	sim.waitFor("hints chord registered", func() bool {
-		return sim.hotkeys.callbackFor(config.CanonicalHotkeyForPlatform(hintsHotkey)) != nil
+		return sim.hotkeys.callbackFor(keyvocab.CanonicalHotkeyForPlatform(hintsHotkey)) != nil
 	})
 
 	if sim.app.GridEnabled() {
@@ -2014,7 +2015,7 @@ func TestSimulation_DisabledModeBindingSkipped(t *testing.T) {
 		t.Fatal("HintsEnabled() must report true by default")
 	}
 
-	gridChord := config.CanonicalHotkeyForPlatform(gridHotkey)
+	gridChord := keyvocab.CanonicalHotkeyForPlatform(gridHotkey)
 	if sim.hotkeys.callbackFor(gridChord) != nil {
 		t.Fatalf("chord %s must not be registered while grid mode is disabled", gridChord)
 	}
@@ -4098,7 +4099,7 @@ func TestSimulation_FocusChangeMidModeRetargetsThePassthroughBlacklist(t *testin
 		otherChord   = "Cmd+Ctrl+H"
 	)
 
-	canonical := config.CanonicalHotkeyForPlatform
+	canonical := keyvocab.CanonicalHotkeyForPlatform
 
 	cfg := simConfig()
 	cfg.General.PassthroughUnboundedKeys = true
@@ -4306,7 +4307,7 @@ func TestSimulation_StopPausesEverything(t *testing.T) {
 
 	sim.waitMode(domain.ModeIdle)
 	sim.waitFor("hotkeys unregistered", func() bool {
-		return sim.hotkeys.callbackFor(config.CanonicalHotkeyForPlatform(scrollHotkey)) == nil
+		return sim.hotkeys.callbackFor(keyvocab.CanonicalHotkeyForPlatform(scrollHotkey)) == nil
 	})
 
 	sim.app.ActivateMode(domain.ModeScroll)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 )
 
 // TestLoadWithValidation_AppHotkeysReachTheResolvedKeymap follows a per-app
@@ -59,7 +60,7 @@ bundle_id = "com.apple.Safari"
 				t.Fatalf("LoadWithValidation() error = %v", result.ValidationError)
 			}
 
-			disabledKey := config.NormalizeKeyForComparison(testCase.disabled)
+			disabledKey := keyvocab.NormalizeKeyForComparison(testCase.disabled)
 
 			// Without this the disabled check below would also pass for a key
 			// the mode never bound.
@@ -70,7 +71,7 @@ bundle_id = "com.apple.Safari"
 
 			got := result.Config.ResolveKeymap(testCase.mode, safari)
 
-			binding, bound := got.Lookup(config.NormalizeKeyForComparison(testCase.bound))
+			binding, bound := got.Lookup(keyvocab.NormalizeKeyForComparison(testCase.bound))
 			if !bound || !slices.Equal(binding.Steps, testCase.wantSteps) {
 				t.Errorf(
 					"%q steps = %v, want %v",

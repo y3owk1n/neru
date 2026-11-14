@@ -132,7 +132,7 @@ func TestAdapter_FeedHonorsCanceledContext(t *testing.T) {
 // not have Shift added on top of it.
 //
 // It asserts the property rather than an exact string because the rendered
-// modifier name is platform-specific. config.CanonicalHotkeyForPlatform maps
+// modifier name is platform-specific. keyvocab.CanonicalHotkeyForPlatform maps
 // "Cmd" to "Cmd" on macOS and "Super" elsewhere. Pinning "Cmd+A" here is what
 // made this test pass on macOS and fail on Linux.
 func TestNormalizeKeyForFeed_ExplicitModifierSuppressesShiftInjection(t *testing.T) {
