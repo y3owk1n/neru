@@ -1,6 +1,6 @@
 //go:build linux && cgo && integration
 
-package linux
+package inject
 
 // A Wayland client that records the scroll a compositor delivers, so the
 // smooth-scroll measurement can assert that a sub-notch delta reaches an
@@ -25,7 +25,7 @@ package linux
 #include <unistd.h>
 #include <wayland-client.h>
 
-#include "../../../platform/linux/wlr_protocol/xdg-shell.h"
+#include "../wlr_protocol/xdg-shell.h"
 
 #define NERU_PROBE_MAX_EVENTS 512
 

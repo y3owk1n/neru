@@ -1,13 +1,13 @@
 //go:build linux
 
-package linux_test
+package inject_test
 
 import (
 	"image"
 	"testing"
 
-	nativelinux "github.com/y3owk1n/neru/internal/adapter/accessibility/native/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
+	"github.com/y3owk1n/neru/internal/adapter/platform/linux/inject"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -33,18 +33,18 @@ func TestMouseActions_RefuseWithoutABackend(t *testing.T) {
 		name string
 		call func() error
 	}{
-		{"left click", func() error { return nativelinux.LeftClickAtPoint(point, false, 0) }},
-		{"right click", func() error { return nativelinux.RightClickAtPoint(point, false, 0) }},
-		{"middle click", func() error { return nativelinux.MiddleClickAtPoint(point, false, 0) }},
+		{"left click", func() error { return inject.LeftClickAtPoint(point, false, 0) }},
+		{"right click", func() error { return inject.RightClickAtPoint(point, false, 0) }},
+		{"middle click", func() error { return inject.MiddleClickAtPoint(point, false, 0) }},
 		{
 			"mouse down",
-			func() error { return nativelinux.MouseDownAtPoint(point, action.ButtonLeft, 0) },
+			func() error { return inject.MouseDownAtPoint(point, action.ButtonLeft, 0) },
 		},
 		{
 			"mouse up at a point",
-			func() error { return nativelinux.MouseUpAtPoint(point, action.ButtonLeft, 0) },
+			func() error { return inject.MouseUpAtPoint(point, action.ButtonLeft, 0) },
 		},
-		{"mouse up", func() error { return nativelinux.MouseUp(action.ButtonLeft) }},
+		{"mouse up", func() error { return inject.MouseUp(action.ButtonLeft) }},
 	}
 
 	for _, testCase := range tests {

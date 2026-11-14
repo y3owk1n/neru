@@ -1,6 +1,6 @@
 //go:build linux && !cgo
 
-package linux
+package inject
 
 import (
 	"github.com/y3owk1n/neru/internal/derrors"

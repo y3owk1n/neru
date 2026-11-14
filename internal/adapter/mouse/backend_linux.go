@@ -5,28 +5,28 @@ package mouse
 import (
 	"image"
 
-	"github.com/y3owk1n/neru/internal/adapter/accessibility/native/linux"
+	"github.com/y3owk1n/neru/internal/adapter/platform/linux/inject"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 func platformBackend() backend {
 	return backend{
-		isDown:     linux.IsMouseButtonDown,
-		releaseAll: linux.EnsureMouseUp,
+		isDown:     inject.IsMouseButtonDown,
+		releaseAll: inject.EnsureMouseUp,
 		click: func(point image.Point, button action.MouseButton, modifiers action.Modifiers) error {
 			switch button {
 			case action.ButtonRight:
-				return linux.RightClickAtPoint(point, false, modifiers)
+				return inject.RightClickAtPoint(point, false, modifiers)
 			case action.ButtonMiddle:
-				return linux.MiddleClickAtPoint(point, false, modifiers)
+				return inject.MiddleClickAtPoint(point, false, modifiers)
 			case action.ButtonLeft:
 			}
 
-			return linux.LeftClickAtPoint(point, false, modifiers)
+			return inject.LeftClickAtPoint(point, false, modifiers)
 		},
-		down:   linux.MouseDownAtPoint,
-		up:     linux.MouseUpAtPoint,
-		move:   func(point image.Point) { linux.MoveMouseToPoint(point, false) },
-		scroll: linux.ScrollAtCursor,
+		down:   inject.MouseDownAtPoint,
+		up:     inject.MouseUpAtPoint,
+		move:   func(point image.Point) { inject.MoveMouseToPoint(point, false) },
+		scroll: inject.ScrollAtCursor,
 	}
 }
