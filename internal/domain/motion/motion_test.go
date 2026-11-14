@@ -43,6 +43,16 @@ func TestCombine_OppositeKeysCancel(t *testing.T) {
 			[]motion.Direction{motion.FromDelta(10, 5), motion.FromDelta(-10, -5)},
 			motion.Direction{},
 		},
+		{
+			"four uneven steps cancel despite rounding",
+			[]motion.Direction{
+				motion.FromDelta(3, 4),
+				motion.FromDelta(4, 3),
+				motion.FromDelta(-3, -4),
+				motion.FromDelta(-4, -3),
+			},
+			motion.Direction{},
+		},
 		{"nothing held is zero", nil, motion.Direction{}},
 	}
 

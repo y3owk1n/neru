@@ -22,6 +22,11 @@ func (d Direction) IsZero() bool {
 	return d.X == 0 && d.Y == 0
 }
 
+// cancelTolerance is the largest axis sum Combine treats as canceled. Unit
+// headings that cancel can leave a rounding residue near 1e-16, depending on
+// the order they are summed, and it must not glide.
+const cancelTolerance = 1e-9
+
 // Combine sums the distinct headings, so opposite keys cancel, two straight
 // keys make a diagonal, and two keys bound to the same step count once.
 func Combine(dirs ...Direction) Direction {
@@ -34,6 +39,14 @@ func Combine(dirs ...Direction) Direction {
 
 		sum.X += dir.X
 		sum.Y += dir.Y
+	}
+
+	if math.Abs(sum.X) < cancelTolerance {
+		sum.X = 0
+	}
+
+	if math.Abs(sum.Y) < cancelTolerance {
+		sum.Y = 0
 	}
 
 	return sum
