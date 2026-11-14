@@ -173,8 +173,9 @@ tesseract reads Korean less reliably than Chinese and Japanese, so a Korean
 line can come back in pieces. It reads 「 and 」 as Latin letters, and its
 `tessdata_fast` models misread more than the standard ones distributions ship. On niri, as on the other wlroots
 compositors under [wlroots compositors](../guide/linux-desktops.md#wlroots-compositors),
-a tiled window gives no bounds, and vim mode reads the whole screen. Floating
-the window reads just the window. On Wayland, edits and typing need the
+a tiled window gives no bounds on niri 26.04 and earlier, and vim mode reads
+the whole screen. Floating the window reads just the window. Later niri
+releases report tiled windows too. On Wayland, edits and typing need the
 keyboard proxy, which needs a readable `/dev/input` and a writable
 `/dev/uinput`. Without it Neru holds the keyboard through its own overlay
 while a mode is open, where a key it typed would come back to it. So there,
