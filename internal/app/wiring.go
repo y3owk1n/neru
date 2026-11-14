@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	accessibilityNative "github.com/y3owk1n/neru/internal/adapter/accessibility/native"
 	"github.com/y3owk1n/neru/internal/adapter/appwatcher"
 	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
@@ -97,7 +98,10 @@ func initializeAdapters(
 	// the real adapter and its platform AX client when none was provided.
 	accAdapter := app.accessibility
 	if accAdapter == nil {
-		axClient := accessibilityAdapter.NewPlatformAXClient(logger, cfgService)
+		axClient := accessibilityAdapter.NewPlatformAXClient(
+			logger,
+			accessibilitySettings(cfgService),
+		)
 
 		// Store axClient so Cleanup can release its resources (D-Bus conn, a11y status).
 		app.axClient = axClient
@@ -260,5 +264,20 @@ func (a *App) configureEventTapHotkeys(cfg *config.Config, logger *zap.Logger) {
 	err := a.eventTap.Disable(a.ctx)
 	if err != nil {
 		logger.Warn("Failed to disable event tap after setting hotkeys", zap.Error(err))
+	}
+}
+
+// accessibilitySettings gives the accessibility backends the live
+// configuration on each read. It returns an untyped nil before one is loaded.
+// Each reload loads a new pointer, and that is what clears the darwin
+// visible-check cache.
+func accessibilitySettings(cfgService *loader.Service) ax.SettingsSource {
+	return func() ax.Settings {
+		cfg := cfgService.Get()
+		if cfg == nil {
+			return nil
+		}
+
+		return cfg
 	}
 }

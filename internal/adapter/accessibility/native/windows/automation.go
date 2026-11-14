@@ -12,7 +12,6 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -352,7 +351,7 @@ func enumerateClickableElements(
 
 	// FindAll matches the whole subtree and cannot stop at a depth, so a
 	// limit below the default goes to the walker.
-	walk := opts.maxDepth > 0 && opts.maxDepth < config.DefaultMaxDepth
+	walk := opts.maxDepth > 0 && opts.maxDepth < element.DefaultMaxDepth
 
 	mode := uintptr(automationElementModeNone)
 	if walk {

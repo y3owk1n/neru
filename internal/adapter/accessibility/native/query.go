@@ -6,7 +6,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -15,7 +15,7 @@ import (
 func MenuBarClickableElements(
 	ctx context.Context,
 	logger *zap.Logger,
-	configProvider config.Provider,
+	settingsSource ax.SettingsSource,
 	maxDepth int,
 ) ([]*TreeNode, error) {
 	app := FocusedApplication()
@@ -35,10 +35,10 @@ func MenuBarClickableElements(
 	defer menubar.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetConfigProvider(configProvider)
+	opts.SetSettingsSource(settingsSource)
 
-	if cfg := currentConfig(configProvider); cfg != nil {
-		depth := cfg.Hints.MaxDepth
+	if cfg := currentSettings(settingsSource); cfg != nil {
+		depth := cfg.HintsMaxDepth()
 		if maxDepth > 0 {
 			depth = maxDepth
 		}
@@ -66,14 +66,14 @@ func MenuBarClickableElements(
 	allowedRoles[string(element.RoleMenuBarItem)] = struct{}{}
 
 	ignoreClickableCheck := false
-	if cfg := currentConfig(configProvider); cfg != nil {
+	if cfg := currentSettings(settingsSource); cfg != nil {
 		focusedBundleID := app.BundleIdentifier()
 		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(focusedBundleID)
 	}
 
 	elements := tree.FindClickableElements(
 		allowedRoles,
-		configProvider,
+		settingsSource,
 		ignoreClickableCheck,
 	)
 
@@ -91,7 +91,7 @@ func ClickableElementsFromBundleID(
 	bundleID string,
 	roles []string,
 	logger *zap.Logger,
-	configProvider config.Provider,
+	settingsSource ax.SettingsSource,
 	maxDepth int,
 ) ([]*TreeNode, error) {
 	app := ApplicationByBundleID(bundleID)
@@ -103,14 +103,14 @@ func ClickableElementsFromBundleID(
 	defer app.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetConfigProvider(configProvider)
+	opts.SetSettingsSource(settingsSource)
 
 	if slices.Contains(roles, string(element.RoleMenuBarItem)) {
 		opts.SetFilterFunc(isAdditionalMenuBarElement)
 	}
 
-	if cfg := currentConfig(configProvider); cfg != nil {
-		depth := cfg.Hints.MaxDepth
+	if cfg := currentSettings(settingsSource); cfg != nil {
+		depth := cfg.HintsMaxDepth()
 		if maxDepth > 0 {
 			depth = maxDepth
 		}
@@ -138,13 +138,13 @@ func ClickableElementsFromBundleID(
 	}
 
 	ignoreClickableCheck := false
-	if cfg := currentConfig(configProvider); cfg != nil {
+	if cfg := currentSettings(settingsSource); cfg != nil {
 		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(bundleID)
 	}
 
 	elements := tree.FindClickableElements(
 		allowedRoles,
-		configProvider,
+		settingsSource,
 		ignoreClickableCheck,
 	)
 

@@ -23,11 +23,11 @@ const atspiNullPath = dbus.ObjectPath("/org/a11y/atspi/null")
 // visibleCheckFor reports whether hints.visible_check_enabled is set for
 // appID.
 func (c *Client) visibleCheckFor(appID string) bool {
-	if c.configProvider == nil {
+	if c.settingsSource == nil {
 		return false
 	}
 
-	cfg := c.configProvider.Get()
+	cfg := c.settingsSource()
 
 	return cfg != nil && cfg.ShouldEnableVisibleCheckForApp(appID)
 }

@@ -8,7 +8,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -16,13 +15,13 @@ import (
 // Client implements ax.Client using the infrastructure layer.
 type Client struct {
 	logger         *zap.Logger
-	configProvider config.Provider
+	settingsSource ax.SettingsSource
 }
 
 // New creates the native accessibility client for the host platform.
 func New(
 	logger *zap.Logger,
-	configProvider config.Provider,
+	settingsSource ax.SettingsSource,
 ) *Client {
 	if logger == nil {
 		logger = zap.NewNop()
@@ -30,7 +29,7 @@ func New(
 
 	return &Client{
 		logger:         logger.Named("accessibility.client"),
-		configProvider: configProvider,
+		settingsSource: settingsSource,
 	}
 }
 
@@ -113,7 +112,7 @@ func (c *Client) ClickableNodes(
 
 	clickableNodes := tree.FindClickableElements(
 		allowedRoles,
-		c.configProvider,
+		c.settingsSource,
 		ignoreClickableCheck,
 	)
 
@@ -127,7 +126,7 @@ func (c *Client) ClickableNodes(
 		clickableNodesResult[i] = &InfraNode{
 			node:           node,
 			clickable:      true,
-			configProvider: c.configProvider,
+			settingsSource: c.settingsSource,
 		}
 	}
 
@@ -153,7 +152,7 @@ func (c *Client) MenuBarClickableElements(
 	nodes, nodesErr := MenuBarClickableElements(
 		ctx,
 		c.logger,
-		c.configProvider,
+		c.settingsSource,
 		maxDepth,
 	)
 	if nodesErr != nil {
@@ -169,7 +168,7 @@ func (c *Client) MenuBarClickableElements(
 		nodesResult[index] = &InfraNode{
 			node:           node,
 			clickable:      true,
-			configProvider: c.configProvider,
+			settingsSource: c.settingsSource,
 		}
 	}
 
@@ -182,7 +181,7 @@ func (c *Client) MissionControlClickableNodes(
 	ctx context.Context,
 	maxDepth int,
 ) ([]ax.Node, error) {
-	nodes, nodesErr := MissionControlClickableElements(ctx, c.logger, c.configProvider, maxDepth)
+	nodes, nodesErr := MissionControlClickableElements(ctx, c.logger, c.settingsSource, maxDepth)
 	if nodesErr != nil {
 		if derrors.IsNotSupported(nodesErr) {
 			return nil, nodesErr
@@ -200,7 +199,7 @@ func (c *Client) MissionControlClickableNodes(
 		nodesResult[index] = &InfraNode{
 			node:           node,
 			clickable:      true,
-			configProvider: c.configProvider,
+			settingsSource: c.settingsSource,
 		}
 	}
 
@@ -220,7 +219,7 @@ func (c *Client) ClickableElementsFromBundleID(
 		bundleID,
 		roles,
 		c.logger,
-		c.configProvider,
+		c.settingsSource,
 		maxDepth,
 	)
 	if nodesErr != nil {
@@ -236,7 +235,7 @@ func (c *Client) ClickableElementsFromBundleID(
 		nodesResult[index] = &InfraNode{
 			node:           node,
 			clickable:      true,
-			configProvider: c.configProvider,
+			settingsSource: c.settingsSource,
 		}
 	}
 
@@ -429,10 +428,10 @@ func (c *Client) buildClickableOpts(
 	maxDepth int,
 ) (TreeOptions, map[string]struct{}, bool) {
 	opts := DefaultTreeOptions(c.logger)
-	opts.SetConfigProvider(c.configProvider)
+	opts.SetSettingsSource(c.settingsSource)
 
-	if cfg := currentConfig(c.configProvider); cfg != nil {
-		depth := cfg.Hints.MaxDepth
+	if cfg := currentSettings(c.settingsSource); cfg != nil {
+		depth := cfg.HintsMaxDepth()
 		if maxDepth > 0 {
 			depth = maxDepth
 		}
@@ -454,7 +453,7 @@ func (c *Client) buildClickableOpts(
 	opts.SetRoles(allowedRoles)
 
 	ignoreClickableCheck := false
-	if cfg := currentConfig(c.configProvider); cfg != nil {
+	if cfg := currentSettings(c.settingsSource); cfg != nil {
 		ignoreClickableCheck = cfg.ShouldIgnoreClickableCheckForApp(element.BundleIdentifier())
 	}
 
@@ -527,7 +526,7 @@ func (a *InfraApp) Info() (*ax.AppInfo, error) {
 type InfraNode struct {
 	node           *TreeNode
 	clickable      bool
-	configProvider config.Provider
+	settingsSource ax.SettingsSource
 }
 
 // ID returns the node ID.
@@ -630,7 +629,7 @@ func (n *InfraNode) IsClickable() bool {
 		return false
 	}
 
-	return n.node.Element().IsClickable(n.node.Info(), nil, n.configProvider, false)
+	return n.node.Element().IsClickable(n.node.Info(), nil, n.settingsSource, false)
 }
 
 // Release releases the underlying AXUIElementRef held by this node.

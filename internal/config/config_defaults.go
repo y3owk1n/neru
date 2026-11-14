@@ -170,12 +170,6 @@ const (
 	// MaxHeldRepeatAccelMultiplier bounds accel_max_multiplier.
 	MaxHeldRepeatAccelMultiplier = 100
 
-	// DefaultMaxDepth is the default max depth for accessibility tree traversal.
-	DefaultMaxDepth = 50
-
-	// DefaultChildrenCapacity is the default children capacity.
-	DefaultChildrenCapacity = 8
-
 	// DefaultDirPerms is the default directory permissions.
 	DefaultDirPerms = 0o750
 	// DefaultFilePerms is the default file permissions.
@@ -393,7 +387,7 @@ func defaultHints() HintsConfig {
 		HintCharacters:   "asdfghjkl",
 		LabelDirection:   domain.LabelDirectionNormal,
 		LabelAlternation: domain.LabelAlternationNone,
-		MaxDepth:         DefaultMaxDepth,
+		MaxDepth:         element.DefaultMaxDepth,
 		Hotkeys: map[string]StringOrStringArray{
 			KeyDisplayEscape:    {CmdIdle},
 			"/":                 {"action search_hints"},

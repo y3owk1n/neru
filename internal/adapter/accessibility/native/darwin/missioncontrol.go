@@ -13,7 +13,7 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -53,7 +53,7 @@ func (e *Element) WindowOnScreen() (bool, bool) {
 func MissionControlClickableElements(
 	ctx context.Context,
 	logger *zap.Logger,
-	configProvider config.Provider,
+	settingsSource ax.SettingsSource,
 	maxDepth int,
 ) ([]*TreeNode, error) {
 	app := ApplicationByBundleID(windowManagerBundleID)
@@ -66,7 +66,7 @@ func MissionControlClickableElements(
 	defer app.Release()
 
 	opts := DefaultTreeOptions(logger)
-	opts.SetConfigProvider(configProvider)
+	opts.SetSettingsSource(settingsSource)
 	opts.SetMaxDepth(maxDepth)
 
 	tree, err := BuildTree(ctx, app, opts)
@@ -101,7 +101,7 @@ func MissionControlClickableElements(
 		allowedRoles[role] = struct{}{}
 	}
 
-	candidates := tree.FindClickableElements(allowedRoles, configProvider, false)
+	candidates := tree.FindClickableElements(allowedRoles, settingsSource, false)
 
 	kept := make([]*TreeNode, 0, len(candidates))
 

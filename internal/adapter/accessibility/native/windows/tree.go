@@ -9,8 +9,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
@@ -59,7 +59,7 @@ func (n *TreeNode) Parent() *TreeNode { return nil }
 // is non-empty, only nodes whose role is in the set are returned.
 func (n *TreeNode) FindClickableElements(
 	keptRoles map[string]struct{},
-	_ config.Provider,
+	_ ax.SettingsSource,
 	_ bool,
 ) []*TreeNode {
 	if n == nil {
@@ -101,8 +101,8 @@ type TreeOptions struct {
 	MaxDepth int
 	Bounds   image.Rectangle
 	logger   *zap.Logger
-	// configProvider answers the per-app visible check. nil means off.
-	configProvider config.Provider
+	// settingsSource answers the per-app visible check. nil means off.
+	settingsSource ax.SettingsSource
 	// Roles is the set of UIA control-type names to enumerate. An empty set
 	// falls back to the shipped defaults. It is applied during enumeration so
 	// unwanted controls are rejected before their properties are read.
@@ -132,8 +132,8 @@ func (o *TreeOptions) SetMaxDepth(depth int) { o.MaxDepth = depth }
 // SetBundleID is a no-op on Windows.
 func (o *TreeOptions) SetBundleID(_ string) {}
 
-// SetConfigProvider records the config source the visible check reads.
-func (o *TreeOptions) SetConfigProvider(provider config.Provider) { o.configProvider = provider }
+// SetSettingsSource records the config source the visible check reads.
+func (o *TreeOptions) SetSettingsSource(provider ax.SettingsSource) { o.settingsSource = provider }
 
 // SetFilterFunc is a no-op on Windows.
 func (o *TreeOptions) SetFilterFunc(_ func(*ElementInfo) bool) {}
@@ -148,11 +148,11 @@ func (o *TreeOptions) SetReadState(readState bool) { o.readState = readState }
 // ignoreClickableCheckFor resolves hints.ignore_clickable_check for the
 // window's application, per-app override first.
 func (o *TreeOptions) ignoreClickableCheckFor(bundleID string) bool {
-	if o.configProvider == nil {
+	if o.settingsSource == nil {
 		return false
 	}
 
-	cfg := o.configProvider.Get()
+	cfg := o.settingsSource()
 
 	return cfg != nil && cfg.ShouldIgnoreClickableCheckForApp(bundleID)
 }
@@ -160,11 +160,11 @@ func (o *TreeOptions) ignoreClickableCheckFor(bundleID string) bool {
 // visibleCheckFor resolves hints.visible_check_enabled for the window's
 // application, per-app override first.
 func (o *TreeOptions) visibleCheckFor(bundleID string) bool {
-	if o.configProvider == nil {
+	if o.settingsSource == nil {
 		return false
 	}
 
-	cfg := o.configProvider.Get()
+	cfg := o.settingsSource()
 	if cfg == nil {
 		return false
 	}
@@ -248,7 +248,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 }
 
 // ProcessClickableNodes returns the clickable nodes in the tree.
-func ProcessClickableNodes(root *TreeNode, _ config.HintsConfig) []*TreeNode {
+func ProcessClickableNodes(root *TreeNode) []*TreeNode {
 	if root == nil {
 		return nil
 	}

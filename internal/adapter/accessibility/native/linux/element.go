@@ -11,11 +11,11 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	linuxplatform "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -821,7 +821,7 @@ func CurrentCursorPosition() image.Point {
 func (e *Element) IsClickable(
 	_ *ElementInfo,
 	_ map[string]struct{},
-	_ config.Provider,
+	_ ax.SettingsSource,
 	_ bool,
 ) bool {
 	return false
