@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 // deltaRecorder captures the native relative motions a drain injects so tests
@@ -80,14 +80,14 @@ func TestRelativeCursorAnimatorDrainsExactly(t *testing.T) {
 // TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum is the drain twin
 // of TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum. This
 // animator floors a below-floor drain at the same
-// config.MinSmoothCursorAnimationDuration, so a gesture asked for in more
+// motion.MinCursorAnimationDuration, so a gesture asked for in more
 // chunks than the floor can schedule posts exactly one chunk per
 // minCursorStepDelay of the floor. Exactness of the drained total is
 // TestRelativeCursorAnimatorDrainsExactly's question, not this one's.
 func TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum(t *testing.T) {
 	t.Parallel()
 
-	wantChunks := config.MinSmoothCursorAnimationDuration / minCursorStepDelay
+	wantChunks := motion.MinCursorAnimationDuration / minCursorStepDelay
 
 	rec := &deltaRecorder{}
 	animator := newRelativeCursorAnimator(rec.moveBy)
@@ -108,7 +108,7 @@ func TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum(t *testing.T) {
 	if got := rec.count(); got != wantChunks {
 		t.Fatalf(
 			"posted %d chunks for a below-floor drain, want %d "+
-				"(config.MinSmoothCursorAnimationDuration / minCursorStepDelay)",
+				"(motion.MinCursorAnimationDuration / minCursorStepDelay)",
 			got,
 			wantChunks,
 		)
@@ -226,15 +226,16 @@ func TestRelativeCursorAnimatorWaitIdle(t *testing.T) {
 	}
 }
 
-// smoothOnProvider serves a config with smooth cursor enabled, for tests that
-// exercise the animated MoveCursorBy paths.
-type smoothOnProvider struct{}
-
-func (smoothOnProvider) Get() *config.Config {
-	cfg := config.DefaultConfig()
-	cfg.SmoothCursor.MoveMouseEnabled = true
-
-	return cfg
+// smoothOn serves smooth cursor enabled at the default tuning, for tests
+// that exercise the animated MoveCursorBy paths.
+func smoothOn() (motion.Animation, bool) {
+	return motion.Animation{Cursor: motion.SmoothCursor{
+		MoveMouseEnabled:         true,
+		Steps:                    10,
+		MaxDuration:              200,
+		DurationPerPixel:         0.1,
+		RelativeMovementDuration: 50,
+	}}, true
 }
 
 // TestMoveCursorBySmoothKeepsStubErrorLoud pins the CGO-off contract. With
@@ -247,8 +248,8 @@ func TestMoveCursorBySmoothKeepsStubErrorLoud(t *testing.T) {
 	}
 
 	// No t.Parallel, because this mutates the process-global config provider.
-	SetConfigProvider(smoothOnProvider{})
-	defer SetConfigProvider(nil)
+	SetAnimationSource(smoothOn)
+	defer SetAnimationSource(nil)
 
 	adapter := NewSystemAdapter(backendWaylandWlroots)
 

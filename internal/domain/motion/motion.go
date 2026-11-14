@@ -1,6 +1,7 @@
-// Package motion is the velocity model behind the held-key glide. A set of
-// held direction keys becomes one direction vector, and a fixed-rate tick
-// integrates a speed that may ramp toward a cap into a subpixel cursor position.
+// Package motion is the velocity model behind the held-key glide, and the
+// tuning of the smooth cursor and scroll animations. A set of held direction
+// keys becomes one direction vector, and a fixed-rate tick integrates a speed
+// that may ramp toward a cap into a subpixel cursor position.
 package motion
 
 import (

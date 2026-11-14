@@ -216,13 +216,13 @@ func (s *SystemAdapter) MoveCursorToPoint(
 		return err
 	}
 
-	cfg := currentWindowsConfig()
-	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
+	anim, ok := currentAnimation()
+	if ok && anim.Cursor.MoveMouseEnabled && !bypassSmooth {
 		s.cursorAnimator.animateTo(
 			point,
-			cfg.SmoothCursor.Steps,
-			cfg.SmoothCursor.MaxDuration,
-			cfg.SmoothCursor.DurationPerPixel,
+			anim.Cursor.Steps,
+			anim.Cursor.MaxDuration,
+			anim.Cursor.DurationPerPixel,
 		)
 
 		return nil
@@ -261,8 +261,8 @@ func (s *SystemAdapter) MoveCursorBy(
 	ctx context.Context,
 	delta image.Point,
 ) (bool, error) {
-	cfg := currentWindowsConfig()
-	if cfg == nil || !cfg.SmoothCursor.MoveMouseEnabled {
+	anim, ok := currentAnimation()
+	if !ok || !anim.Cursor.MoveMouseEnabled {
 		return false, nil
 	}
 
@@ -278,8 +278,8 @@ func (s *SystemAdapter) MoveCursorBy(
 					Y: geometry.ClampInt(point.Y, bounds.Min.Y, max(bounds.Max.Y-1, bounds.Min.Y)),
 				}
 			},
-			cfg.SmoothCursor.Steps,
-			cfg.SmoothCursor.RelativeMovementDuration,
+			anim.Cursor.Steps,
+			anim.Cursor.RelativeMovementDuration,
 		)
 
 		return true, nil

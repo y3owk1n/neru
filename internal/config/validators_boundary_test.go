@@ -6,6 +6,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 // intBound describes an integer config field with an inclusive lower limit.
@@ -125,7 +126,7 @@ func smoothCursorIntBounds() []intBound {
 			name:     "smooth_cursor.relative_movement_duration",
 			set:      func(c *config.Config, v int) { c.SmoothCursor.RelativeMovementDuration = v },
 			validate: (*config.Config).ValidateSmoothCursor,
-			minValid: config.MinSmoothCursorAnimationDuration,
+			minValid: motion.MinCursorAnimationDuration,
 		},
 	}
 }

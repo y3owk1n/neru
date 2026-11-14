@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 const (
@@ -242,12 +242,12 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 }
 
 func (a *smoothCursorAnimator) animateTo(end image.Point, steps int, eventType, button uint32) {
-	cfg := currentConfig()
+	anim, ok := currentAnimation()
 	maxDuration := 200
 	durationPerPixel := 0.1
-	if cfg != nil {
-		maxDuration = cfg.SmoothCursor.MaxDuration
-		durationPerPixel = cfg.SmoothCursor.DurationPerPixel
+	if ok {
+		maxDuration = anim.Cursor.MaxDuration
+		durationPerPixel = anim.Cursor.DurationPerPixel
 	}
 
 	a.submit(cursorRequest{
@@ -389,8 +389,8 @@ restart:
 		duration = float64(req.fixedDuration)
 	}
 
-	if duration < config.MinSmoothCursorAnimationDuration {
-		duration = config.MinSmoothCursorAnimationDuration
+	if duration < motion.MinCursorAnimationDuration {
+		duration = motion.MinCursorAnimationDuration
 	}
 
 	actualSteps := req.steps

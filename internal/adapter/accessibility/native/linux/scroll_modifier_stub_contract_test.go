@@ -7,9 +7,10 @@ import (
 
 	nativelinux "github.com/y3owk1n/neru/internal/adapter/accessibility/native/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
-	"github.com/y3owk1n/neru/internal/config"
+	linuxplatform "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 // TestScrollAtCursor_RefusesModifiersWithoutABackend pins the loudness half of
@@ -46,15 +47,15 @@ func TestScrollAtCursor_RefusesModifiersWithoutABackend(t *testing.T) {
 	}
 }
 
-// smoothScrollConfig is a config.Provider with the animation switched on, which
-// is all the scroll path reads.
-type smoothScrollConfig struct{}
-
-func (smoothScrollConfig) Get() *config.Config {
-	cfg := config.DefaultConfig()
-	cfg.SmoothScroll.Enabled = true
-
-	return cfg
+// smoothScrollOn serves smooth scroll enabled at the default tuning, which is
+// all the scroll path reads.
+func smoothScrollOn() (motion.Animation, bool) {
+	return motion.Animation{Scroll: motion.SmoothScroll{
+		Enabled:          true,
+		Steps:            20,
+		MaxDuration:      180,
+		DurationPerPixel: 1.0,
+	}}, true
 }
 
 // TestScrollAtCursor_RefusesWithSmoothScrollAndNoBackend is the same contract
@@ -72,8 +73,8 @@ func TestScrollAtCursor_RefusesWithSmoothScrollAndNoBackend(t *testing.T) {
 		t.Skip("a display server backend was detected; the no-backend branch is unreachable here")
 	}
 
-	nativelinux.SetConfigProvider(smoothScrollConfig{})
-	t.Cleanup(func() { nativelinux.SetConfigProvider(nil) })
+	linuxplatform.SetAnimationSource(smoothScrollOn)
+	t.Cleanup(func() { linuxplatform.SetAnimationSource(nil) })
 
 	for _, modifiers := range []action.Modifiers{0, action.ModCtrl} {
 		err := nativelinux.ScrollAtCursor(0, -50, modifiers)

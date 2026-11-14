@@ -5,6 +5,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 // ValidateStickyModifiers validates sticky modifier settings.
@@ -52,14 +53,14 @@ func (c *Config) ValidateSmoothCursor() error {
 		)
 	}
 
-	// The animator floors every animation at MinSmoothCursorAnimationDuration,
+	// The animator floors every animation at motion.MinCursorAnimationDuration,
 	// so smaller values would be silently rounded up rather than honored.
 	// They are rejected instead.
-	if c.SmoothCursor.RelativeMovementDuration < MinSmoothCursorAnimationDuration {
+	if c.SmoothCursor.RelativeMovementDuration < motion.MinCursorAnimationDuration {
 		return derrors.Newf(
 			derrors.CodeInvalidConfig,
 			"smooth_cursor.relative_movement_duration must be >= %d",
-			MinSmoothCursorAnimationDuration,
+			motion.MinCursorAnimationDuration,
 		)
 	}
 
