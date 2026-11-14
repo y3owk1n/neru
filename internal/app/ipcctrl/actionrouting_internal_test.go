@@ -319,6 +319,7 @@ func servedHandler() *ActionsHandler {
 		logger: zap.NewNop(),
 		actionService: services.NewActionService(
 			&mocks.MockAccessibilityPort{},
+			&mocks.MockMousePort{},
 			&mocks.MockOverlayPort{},
 			system,
 			zap.NewNop(),

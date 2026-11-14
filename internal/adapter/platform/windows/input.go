@@ -293,6 +293,23 @@ func HeldMouseButtons() []action.MouseButton {
 	return heldButtons.HeldButtons()
 }
 
+// EnsureMouseUp releases every button Neru is holding down, at the cursor.
+func EnsureMouseUp() {
+	for _, button := range HeldMouseButtons() {
+		_ = mouseUpAtCursor(button)
+	}
+}
+
+// mouseUpAtCursor releases the given button at the current cursor position.
+func mouseUpAtCursor(button action.MouseButton) error {
+	pos, err := CurrentCursorPosition()
+	if err != nil {
+		return err
+	}
+
+	return MouseUp(pos, button, 0)
+}
+
 // MouseUp releases the given button at the given point, undoing the hold its
 // press kept, or presenting modifiers for the length of the release event
 // when no press of this process is behind it. Releasing a drag does not depend

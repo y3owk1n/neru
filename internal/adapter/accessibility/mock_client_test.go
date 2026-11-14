@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
-	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
 // MockAXClient is a mock implementation of ax.Client for testing.
@@ -31,8 +30,6 @@ type MockAXClient struct {
 
 	MockBundleNodes    []ax.Node
 	MockBundleNodesErr error
-
-	MockScreenBounds image.Rectangle
 
 	MockActionErr error
 	MockScrollErr error
@@ -138,34 +135,6 @@ func (m *MockAXClient) ClickableElementsFromBundleID(
 	m.mu.Unlock()
 
 	return m.MockBundleNodes, m.MockBundleNodesErr
-}
-
-// ActiveScreenBounds returns the configured screen bounds.
-func (m *MockAXClient) ActiveScreenBounds() image.Rectangle {
-	return m.MockScreenBounds
-}
-
-// PerformAction returns the configured action error.
-func (m *MockAXClient) PerformAction(
-	_ action.Type,
-	_ image.Point,
-	_ bool,
-	_ action.Modifiers,
-) error {
-	return m.MockActionErr
-}
-
-// Scroll returns the configured scroll error.
-func (m *MockAXClient) Scroll(_, _ int, _ action.Modifiers) error {
-	return m.MockScrollErr
-}
-
-// MoveMouse is a no-op mock implementation.
-func (m *MockAXClient) MoveMouse(_ image.Point, _ bool) {}
-
-// CursorPosition returns the zero point.
-func (m *MockAXClient) CursorPosition() image.Point {
-	return image.Point{}
 }
 
 // CheckPermissions returns the configured permissions state.

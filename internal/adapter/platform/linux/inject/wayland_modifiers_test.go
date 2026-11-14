@@ -1,6 +1,6 @@
 //go:build linux
 
-package linux
+package inject
 
 import (
 	"errors"

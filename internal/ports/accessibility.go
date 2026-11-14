@@ -4,7 +4,6 @@ import (
 	"context"
 	"image"
 
-	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -32,38 +31,6 @@ type AccessibilityPort interface {
 	// off. Config reload calls it when hints.detect_mission_control changes.
 	// Backends with no Mission Control accept and ignore it.
 	UpdateMissionControlDetection(enabled bool)
-
-	// PerformAction executes an action on the specified element.
-	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
-
-	// PerformActionAtPoint executes an action at the specified point.
-	PerformActionAtPoint(
-		ctx context.Context,
-		actionType action.Type,
-		point image.Point,
-		modifiers action.Modifiers,
-	) error
-
-	// Scroll performs a scroll action at the current cursor position,
-	// presenting modifiers as held while the scroll is emitted. A ctrl-modified
-	// scroll zooms where an unmodified one pans.
-	//
-	// A backend that cannot present a non-zero modifier set returns
-	// derrors.CodeNotSupported rather than scrolling without it, because a scroll
-	// that silently drops its ctrl looks to the user like a broken binding.
-	Scroll(ctx context.Context, deltaX, deltaY int, modifiers action.Modifiers) error
-
-	// ReleaseHeldButtons releases any mouse button this process is still
-	// holding down.
-	//
-	// Neru can leave a button held when a drag-style action is interrupted:
-	// the mode exits, the daemon is paused, or a chain bails between the
-	// press and the release. Without this the button stays down at the OS
-	// level and the desktop behaves as if the user were mid-drag.
-	//
-	// Implementations must be idempotent and safe to call when nothing is
-	// held, because it runs on every mode-exit path.
-	ReleaseHeldButtons(ctx context.Context) error
 
 	// FocusedAppBundleID returns the platform application identifier of the
 	// currently focused application. On macOS this is a bundle ID

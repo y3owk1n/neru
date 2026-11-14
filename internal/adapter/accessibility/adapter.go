@@ -2,7 +2,6 @@ package accessibility
 
 import (
 	"context"
-	"image"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -13,7 +12,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/native"
 	"github.com/y3owk1n/neru/internal/derrors"
-	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -154,86 +152,6 @@ func stringRoles(roles []element.Role) []string {
 	return result
 }
 
-// PerformAction executes an action on the specified element.
-func (a *Adapter) PerformAction(
-	ctx context.Context,
-	element *element.Element,
-	actionType action.Type,
-) error {
-	select {
-	case <-ctx.Done():
-		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
-	}
-
-	a.logger.Debug("Performing action",
-		zap.String("action", actionType.String()),
-		zap.String("element_id", string(element.ID())))
-
-	center := element.Center()
-
-	performActionErr := a.client.PerformAction(actionType, center, false, 0)
-	if performActionErr != nil {
-		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
-	}
-
-	return nil
-}
-
-// PerformActionAtPoint executes an action at the specified point.
-func (a *Adapter) PerformActionAtPoint(
-	ctx context.Context,
-	actionType action.Type,
-	point image.Point,
-	modifiers action.Modifiers,
-) error {
-	err := a.checkContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	a.logger.Debug("Performing action at point",
-		zap.String("action", actionType.String()),
-		zap.Int("x", point.X),
-		zap.Int("y", point.Y),
-		zap.String("modifiers", modifiers.String()))
-
-	performActionErr := a.client.PerformAction(actionType, point, false, modifiers)
-	if performActionErr != nil {
-		return derrors.Wrap(
-			performActionErr,
-			derrors.CodeActionFailed,
-			"failed to perform action at point",
-		)
-	}
-
-	return nil
-}
-
-// Scroll performs a scroll action at the current cursor position.
-func (a *Adapter) Scroll(
-	_ context.Context,
-	deltaX, deltaY int,
-	modifiers action.Modifiers,
-) error {
-	a.logger.Debug("Performing scroll",
-		zap.Int("delta_x", deltaX),
-		zap.Int("delta_y", deltaY),
-		zap.String("modifiers", modifiers.String()))
-
-	scrollErr := a.client.Scroll(deltaX, deltaY, modifiers)
-	if scrollErr != nil {
-		// Preserve a refusal the backend made explicitly. See Client.Scroll.
-		if derrors.IsNotSupported(scrollErr) {
-			return scrollErr
-		}
-
-		return derrors.Wrap(scrollErr, derrors.CodeActionFailed, "failed to scroll")
-	}
-
-	return nil
-}
-
 // FocusedAppBundleID returns the bundle ID of the currently focused application.
 func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
 	err := a.checkContext(ctx)
@@ -253,18 +171,6 @@ func (a *Adapter) FocusedAppBundleID(ctx context.Context) (string, error) {
 	}
 
 	return bundleID, nil
-}
-
-// ReleaseHeldButtons releases any mouse button this process still holds down.
-func (a *Adapter) ReleaseHeldButtons(ctx context.Context) error {
-	err := a.checkContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	native.EnsureMouseUp()
-
-	return nil
 }
 
 // PrimeApplication waits briefly for the application's accessibility tree to

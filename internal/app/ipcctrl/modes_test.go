@@ -47,6 +47,7 @@ func newModeTestControllerWith(
 	logger := zap.NewNop()
 	actionService := services.NewActionService(
 		accessibility,
+		&portmocks.MockMousePort{},
 		&portmocks.MockOverlayPort{},
 		system,
 		logger,

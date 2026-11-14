@@ -139,7 +139,11 @@ func TestHandler_Snap_ScansWithTheStrategyItCheckedWhenTheAppLookupRecovers(t *t
 	handler := newCaptureHintsHandler(domain.StrategyAXTree, systemMock, zap.NewNop(), func() {})
 	handler.config.Hints = hints
 	handler.actionService = services.NewActionService(
-		accessibility, &portmocks.MockOverlayPort{}, systemMock, zap.NewNop(),
+		accessibility,
+		&portmocks.MockMousePort{},
+		&portmocks.MockOverlayPort{},
+		systemMock,
+		zap.NewNop(),
 	)
 	handler.hintService = services.NewHintService(
 		accessibility, &portmocks.MockOverlayPort{}, systemMock, nil, hints, zap.NewNop(), vision,

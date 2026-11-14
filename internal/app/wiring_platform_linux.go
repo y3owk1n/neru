@@ -5,9 +5,9 @@ package app
 import (
 	"go.uber.org/zap"
 
-	nativelinux "github.com/y3owk1n/neru/internal/adapter/accessibility/native/linux"
 	eventtaplinux "github.com/y3owk1n/neru/internal/adapter/eventtap/linux"
 	"github.com/y3owk1n/neru/internal/adapter/eventtap/tap"
+	"github.com/y3owk1n/neru/internal/adapter/platform/linux/inject"
 	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
 )
 
@@ -32,7 +32,7 @@ func initializePlatformLogger(_ *zap.Logger) {}
 // announces anything. That avoids asking the compositor question twice.
 func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 	if built == nil {
-		nativelinux.SetSyntheticModifierSink(nil)
+		inject.SetSyntheticModifierSink(nil)
 
 		return
 	}
@@ -49,7 +49,7 @@ func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 		return
 	}
 
-	nativelinux.SetSyntheticModifierSink(sink)
+	inject.SetSyntheticModifierSink(sink)
 }
 
 // registerKeyboardYielder hands the live tap's yield to key feeding, so a key
@@ -59,7 +59,7 @@ func registerSyntheticModifierSink(built tap.Tap, logger *zap.Logger) {
 // A nil tap releases the slot.
 func registerKeyboardYielder(built tap.Tap, logger *zap.Logger) {
 	if built == nil {
-		nativelinux.SetKeyboardYielder(nil)
+		inject.SetKeyboardYielder(nil)
 
 		return
 	}
@@ -74,7 +74,7 @@ func registerKeyboardYielder(built tap.Tap, logger *zap.Logger) {
 		return
 	}
 
-	nativelinux.SetKeyboardYielder(yielder)
+	inject.SetKeyboardYielder(yielder)
 }
 
 // platformQuit unblocks the systray loop so App.Quit() (tray menu or signal)

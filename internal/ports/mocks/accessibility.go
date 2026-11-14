@@ -2,9 +2,7 @@ package mocks
 
 import (
 	"context"
-	"image"
 
-	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -16,12 +14,8 @@ import (
 type MockAccessibilityPort struct {
 	HealthFunc                        func(context.Context) error
 	ClickableElementsFunc             func(context.Context, ports.ElementFilter) ([]*element.Element, error)
-	PerformActionFunc                 func(context.Context, *element.Element, action.Type) error
-	PerformActionAtPointFunc          func(context.Context, action.Type, image.Point, action.Modifiers) error
-	ScrollFunc                        func(context.Context, int, int, action.Modifiers) error
 	FocusedAppBundleIDFunc            func(context.Context) (string, error)
 	PrimeApplicationFunc              func(context.Context, string) (bool, error)
-	ReleaseHeldButtonsFunc            func(context.Context) error
 	UpdateClickableRolesFunc          func([]string)
 	UpdateMissionControlDetectionFunc func(bool)
 }
@@ -38,15 +32,6 @@ func (m *MockAccessibilityPort) UpdateClickableRoles(roles []string) {
 	if m.UpdateClickableRolesFunc != nil {
 		m.UpdateClickableRolesFunc(roles)
 	}
-}
-
-// ReleaseHeldButtons implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) ReleaseHeldButtons(ctx context.Context) error {
-	if m.ReleaseHeldButtonsFunc != nil {
-		return m.ReleaseHeldButtonsFunc(ctx)
-	}
-
-	return nil
 }
 
 // PrimeApplication implements ports.AccessibilityPort. It reports ready by
@@ -81,46 +66,6 @@ func (m *MockAccessibilityPort) ClickableElements(
 	}
 
 	return nil, nil
-}
-
-// PerformAction implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) PerformAction(
-	ctx context.Context,
-	elem *element.Element,
-	actionType action.Type,
-) error {
-	if m.PerformActionFunc != nil {
-		return m.PerformActionFunc(ctx, elem, actionType)
-	}
-
-	return nil
-}
-
-// PerformActionAtPoint implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) PerformActionAtPoint(
-	ctx context.Context,
-	actionType action.Type,
-	point image.Point,
-	modifiers action.Modifiers,
-) error {
-	if m.PerformActionAtPointFunc != nil {
-		return m.PerformActionAtPointFunc(ctx, actionType, point, modifiers)
-	}
-
-	return nil
-}
-
-// Scroll implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) Scroll(
-	ctx context.Context,
-	deltaX, deltaY int,
-	modifiers action.Modifiers,
-) error {
-	if m.ScrollFunc != nil {
-		return m.ScrollFunc(ctx, deltaX, deltaY, modifiers)
-	}
-
-	return nil
 }
 
 // FocusedAppBundleID implements ports.AccessibilityPort.

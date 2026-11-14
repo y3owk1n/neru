@@ -54,6 +54,7 @@ func TestNew_ServicesPhaseFailureUnwindsWithoutPanicking(t *testing.T) {
 				app.WithOverlayPort(&mocks.MockOverlayPort{}),
 				app.WithSystemPort(&mocks.MockSystemPort{}),
 				app.WithAccessibility(&mocks.MockAccessibilityPort{}),
+				app.WithMouse(&mocks.MockMousePort{}),
 				app.WithVisionPort(&mocks.MockVisionPort{}),
 			)
 

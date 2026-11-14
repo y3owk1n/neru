@@ -26,7 +26,6 @@ var (
 	BuildTree                     = linux.BuildTree
 	CheckAccessibilityPermissions = linux.CheckAccessibilityPermissions
 	ClickableRoles                = linux.ClickableRoles
-	CurrentCursorPosition         = linux.CurrentCursorPosition
 	DefaultTreeOptions            = linux.DefaultTreeOptions
 	DetectBundleType              = linux.DetectBundleType
 	ElementAtPosition             = linux.ElementAtPosition
@@ -34,18 +33,9 @@ var (
 	FrontmostAndPopoverWindows    = linux.FrontmostAndPopoverWindows
 	FrontmostWindow               = linux.FrontmostWindow
 	IsMissionControlActive        = linux.IsMissionControlActive
-	IsMouseButtonDown             = linux.IsMouseButtonDown
-	LeftClickAtPoint              = linux.LeftClickAtPoint
-	MiddleClickAtPoint            = linux.MiddleClickAtPoint
-	MouseDownAtPoint              = linux.MouseDownAtPoint
-	MouseUp                       = linux.MouseUp
-	MouseUpAtPoint                = linux.MouseUpAtPoint
-	MoveMouseToPoint              = linux.MoveMouseToPoint
 	ProcessClickableNodes         = linux.ProcessClickableNodes
 	ReleaseAll                    = linux.ReleaseAll
 	ReleaseTree                   = linux.ReleaseTree
-	RightClickAtPoint             = linux.RightClickAtPoint
-	ScrollAtCursor                = linux.ScrollAtCursor
 	SetClickableRoles             = linux.SetClickableRoles
 	SystemWideElement             = linux.SystemWideElement
 )
@@ -53,7 +43,6 @@ var (
 // The shell calls these by their unexported names, so the dispatch slot binds
 // them here rather than renaming every call site.
 var (
-	ensureMouseUp     = linux.EnsureMouseUp
 	ReleaseTreeExcept = linux.ReleaseTreeExcept
 )
 

@@ -45,6 +45,7 @@ const (
 // method.
 type ScrollService struct {
 	accessibility ports.AccessibilityPort
+	mouse         ports.MousePort
 	system        ports.SystemPort
 
 	mu     sync.RWMutex
@@ -55,6 +56,7 @@ type ScrollService struct {
 // NewScrollService creates a new scroll service.
 func NewScrollService(
 	accessibility ports.AccessibilityPort,
+	mouse ports.MousePort,
 	system ports.SystemPort,
 	config config.ScrollConfig,
 	logger *zap.Logger,
@@ -65,6 +67,7 @@ func NewScrollService(
 
 	return &ScrollService{
 		accessibility: accessibility,
+		mouse:         mouse,
 		system:        system,
 		config:        config,
 		logger:        logger.Named("service.scroll"),
@@ -107,7 +110,7 @@ func (s *ScrollService) Scroll(
 			zap.String("modifiers", modifiers.String()))
 	}
 
-	scrollErr := s.accessibility.Scroll(ctx, deltaX, deltaY, modifiers)
+	scrollErr := s.mouse.Scroll(ctx, deltaX, deltaY, modifiers)
 	if scrollErr != nil {
 		// A backend that cannot present the requested modifiers refuses with
 		// CodeNotSupported. Keep that code so the reply can say so rather than

@@ -62,6 +62,7 @@ func newToggleTestController(
 	logger := zap.NewNop()
 	actionService := services.NewActionService(
 		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockMousePort{},
 		&portmocks.MockOverlayPort{},
 		&portmocks.MockSystemPort{},
 		logger,

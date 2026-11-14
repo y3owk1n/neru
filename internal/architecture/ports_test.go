@@ -21,9 +21,10 @@ const docGoFile = "doc.go"
 var portsWithoutOwnMock = map[string]string{}
 
 // portMockFloor is the fewest ports TestEveryPortHasAMock expects to check.
-// Eleven are declared today, so ten leaves room for one to be retired and still
-// catches a walk that has lost internal/ports or stopped recognizing a port.
-const portMockFloor = 10
+// Thirteen are declared today, so twelve leaves room for one to be retired and
+// still catches a walk that has lost internal/ports or stopped recognizing a
+// port.
+const portMockFloor = 12
 
 // TestEveryPortHasAMock enforces the third requirement of Tier 1 in
 // docs/contributing/porting.md. A port is not done until it has a mock.

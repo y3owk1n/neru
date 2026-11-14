@@ -226,6 +226,11 @@ func capabilitiesMap(capabilities ports.PlatformCapabilities) map[string]any {
 		out[string(ports.CapabilityScroll)+detailSuffix] = detail
 	}
 
+	if detail := capabilities.MouseButtons.Detail; detail != "" &&
+		!capabilities.MouseButtons.Supported() {
+		out[string(ports.CapabilityMouseButtons)+detailSuffix] = detail
+	}
+
 	// Focused-app inspection is the third, gated the same way, because the one
 	// thing a bare "stub" cannot say is that nothing is wrong. Linux probes it
 	// live, so a desktop with no window focused reports the same status as a

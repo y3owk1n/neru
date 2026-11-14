@@ -42,6 +42,7 @@ func newCursorSlotHarness(t *testing.T) *cursorSlotHarness {
 	harness.handler = NewActionsHandler(
 		services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockMousePort{},
 			&portmocks.MockOverlayPort{},
 			system,
 			zap.NewNop(),

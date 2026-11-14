@@ -74,6 +74,7 @@ func queryHandlers(
 		Config:        cfg,
 		ActionService: services.NewActionService(
 			accessibility,
+			&portmocks.MockMousePort{},
 			&portmocks.MockOverlayPort{},
 			system,
 			logger,

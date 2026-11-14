@@ -333,6 +333,12 @@ func TestSystemAdapter_DowngradedCapabilitiesExplainWhy(t *testing.T) {
 		{"cursor", func() (string, bool) {
 			return capabilities.Cursor.Detail, capabilities.Cursor.Supported()
 		}},
+		{"scroll", func() (string, bool) {
+			return capabilities.Scroll.Detail, capabilities.Scroll.Supported()
+		}},
+		{"mouse_buttons", func() (string, bool) {
+			return capabilities.MouseButtons.Detail, capabilities.MouseButtons.Supported()
+		}},
 	}
 
 	for _, entry := range downgraded {

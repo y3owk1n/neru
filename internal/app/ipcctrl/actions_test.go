@@ -360,6 +360,7 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 		logger:   zap.NewNop(),
 		scrollService: services.NewScrollService(
 			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockMousePort{},
 			&portmocks.MockSystemPort{},
 			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
 			zap.NewNop(),
@@ -381,11 +382,11 @@ func TestHandleAction_ScrollSelectionWithoutActiveSelectionErrors(t *testing.T) 
 }
 
 // scrollControllerWithModifierCapture builds a controller whose scroll service
-// records the modifier set that reached the accessibility port.
+// records the modifier set that reached the mouse port.
 func scrollControllerWithModifierCapture(
 	got *action.Modifiers,
 ) *ActionsHandler {
-	accessibility := &portmocks.MockAccessibilityPort{
+	mouse := &portmocks.MockMousePort{
 		ScrollFunc: func(_ context.Context, _, _ int, modifiers action.Modifiers) error {
 			*got = modifiers
 
@@ -397,7 +398,8 @@ func scrollControllerWithModifierCapture(
 		appState: state.NewAppState(),
 		logger:   zap.NewNop(),
 		scrollService: services.NewScrollService(
-			accessibility,
+			&portmocks.MockAccessibilityPort{},
+			mouse,
 			&portmocks.MockSystemPort{},
 			config.ScrollConfig{ScrollStep: 10, ScrollStepHalf: 20, ScrollStepFull: 30},
 			zap.NewNop(),

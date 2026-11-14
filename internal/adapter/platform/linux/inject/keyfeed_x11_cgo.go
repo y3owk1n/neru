@@ -1,10 +1,10 @@
 //go:build linux && cgo
 
-package linux
+package inject
 
 /*
 #cgo linux pkg-config: x11 xtst
-#include "../../../platform/linux/x11_accessibility.h"
+#include "../x11_accessibility.h"
 */
 import "C"
 

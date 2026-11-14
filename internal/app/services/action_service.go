@@ -22,6 +22,8 @@ import (
 type ActionService struct {
 	BaseService
 
+	mouse ports.MousePort
+
 	configMu sync.RWMutex
 	config   config.MouseActionConfig
 	logger   *zap.Logger
@@ -30,6 +32,7 @@ type ActionService struct {
 // NewActionService creates a new action service.
 func NewActionService(
 	accessibility ports.AccessibilityPort,
+	mouse ports.MousePort,
 	overlay ports.OverlayPort,
 	system ports.SystemPort,
 	logger *zap.Logger,
@@ -40,6 +43,7 @@ func NewActionService(
 
 	return &ActionService{
 		BaseService: NewBaseService(accessibility, overlay, system),
+		mouse:       mouse,
 		config:      config.DefaultConfig().MouseAction,
 		logger:      logger.Named("service.action"),
 	}
@@ -53,27 +57,8 @@ func (s *ActionService) UpdateConfig(cfg config.MouseActionConfig) {
 	s.config = cfg
 }
 
-// ExecuteAction performs the specified action on the given element.
-func (s *ActionService) ExecuteAction(
-	ctx context.Context,
-	element *element.Element,
-	actionType action.Type,
-) error {
-	s.logger.Debug("Executing action",
-		zap.String("action", actionType.String()),
-		zap.String("element_id", string(element.ID())),
-		zap.String("element_role", string(element.Role())))
-
-	performActionErr := s.accessibility.PerformAction(ctx, element, actionType)
-	if performActionErr != nil {
-		return derrors.WrapActionFailed(performActionErr, actionType.String())
-	}
-
-	return nil
-}
-
 // PerformActionAtPoint executes an action at the specified point.
-// This parses the action string to a domain type and delegates to the accessibility port.
+// This parses the action string to a domain type and delegates to the mouse port.
 func (s *ActionService) PerformActionAtPoint(
 	ctx context.Context,
 	actionString string,
@@ -91,7 +76,7 @@ func (s *ActionService) PerformActionAtPoint(
 		zap.Int("y", point.Y),
 		zap.String("modifiers", modifiers.String()))
 
-	performActionErr := s.accessibility.PerformActionAtPoint(ctx, actionType, point, modifiers)
+	performActionErr := s.mouse.PerformActionAtPoint(ctx, actionType, point, modifiers)
 	if performActionErr != nil {
 		return derrors.WrapActionFailed(performActionErr, actionType.String()+" at point")
 	}
@@ -191,7 +176,7 @@ func (s *ActionService) MoveMouseTo(
 // final warp is still animating when the mode exits would otherwise release
 // the drag part-way to the cell the user chose.
 func (s *ActionService) ReleaseHeldButtons(ctx context.Context) error {
-	if s.accessibility == nil {
+	if s.mouse == nil {
 		return nil
 	}
 
@@ -202,7 +187,7 @@ func (s *ActionService) ReleaseHeldButtons(ctx context.Context) error {
 		}
 	}
 
-	return s.accessibility.ReleaseHeldButtons(ctx)
+	return s.mouse.ReleaseHeldButtons(ctx)
 }
 
 // MoveMouseRelative moves the mouse cursor by the specified delta from the current position.

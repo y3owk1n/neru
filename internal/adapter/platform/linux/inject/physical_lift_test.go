@@ -1,6 +1,6 @@
 //go:build linux && cgo
 
-package linux
+package inject
 
 import (
 	"image"

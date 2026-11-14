@@ -1,13 +1,13 @@
 //go:build linux
 
-package linux_test
+package inject_test
 
 import (
 	"testing"
 
-	nativelinux "github.com/y3owk1n/neru/internal/adapter/accessibility/native/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	linuxplatform "github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/adapter/platform/linux/inject"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/motion"
@@ -32,7 +32,7 @@ func TestScrollAtCursor_RefusesModifiersWithoutABackend(t *testing.T) {
 		t.Skip("a display server backend was detected; the no-backend branch is unreachable here")
 	}
 
-	err := nativelinux.ScrollAtCursor(0, -50, action.ModCtrl)
+	err := inject.ScrollAtCursor(0, -50, action.ModCtrl)
 	if err == nil {
 		t.Fatal("ScrollAtCursor with ctrl returned nil; a dropped modifier must be reported")
 	}
@@ -41,7 +41,7 @@ func TestScrollAtCursor_RefusesModifiersWithoutABackend(t *testing.T) {
 		t.Fatalf("ScrollAtCursor with ctrl returned %v, want a CodeNotSupported error", err)
 	}
 
-	unmodified := nativelinux.ScrollAtCursor(0, -50, 0)
+	unmodified := inject.ScrollAtCursor(0, -50, 0)
 	if unmodified != nil {
 		t.Fatalf("unmodified ScrollAtCursor returned %v, want nil", unmodified)
 	}
@@ -77,7 +77,7 @@ func TestScrollAtCursor_RefusesWithSmoothScrollAndNoBackend(t *testing.T) {
 	t.Cleanup(func() { linuxplatform.SetAnimationSource(nil) })
 
 	for _, modifiers := range []action.Modifiers{0, action.ModCtrl} {
-		err := nativelinux.ScrollAtCursor(0, -50, modifiers)
+		err := inject.ScrollAtCursor(0, -50, modifiers)
 		if err == nil {
 			t.Fatalf("smooth ScrollAtCursor (%v) returned nil with no backend to animate through",
 				modifiers)

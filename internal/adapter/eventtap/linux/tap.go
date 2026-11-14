@@ -302,8 +302,8 @@ var syntheticModifierNames = []struct {
 // RememberSyntheticModifier disowns a modifier key event Neru is about to
 // inject through its own path, so the tap reads it as Neru's, not the user's.
 //
-// PostModifierEvent books its own events. The X11 accessibility backend
-// presents an action's modifiers by pressing real keys
+// PostModifierEvent books its own events. The X11 mouse injection
+// (platform/linux/inject) presents an action's modifiers by pressing real keys
 // (internal/adapter/platform/modifierstate), which re-enter the grab, and a
 // press plus release is a modifier tap. Without this the injection can latch a
 // sticky modifier the user never pressed (#1484).

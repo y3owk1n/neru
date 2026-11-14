@@ -38,12 +38,14 @@ capability. A port is done only with all four:
 [`keyfeed`](../../internal/adapter/keyfeed/) is the reference example: shared
 normalization untagged in `keyfeed.go`, one unexported `postKey` per platform,
 `Adapter` implementing the port, capability entry, mock, contract tests.
+[`mouse`](../../internal/adapter/mouse/) has the same shape, with the rules
+every platform shares in `adapter.go` and one `platformBackend` per platform.
 
 ### Tier 2: In-package dispatch
 
 A capability only one adapter package uses is not a port. Put an
-**unexported** function such as `platformActiveScreenBounds` in
-`platform_darwin.go`, `platform_other.go` and so on, because an exported one
+**unexported** function such as the mouse adapter's `platformBackend` in
+`backend_darwin.go`, `backend_other.go` and so on, because an exported one
 becomes another package's dependency and so a badly specified port. Examples:
 `accessibility/priming_*.go`, `appwatcher/platform_*.go`. The exception is a
 package whose whole job is the platform split and which several packages
@@ -167,6 +169,7 @@ Per-mode `Context` types live in `internal/app/components/`.
 | global hotkeys                                               | `internal/adapter/hotkeys/`                               |
 | keyboard event capture                                       | `internal/adapter/eventtap/`                              |
 | accessibility integration                                    | `internal/adapter/accessibility/` (`ax/`, `atspi/`, `native/`) |
+| clicks, presses, releases and scrolls                        | `internal/adapter/mouse/`, injecting through `platform/darwin`, `platform/windows` and `platform/linux/inject` |
 | overlay window orchestration **and all Linux/Windows drawing** | `internal/adapter/overlay/`                             |
 | overlay rendering by mode (macOS only, stubs elsewhere)  | `internal/adapter/overlay/render/*/overlay_*.go`          |
 | app watcher and other isolated platform hooks                | dispatch-style `platform_*.go` in the relevant package       |

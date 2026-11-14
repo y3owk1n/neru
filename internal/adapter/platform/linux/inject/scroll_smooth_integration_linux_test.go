@@ -1,6 +1,6 @@
 //go:build integration && linux && cgo
 
-package linux
+package inject
 
 import (
 	"image"
@@ -94,7 +94,7 @@ func aimAtTheProbe(t *testing.T, probe *scrollProbe) {
 	deadline := time.Now().Add(10 * time.Second)
 
 	for time.Now().Before(deadline) {
-		MoveMouseToPoint(image.Point{X: 400, Y: 400}, false)
+		_ = MoveMouseToPoint(image.Point{X: 400, Y: 400})
 
 		pump(probe, 100*time.Millisecond)
 
