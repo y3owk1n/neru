@@ -27,7 +27,7 @@ func (linuxDaemonHost) Run(application *app.App) error {
 	// Hold the keyboards now, while nothing is pressed, rather than under the
 	// binding that launches the first mode (WarmEvdevProxy). Without cgo,
 	// /dev/input or /dev/uinput access the first mode says what it fell back to.
-	if platform.DetectLinuxBackend().IsWayland() {
+	if backend := platform.DetectLinuxBackend(); backend.IsWayland() {
 		logger := application.Logger()
 
 		go func() {
@@ -39,6 +39,19 @@ func (linuxDaemonHost) Run(application *app.App) error {
 				)
 			}
 		}()
+
+		// Create the scroll wheel now, so its settle wait happens at launch and not
+		// during the first scroll. A wheel that cannot be created is reported by
+		// the first scroll that falls back. The scroll path never uses the wheel
+		// on an unrecognized Wayland compositor, so none is created there.
+		if backend != platform.BackendWaylandOther {
+			go func() {
+				err := eventtaplinux.WarmScrollDevice()
+				if err != nil {
+					logger.Debug("Scroll wheel not created at launch", zap.Error(err))
+				}
+			}()
+		}
 	}
 
 	// On KDE, libei input goes through the RemoteDesktop portal's one-time
