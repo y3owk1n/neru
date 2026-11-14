@@ -1516,6 +1516,10 @@ void neru_wlr_disconnect(NeruWlrootsClient *c) {
 	free(c);
 }
 
+// NERU_WLR_DISCOVERY_TEARDOWN_TIMEOUT_MS bounds the wait for the compositor to
+// remove the discovery surfaces, one round trip in practice.
+#define NERU_WLR_DISCOVERY_TEARDOWN_TIMEOUT_MS 50
+
 int neru_wlr_refresh_cursor(NeruWlrootsClient *c) {
 	if (!c || !c->layer_shell || !c->compositor || !c->shm || !c->pointer || c->nr_screens == 0)
 		return 0;
@@ -1598,6 +1602,13 @@ int neru_wlr_refresh_cursor(NeruWlrootsClient *c) {
 	}
 	wl_display_flush(c->display);
 	pthread_mutex_unlock(&c->display_mutex);
+
+	// Without a virtual pointer, clicks reach the compositor over another
+	// connection, libei on KWin, and can overtake the teardown above. A press
+	// that arrives while the surfaces still cover the screen goes to them and
+	// is lost.
+	if (!c->vptr)
+		neru_wlr_sync(c, NERU_WLR_DISCOVERY_TEARDOWN_TIMEOUT_MS);
 
 	if (!discovered && was_initialized) {
 		atomic_store(&c->cursor_x, old_x);
