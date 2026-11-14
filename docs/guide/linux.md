@@ -161,6 +161,9 @@ With either one:
   a built-in trackpad on the same node. A volume knob does not count.
 - Per-device compositor settings, such as a Sway or Hyprland `input` block or a
   KDE per-device layout, apply to `neru-keyboard-proxy` while the daemon runs.
+- A laptop touchpad stops pausing while you type.
+  [Mark the proxy as built in](#the-touchpad-stays-active-while-typing) to
+  restore it.
 
 ## Wayland scroll injection permissions
 
@@ -276,6 +279,26 @@ See [Wayland keyboard capture permissions](#wayland-keyboard-capture-permissions
 
 Modes fall back to the overlay's keyboard focus. Add the udev rule from
 [step 3](#setup-steps) and restart the daemon.
+
+### The touchpad stays active while typing
+
+libinput pauses a laptop touchpad only for keys from a keyboard it counts as
+built in. On Wayland your keys reach libinput through `neru-keyboard-proxy`,
+which is virtual and so counts as external. Mark the proxy as built in with a
+libinput quirk:
+
+```bash
+sudo mkdir -p /etc/libinput
+sudo tee -a /etc/libinput/local-overrides.quirks <<'EOF'
+[Neru keyboard proxy]
+MatchUdevType=keyboard
+MatchName=neru-keyboard-proxy
+AttrKeyboardIntegration=internal
+EOF
+```
+
+libinput reads the file only at startup, so log out and back in. Keys from an
+external keyboard pass through the same proxy, so they pause the touchpad too.
 
 ### Sticky modifier indicator shows `[][][][]`
 
