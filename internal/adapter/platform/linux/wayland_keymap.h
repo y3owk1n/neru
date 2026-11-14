@@ -7,14 +7,18 @@
 struct neru_xkb_state;
 typedef struct neru_xkb_state neru_xkb_state;
 
-// Connect to the Wayland display and retrieve the compositor's keymap
-// via wl_keyboard to create an xkb_state. Returns NULL on failure.
+// Connect to the Wayland display and read the compositor's keymap through
+// wl_keyboard. When the seat has no keyboard yet, or the keymap has not
+// arrived, it returns a state with no keymap, and every name lookup fails
+// until neru_xkb_state_dispatch delivers one. Returns NULL when there is no
+// display or seat, or the connection failed.
 neru_xkb_state *neru_xkb_state_create(void);
 
 // Read whatever the compositor has sent since the last call without blocking,
 // so a keymap it replaced (a layout or option change) takes effect on the
-// state. Returns 1 when the keymap was replaced, 0 when it was not, -1 when the
-// display connection is gone and the state has to be rebuilt.
+// state. Returns 1 when a keymap arrived, replacing the last or being the
+// first on a seat that had no keyboard, 0 when none did, -1 when the display
+// connection is gone and the state has to be rebuilt.
 int neru_xkb_state_dispatch(neru_xkb_state *state);
 
 // Destroy the xkb_state and associated Wayland resources.
@@ -37,8 +41,9 @@ int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_co
 // Force the reference layout to the one whose XKB name matches name, ignoring
 // case. NULL or "" returns to the automatic choice. The state keeps the name
 // and matches it again against every later keymap. Returns 1 when the current
-// keymap has the layout or the choice is automatic. Returns 0 when it does not,
-// and the automatic choice applies until a keymap that has it arrives.
+// keymap has the layout, the choice is automatic, or there is no keymap yet to
+// judge it against. Returns 0 when it does not, and the automatic choice
+// applies until a keymap that has it arrives.
 int neru_xkb_state_set_reference_layout(neru_xkb_state *state, const char *name);
 
 // Whether the current keymap has the forced layout, or 1 when none is forced.

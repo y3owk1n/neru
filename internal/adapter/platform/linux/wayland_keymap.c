@@ -22,15 +22,16 @@ struct keymap_ready {
 	char *requested_layout;
 	int requested_found;
 	int ready;
-	// Set when a keymap arrived after the first one, so the reader that
-	// dispatches this display knows the state it resolves names against has
-	// been replaced (neru_xkb_state_dispatch reports and clears it).
+	// Set when a keymap arrives after neru_xkb_state_create returned, so the
+	// reader that dispatches this display knows the state it resolves names
+	// against changed (neru_xkb_state_dispatch reports and clears it).
 	int changed;
 };
 
 struct neru_xkb_state {
 	struct xkb_state *state;
 	struct wl_display *display;
+	struct wl_seat *wl_seat;
 	struct wl_keyboard *wl_keyboard;
 	struct keymap_ready kr;  // listener data, alive for lifetime of this struct
 };
@@ -138,8 +139,8 @@ static void keymap_ready_load(struct keymap_ready *kr, const char *map_str) {
 	if (kr->state) {
 		xkb_state_unref(kr->state);
 		xkb_state_unref(kr->command_state);
-		kr->changed = 1;
 	}
+	kr->changed = 1;
 	kr->state = fresh;
 	kr->command_state = commands;
 	choose_reference(kr);
@@ -192,7 +193,25 @@ static const struct wl_keyboard_listener keyboard_listener = {
 
 // ---------- wl_seat listener ----------
 
-static void neru_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) {}
+// The reader asks for a keyboard only when the seat reports one. Asking a seat
+// that has none is a protocol error that drops the connection. The event is
+// level-triggered, so a seat that loses its keyboard resends it with the bit
+// clear. The reader releases the dead keyboard then, and asks again when the
+// seat gains the next one.
+static void neru_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) {
+	neru_xkb_state *state = data;
+	int has_keyboard = (capabilities & WL_SEAT_CAPABILITY_KEYBOARD) != 0;
+	if (has_keyboard && !state->wl_keyboard) {
+		state->wl_keyboard = wl_seat_get_keyboard(seat);
+		wl_keyboard_add_listener(state->wl_keyboard, &keyboard_listener, &state->kr);
+	} else if (!has_keyboard && state->wl_keyboard) {
+		if (wl_keyboard_get_version(state->wl_keyboard) >= WL_KEYBOARD_RELEASE_SINCE_VERSION)
+			wl_keyboard_release(state->wl_keyboard);
+		else
+			wl_keyboard_destroy(state->wl_keyboard);
+		state->wl_keyboard = NULL;
+	}
+}
 
 static void neru_seat_name(void *data, struct wl_seat *seat, const char *name) {}
 
@@ -203,15 +222,15 @@ static const struct wl_seat_listener seat_listener = {
 
 // ---------- wl_registry listener ----------
 
-struct registry_data {
-	struct wl_seat *seat;
-};
-
+// The reader attaches the seat listener at bind, because the compositor sends
+// the seat's capabilities right away and libwayland drops an event for a proxy
+// with no listener.
 static void neru_registry_global(
     void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
-	struct registry_data *rd = data;
-	if (strcmp(interface, "wl_seat") == 0) {
-		rd->seat = wl_registry_bind(registry, name, &wl_seat_interface, version < 7 ? version : 7);
+	neru_xkb_state *state = data;
+	if (strcmp(interface, "wl_seat") == 0 && !state->wl_seat) {
+		state->wl_seat = wl_registry_bind(registry, name, &wl_seat_interface, version < 7 ? version : 7);
+		wl_seat_add_listener(state->wl_seat, &seat_listener, state);
 	}
 }
 
@@ -225,56 +244,38 @@ static const struct wl_registry_listener registry_listener = {
 // ---------- Public API ----------
 
 neru_xkb_state *neru_xkb_state_create(void) {
-	struct wl_display *display = wl_display_connect(NULL);
-	if (!display)
-		return NULL;
-
-	struct wl_registry *registry = wl_display_get_registry(display);
-	if (!registry) {
-		wl_display_disconnect(display);
-		return NULL;
-	}
-
-	struct registry_data rd = {0};
-	wl_registry_add_listener(registry, &registry_listener, &rd);
-	wl_display_roundtrip(display);
-	wl_display_roundtrip(display);
-
-	if (!rd.seat) {
-		wl_registry_destroy(registry);
-		wl_display_disconnect(display);
-		return NULL;
-	}
-
-	struct wl_keyboard *kb = wl_seat_get_keyboard(rd.seat);
-	wl_seat_destroy(rd.seat);
-	wl_registry_destroy(registry);
-
-	if (!kb) {
-		wl_display_disconnect(display);
-		return NULL;
-	}
-
 	neru_xkb_state *state = calloc(1, sizeof(neru_xkb_state));
-	if (!state) {
-		wl_keyboard_destroy(kb);
-		wl_display_disconnect(display);
+	if (!state)
+		return NULL;
+
+	state->display = wl_display_connect(NULL);
+	if (!state->display) {
+		free(state);
 		return NULL;
 	}
 
-	state->display = display;
-	state->wl_keyboard = kb;
-	state->kr = (struct keymap_ready){0};
-
-	wl_keyboard_add_listener(kb, &keyboard_listener, &state->kr);
-	wl_display_roundtrip(display);
-	wl_display_roundtrip(display);
-
-	if (!state->kr.state) {
+	struct wl_registry *registry = wl_display_get_registry(state->display);
+	if (!registry) {
 		neru_xkb_state_destroy(state);
 		return NULL;
 	}
 
+	// The first roundtrip binds the seat, the second delivers its
+	// capabilities and asks for the keyboard, and the third delivers the
+	// keymap. A keyboard the seat gains during the third gets its keymap
+	// through neru_xkb_state_dispatch.
+	wl_registry_add_listener(registry, &registry_listener, state);
+	wl_display_roundtrip(state->display);
+	wl_display_roundtrip(state->display);
+	wl_display_roundtrip(state->display);
+	wl_registry_destroy(registry);
+
+	if (!state->wl_seat || wl_display_get_error(state->display)) {
+		neru_xkb_state_destroy(state);
+		return NULL;
+	}
+
+	state->kr.changed = 0;
 	state->state = state->kr.state;
 
 	return state;
@@ -304,6 +305,10 @@ int neru_xkb_state_dispatch(neru_xkb_state *state) {
 	if (wl_display_dispatch_pending(state->display) < 0)
 		return -1;
 
+	// A capabilities event dispatched above may have requested a keyboard.
+	// Flush so the request goes out with this poll, not the next one.
+	wl_display_flush(state->display);
+
 	if (!state->kr.changed)
 		return 0;
 
@@ -326,6 +331,8 @@ void neru_xkb_state_destroy(neru_xkb_state *state) {
 	free(state->kr.requested_layout);
 	if (state->wl_keyboard)
 		wl_keyboard_destroy(state->wl_keyboard);
+	if (state->wl_seat)
+		wl_seat_destroy(state->wl_seat);
 	if (state->display)
 		wl_display_disconnect(state->display);
 
@@ -448,11 +455,19 @@ int neru_xkb_state_key_get_command_name(neru_xkb_state *state, uint16_t evdev_co
 }
 
 int neru_xkb_state_set_reference_layout(neru_xkb_state *state, const char *name) {
-	if (!state || !state->kr.command_state)
+	if (!state)
 		return 0;
 
 	free(state->kr.requested_layout);
 	state->kr.requested_layout = name && *name ? strdup(name) : NULL;
+
+	// With no keymap yet there is nothing to match the name against.
+	// keymap_ready_load matches it when the first keymap arrives.
+	if (!state->kr.command_state) {
+		state->kr.requested_found = 1;
+		return 1;
+	}
+
 	choose_reference(&state->kr);
 	return state->kr.requested_found;
 }

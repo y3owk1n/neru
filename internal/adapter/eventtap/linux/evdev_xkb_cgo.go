@@ -244,6 +244,13 @@ func (capture *waylandEvdevCapture) refreshXkbState() {
 		return
 	}
 
+	if C.neru_xkb_state_layout_count(xkb) == 0 && capture.logger != nil {
+		capture.logger.Warn(
+			"No keymap from the compositor yet, so key names use the " +
+				"hardcoded evdev table until one arrives",
+		)
+	}
+
 	capture.applyRequestedLayout()
 	capture.syncLeds()
 }
