@@ -41,6 +41,11 @@ func ScrollDeviceScrollBatch(_ int, _ []int) error {
 	return errUinputScrollNoCGO("uinput scroll batch")
 }
 
+// WarmScrollDevice reports that uinput scroll injection is compiled out.
+func WarmScrollDevice() error {
+	return errUinputScrollNoCGO("uinput scroll device")
+}
+
 // IsUinputScrollAvailable reports false, because uinput needs cgo.
 func IsUinputScrollAvailable() bool {
 	return false
