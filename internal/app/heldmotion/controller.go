@@ -18,6 +18,11 @@ import (
 // TickInterval is the motion loop's period.
 const TickInterval = 10 * time.Millisecond
 
+// tapWindowScale sets a press's tap window in units of one interval plus the
+// easing. A diagonal key reaches its step after about 1.41 intervals plus the
+// easing, and twice that leaves headroom without reaching a long hold.
+const tapWindowScale = 2
+
 // MaxTickDelta caps the time a late tick may integrate, so a stalled
 // scheduler produces a stutter rather than a jump.
 const MaxTickDelta = 4 * TickInterval
@@ -34,8 +39,9 @@ type heldEntry struct {
 	// traveled is how far the glide has moved along dir since the press, so a
 	// release knows what is left of one step.
 	traveled float64
-	// tapUntil ends the press's tap window. Past it a free glide has moved a
-	// full step, so a key still short of one was held against an edge or
+	// tapUntil ends the press's tap window. Past it a free glide has moved
+	// the key a full step, even on a diagonal where each key is credited 0.71
+	// of the travel, so a key still short of one was held against an edge or
 	// canceled by its opposite, and is owed nothing.
 	tapUntil time.Time
 }
@@ -155,7 +161,7 @@ func (g *Group) ReleaseAll() {
 
 func (c *Controller) press(key heldKey, entry heldEntry) {
 	ramp := c.ramp()
-	entry.tapUntil = time.Now().Add(ramp.Interval + motion.Smoothing)
+	entry.tapUntil = time.Now().Add(tapWindowScale * (ramp.Interval + motion.Smoothing))
 
 	c.mu.Lock()
 	defer c.mu.Unlock()

@@ -275,3 +275,29 @@ func TestGroup_Release_CanceledLongHoldOwesNoTap(t *testing.T) {
 		t.Fatalf("cursor moved from %v to %v after releasing a canceled hold", before, last)
 	}
 }
+
+// TestGroup_Release_DiagonalTapStillTravelsOneStepPerKey pins that two keys
+// tapped together each still travel their step, though each is credited only
+// its share of the diagonal and so takes longer to earn it than a lone key.
+func TestGroup_Release_DiagonalTapStillTravelsOneStepPerKey(t *testing.T) {
+	rec := &recorder{}
+	// A 10 px step per 200 ms is 50 px/s. Released at 250 ms, each key has
+	// earned about 7 px along its axis.
+	keys := newControllerWithRamp(
+		t,
+		rec,
+		motion.Ramp{Interval: 200 * time.Millisecond, Multiplier: 1},
+	).
+		Group("test")
+
+	keys.Press("l", motion.Direction{X: 1}, 10)
+	keys.Press("j", motion.Direction{Y: 1}, 10)
+	time.Sleep(250 * time.Millisecond)
+	keys.Release("l")
+	keys.Release("j")
+
+	last, _ := waitQuiet(t, rec)
+	if last.X < 109 || last.X > 111 || last.Y < 109 || last.Y > 111 {
+		t.Fatalf("diagonal tap landed at %v, want about (110, 110)", last)
+	}
+}
