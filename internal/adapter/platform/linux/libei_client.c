@@ -1,6 +1,5 @@
 #include "libei_client.h"
 
-#include <errno.h>
 #include <libei.h>
 #include <liboeffis.h>
 #include <poll.h>
@@ -412,25 +411,6 @@ uint32_t neru_ei_modifiers_risen(NeruEiClient *c) {
 	}
 	pump(c);
 	return c->mods_risen;
-}
-
-void neru_ei_await_modifiers_risen(NeruEiClient *c, uint32_t since, uint32_t count, int timeout_ms) {
-	if (!c) {
-		return;
-	}
-	pump(c);
-	int64_t deadline = now_ms() + timeout_ms;
-	int efd = ei_get_fd(c->ei);
-	while (c->mods_risen - since < count) {
-		int ready = wait_readable(efd, deadline);
-		if (ready == 0 || (ready < 0 && errno != EINTR)) {
-			return;
-		}
-		if (ready > 0) {
-			ei_dispatch(c->ei);
-			drain(c);
-		}
-	}
 }
 
 int neru_ei_has_keyboard(NeruEiClient *c) {

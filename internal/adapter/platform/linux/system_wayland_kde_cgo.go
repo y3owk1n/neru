@@ -29,9 +29,13 @@ const libeiConnectTimeoutMs = 1500
 // dialog, and only the first grant on a machine costs the long wait.
 const libeiWarmupTimeoutMs = 120000
 
-// libeiModifierReportTimeoutMs bounds the wait for the compositor to report
-// modifiers just pressed. Mutter answered within 7 ms with every core busy.
-const libeiModifierReportTimeoutMs = 25
+// libeiModifierReportTimeout bounds the wait for the compositor to report
+// modifiers just pressed, and libeiModifierReportPoll is how often the wait
+// reads. Mutter answered within 7 ms with every core busy.
+const (
+	libeiModifierReportTimeout = 25 * time.Millisecond
+	libeiModifierReportPoll    = 500 * time.Microsecond
+)
 
 // libeiState owns the libei/RemoteDesktop session used for input injection on
 // compositors without zwlr_virtual_pointer_v1 (KWin/KDE). It is established on
@@ -303,8 +307,9 @@ func libeiKey(keycode int, pressed bool) error {
 }
 
 // libeiModifiersRisen reads the session's count of modifier bits turned on,
-// for libeiAwaitModifiersRisen. The bool is false when there is no session to
-// ask or another call holds it.
+// for libeiAwaitModifiersRisen. With no session yet it reports 0, since the
+// session the next press opens counts from 0. The bool is false only while
+// another call holds the session.
 func libeiModifiersRisen() (uint32, bool) {
 	if !globalLibeiState.mu.TryLock() {
 		return 0, false
@@ -313,28 +318,28 @@ func libeiModifiersRisen() (uint32, bool) {
 	defer globalLibeiState.mu.Unlock()
 
 	if !globalLibeiState.ready {
-		return 0, false
+		return 0, true
 	}
 
 	return uint32(C.neru_ei_modifiers_risen(globalLibeiState.client)), true
 }
 
-// libeiAwaitModifiersRisen waits, up to libeiModifierReportTimeoutMs, until
-// the compositor reports count more modifier bits on than it had at since.
+// libeiAwaitModifiersRisen waits, up to libeiModifierReportTimeout, until the
+// compositor reports count more modifier bits on than it had at since. It
+// polls rather than holding the session, because the other input calls give up
+// at once when they find it held. A modifier already down turns no bit on, so
+// it costs the timeout.
 func libeiAwaitModifiersRisen(since, count uint32) {
-	if !globalLibeiState.mu.TryLock() {
-		return
+	deadline := time.Now().Add(libeiModifierReportTimeout)
+
+	for {
+		risen, ok := libeiModifiersRisen()
+		if ok && risen-since >= count || time.Now().After(deadline) {
+			return
+		}
+
+		time.Sleep(libeiModifierReportPoll)
 	}
-
-	defer globalLibeiState.mu.Unlock()
-
-	if !globalLibeiState.ready {
-		return
-	}
-
-	C.neru_ei_await_modifiers_risen(
-		globalLibeiState.client, C.uint32_t(since), C.uint32_t(count), libeiModifierReportTimeoutMs,
-	)
 }
 
 // libeiHasKeyboard reports whether the granted session includes a keyboard,

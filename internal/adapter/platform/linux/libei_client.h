@@ -58,16 +58,11 @@ int neru_ei_scroll_discrete(NeruEiClient *c, int axis, int value120);
 // no keyboard device is available on the granted session.
 int neru_ei_key(NeruEiClient *c, int keycode, int pressed);
 
-// How many modifier bits the compositor's reports have turned on so far, a
-// running count to pass to neru_ei_await_modifiers_risen.
+// How many modifier bits the compositor's reports have turned on so far, read
+// without blocking. Mutter can deliver a pointer event sent right after a
+// modifier press before the modifier itself, and its report is the only sign
+// the modifier has taken effect.
 uint32_t neru_ei_modifiers_risen(NeruEiClient *c);
-
-// Wait up to timeout_ms until the compositor's reports have turned on count
-// more modifier bits than since. Mutter can deliver a pointer event sent right
-// after a modifier press before the modifier itself. Its report is the only
-// sign the modifier has taken effect. A modifier already down turns no bit on,
-// so it costs the timeout.
-void neru_ei_await_modifiers_risen(NeruEiClient *c, uint32_t since, uint32_t count, int timeout_ms);
 
 // Whether the granted session exposes a keyboard device.
 int neru_ei_has_keyboard(NeruEiClient *c);
