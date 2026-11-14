@@ -26,7 +26,6 @@ var (
 	BuildTree                     = windows.BuildTree
 	CheckAccessibilityPermissions = windows.CheckAccessibilityPermissions
 	ClickableRoles                = windows.ClickableRoles
-	CurrentCursorPosition         = windows.CurrentCursorPosition
 	DefaultTreeOptions            = windows.DefaultTreeOptions
 	DetectBundleType              = windows.DetectBundleType
 	ElementAtPosition             = windows.ElementAtPosition

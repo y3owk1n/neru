@@ -53,25 +53,6 @@ func (s *ActionService) UpdateConfig(cfg config.MouseActionConfig) {
 	s.config = cfg
 }
 
-// ExecuteAction performs the specified action on the given element.
-func (s *ActionService) ExecuteAction(
-	ctx context.Context,
-	element *element.Element,
-	actionType action.Type,
-) error {
-	s.logger.Debug("Executing action",
-		zap.String("action", actionType.String()),
-		zap.String("element_id", string(element.ID())),
-		zap.String("element_role", string(element.Role())))
-
-	performActionErr := s.accessibility.PerformAction(ctx, element, actionType)
-	if performActionErr != nil {
-		return derrors.WrapActionFailed(performActionErr, actionType.String())
-	}
-
-	return nil
-}
-
 // PerformActionAtPoint executes an action at the specified point.
 // This parses the action string to a domain type and delegates to the accessibility port.
 func (s *ActionService) PerformActionAtPoint(

@@ -703,11 +703,6 @@ func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	return darwin.ScrollAtCursor(deltaX, deltaY, modifiers)
 }
 
-// CurrentCursorPosition returns the current cursor position in screen coordinates.
-func CurrentCursorPosition() image.Point {
-	return darwin.CursorPosition()
-}
-
 // IsClickable checks if the element is clickable.
 func (e *Element) IsClickable(
 	info *ElementInfo,

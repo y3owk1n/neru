@@ -876,13 +876,12 @@ type simClick struct {
 // simAXPort plays the role of the OS accessibility tree. It serves a fixed
 // set of fixture elements and records every action the app performs.
 type simAXPort struct {
-	mu             sync.Mutex
-	elements       []*element.Element
-	clicks         []simClick
-	elementActions []action.Type
-	scrolls        []image.Point
-	scrollMods     []action.Modifiers
-	releases       int
+	mu         sync.Mutex
+	elements   []*element.Element
+	clicks     []simClick
+	scrolls    []image.Point
+	scrollMods []action.Modifiers
+	releases   int
 
 	// clickErr is what every click at a point answers, as when the desktop
 	// refuses a synthetic click.
@@ -953,19 +952,6 @@ func (a *simAXPort) UpdateMissionControlDetection(enabled bool) {
 	defer a.mu.Unlock()
 
 	a.mcDetection = enabled
-}
-
-func (a *simAXPort) PerformAction(
-	_ context.Context,
-	_ *element.Element,
-	actionType action.Type,
-) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	a.elementActions = append(a.elementActions, actionType)
-
-	return nil
 }
 
 func (a *simAXPort) PerformActionAtPoint(

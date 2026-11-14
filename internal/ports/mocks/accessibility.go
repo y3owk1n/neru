@@ -16,7 +16,6 @@ import (
 type MockAccessibilityPort struct {
 	HealthFunc                        func(context.Context) error
 	ClickableElementsFunc             func(context.Context, ports.ElementFilter) ([]*element.Element, error)
-	PerformActionFunc                 func(context.Context, *element.Element, action.Type) error
 	PerformActionAtPointFunc          func(context.Context, action.Type, image.Point, action.Modifiers) error
 	ScrollFunc                        func(context.Context, int, int, action.Modifiers) error
 	FocusedAppBundleIDFunc            func(context.Context) (string, error)
@@ -81,19 +80,6 @@ func (m *MockAccessibilityPort) ClickableElements(
 	}
 
 	return nil, nil
-}
-
-// PerformAction implements ports.AccessibilityPort.
-func (m *MockAccessibilityPort) PerformAction(
-	ctx context.Context,
-	elem *element.Element,
-	actionType action.Type,
-) error {
-	if m.PerformActionFunc != nil {
-		return m.PerformActionFunc(ctx, elem, actionType)
-	}
-
-	return nil
 }
 
 // PerformActionAtPoint implements ports.AccessibilityPort.

@@ -26,7 +26,6 @@ var (
 	BuildTree                     = linux.BuildTree
 	CheckAccessibilityPermissions = linux.CheckAccessibilityPermissions
 	ClickableRoles                = linux.ClickableRoles
-	CurrentCursorPosition         = linux.CurrentCursorPosition
 	DefaultTreeOptions            = linux.DefaultTreeOptions
 	DetectBundleType              = linux.DetectBundleType
 	ElementAtPosition             = linux.ElementAtPosition

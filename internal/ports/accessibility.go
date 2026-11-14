@@ -33,9 +33,6 @@ type AccessibilityPort interface {
 	// Backends with no Mission Control accept and ignore it.
 	UpdateMissionControlDetection(enabled bool)
 
-	// PerformAction executes an action on the specified element.
-	PerformAction(ctx context.Context, elem *element.Element, actionType action.Type) error
-
 	// PerformActionAtPoint executes an action at the specified point.
 	PerformActionAtPoint(
 		ctx context.Context,

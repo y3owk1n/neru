@@ -312,16 +312,6 @@ func ScrollAtCursor(deltaX int, deltaY int, modifiers action.Modifiers) error {
 	return winplatform.ScrollWheel(deltaX, deltaY, modifiers)
 }
 
-// CurrentCursorPosition returns the cursor position.
-func CurrentCursorPosition() image.Point {
-	pos, err := winplatform.CurrentCursorPosition()
-	if err != nil {
-		return image.Point{}
-	}
-
-	return pos
-}
-
 // IsMissionControlActive returns whether Mission Control is active (stub).
 func IsMissionControlActive() bool { return false }
 

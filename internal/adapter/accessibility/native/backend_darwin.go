@@ -26,7 +26,6 @@ var (
 	BuildTree                     = darwin.BuildTree
 	CheckAccessibilityPermissions = darwin.CheckAccessibilityPermissions
 	ClickableRoles                = darwin.ClickableRoles
-	CurrentCursorPosition         = darwin.CurrentCursorPosition
 	DefaultTreeOptions            = darwin.DefaultTreeOptions
 	DetectBundleType              = darwin.DetectBundleType
 	ElementAtPosition             = darwin.ElementAtPosition
@@ -54,7 +53,6 @@ var (
 // them here rather than renaming every call site.
 var (
 	ensureMouseUp                 = darwin.EnsureMouseUp
-	platformActiveScreenBounds    = darwin.PlatformActiveScreenBounds
 	supportsSupplementaryElements = darwin.SupportsSupplementaryElements
 	ReleaseTreeExcept             = darwin.ReleaseTreeExcept
 )

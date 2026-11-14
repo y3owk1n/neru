@@ -154,32 +154,6 @@ func stringRoles(roles []element.Role) []string {
 	return result
 }
 
-// PerformAction executes an action on the specified element.
-func (a *Adapter) PerformAction(
-	ctx context.Context,
-	element *element.Element,
-	actionType action.Type,
-) error {
-	select {
-	case <-ctx.Done():
-		return derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "operation canceled")
-	default:
-	}
-
-	a.logger.Debug("Performing action",
-		zap.String("action", actionType.String()),
-		zap.String("element_id", string(element.ID())))
-
-	center := element.Center()
-
-	performActionErr := a.client.PerformAction(actionType, center, false, 0)
-	if performActionErr != nil {
-		return derrors.Wrap(performActionErr, derrors.CodeActionFailed, "failed to perform action")
-	}
-
-	return nil
-}
-
 // PerformActionAtPoint executes an action at the specified point.
 func (a *Adapter) PerformActionAtPoint(
 	ctx context.Context,

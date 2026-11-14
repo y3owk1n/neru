@@ -802,19 +802,6 @@ func releaseWaylandModifiersRemaining(pressed action.Modifiers) (action.Modifier
 	return remaining, firstErr
 }
 
-// CurrentCursorPosition returns the cursor position.
-func CurrentCursorPosition() image.Point {
-	if currentLinuxBackend() == linuxBackendX11 {
-		return x11CurrentCursorPosition()
-	}
-
-	if currentLinuxBackend() == linuxBackendWayland {
-		return wlrootsCurrentCursorPosition()
-	}
-
-	return image.Point{}
-}
-
 // IsClickable checks if the element is clickable (Linux stub).
 func (e *Element) IsClickable(
 	_ *ElementInfo,

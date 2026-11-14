@@ -47,7 +47,6 @@ type Client interface {
 		roles []string,
 		maxDepth int,
 	) ([]Node, error)
-	ActiveScreenBounds() image.Rectangle
 
 	// Actions
 	PerformAction(
@@ -57,8 +56,6 @@ type Client interface {
 		modifiers action.Modifiers,
 	) error
 	Scroll(deltaX, deltaY int, modifiers action.Modifiers) error
-	MoveMouse(p image.Point, bypassSmooth bool)
-	CursorPosition() image.Point
 
 	// System
 	CheckPermissions() bool

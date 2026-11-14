@@ -242,11 +242,6 @@ func (c *Client) ClickableElementsFromBundleID(
 	return nodesResult, nil
 }
 
-// ActiveScreenBounds returns the bounds of the active screen.
-func (c *Client) ActiveScreenBounds() image.Rectangle {
-	return platformActiveScreenBounds()
-}
-
 // PerformAction performs the specified action at the given point.
 func (c *Client) PerformAction(
 	actionType action.Type,
@@ -357,16 +352,6 @@ func (c *Client) Scroll(deltaX, deltaY int, modifiers action.Modifiers) error {
 	}
 
 	return nil
-}
-
-// MoveMouse moves the mouse to the specified point.
-func (c *Client) MoveMouse(p image.Point, bypassSmooth bool) {
-	MoveMouseToPoint(p, bypassSmooth)
-}
-
-// CursorPosition returns the current cursor position.
-func (c *Client) CursorPosition() image.Point {
-	return CurrentCursorPosition()
 }
 
 // CheckPermissions checks if accessibility permissions are granted.
