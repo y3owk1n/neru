@@ -68,25 +68,6 @@ func rawCapture(t *testing.T, mgr *Manager, backend string, region image.Rectang
 	return img
 }
 
-// rawOverlayShare reads the overlay's share of region until it reaches 0.9 or
-// three seconds pass. A compositor that has drawn nothing yet, as on a fresh
-// headless session where this is the first test to paint, can take longer
-// than paintRect's wait to show the first frame.
-func rawOverlayShare(t *testing.T, mgr *Manager, backend string, region image.Rectangle) float64 {
-	t.Helper()
-
-	deadline := time.Now().Add(3 * time.Second)
-
-	for {
-		share := magentaShare(rawCapture(t, mgr, backend, region))
-		if share >= 0.9 || time.Now().After(deadline) {
-			return share
-		}
-
-		time.Sleep(100 * time.Millisecond)
-	}
-}
-
 func magentaShare(img *image.RGBA) float64 {
 	var hits, total int
 
@@ -157,7 +138,7 @@ func TestManagerHideForCapture_LeavesTheOverlayOutAndPutsItBack(t *testing.T) {
 
 	paintRect(t, mgr, painted)
 
-	if share := rawOverlayShare(t, mgr, backend, region); share < 0.9 {
+	if share := magentaShare(rawCapture(t, mgr, backend, region)); share < 0.9 {
 		t.Fatalf(
 			"only %.2f of the raw copy shows the painted overlay, so the check below means nothing",
 			share,
@@ -173,7 +154,9 @@ func TestManagerHideForCapture_LeavesTheOverlayOutAndPutsItBack(t *testing.T) {
 		t.Fatalf("only %.2f of the capture matches what is behind the overlay", share)
 	}
 
-	if share := rawOverlayShare(t, mgr, backend, region); share < 0.9 {
+	time.Sleep(600 * time.Millisecond)
+
+	if share := magentaShare(rawCapture(t, mgr, backend, region)); share < 0.9 {
 		t.Fatalf("only %.2f of the raw copy shows the overlay after the capture", share)
 	}
 }
