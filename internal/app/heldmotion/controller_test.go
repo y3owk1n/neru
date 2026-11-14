@@ -45,6 +45,17 @@ func (r *recorder) last() (image.Point, int) {
 func newController(t *testing.T, rec *recorder) *heldmotion.Controller {
 	t.Helper()
 
+	// A 10 px step per 10 ms is 1000 px/s, and a multiplier of 1 never ramps.
+	return newControllerWithRamp(
+		t,
+		rec,
+		motion.Ramp{Interval: 10 * time.Millisecond, Multiplier: 1},
+	)
+}
+
+func newControllerWithRamp(t *testing.T, rec *recorder, ramp motion.Ramp) *heldmotion.Controller {
+	t.Helper()
+
 	start := image.Point{X: 100, Y: 100}
 	system := &mocks.MockSystemPort{
 		CursorPositionFunc: func(context.Context) (image.Point, error) { return start, nil },
@@ -58,12 +69,7 @@ func newController(t *testing.T, rec *recorder) *heldmotion.Controller {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	// A 10 px step per 10 ms is 1000 px/s, and a multiplier of 1 never ramps.
-	ramp := func() motion.Ramp {
-		return motion.Ramp{Interval: 10 * time.Millisecond, Multiplier: 1}
-	}
-
-	return heldmotion.New(ctx, system, ramp, nil)
+	return heldmotion.New(ctx, system, func() motion.Ramp { return ramp }, nil)
 }
 
 func TestGroup_Press_TwoKeysGlideDiagonallyUntilReleased(t *testing.T) {
@@ -218,5 +224,80 @@ func TestGroup_Release_ShortTapStillTravelsOneStep(t *testing.T) {
 
 	if last.X < 88 || last.X > 92 || last.Y != 100 {
 		t.Fatalf("tap landed at %v, want about (90, 100)", last)
+	}
+}
+
+// TestGroup_Release_TapAcrossTicksStillTravelsOneStep pins that a tap the
+// glide had begun to move, but not yet a full step, still totals one step.
+// The glide is slow enough here that the key is released well short of it.
+func TestGroup_Release_TapAcrossTicksStillTravelsOneStep(t *testing.T) {
+	rec := &recorder{}
+	// A 10 px step per second is 10 px/s.
+	keys := newControllerWithRamp(
+		t,
+		rec,
+		motion.Ramp{Interval: time.Second, Multiplier: 1},
+	).Group("test")
+
+	keys.Press("h", motion.Direction{X: -1}, 10)
+	time.Sleep(60 * time.Millisecond)
+	keys.Release("h")
+
+	last, count := waitQuiet(t, rec)
+	if count == 0 {
+		t.Fatal("a tap posted no cursor move")
+	}
+
+	if last.X != 90 || last.Y != 100 {
+		t.Fatalf("tap landed at %v, want (90, 100)", last)
+	}
+}
+
+// TestGroup_Release_CanceledLongHoldOwesNoTap pins that a key held past its
+// tap window owes nothing on release, even when it never moved because its
+// opposite canceled it.
+func TestGroup_Release_CanceledLongHoldOwesNoTap(t *testing.T) {
+	rec := &recorder{}
+	keys := newController(t, rec).Group("test")
+
+	keys.Press("l", motion.Direction{X: 1}, 10)
+	time.Sleep(100 * time.Millisecond)
+	keys.Press("h", motion.Direction{X: -1}, 10)
+	time.Sleep(100 * time.Millisecond)
+
+	before, _ := rec.last()
+
+	keys.Release("h")
+	keys.Release("l")
+
+	last, _ := waitQuiet(t, rec)
+	if drift := last.X - before.X; drift < -3 || drift > 3 {
+		t.Fatalf("cursor moved from %v to %v after releasing a canceled hold", before, last)
+	}
+}
+
+// TestGroup_Release_DiagonalTapStillTravelsOneStepPerKey pins that two keys
+// tapped together each still travel their step, though each is credited only
+// its share of the diagonal and so takes longer to earn it than a lone key.
+func TestGroup_Release_DiagonalTapStillTravelsOneStepPerKey(t *testing.T) {
+	rec := &recorder{}
+	// A 10 px step per 200 ms is 50 px/s. Released at 250 ms, each key has
+	// earned about 7 px along its axis.
+	keys := newControllerWithRamp(
+		t,
+		rec,
+		motion.Ramp{Interval: 200 * time.Millisecond, Multiplier: 1},
+	).
+		Group("test")
+
+	keys.Press("l", motion.Direction{X: 1}, 10)
+	keys.Press("j", motion.Direction{Y: 1}, 10)
+	time.Sleep(250 * time.Millisecond)
+	keys.Release("l")
+	keys.Release("j")
+
+	last, _ := waitQuiet(t, rec)
+	if last.X < 109 || last.X > 111 || last.Y < 109 || last.Y > 111 {
+		t.Fatalf("diagonal tap landed at %v, want about (110, 110)", last)
 	}
 }

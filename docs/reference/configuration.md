@@ -1541,16 +1541,19 @@ A held key bound to a lone `move_mouse_relative` glides the cursor along its
 `--dx`/`--dy` instead of repeating, at the same angle its taps move. Speed is
 the length of the binding's step per `interval_ms`, so 10px every 50ms is
 200px/s, and `--dx 30 --dy 40` steps 50px. The glide runs from key down to
-release, so `initial_delay_ms` does not apply. Two held keys move diagonally at the same
-speed, opposite keys cancel, and the larger step sets the speed. A short tap
-travels about one step. The glide works across monitors, and a click during it
-acts at the cursor's live position.
+release, so `initial_delay_ms` does not apply. It eases up to speed from rest
+in about 120ms, and stops where you release the key. Two held keys move
+diagonally at the same speed, opposite keys cancel, and the larger step sets
+the speed. Pressing or releasing a second key bends the path over the same
+120ms instead of turning in one move. A tap travels one step. The glide works
+across monitors, and a click during it acts at the cursor's live position.
 
 ### Acceleration
 
 With `accel_enabled = true`, the glide speed ramps linearly to
 `accel_max_multiplier` times the binding's speed over `accel_ramp_ms`. With the
-defaults a 10px binding reaches 500px/s at 250ms and 800px/s from 500ms.
+defaults a 10px binding reaches about 500px/s at 250ms and 800px/s from about
+500ms.
 
 - `accel_targets` accepts only `move_mouse_relative`. Any other entry, or an
   empty list while `accel_enabled = true`, is a config error.
