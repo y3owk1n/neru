@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.63.0](https://github.com/y3owk1n/neru/compare/v1.62.0...v1.63.0) (2026-11-14)
+
+
+### Features
+
+* **hints:** alternate hands in multi-key hint labels ([#1944](https://github.com/y3owk1n/neru/issues/1944)) ([e108948](https://github.com/y3owk1n/neru/commit/e108948aa933ef83b47037e8bd84484bbd72fb43))
+* **vim:** add vim mode ([#1921](https://github.com/y3owk1n/neru/issues/1921)) ([0870c99](https://github.com/y3owk1n/neru/commit/0870c99efaefc77aa74d8d728ee5b2df05e41b63))
+
+
+### Bug Fixes
+
+* glide held `move_mouse_relative` keys at the angle of their step ([#1948](https://github.com/y3owk1n/neru/issues/1948)) ([782797c](https://github.com/y3owk1n/neru/commit/782797c853a33e55697e449cff9511eb5dccd8bf))
+* **linux:** keep the first scroll after launch on Wayland ([#1956](https://github.com/y3owk1n/neru/issues/1956)) ([dd9ac4e](https://github.com/y3owk1n/neru/commit/dd9ac4e5cd0a95cb42634aa17ce0e1ed4f4b3672))
+* **linux:** keep Wayland scrolls going the way they are sent under natural scrolling ([#1957](https://github.com/y3owk1n/neru/issues/1957)) ([0e4bddd](https://github.com/y3owk1n/neru/commit/0e4bddd44786862eb1cfcb2896460aa016bc1f32))
+* **linux:** place niri window origins inside the tile border ([#1951](https://github.com/y3owk1n/neru/issues/1951)) ([d50d679](https://github.com/y3owk1n/neru/commit/d50d679ec2b7c6e5cdd2bc50c634a272d0d80d00))
+* **linux:** stop Wayland overlays from losing keyboard input ([#1940](https://github.com/y3owk1n/neru/issues/1940)) ([c9a5e85](https://github.com/y3owk1n/neru/commit/c9a5e8589d2d78b179bd999adde74385651dc123))
+* **nix:** stop the x86_64 Linux package segfaulting on current nixpkgs ([#1935](https://github.com/y3owk1n/neru/issues/1935)) ([86a0ddc](https://github.com/y3owk1n/neru/commit/86a0ddc6ad742bad2dea4ae37f0788bc0415ca82))
+* **systray:** remove tooltip from the tray icon ([#1937](https://github.com/y3owk1n/neru/issues/1937)) ([078eb54](https://github.com/y3owk1n/neru/commit/078eb54f1e6258267eecc0acb286fb26d5af11b5))
+
+
+### Improvements
+
+* ease held-key glides in from rest and curve them on turns ([#1949](https://github.com/y3owk1n/neru/issues/1949)) ([d947135](https://github.com/y3owk1n/neru/commit/d9471358fad798e8547fde6ce16a66e2d7bfdabe))
+
 ## [1.62.0](https://github.com/y3owk1n/neru/compare/v1.61.0...v1.62.0) (2026-11-08)
 
 
