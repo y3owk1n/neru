@@ -43,6 +43,14 @@ typedef struct {
 	int boundaryBorderRadius;       ///< Target boundary corner radius
 	char *boundaryBackgroundColor;  ///< Target boundary fill color
 	char *boundaryBorderColor;      ///< Target boundary stroke color
+	char *backgroundGradientColor;  ///< Background at the bottom edge, fading from backgroundColor (empty = flat)
+	char *shadowColor;              ///< Shadow under the badge (empty = no shadow)
+	int shadowOffsetX;              ///< Shadow offset to the right, in points
+	int shadowOffsetY;              ///< Shadow offset downward, in points
+	int shadowBlur;                 ///< Shadow CSS blur radius, in points
+	char *textShadowColor;          ///< Copy of the label drawn under it (empty = none)
+	int textShadowOffsetX;          ///< Text shadow offset to the right, in points
+	int textShadowOffsetY;          ///< Text shadow offset downward, in points
 } HintStyle;
 
 /// Hint data

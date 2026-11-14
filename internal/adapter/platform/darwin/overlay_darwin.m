@@ -153,6 +153,7 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 @property(nonatomic, assign) CGPoint drawOrigin;          ///< View point at the layer's origin
 @property(nonatomic, assign) CGRect drawnRect;            ///< itemRect relative to the layer when last drawn
 @property(nonatomic, strong) CALayer *boundary;           ///< Hint target highlight, below the badge
+@property(nonatomic, assign) CGPoint shadowOrigin;        ///< drawOrigin the shadow path was laid out for
 @end
 
 @implementation NeruItemLayer
@@ -252,6 +253,15 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 @property(nonatomic, assign) BOOL hintBoundaryHighlightEnabled;     ///< Draw target boundary highlight
 @property(nonatomic, assign) CGFloat hintBoundaryBorderWidth;       ///< Target boundary stroke width
 @property(nonatomic, assign) CGFloat hintBoundaryBorderRadius;      ///< Target boundary corner radius
+@property(nonatomic, strong) NSColor *hintGradientColor;            ///< Background at the bottom edge, nil for flat
+@property(nonatomic, strong) NSGradient *hintGradient;              ///< Background gradient, nil for flat
+@property(nonatomic, strong) NSColor *hintShadowColor;              ///< Badge shadow color, nil for none
+@property(nonatomic, assign) CGFloat hintShadowOffsetX;             ///< Badge shadow offset right, in points
+@property(nonatomic, assign) CGFloat hintShadowOffsetY;             ///< Badge shadow offset down, in points
+@property(nonatomic, assign) CGFloat hintShadowBlur;                ///< Badge shadow CSS blur radius, in points
+@property(nonatomic, strong) NSColor *hintTextShadowColor;          ///< Label shadow color, nil for none
+@property(nonatomic, assign) CGFloat hintTextShadowOffsetX;         ///< Label shadow offset right, in points
+@property(nonatomic, assign) CGFloat hintTextShadowOffsetY;         ///< Label shadow offset down, in points
 @property(nonatomic, strong) SearchInputItem *searchInput;          ///< Active hints search input
 @property(nonatomic, strong) NSFont *searchInputFont;               ///< Search input font
 @property(nonatomic, strong) NSColor *searchInputTextColor;         ///< Search input text color
@@ -819,6 +829,32 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 	self.hintBoundaryHighlightEnabled = style.boundaryHighlightEnabled ? YES : NO;
 	self.hintBoundaryBorderWidth = style.boundaryBorderWidth >= 0 ? style.boundaryBorderWidth : 1.0;
 	self.hintBoundaryBorderRadius = style.boundaryBorderRadius >= 0 ? style.boundaryBorderRadius : 4.0;
+
+	// The gradient and the shadows are off until their color is set.
+	self.hintGradientColor = [self optionalColorFromCString:style.backgroundGradientColor];
+	self.hintGradient = nil;
+	if (self.hintGradientColor) {
+		// Interpolated in sRGB, as CSS, Cairo and Direct2D do.
+		self.hintGradient = [[NSGradient alloc] initWithColors:@[ self.hintBackgroundColor, self.hintGradientColor ]
+		                                           atLocations:(const CGFloat[]){0.0, 1.0}
+		                                            colorSpace:[NSColorSpace sRGBColorSpace]];
+	}
+	self.hintShadowColor = [self optionalColorFromCString:style.shadowColor];
+	self.hintShadowOffsetX = style.shadowOffsetX;
+	self.hintShadowOffsetY = style.shadowOffsetY;
+	self.hintShadowBlur = MAX(style.shadowBlur, 0);
+	self.hintTextShadowColor = [self optionalColorFromCString:style.textShadowColor];
+	self.hintTextShadowOffsetX = style.textShadowOffsetX;
+	self.hintTextShadowOffsetY = style.textShadowOffsetY;
+}
+
+/// A color the style may leave unset, which turns its effect off.
+/// @param value Hex color string, or NULL
+/// @return The color, or nil when value is NULL, empty or not a color
+- (NSColor *)optionalColorFromCString:(const char *)value {
+	if (!value || value[0] == '\0')
+		return nil;
+	return [self colorFromHex:@(value) defaultColor:nil];
 }
 
 /// Create color from hex string
@@ -993,6 +1029,22 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
 	return NSMakeRect(x, y, boxWidth, boxHeight);
 }
 
+/// The badge body of a hint whose box measures rect: rect without the strip
+/// its connector arrow takes, if it has one.
+/// @param rect Box and arrow rectangle
+/// @param arrowHeight Arrow height, 0 for none
+/// @param placement Hint placement
+/// @return Body rectangle
+- (NSRect)hintBodyRect:(NSRect)rect arrowHeight:(CGFloat)arrowHeight placement:(HintPlacement)placement {
+	if (arrowHeight <= 0.0)
+		return rect;
+	if ([self isBottomHintPlacement:placement])
+		return NSMakeRect(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height - arrowHeight);
+	if ([self isTopHintPlacement:placement])
+		return NSMakeRect(rect.origin.x, rect.origin.y + arrowHeight, rect.size.width, rect.size.height - arrowHeight);
+	return rect;
+}
+
 /// Create tooltip path with arrow
 /// @param rect Tooltip rectangle
 /// @param arrowSize Arrow size
@@ -1005,14 +1057,8 @@ typedef NS_ENUM(NSInteger, NeruItemKind) {
                      elementCenterY:(CGFloat)elementCenterY
                           placement:(HintPlacement)placement {
 	// Tooltip body rectangle (excluding arrow space)
-	NSRect bodyRect = rect;
-	BOOL topPlacement = [self isTopHintPlacement:placement];
+	NSRect bodyRect = [self hintBodyRect:rect arrowHeight:arrowSize placement:placement];
 	BOOL bottomPlacement = [self isBottomHintPlacement:placement];
-	if (bottomPlacement) {
-		bodyRect = NSMakeRect(rect.origin.x, rect.origin.y, rect.size.width, rect.size.height - arrowSize);
-	} else if (topPlacement) {
-		bodyRect = NSMakeRect(rect.origin.x, rect.origin.y + arrowSize, rect.size.width, rect.size.height - arrowSize);
-	}
 
 	// Resolve border radius (-1 = auto pill)
 	CGFloat radius = self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(bodyRect.size.height / 2.0, 6.0);
@@ -1229,7 +1275,10 @@ static id NeruOrNull(id object) { return object ?: [NSNull null]; }
 	NSArray *signature = @[
 		NeruOrNull(self.hintFont), NeruOrNull(self.hintTextColor), NeruOrNull(self.hintMatchedTextColor),
 		NeruOrNull(self.hintBackgroundColor), NeruOrNull(self.hintBorderColor), @(self.hintBorderRadius),
-		@(self.hintBorderWidth), @(self.hintPaddingX), @(self.hintPaddingY), @(self.bounds.size.height)
+		@(self.hintBorderWidth), @(self.hintPaddingX), @(self.hintPaddingY), @(self.bounds.size.height),
+		NeruOrNull(self.hintGradientColor), NeruOrNull(self.hintShadowColor), @(self.hintShadowOffsetX),
+		@(self.hintShadowOffsetY), @(self.hintShadowBlur), NeruOrNull(self.hintTextShadowColor),
+		@(self.hintTextShadowOffsetX), @(self.hintTextShadowOffsetY)
 	];
 	NSArray *last = self.hintStyleSignature;
 	self.hintStyleGeneration = NeruStyleGeneration(signature, &last, self.hintStyleGeneration);
@@ -1262,8 +1311,41 @@ static id NeruOrNull(id object) { return object ?: [NSNull null]; }
 			layer.itemRect = [self badgeRectForHint:hint];
 		}
 		[self placeItemLayer:layer rect:layer.itemRect parentOrigin:CGPointZero scale:scale snap:YES changed:changed];
+		if (changed || !CGPointEqualToPoint(layer.shadowOrigin, layer.drawOrigin))
+			[self placeShadowOnHintLayer:layer forHint:hint];
 		[self placeBoundaryLayer:layer.boundary forHint:hint];
 	}
+}
+
+/// Lay the shadow of a hint's badge, arrow included, out on its layer. Core
+/// Animation draws it from the outline alone, under the layer's contents and
+/// past its bounds, and its shadowRadius is the standard deviation of the
+/// Gaussian, which is half a CSS blur radius. The Linux and Windows overlays
+/// blur the same outline by the same Gaussian.
+- (void)placeShadowOnHintLayer:(NeruItemLayer *)layer forHint:(HintItem *)hint {
+	layer.shadowOrigin = layer.drawOrigin;
+	if (!self.hintShadowColor) {
+		layer.shadowOpacity = 0.0;
+		layer.shadowPath = NULL;
+		return;
+	}
+
+	NSMutableAttributedString *measureString = [self hintStringForLabel:hint.label
+	                                                matchedPrefixLength:0
+	                                                             buffer:self.cachedHintMeasureString];
+	CGFloat arrowHeight = 0.0;
+	NSRect hintRect = [self hintRectForHint:hint textSize:[measureString size] arrowHeight:&arrowHeight boxWidth:NULL];
+	NSBezierPath *path = [self badgePathForHint:hint hintRect:hintRect arrowHeight:arrowHeight];
+	NSAffineTransform *toLayer = [NSAffineTransform transform];
+	[toLayer translateXBy:-layer.drawOrigin.x yBy:-layer.drawOrigin.y];
+	[path transformUsingAffineTransform:toLayer];
+
+	layer.shadowPath = path.CGPath;
+	layer.shadowColor = self.hintShadowColor.CGColor;
+	layer.shadowOpacity = 1.0;
+	layer.shadowRadius = self.hintShadowBlur / 2.0;
+	// CSS offsets point down, and this layer's y axis points up.
+	layer.shadowOffset = CGSizeMake(self.hintShadowOffsetX, -self.hintShadowOffsetY);
 }
 
 - (NeruItemLayer *)addHintLayerAtScale:(CGFloat)scale {
@@ -1349,8 +1431,11 @@ static id NeruOrNull(id object) { return object ?: [NSNull null]; }
 	CGFloat arrowHeight = 0.0;
 	NSRect hintRect = [self hintRectForHint:hint textSize:[measureString size] arrowHeight:&arrowHeight boxWidth:NULL];
 
-	// Expand by border width + 1pt to cover anti-aliased stroke edges
+	// Expand by border width + 1pt to cover anti-aliased stroke edges, and by
+	// the text shadow's offset, which can carry the label's copy past the box.
 	CGFloat expand = ceil(self.hintBorderWidth / 2.0) + 1.0;
+	if (self.hintTextShadowColor)
+		expand += ceil(MAX(fabs(self.hintTextShadowOffsetX), fabs(self.hintTextShadowOffsetY)));
 	NSRect badgeRect = NSInsetRect(hintRect, -expand, -expand);
 	if (arrowHeight > 0.0) {
 		CGFloat targetY = self.bounds.size.height - hint.position.y;
@@ -1371,22 +1456,8 @@ static id NeruOrNull(id object) { return object ?: [NSNull null]; }
 	HintPlacement placement = (HintPlacement)hint.placement;
 
 	// Draw background and border
-	CGFloat resolvedBorderRadius =
-	    self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(hintRect.size.height / 2.0, 6.0);
-	NSBezierPath *path;
-	if (arrowHeight > 0.0) {
-		path = [self createTooltipPath:hintRect
-		                     arrowSize:arrowHeight
-		                elementCenterX:hint.position.x
-		                elementCenterY:self.bounds.size.height - hint.position.y
-		                     placement:placement];
-	} else {
-		path = [NSBezierPath bezierPathWithRoundedRect:hintRect
-		                                       xRadius:resolvedBorderRadius
-		                                       yRadius:resolvedBorderRadius];
-	}
-	[self.hintBackgroundColor setFill];
-	[path fill];
+	NSBezierPath *path = [self badgePathForHint:hint hintRect:hintRect arrowHeight:arrowHeight];
+	[self fillHintBadge:path bodyRect:[self hintBodyRect:hintRect arrowHeight:arrowHeight placement:placement]];
 	if (self.hintBorderWidth > 0) {
 		[self.hintBorderColor setStroke];
 		[path setLineWidth:self.hintBorderWidth];
@@ -1398,7 +1469,53 @@ static id NeruOrNull(id object) { return object ?: [NSNull null]; }
 	CGFloat textY = hintRect.origin.y + [self resolvedHintPaddingY];
 	if (arrowHeight > 0.0 && [self isTopHintPlacement:placement])
 		textY += arrowHeight;
+	if (self.hintTextShadowColor) {
+		NSMutableAttributedString *shadowString = [attrString mutableCopy];
+		[shadowString addAttribute:NSForegroundColorAttributeName
+		                     value:self.hintTextShadowColor
+		                     range:NSMakeRange(0, shadowString.length)];
+		// CSS offsets point down, and this view's y axis points up.
+		[shadowString drawAtPoint:NSMakePoint(textX + self.hintTextShadowOffsetX, textY - self.hintTextShadowOffsetY)];
+	}
 	[attrString drawAtPoint:NSMakePoint(textX, textY)];
+}
+
+/// A hint badge's outline, its connector arrow included, in view coordinates.
+/// @param hint Hint the badge labels
+/// @param hintRect Box and arrow rectangle (hintRectForHint)
+/// @param arrowHeight Arrow height, 0 for none
+/// @return A new path
+- (NSBezierPath *)badgePathForHint:(HintItem *)hint hintRect:(NSRect)hintRect arrowHeight:(CGFloat)arrowHeight {
+	if (arrowHeight > 0.0) {
+		return [self createTooltipPath:hintRect
+		                     arrowSize:arrowHeight
+		                elementCenterX:hint.position.x
+		                elementCenterY:self.bounds.size.height - hint.position.y
+		                     placement:(HintPlacement)hint.placement];
+	}
+
+	CGFloat radius = self.hintBorderRadius >= 0.0 ? self.hintBorderRadius : MIN(hintRect.size.height / 2.0, 6.0);
+	return [NSBezierPath bezierPathWithRoundedRect:hintRect xRadius:radius yRadius:radius];
+}
+
+/// Fill a badge outline flat, or with the gradient from its body's top edge to
+/// its bottom edge. The gradient carries on past both edges, so an arrow takes
+/// the color of the edge it hangs from, as it does on Linux and Windows.
+/// @param path Badge outline
+/// @param bodyRect Badge body, without the arrow
+- (void)fillHintBadge:(NSBezierPath *)path bodyRect:(NSRect)bodyRect {
+	if (!self.hintGradient) {
+		[self.hintBackgroundColor setFill];
+		[path fill];
+		return;
+	}
+
+	[NSGraphicsContext saveGraphicsState];
+	[path addClip];
+	[self.hintGradient drawFromPoint:NSMakePoint(NSMidX(bodyRect), NSMaxY(bodyRect))
+	                         toPoint:NSMakePoint(NSMidX(bodyRect), NSMinY(bodyRect))
+	                         options:NSGradientDrawsBeforeStartingLocation | NSGradientDrawsAfterEndingLocation];
+	[NSGraphicsContext restoreGraphicsState];
 }
 
 #pragma mark - Search Input
@@ -2820,6 +2937,32 @@ static inline void free_hint_style_strings(const HintStyle *style) {
 		free((void *)style->boundaryBackgroundColor);
 	if (style->boundaryBorderColor)
 		free((void *)style->boundaryBorderColor);
+	if (style->backgroundGradientColor)
+		free((void *)style->backgroundGradientColor);
+	if (style->shadowColor)
+		free((void *)style->shadowColor);
+	if (style->textShadowColor)
+		free((void *)style->textShadowColor);
+}
+
+/// Copy a hint style to cross onto the main queue. The numbers come with the
+/// struct, and every string is duplicated, because the caller's are freed once
+/// it returns. free_hint_style_strings releases the copies.
+/// @param style Hint style
+/// @return Copy that owns its strings
+static HintStyle copy_hint_style(HintStyle style) {
+	HintStyle copy = style;
+	copy.fontFamily = safe_strdup(style.fontFamily);
+	copy.backgroundColor = safe_strdup(style.backgroundColor);
+	copy.textColor = safe_strdup(style.textColor);
+	copy.matchedTextColor = safe_strdup(style.matchedTextColor);
+	copy.borderColor = safe_strdup(style.borderColor);
+	copy.boundaryBackgroundColor = safe_strdup(style.boundaryBackgroundColor);
+	copy.boundaryBorderColor = safe_strdup(style.boundaryBorderColor);
+	copy.backgroundGradientColor = safe_strdup(style.backgroundGradientColor);
+	copy.shadowColor = safe_strdup(style.shadowColor);
+	copy.textShadowColor = safe_strdup(style.textShadowColor);
+	return copy;
 }
 
 static inline void free_search_input_style_strings(const SearchInputStyle *style) {
@@ -2900,25 +3043,7 @@ void NeruDrawHints(OverlayWindow window, HintData *hints, int count, HintStyle s
 			NeruOrderOverlayWindowIfDrawable(controller, style.forceFlush ? YES : NO);
 		} else {
 			// Copy style strings before crossing the thread boundary
-			HintStyle styleCopy = {
-			    .fontSize = style.fontSize,
-			    .borderRadius = style.borderRadius,
-			    .borderWidth = style.borderWidth,
-			    .paddingX = style.paddingX,
-			    .paddingY = style.paddingY,
-			    .showArrow = style.showArrow,
-			    .placement = style.placement,
-			    .forceFlush = style.forceFlush,
-			    .boundaryHighlightEnabled = style.boundaryHighlightEnabled,
-			    .boundaryBorderWidth = style.boundaryBorderWidth,
-			    .boundaryBorderRadius = style.boundaryBorderRadius,
-			    .fontFamily = safe_strdup(style.fontFamily),
-			    .backgroundColor = safe_strdup(style.backgroundColor),
-			    .textColor = safe_strdup(style.textColor),
-			    .matchedTextColor = safe_strdup(style.matchedTextColor),
-			    .borderColor = safe_strdup(style.borderColor),
-			    .boundaryBackgroundColor = safe_strdup(style.boundaryBackgroundColor),
-			    .boundaryBorderColor = safe_strdup(style.boundaryBorderColor)};
+			HintStyle styleCopy = copy_hint_style(style);
 
 			dispatch_async(dispatch_get_main_queue(), ^{
 				@autoreleasepool {
@@ -3084,85 +3209,14 @@ void NeruDrawIncrementHints(
 			}
 		}
 
-		// Copy all style properties NOW (before async block)
-		CGFloat fontSize = style.fontSize > 0 ? style.fontSize : kDefaultHintFontSize;
-		NSString *fontFamily = nil;
-		if (style.fontFamily) {
-			fontFamily = @(style.fontFamily);
-			if (fontFamily.length == 0)
-				fontFamily = nil;
-		}
-		NSString *bgHex = style.backgroundColor ? @(style.backgroundColor) : nil;
-		NSString *textHex = style.textColor ? @(style.textColor) : nil;
-		NSString *matchedTextHex = style.matchedTextColor ? @(style.matchedTextColor) : nil;
-		NSString *borderHex = style.borderColor ? @(style.borderColor) : nil;
-		NSString *boundaryBgHex = style.boundaryBackgroundColor ? @(style.boundaryBackgroundColor) : nil;
-		NSString *boundaryBorderHex = style.boundaryBorderColor ? @(style.boundaryBorderColor) : nil;
-		int borderRadius = style.borderRadius;
-		int borderWidth = style.borderWidth;
-		int paddingX = style.paddingX;
-		int paddingY = style.paddingY;
-		int boundaryHighlightEnabled = style.boundaryHighlightEnabled;
-		int boundaryBorderWidth = style.boundaryBorderWidth;
-		int boundaryBorderRadius = style.boundaryBorderRadius;
+		// Copy the style before the async block, and apply it there the way a
+		// full draw does, so the two paths cannot drift apart.
+		HintStyle styleCopy = copy_hint_style(style);
 
 		dispatch_async(dispatch_get_main_queue(), ^{
 			@autoreleasepool {
-				// Apply font, re-creating it only when family or size changed
-				BOOL hintFamilyChanged =
-				    (fontFamily != controller.overlayView.cachedHintFontFamily &&
-					 ![fontFamily isEqualToString:controller.overlayView.cachedHintFontFamily]);
-				if (hintFamilyChanged || fontSize != controller.overlayView.cachedHintFontSize) {
-					NSFont *font = nil;
-					if (fontFamily && [fontFamily length] > 0) {
-						font = [controller.overlayView resolveFont:fontFamily size:fontSize bold:YES];
-					}
-					if (!font)
-						font = [NSFont boldSystemFontOfSize:fontSize];
-					controller.overlayView.hintFont = font;
-					controller.overlayView.cachedHintFontFamily = fontFamily;
-					controller.overlayView.cachedHintFontSize = fontSize;
-				}
-
-				// Apply colors
-				if (bgHex) {
-					NSColor *defaultBg = [[NSColor colorWithRed:1.0 green:0.84 blue:0.0
-					                                      alpha:1.0] colorWithAlphaComponent:0.95];
-					controller.overlayView.hintBackgroundColor = [controller.overlayView colorFromHex:bgHex
-					                                                                     defaultColor:defaultBg];
-				}
-				if (textHex) {
-					controller.overlayView.hintTextColor = [controller.overlayView colorFromHex:textHex
-					                                                               defaultColor:[NSColor blackColor]];
-				}
-				if (matchedTextHex) {
-					controller.overlayView.hintMatchedTextColor =
-					    [controller.overlayView colorFromHex:matchedTextHex defaultColor:[NSColor systemBlueColor]];
-				}
-				if (borderHex) {
-					controller.overlayView.hintBorderColor = [controller.overlayView colorFromHex:borderHex
-					                                                                 defaultColor:[NSColor blackColor]];
-				}
-				if (boundaryBgHex) {
-					NSColor *defaultBoundaryBg = [[NSColor systemBlueColor] colorWithAlphaComponent:0.08];
-					controller.overlayView.hintBoundaryBackgroundColor =
-					    [controller.overlayView colorFromHex:boundaryBgHex defaultColor:defaultBoundaryBg];
-				}
-				if (boundaryBorderHex) {
-					NSColor *defaultBoundaryBorder = [[NSColor systemBlueColor] colorWithAlphaComponent:0.45];
-					controller.overlayView.hintBoundaryBorderColor =
-					    [controller.overlayView colorFromHex:boundaryBorderHex defaultColor:defaultBoundaryBorder];
-				}
-
-				// Apply geometry properties
-				controller.overlayView.hintBorderRadius = borderRadius;
-				controller.overlayView.hintBorderWidth = borderWidth >= 0 ? borderWidth : 1.0;
-				controller.overlayView.hintPaddingX = paddingX;
-				controller.overlayView.hintPaddingY = paddingY;
-				controller.overlayView.hintBoundaryHighlightEnabled = boundaryHighlightEnabled ? YES : NO;
-				controller.overlayView.hintBoundaryBorderWidth = boundaryBorderWidth >= 0 ? boundaryBorderWidth : 1.0;
-				controller.overlayView.hintBoundaryBorderRadius =
-				    boundaryBorderRadius >= 0 ? boundaryBorderRadius : 4.0;
+				[controller.overlayView applyStyle:styleCopy];
+				free_hint_style_strings(&styleCopy);
 
 				// Remove hints matching the given positions
 				if (positionsToRemoveArray && [positionsToRemoveArray count] > 0) {

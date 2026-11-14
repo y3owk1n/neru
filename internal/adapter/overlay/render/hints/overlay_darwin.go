@@ -486,41 +486,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 			zap.Int("matched_hints", matchedCount))
 	}
 
-	// Use cached style strings to avoid repeated allocations
-	cachedStyle := o.styleCache.Get(func(_cachedStyle *overlayutil.CachedStyle) {
-		_cachedStyle.FontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
-		_cachedStyle.BgColor = unsafe.Pointer(C.CString(style.BackgroundColor()))
-		_cachedStyle.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
-		_cachedStyle.MatchedTextColor = unsafe.Pointer(C.CString(style.MatchedTextColor()))
-		_cachedStyle.BorderColor = unsafe.Pointer(C.CString(style.BorderColor()))
-		_cachedStyle.BoundaryBgColor = unsafe.Pointer(C.CString(style.BoundaryBackgroundColor()))
-		_cachedStyle.BoundaryBorderColor = unsafe.Pointer(C.CString(style.BoundaryBorderColor()))
-	})
-
-	arrowFlag := 0
-	if showArrow {
-		arrowFlag = 1
-	}
-
-	finalStyle := C.HintStyle{
-		fontSize:                 C.int(style.FontSize()),
-		fontFamily:               (*C.char)(cachedStyle.FontFamily),
-		backgroundColor:          (*C.char)(cachedStyle.BgColor),
-		textColor:                (*C.char)(cachedStyle.TextColor),
-		matchedTextColor:         (*C.char)(cachedStyle.MatchedTextColor),
-		borderColor:              (*C.char)(cachedStyle.BorderColor),
-		borderRadius:             C.int(style.BorderRadius()),
-		borderWidth:              C.int(style.BorderWidth()),
-		paddingX:                 C.int(style.PaddingX()),
-		paddingY:                 C.int(style.PaddingY()),
-		showArrow:                C.int(arrowFlag),
-		placement:                C.int(placement),
-		boundaryHighlightEnabled: C.int(boolToInt(style.BoundaryHighlightEnabled())),
-		boundaryBorderWidth:      C.int(style.BoundaryBorderWidth()),
-		boundaryBorderRadius:     C.int(style.BoundaryBorderRadius()),
-		boundaryBackgroundColor:  (*C.char)(cachedStyle.BoundaryBgColor),
-		boundaryBorderColor:      (*C.char)(cachedStyle.BoundaryBorderColor),
-	}
+	finalStyle := o.nativeHintStyle(style, placement, showArrow)
 
 	C.NeruDrawHints(o.window, &cHints[0], C.int(len(cHints)), finalStyle)
 
@@ -734,44 +700,7 @@ func (o *Overlay) drawHintsIncrementalStructural(
 		}
 	}
 
-	cachedStyle := o.styleCache.Get(func(_cachedStyle *overlayutil.CachedStyle) {
-		_cachedStyle.FontFamily = unsafe.Pointer(C.CString(currentStyle.FontFamily()))
-		_cachedStyle.BgColor = unsafe.Pointer(C.CString(currentStyle.BackgroundColor()))
-		_cachedStyle.TextColor = unsafe.Pointer(C.CString(currentStyle.TextColor()))
-		_cachedStyle.MatchedTextColor = unsafe.Pointer(C.CString(currentStyle.MatchedTextColor()))
-		_cachedStyle.BorderColor = unsafe.Pointer(C.CString(currentStyle.BorderColor()))
-		_cachedStyle.BoundaryBgColor = unsafe.Pointer(
-			C.CString(currentStyle.BoundaryBackgroundColor()),
-		)
-		_cachedStyle.BoundaryBorderColor = unsafe.Pointer(
-			C.CString(currentStyle.BoundaryBorderColor()),
-		)
-	})
-
-	arrowFlag := 0
-	if showArrow {
-		arrowFlag = 1
-	}
-
-	finalStyle := C.HintStyle{
-		fontSize:                 C.int(currentStyle.FontSize()),
-		fontFamily:               (*C.char)(cachedStyle.FontFamily),
-		backgroundColor:          (*C.char)(cachedStyle.BgColor),
-		textColor:                (*C.char)(cachedStyle.TextColor),
-		matchedTextColor:         (*C.char)(cachedStyle.MatchedTextColor),
-		borderColor:              (*C.char)(cachedStyle.BorderColor),
-		borderRadius:             C.int(currentStyle.BorderRadius()),
-		borderWidth:              C.int(currentStyle.BorderWidth()),
-		paddingX:                 C.int(currentStyle.PaddingX()),
-		paddingY:                 C.int(currentStyle.PaddingY()),
-		showArrow:                C.int(arrowFlag),
-		placement:                C.int(placement),
-		boundaryHighlightEnabled: C.int(boolToInt(currentStyle.BoundaryHighlightEnabled())),
-		boundaryBorderWidth:      C.int(currentStyle.BoundaryBorderWidth()),
-		boundaryBorderRadius:     C.int(currentStyle.BoundaryBorderRadius()),
-		boundaryBackgroundColor:  (*C.char)(cachedStyle.BoundaryBgColor),
-		boundaryBorderColor:      (*C.char)(cachedStyle.BoundaryBorderColor),
-	}
+	finalStyle := o.nativeHintStyle(currentStyle, placement, showArrow)
 
 	var hintsToAddPtr *C.HintData
 	var positionsToRemovePtr *C.CGPoint
@@ -835,4 +764,51 @@ func (o *Overlay) convertHintsToC(hintsGo []*Hint, currentInput string) []C.Hint
 	}
 
 	return cHints
+}
+
+// nativeHintStyle is style as the Objective-C overlay takes it, for both the
+// full and the incremental draw. Its strings come from the style cache, so they
+// are allocated once per style rather than once per draw, and stay valid until
+// the cache is freed under drawMu.
+func (o *Overlay) nativeHintStyle(style StyleMode, placement int, showArrow bool) C.HintStyle {
+	cachedStyle := o.styleCache.Get(func(_cachedStyle *overlayutil.CachedStyle) {
+		_cachedStyle.FontFamily = unsafe.Pointer(C.CString(style.FontFamily()))
+		_cachedStyle.BgColor = unsafe.Pointer(C.CString(style.BackgroundColor()))
+		_cachedStyle.TextColor = unsafe.Pointer(C.CString(style.TextColor()))
+		_cachedStyle.MatchedTextColor = unsafe.Pointer(C.CString(style.MatchedTextColor()))
+		_cachedStyle.BorderColor = unsafe.Pointer(C.CString(style.BorderColor()))
+		_cachedStyle.BoundaryBgColor = unsafe.Pointer(C.CString(style.BoundaryBackgroundColor()))
+		_cachedStyle.BoundaryBorderColor = unsafe.Pointer(C.CString(style.BoundaryBorderColor()))
+		_cachedStyle.GradientColor = unsafe.Pointer(C.CString(style.BackgroundGradientColor()))
+		_cachedStyle.ShadowColor = unsafe.Pointer(C.CString(style.ShadowColor()))
+		_cachedStyle.TextShadowColor = unsafe.Pointer(C.CString(style.TextShadowColor()))
+	})
+
+	return C.HintStyle{
+		fontSize:                 C.int(style.FontSize()),
+		fontFamily:               (*C.char)(cachedStyle.FontFamily),
+		backgroundColor:          (*C.char)(cachedStyle.BgColor),
+		textColor:                (*C.char)(cachedStyle.TextColor),
+		matchedTextColor:         (*C.char)(cachedStyle.MatchedTextColor),
+		borderColor:              (*C.char)(cachedStyle.BorderColor),
+		borderRadius:             C.int(style.BorderRadius()),
+		borderWidth:              C.int(style.BorderWidth()),
+		paddingX:                 C.int(style.PaddingX()),
+		paddingY:                 C.int(style.PaddingY()),
+		showArrow:                C.int(boolToInt(showArrow)),
+		placement:                C.int(placement),
+		boundaryHighlightEnabled: C.int(boolToInt(style.BoundaryHighlightEnabled())),
+		boundaryBorderWidth:      C.int(style.BoundaryBorderWidth()),
+		boundaryBorderRadius:     C.int(style.BoundaryBorderRadius()),
+		boundaryBackgroundColor:  (*C.char)(cachedStyle.BoundaryBgColor),
+		boundaryBorderColor:      (*C.char)(cachedStyle.BoundaryBorderColor),
+		backgroundGradientColor:  (*C.char)(cachedStyle.GradientColor),
+		shadowColor:              (*C.char)(cachedStyle.ShadowColor),
+		shadowOffsetX:            C.int(style.ShadowOffsetX()),
+		shadowOffsetY:            C.int(style.ShadowOffsetY()),
+		shadowBlur:               C.int(style.ShadowBlur()),
+		textShadowColor:          (*C.char)(cachedStyle.TextShadowColor),
+		textShadowOffsetX:        C.int(style.TextShadowOffsetX()),
+		textShadowOffsetY:        C.int(style.TextShadowOffsetY()),
+	}
 }

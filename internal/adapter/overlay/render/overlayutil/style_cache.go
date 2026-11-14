@@ -23,6 +23,9 @@ type CachedStyle struct {
 	SubKeyFontFamily    unsafe.Pointer
 	BoundaryBgColor     unsafe.Pointer
 	BoundaryBorderColor unsafe.Pointer
+	GradientColor       unsafe.Pointer
+	ShadowColor         unsafe.Pointer
+	TextShadowColor     unsafe.Pointer
 }
 
 // StyleCache manages caching of C strings for styles to reduce allocations.
@@ -98,4 +101,10 @@ func (c *StyleCache) freeLocked() {
 	c.style.BoundaryBgColor = nil
 	native.FreeCString(c.style.BoundaryBorderColor)
 	c.style.BoundaryBorderColor = nil
+	native.FreeCString(c.style.GradientColor)
+	c.style.GradientColor = nil
+	native.FreeCString(c.style.ShadowColor)
+	c.style.ShadowColor = nil
+	native.FreeCString(c.style.TextShadowColor)
+	c.style.TextShadowColor = nil
 }
