@@ -208,12 +208,12 @@ faint highlight under the letters. These are its stylesheet's values:
 ```toml
 [hints.ui]
 font_family = "Helvetica"
-font_size = 11
+font_size = 11                        # Vimium's size. Raise it if labels read small
 padding_x = 3
 padding_y = 0                         # Vimium's 1px top padding, see below
 border_radius = 3
 border_width = 1
-placement = "center"                  # Vimium's labels have no arrow
+placement = "center"                  # Vimium has no arrow. Leave out to keep Neru's
 background_color = "#FFF785"
 background_gradient_color = "#FFC542"
 text_color = "#302505"
