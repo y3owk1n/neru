@@ -336,13 +336,13 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	// An absolute move supersedes pending relative deltas.
 	s.relativeAnimator.stop()
 
-	cfg := currentLinuxConfig()
-	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
+	anim, ok := CurrentAnimation()
+	if ok && anim.Cursor.MoveMouseEnabled && !bypassSmooth {
 		s.cursorAnimator.animateTo(
 			point,
-			cfg.SmoothCursor.Steps,
-			cfg.SmoothCursor.MaxDuration,
-			cfg.SmoothCursor.DurationPerPixel,
+			anim.Cursor.Steps,
+			anim.Cursor.MaxDuration,
+			anim.Cursor.DurationPerPixel,
 		)
 
 		return nil
@@ -392,10 +392,10 @@ func (s *SystemAdapter) MoveCursorBy(
 	ctx context.Context,
 	delta image.Point,
 ) (bool, error) {
-	cfg := currentLinuxConfig()
+	anim, ok := CurrentAnimation()
 	// On CGO-off builds the injector is the loud stub, but the animator drops
 	// injection errors, so animating would silence it. Fall through instead.
-	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && nativeBackendsCompiledIn {
+	if ok && anim.Cursor.MoveMouseEnabled && nativeBackendsCompiledIn {
 		if s.backend == backendWaylandWlroots {
 			// A failed drain injection could not be surfaced, so route moves
 			// through the direct path, which errors loudly, until a success
@@ -414,8 +414,8 @@ func (s *SystemAdapter) MoveCursorBy(
 			s.cursorAnimator.settle()
 			s.relativeAnimator.addDelta(
 				delta,
-				cfg.SmoothCursor.Steps,
-				cfg.SmoothCursor.RelativeMovementDuration,
+				anim.Cursor.Steps,
+				anim.Cursor.RelativeMovementDuration,
 			)
 
 			return true, nil
@@ -440,8 +440,8 @@ func (s *SystemAdapter) MoveCursorBy(
 							),
 						}
 					},
-					cfg.SmoothCursor.Steps,
-					cfg.SmoothCursor.RelativeMovementDuration,
+					anim.Cursor.Steps,
+					anim.Cursor.RelativeMovementDuration,
 				)
 
 				return true, nil

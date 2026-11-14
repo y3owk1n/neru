@@ -95,9 +95,9 @@ func dragEventType() (C.CGEventType, C.CGMouseButton) {
 func MoveMouse(point image.Point, bypassSmooth bool) {
 	eventType, button := dragEventType()
 
-	cfg := currentConfig()
-	if cfg != nil && cfg.SmoothCursor.MoveMouseEnabled && !bypassSmooth {
-		MoveMouseSmooth(point, cfg.SmoothCursor.Steps, uint32(eventType), uint32(button))
+	anim, ok := currentAnimation()
+	if ok && anim.Cursor.MoveMouseEnabled && !bypassSmooth {
+		MoveMouseSmooth(point, anim.Cursor.Steps, uint32(eventType), uint32(button))
 	} else {
 		cursorAnimator.stop()
 		pos := C.CGPoint{x: C.double(point.X), y: C.double(point.Y)}
@@ -122,8 +122,8 @@ func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
 
 // MoveMouseRelativeSmooth animates a relative cursor move with the fixed
 // per-move duration smooth_cursor.relative_movement_duration. It reports handled == false
-// when smooth cursor is disabled or no config is wired, in which case the
-// caller falls back to its instant warp path.
+// when smooth cursor is disabled or no animation source is wired, in which
+// case the caller falls back to its instant warp path.
 //
 // While an animation is in flight, the delta extends the pending endpoint
 // instead of restarting from the mid-animation cursor position, so no part of
@@ -131,8 +131,8 @@ func MoveMouseSmooth(end image.Point, steps int, eventType, button uint32) {
 // screen, matching the warp fallback's clamping. That also keeps the pending
 // endpoint from drifting off-screen when a key is held at a screen edge.
 func MoveMouseRelativeSmooth(delta image.Point) bool {
-	cfg := currentConfig()
-	if cfg == nil || !cfg.SmoothCursor.MoveMouseEnabled {
+	anim, ok := currentAnimation()
+	if !ok || !anim.Cursor.MoveMouseEnabled {
 		return false
 	}
 
@@ -146,8 +146,8 @@ func MoveMouseRelativeSmooth(delta image.Point) bool {
 				Y: geometry.ClampInt(p.Y, bounds.Min.Y, max(bounds.Max.Y-1, bounds.Min.Y)),
 			}
 		},
-		cfg.SmoothCursor.Steps,
-		cfg.SmoothCursor.RelativeMovementDuration,
+		anim.Cursor.Steps,
+		anim.Cursor.RelativeMovementDuration,
 		uint32(eventType),
 		uint32(button),
 	)
@@ -322,15 +322,15 @@ func MouseUp(button action.MouseButton) error {
 // every chunk the animator posts has to carry it. A zoom that applied only to
 // the first frame would read as a broken binding.
 func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
-	cfg := currentConfig()
-	if cfg != nil && cfg.SmoothScroll.Enabled {
+	anim, ok := currentAnimation()
+	if ok && anim.Scroll.Enabled {
 		scrollAnim.animate(
 			deltaX,
 			deltaY,
 			modifiers,
-			cfg.SmoothScroll.Steps,
-			cfg.SmoothScroll.MaxDuration,
-			cfg.SmoothScroll.DurationPerPixel,
+			anim.Scroll.Steps,
+			anim.Scroll.MaxDuration,
+			anim.Scroll.DurationPerPixel,
 		)
 
 		return nil

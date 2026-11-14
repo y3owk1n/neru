@@ -467,8 +467,8 @@ func scrollNotches(delta int) int {
 func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 	deltaX = -deltaX
 
-	cfg := currentLinuxConfig()
-	if cfg != nil && cfg.SmoothScroll.Enabled {
+	anim, ok := linuxplatform.CurrentAnimation()
+	if ok && anim.Scroll.Enabled {
 		err := scrollBackendAvailable()
 		if err != nil {
 			return err
@@ -482,9 +482,9 @@ func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 			deltaX,
 			deltaY,
 			modifiers,
-			cfg.SmoothScroll.Steps,
-			cfg.SmoothScroll.MaxDuration,
-			cfg.SmoothScroll.DurationPerPixel,
+			anim.Scroll.Steps,
+			anim.Scroll.MaxDuration,
+			anim.Scroll.DurationPerPixel,
 		)
 
 		return nil

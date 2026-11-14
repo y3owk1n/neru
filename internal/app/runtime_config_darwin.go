@@ -10,5 +10,5 @@ import (
 )
 
 func configurePlatformRuntimeConfigProviders(cfgService *loader.Service, _ *zap.Logger) {
-	darwin.SetConfigProvider(cfgService)
+	darwin.SetAnimationSource(cfgService.Animation)
 }

@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/config"
+	linuxplatform "github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 // probeNotchPixels is what this test calls one wheel notch. It is stated here
@@ -24,11 +25,16 @@ const probeNotchPixels = 30
 // statement of what has to arrive on the wire.
 const axisSourceContinuous = 2
 
-// fixedConfig is a config.Provider over one snapshot, which is all the scroll
-// path reads.
-type fixedConfig struct{ cfg *config.Config }
+// useSmoothScroll serves scroll as the smooth scroll settings for the rest
+// of the test, which is all the scroll path reads.
+func useSmoothScroll(t *testing.T, scroll motion.SmoothScroll) {
+	t.Helper()
 
-func (f fixedConfig) Get() *config.Config { return f.cfg }
+	linuxplatform.SetAnimationSource(func() (motion.Animation, bool) {
+		return motion.Animation{Scroll: scroll}, true
+	})
+	t.Cleanup(func() { linuxplatform.SetAnimationSource(nil) })
+}
 
 // requireDesktop skips unless this run opted into tests that drive the real
 // desktop. `just test-desktop` sets the variable, and the headless-sway CI leg
@@ -116,14 +122,12 @@ func TestScrollAtCursor_DeliversSubNotchStepsWithSmoothScroll(t *testing.T) {
 	probe := startProbe(t)
 	aimAtTheProbe(t, probe)
 
-	cfg := config.DefaultConfig()
-	cfg.SmoothScroll.Enabled = true
-	cfg.SmoothScroll.Steps = 16
-	cfg.SmoothScroll.MaxDuration = 200
-	cfg.SmoothScroll.DurationPerPixel = 1.0
-
-	SetConfigProvider(fixedConfig{cfg: cfg})
-	t.Cleanup(func() { SetConfigProvider(nil) })
+	useSmoothScroll(t, motion.SmoothScroll{
+		Enabled:          true,
+		Steps:            16,
+		MaxDuration:      200,
+		DurationPerPixel: 1.0,
+	})
 
 	// One notch's worth of scroll over sixteen steps. Every step is a
 	// sixteenth of a notch, so a backend that could only move in notches would
@@ -183,11 +187,7 @@ func TestScrollAtCursor_DeliversWholeNotchesWithoutSmoothScroll(t *testing.T) {
 	probe := startProbe(t)
 	aimAtTheProbe(t, probe)
 
-	cfg := config.DefaultConfig()
-	cfg.SmoothScroll.Enabled = false
-
-	SetConfigProvider(fixedConfig{cfg: cfg})
-	t.Cleanup(func() { SetConfigProvider(nil) })
+	useSmoothScroll(t, motion.SmoothScroll{})
 
 	err := ScrollAtCursor(0, -probeNotchPixels, 0)
 	if err != nil {
@@ -229,11 +229,7 @@ func TestScrollAtCursor_ScrollsLeftOnPositiveDeltaX(t *testing.T) {
 			probe := startProbe(t)
 			aimAtTheProbe(t, probe)
 
-			cfg := config.DefaultConfig()
-			cfg.SmoothScroll.Enabled = false
-
-			SetConfigProvider(fixedConfig{cfg: cfg})
-			t.Cleanup(func() { SetConfigProvider(nil) })
+			useSmoothScroll(t, motion.SmoothScroll{})
 
 			err := ScrollAtCursor(testCase.deltaX, 0, 0)
 			if err != nil {

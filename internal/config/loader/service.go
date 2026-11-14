@@ -16,6 +16,7 @@ import (
 
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 	"github.com/y3owk1n/neru/internal/domain/parity"
 )
 
@@ -415,6 +416,21 @@ func (s *Service) Get() *config.Config {
 	defer s.mu.RUnlock()
 
 	return s.config
+}
+
+// Animation returns the smooth cursor and scroll settings of the current
+// configuration, and false when none is loaded. The method value is the
+// motion.AnimationSource the platform adapters read on each move.
+func (s *Service) Animation() (motion.Animation, bool) {
+	cfg := s.Get()
+	if cfg == nil {
+		return motion.Animation{}, false
+	}
+
+	return motion.Animation{
+		Cursor: motion.SmoothCursor(cfg.SmoothCursor),
+		Scroll: motion.SmoothScroll(cfg.SmoothScroll),
+	}, true
 }
 
 // Path returns the configuration file path.

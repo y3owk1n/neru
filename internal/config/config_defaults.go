@@ -151,13 +151,6 @@ const (
 	// repeat.
 	DefaultSmoothCursorRelativeMovementDuration = 50
 
-	// MinSmoothCursorAnimationDuration is the floor for every smooth cursor
-	// animation in ms. The animator raises shorter animations to it. It is
-	// also the smallest accepted relative_movement_duration. Anything below
-	// would be silently rounded up rather than honored, so the validator
-	// rejects it.
-	MinSmoothCursorAnimationDuration = 10
-
 	// DefaultSmoothScrollSteps is the default smooth scroll steps.
 	DefaultSmoothScrollSteps = 20
 

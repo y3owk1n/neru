@@ -619,15 +619,15 @@ func ScrollWheel(deltaX, deltaY int, modifiers action.Modifiers) error {
 		return nil
 	}
 
-	cfg := currentWindowsConfig()
-	if cfg != nil && cfg.SmoothScroll.Enabled {
+	anim, ok := currentAnimation()
+	if ok && anim.Scroll.Enabled {
 		scrollAnim.animate(
 			deltaX,
 			deltaY,
 			modifiers,
-			cfg.SmoothScroll.Steps,
-			cfg.SmoothScroll.MaxDuration,
-			cfg.SmoothScroll.DurationPerPixel,
+			anim.Scroll.Steps,
+			anim.Scroll.MaxDuration,
+			anim.Scroll.DurationPerPixel,
 		)
 
 		return nil

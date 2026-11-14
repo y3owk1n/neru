@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 // relativeCursorAnimator animates relative moves on backends whose only
@@ -67,8 +67,8 @@ func (a *relativeCursorAnimator) addDelta(delta image.Point, steps, durationMs i
 	}
 
 	duration := float64(durationMs)
-	if duration < config.MinSmoothCursorAnimationDuration {
-		duration = config.MinSmoothCursorAnimationDuration
+	if duration < motion.MinCursorAnimationDuration {
+		duration = motion.MinCursorAnimationDuration
 	}
 
 	actualSteps := steps

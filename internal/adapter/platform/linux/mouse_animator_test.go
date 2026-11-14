@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 // recorder captures the moves an animator injects so tests can assert on the
@@ -91,7 +91,7 @@ func TestSmoothCursorAnimatorLandsOnTarget(t *testing.T) {
 }
 
 // TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum pins the floor
-// this animator applies to config.MinSmoothCursorAnimationDuration, the same
+// this animator applies to motion.MinCursorAnimationDuration, the same
 // constant ValidateSmoothCursor rejects a shorter relative_movement_duration
 // against, so the value the validator promises to honor is the value the
 // animator honors.
@@ -104,7 +104,7 @@ func TestSmoothCursorAnimatorLandsOnTarget(t *testing.T) {
 func TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum(t *testing.T) {
 	t.Parallel()
 
-	wantSteps := config.MinSmoothCursorAnimationDuration / minCursorStepDelay
+	wantSteps := motion.MinCursorAnimationDuration / minCursorStepDelay
 
 	rec := &recorder{}
 	animator := newSmoothCursorAnimator(rec.pos, rec.move)
@@ -127,7 +127,7 @@ func TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum(t *testing.T) 
 	if got := rec.count(); got != wantSteps {
 		t.Fatalf(
 			"injected %d steps for a below-floor animation, want %d "+
-				"(config.MinSmoothCursorAnimationDuration / minCursorStepDelay)",
+				"(motion.MinCursorAnimationDuration / minCursorStepDelay)",
 			got,
 			wantSteps,
 		)

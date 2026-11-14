@@ -10,5 +10,5 @@ import (
 )
 
 func configurePlatformRuntimeConfigProviders(cfgService *loader.Service, _ *zap.Logger) {
-	windows.SetConfigProvider(cfgService)
+	windows.SetAnimationSource(cfgService.Animation)
 }

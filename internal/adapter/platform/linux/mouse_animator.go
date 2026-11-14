@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
-// Every animation is floored at config.MinSmoothCursorAnimationDuration, the
+// Every animation is floored at motion.MinCursorAnimationDuration, the
 // constant ValidateSmoothCursor checks against, so validator and animator
 // cannot disagree. darwin reads it the same way.
 const (
@@ -344,8 +344,8 @@ restart:
 		duration = float64(req.fixedDuration)
 	}
 
-	if duration < config.MinSmoothCursorAnimationDuration {
-		duration = config.MinSmoothCursorAnimationDuration
+	if duration < motion.MinCursorAnimationDuration {
+		duration = motion.MinCursorAnimationDuration
 	}
 
 	actualSteps := req.steps

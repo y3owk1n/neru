@@ -187,6 +187,54 @@ func TestService_Replace(t *testing.T) {
 	}
 }
 
+// TestService_Animation_FollowsAnUpdate pins that a source taken once reads
+// the configuration current at each call, which is how a reload reaches the
+// platform adapters on their next move.
+func TestService_Animation_FollowsAnUpdate(t *testing.T) {
+	t.Parallel()
+
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	source := service.Animation
+
+	updated := config.DefaultConfig()
+	updated.SmoothCursor.MoveMouseEnabled = true
+	updated.SmoothCursor.Steps = 7
+	updated.SmoothScroll.Enabled = true
+	updated.SmoothScroll.MaxDuration = 90
+
+	err := service.Update(updated, updated)
+	if err != nil {
+		t.Fatalf("Update() failed: %v", err)
+	}
+
+	got, found := source()
+	if !found {
+		t.Fatal("Animation() reported no settings after Update()")
+	}
+
+	if !got.Cursor.MoveMouseEnabled || got.Cursor.Steps != 7 {
+		t.Errorf("Animation().Cursor = %+v, want move_mouse_enabled and steps 7", got.Cursor)
+	}
+
+	if !got.Scroll.Enabled || got.Scroll.MaxDuration != 90 {
+		t.Errorf("Animation().Scroll = %+v, want enabled and max_duration 90", got.Scroll)
+	}
+}
+
+// TestService_Animation_ReportsNoneWithoutAConfiguration pins the unset case
+// the adapters read as "do not animate".
+func TestService_Animation_ReportsNoneWithoutAConfiguration(t *testing.T) {
+	t.Parallel()
+
+	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
+	service.Replace(nil, nil)
+
+	_, found := service.Animation()
+	if found {
+		t.Error("Animation() reported settings with no configuration loaded")
+	}
+}
+
 // concurrencyProbeChars is a distinctive value the concurrency test writes
 // last, so the final read proves the service is still accepting updates.
 const concurrencyProbeChars = "xyz"

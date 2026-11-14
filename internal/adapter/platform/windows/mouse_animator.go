@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
 // The animation floor itself is not declared here. Every smooth-cursor
-// animation is floored at config.MinSmoothCursorAnimationDuration, the same
+// animation is floored at motion.MinCursorAnimationDuration, the same
 // constant ValidateSmoothCursor rejects a shorter relative_movement_duration
 // against, so the validator and the animator cannot disagree about what the
 // daemon will honor. The darwin and linux animators read it the same way.
@@ -386,8 +386,8 @@ restart:
 		duration = float64(req.fixedDuration)
 	}
 
-	if duration < config.MinSmoothCursorAnimationDuration {
-		duration = config.MinSmoothCursorAnimationDuration
+	if duration < motion.MinCursorAnimationDuration {
+		duration = motion.MinCursorAnimationDuration
 	}
 
 	actualSteps := req.steps
