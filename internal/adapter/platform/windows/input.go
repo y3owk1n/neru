@@ -296,12 +296,12 @@ func HeldMouseButtons() []action.MouseButton {
 // EnsureMouseUp releases every button Neru is holding down, at the cursor.
 func EnsureMouseUp() {
 	for _, button := range HeldMouseButtons() {
-		_ = MouseUpAtCursor(button)
+		_ = mouseUpAtCursor(button)
 	}
 }
 
-// MouseUpAtCursor releases the given button at the current cursor position.
-func MouseUpAtCursor(button action.MouseButton) error {
+// mouseUpAtCursor releases the given button at the current cursor position.
+func mouseUpAtCursor(button action.MouseButton) error {
 	pos, err := CurrentCursorPosition()
 	if err != nil {
 		return err

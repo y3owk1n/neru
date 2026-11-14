@@ -143,13 +143,13 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 		})
 
 	// Mouse injection needs cgo and an X11 or Wayland session. Without either,
-	// every click, press, release and scroll is refused (platform/linux/inject).
+	// platform/linux/inject refuses every click, press, release and scroll.
 	if !nativeBackendsCompiledIn ||
 		(s.backend != backendX11 && !s.waylandUsesWlrClientStack()) {
 		refused := ports.FeatureCapability{
 			Status: ports.FeatureStatusStub,
-			Detail: "mouse injection needs a CGO-enabled build in an X11 or Wayland " +
-				"session, so it is refused here",
+			Detail: "mouse injection needs a CGO-enabled build running in an X11 " +
+				"or Wayland session, so it is unavailable here",
 		}
 		capabilities.MouseButtons = refused
 		capabilities.Scroll = refused

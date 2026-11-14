@@ -170,9 +170,8 @@ func (a *Adapter) perform(
 	return nil
 }
 
-// pressOrRelease presses or releases the button addressed by actionType. A
-// toggle resolves against the buttons this process holds: a held button is
-// released and a free one pressed.
+// pressOrRelease presses or releases the button addressed by actionType,
+// resolving a toggle against the buttons this process holds.
 func (a *Adapter) pressOrRelease(
 	actionType action.Type,
 	point image.Point,

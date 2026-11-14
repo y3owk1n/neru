@@ -21,8 +21,8 @@ type MousePort interface {
 	//
 	// A left click while the left button is held ends that drag at the point,
 	// as a left release would. Any other click first releases every held
-	// button. A toggle resolves against the buttons this process holds:
-	// a held button is released and a free one pressed. move_mouse and
+	// button. A toggle releases a held button and presses a free one, going
+	// by the buttons this process holds. move_mouse and
 	// move_mouse_relative move the cursor there. A scroll action is refused,
 	// because scrolls go through Scroll. Every failure, a platform without
 	// injection included, comes back as CodeActionFailed wrapping the reason.
