@@ -2,6 +2,7 @@ package motion_test
 
 import (
 	"image"
+	"math"
 	"testing"
 	"time"
 
@@ -93,7 +94,7 @@ func TestRamp_ParamsFor(t *testing.T) {
 	}
 }
 
-func TestIntegrator_Step_RampsToTheCap(t *testing.T) {
+func TestIntegrator_Step_EasesInThenRampsToTheCap(t *testing.T) {
 	params := ramp.ParamsFor(stepPx)
 	integ := motion.NewIntegrator(image.Point{}, image.Rectangle{})
 
@@ -107,14 +108,59 @@ func TestIntegrator_Step_RampsToTheCap(t *testing.T) {
 		last = pos
 	}
 
-	// 600 px/s at the cap is 6 px per 10 ms tick. The first tick is at the
-	// 200 px/s floor plus one tick of ramp, so 2 px or so.
+	// 600 px/s at the cap is 6 px per 10 ms tick.
 	if per := distances[len(distances)-1]; per != 6 {
 		t.Errorf("final tick moved %d px, want 6 at the cap", per)
 	}
 
-	if first := distances[0]; first < 2 || first > 3 {
-		t.Errorf("first tick moved %d px, want the 2 px floor", first)
+	// The 200 px/s floor is 2 px per tick. The glide eases in from rest, so
+	// the first tick moves less than that.
+	if first := distances[0]; first >= 2 {
+		t.Errorf("first tick moved %d px, want under the 2 px floor", first)
+	}
+}
+
+func TestIntegrator_Step_TurnBendsOverSeveralTicks(t *testing.T) {
+	params := ramp.ParamsFor(stepPx)
+	integ := motion.NewIntegrator(image.Point{}, image.Rectangle{})
+
+	for range 50 {
+		integ.Step(params, motion.Direction{X: 1}, tick)
+	}
+
+	// Adding Down to a glide right aims at 45 degrees. The first tick turns
+	// only part of the way, and the heading reaches 45 degrees within a few
+	// time constants.
+	integ.Step(params, motion.Direction{X: 1, Y: 1}, tick)
+
+	movedX, movedY := integ.Moved()
+	if angle := math.Atan2(movedY, movedX) * 180 / math.Pi; angle <= 0 || angle >= 30 {
+		t.Errorf("first tick after the turn heads %.1f degrees, want between 0 and 30", angle)
+	}
+
+	for range int(4 * motion.Smoothing / tick) {
+		integ.Step(params, motion.Direction{X: 1, Y: 1}, tick)
+	}
+
+	movedX, movedY = integ.Moved()
+	if angle := math.Atan2(movedY, movedX) * 180 / math.Pi; angle < 43 || angle > 45.5 {
+		t.Errorf("heading after the turn settled at %.1f degrees, want 45", angle)
+	}
+}
+
+func TestIntegrator_Step_ReleaseStopsWithoutCoasting(t *testing.T) {
+	params := ramp.ParamsFor(stepPx)
+	integ := motion.NewIntegrator(image.Point{}, image.Rectangle{})
+
+	var held image.Point
+	for range 50 {
+		held = integ.Step(params, motion.Direction{X: 1}, tick)
+	}
+
+	for range 10 {
+		if pos := integ.Step(params, motion.Direction{}, tick); pos != held {
+			t.Fatalf("cursor coasted to %v after release, want it to stay at %v", pos, held)
+		}
 	}
 }
 

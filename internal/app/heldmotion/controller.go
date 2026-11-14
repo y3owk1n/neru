@@ -29,17 +29,15 @@ type heldKey struct {
 // heldEntry is what one held key contributes: where it points and how far its
 // binding steps, which is what sets the glide's speed.
 type heldEntry struct {
-	dir       motion.Direction
-	step      float64
-	pressedAt time.Time
-	// interval is one step's worth of travel as configured at press time, so
-	// a reload mid-hold does not skew what a tap is owed.
-	interval time.Duration
+	dir  motion.Direction
+	step float64
+	// traveled is how far the glide has moved along dir since the press, so a
+	// release knows what is left of one step.
+	traveled float64
 }
 
-// tap is the travel a key released within one interval of its press is still
-// owed. The glide had not yet moved it a full step, and a tap on a stepped
-// binding always moved one.
+// tap is travel still owed to a key released before the glide moved it a
+// full step. A tap on a stepped binding always moved one step.
 type tap struct {
 	dir      motion.Direction
 	distance float64
@@ -153,8 +151,6 @@ func (g *Group) ReleaseAll() {
 
 func (c *Controller) press(key heldKey, entry heldEntry) {
 	ramp := c.ramp()
-	entry.pressedAt = time.Now()
-	entry.interval = ramp.Interval
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -172,9 +168,9 @@ func (c *Controller) press(key heldKey, entry heldEntry) {
 	go c.run(c.loopID)
 }
 
-// release drops the key and, when it was held for less than one interval,
-// owes the loop the rest of a step, because a tap on a stepped binding always
-// moved one, and the glide may not have ticked at all yet.
+// release drops the key and owes the loop what is left of one step, since a
+// tap on a stepped binding always moved one. The glide eases in, so a tap may
+// have moved less than a step or not ticked at all.
 func (c *Controller) release(key heldKey) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -182,19 +178,25 @@ func (c *Controller) release(key heldKey) bool {
 	entry, ok := c.held[key]
 	delete(c.held, key)
 
-	if !ok || entry.interval <= 0 {
+	if !ok || entry.traveled >= entry.step {
 		return ok
 	}
 
-	held := time.Since(entry.pressedAt)
-	if held >= entry.interval {
-		return true
-	}
-
-	owed := entry.step * (1 - held.Seconds()/entry.interval.Seconds())
-	c.taps = append(c.taps, tap{dir: entry.dir, distance: owed})
+	c.taps = append(c.taps, tap{dir: entry.dir, distance: entry.step - entry.traveled})
 
 	return true
+}
+
+// credit adds one tick's travel to every held key, measured along each key's
+// own heading, so a key steering one axis of a diagonal counts only its share.
+func (c *Controller) credit(movedX, movedY float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for key, entry := range c.held {
+		entry.traveled += max(0, movedX*entry.dir.X+movedY*entry.dir.Y)
+		c.held[key] = entry
+	}
 }
 
 // tickInput is what one tick of the loop acts on: any taps owed since the
@@ -299,6 +301,8 @@ func (c *Controller) run(id uint64) {
 			min(now.Sub(last), MaxTickDelta),
 		)
 		last = now
+
+		c.credit(integrator.Moved())
 
 		if pos == posted {
 			continue
