@@ -90,6 +90,7 @@ func newCaptureHintsHandler(
 		system:        systemMock,
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockMousePort{},
 			&portmocks.MockOverlayPort{},
 			systemMock,
 			zap.NewNop(),

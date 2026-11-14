@@ -10,7 +10,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	winplatform "github.com/y3owk1n/neru/internal/adapter/platform/windows"
-	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
@@ -232,84 +231,6 @@ func FrontmostWindow() *Element {
 			pid:       pid,
 		},
 	}
-}
-
-// IsMouseButtonDown returns whether the given mouse button is held down.
-func IsMouseButtonDown(button action.MouseButton) bool {
-	return winplatform.IsMouseButtonDown(button)
-}
-
-// EnsureMouseUp releases every mouse button Neru is currently holding down.
-func EnsureMouseUp() {
-	for _, button := range winplatform.HeldMouseButtons() {
-		_ = MouseUp(button)
-	}
-}
-
-// MoveMouseToPoint moves the mouse.
-func MoveMouseToPoint(point image.Point, _ bool) {
-	_ = winplatform.MoveMouseTo(point)
-}
-
-// LeftClickAtPoint clicks the mouse.
-func LeftClickAtPoint(
-	point image.Point,
-	_ bool,
-	modifiers action.Modifiers,
-) error {
-	return winplatform.ClickAt(point, action.ButtonLeft, modifiers)
-}
-
-// RightClickAtPoint clicks the mouse.
-func RightClickAtPoint(
-	point image.Point,
-	_ bool,
-	modifiers action.Modifiers,
-) error {
-	return winplatform.ClickAt(point, action.ButtonRight, modifiers)
-}
-
-// MiddleClickAtPoint clicks the mouse.
-func MiddleClickAtPoint(
-	point image.Point,
-	_ bool,
-	modifiers action.Modifiers,
-) error {
-	return winplatform.ClickAt(point, action.ButtonMiddle, modifiers)
-}
-
-// MouseDownAtPoint presses and holds the given mouse button at the point.
-func MouseDownAtPoint(
-	point image.Point,
-	button action.MouseButton,
-	modifiers action.Modifiers,
-) error {
-	return winplatform.MouseDown(point, button, modifiers)
-}
-
-// MouseUpAtPoint releases the given mouse button at the point.
-func MouseUpAtPoint(
-	point image.Point,
-	button action.MouseButton,
-	modifiers action.Modifiers,
-) error {
-	return winplatform.MouseUp(point, button, modifiers)
-}
-
-// MouseUp releases the given mouse button at the cursor.
-func MouseUp(button action.MouseButton) error {
-	pos, err := winplatform.CurrentCursorPosition()
-	if err != nil {
-		return err
-	}
-
-	return MouseUpAtPoint(pos, button, 0)
-}
-
-// ScrollAtCursor scrolls the mouse on both axes, with modifiers presented as
-// held.
-func ScrollAtCursor(deltaX int, deltaY int, modifiers action.Modifiers) error {
-	return winplatform.ScrollWheel(deltaX, deltaY, modifiers)
 }
 
 // IsMissionControlActive returns whether Mission Control is active (stub).

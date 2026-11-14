@@ -11,7 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/accessibility"
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
 	"github.com/y3owk1n/neru/internal/derrors"
-	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/element"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -42,44 +41,6 @@ func TestAdapter_UpdateClickableRoles(t *testing.T) {
 			len(newRoles),
 			len(mockClient.MockClickableRoles),
 		)
-	}
-}
-
-func TestAdapter_Scroll(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, mockClient, false)
-	ctx := context.Background()
-
-	tests := []struct {
-		name   string
-		deltaX int
-		deltaY int
-	}{
-		{
-			name:   "scroll down",
-			deltaX: 0,
-			deltaY: -10,
-		},
-		{
-			name:   "scroll up",
-			deltaX: 0,
-			deltaY: 10,
-		},
-		{
-			name:   "scroll right",
-			deltaX: 10,
-			deltaY: 0,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			scrollErr := adapter.Scroll(ctx, testCase.deltaX, testCase.deltaY, 0)
-			if scrollErr != nil {
-				t.Errorf("Scroll() error = %v", scrollErr)
-			}
-		})
 	}
 }
 
@@ -158,51 +119,6 @@ func TestAdapter_MatchesFilter(t *testing.T) {
 			got := adapter.MatchesFilter(testCase.elem, testCase.filter)
 			if got != testCase.want {
 				t.Errorf("matchesFilter() = %v, want %v", got, testCase.want)
-			}
-		})
-	}
-}
-
-func TestAdapter_PerformActionAtPoint(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, mockClient, false)
-	ctx := context.Background()
-
-	tests := []struct {
-		name       string
-		actionType action.Type
-		point      image.Point
-		wantErr    bool
-	}{
-		{
-			name:       "click at point",
-			actionType: action.TypeLeftClick,
-			point:      image.Point{X: 100, Y: 100},
-			wantErr:    false,
-		},
-		{
-			name:       "right click at point",
-			actionType: action.TypeRightClick,
-			point:      image.Point{X: 200, Y: 200},
-			wantErr:    false,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			performActionErr := adapter.PerformActionAtPoint(
-				ctx,
-				testCase.actionType,
-				testCase.point,
-				0,
-			)
-			if (performActionErr != nil) != testCase.wantErr {
-				t.Errorf(
-					"PerformActionAtPoint() error = %v, wantErr %v",
-					performActionErr,
-					testCase.wantErr,
-				)
 			}
 		})
 	}

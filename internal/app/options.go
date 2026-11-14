@@ -163,6 +163,16 @@ func WithLinesHelper(command string) Option {
 	}
 }
 
+// WithMouse sets the port clicks and scrolls are injected through.
+// Note: mouse can be nil, will be initialized during app startup if not provided.
+func WithMouse(mouse ports.MousePort) Option {
+	return func(a *App) error {
+		a.mouse = mouse
+
+		return nil
+	}
+}
+
 // WithKeyFeed sets the port keys are typed into the focused app through.
 // Note: keyFeed can be nil, will be initialized during app startup if not provided.
 func WithKeyFeed(keyFeed ports.KeyFeedPort) Option {

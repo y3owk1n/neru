@@ -1638,6 +1638,7 @@ func buildSimHarness(
 		app.WithOverlayPort(overlayPort),
 		app.WithSystemPort(system),
 		app.WithAccessibility(axPort),
+		app.WithMouse(axPort),
 		app.WithVisionPort(vision),
 		app.WithClipboard(clipboard),
 		app.WithKeyFeed(keyFeed),

@@ -25,6 +25,7 @@ func newCaptureScopeHandler(bundleID string, bundleErr error) *handlerState {
 					return bundleID, bundleErr
 				},
 			},
+			&portmocks.MockMousePort{},
 			&portmocks.MockOverlayPort{},
 			&portmocks.MockSystemPort{},
 			zap.NewNop(),

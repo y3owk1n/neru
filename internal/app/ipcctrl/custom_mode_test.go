@@ -28,6 +28,7 @@ func newDeclaredModeController() (*ipcctrl.Controller, *state.AppState) {
 	appState := state.NewAppState()
 	actionService := services.NewActionService(
 		&portmocks.MockAccessibilityPort{},
+		&portmocks.MockMousePort{},
 		&portmocks.MockOverlayPort{},
 		&portmocks.MockSystemPort{},
 		logger,

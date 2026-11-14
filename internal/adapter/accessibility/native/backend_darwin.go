@@ -33,18 +33,8 @@ var (
 	FrontmostAndPopoverWindows    = darwin.FrontmostAndPopoverWindows
 	FrontmostWindow               = darwin.FrontmostWindow
 	IsMissionControlActive        = darwin.IsMissionControlActive
-	IsMouseButtonDown             = darwin.IsMouseButtonDown
-	LeftClickAtPoint              = darwin.LeftClickAtPoint
-	MiddleClickAtPoint            = darwin.MiddleClickAtPoint
-	MouseDownAtPoint              = darwin.MouseDownAtPoint
-	MouseUp                       = darwin.MouseUp
-	MouseUpAtPoint                = darwin.MouseUpAtPoint
-	MoveMouseToPoint              = darwin.MoveMouseToPoint
-	MoveMouseToPointSmooth        = darwin.MoveMouseToPointSmooth
 	PrimeApplication              = darwin.PrimeApplication
 	ReleaseAll                    = darwin.ReleaseAll
-	RightClickAtPoint             = darwin.RightClickAtPoint
-	ScrollAtCursor                = darwin.ScrollAtCursor
 	SetClickableRoles             = darwin.SetClickableRoles
 	SystemWideElement             = darwin.SystemWideElement
 )
@@ -52,7 +42,6 @@ var (
 // The shell calls these by their unexported names, so the dispatch slot binds
 // them here rather than renaming every call site.
 var (
-	ensureMouseUp                 = darwin.EnsureMouseUp
 	supportsSupplementaryElements = darwin.SupportsSupplementaryElements
 	ReleaseTreeExcept             = darwin.ReleaseTreeExcept
 )

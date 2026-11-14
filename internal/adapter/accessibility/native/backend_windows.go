@@ -33,17 +33,8 @@ var (
 	FrontmostAndPopoverWindows    = windows.FrontmostAndPopoverWindows
 	FrontmostWindow               = windows.FrontmostWindow
 	IsMissionControlActive        = windows.IsMissionControlActive
-	IsMouseButtonDown             = windows.IsMouseButtonDown
-	LeftClickAtPoint              = windows.LeftClickAtPoint
-	MiddleClickAtPoint            = windows.MiddleClickAtPoint
-	MouseDownAtPoint              = windows.MouseDownAtPoint
-	MouseUp                       = windows.MouseUp
-	MouseUpAtPoint                = windows.MouseUpAtPoint
-	MoveMouseToPoint              = windows.MoveMouseToPoint
 	ProcessClickableNodes         = windows.ProcessClickableNodes
 	ReleaseTree                   = windows.ReleaseTree
-	RightClickAtPoint             = windows.RightClickAtPoint
-	ScrollAtCursor                = windows.ScrollAtCursor
 	SetClickableRoles             = windows.SetClickableRoles
 	SystemWideElement             = windows.SystemWideElement
 )
@@ -51,7 +42,6 @@ var (
 // The shell calls these by their unexported names, so the dispatch slot binds
 // them here rather than renaming every call site.
 var (
-	ensureMouseUp     = windows.EnsureMouseUp
 	ReleaseTreeExcept = windows.ReleaseTreeExcept
 )
 

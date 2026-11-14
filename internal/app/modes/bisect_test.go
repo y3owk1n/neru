@@ -42,6 +42,7 @@ func newBisectFixture(t *testing.T) *bisectFixture {
 		logger:   zap.NewNop(),
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockMousePort{},
 			&portmocks.MockOverlayPort{},
 			&portmocks.MockSystemPort{
 				MoveCursorToPointFunc: func(_ context.Context, point image.Point, _ bool) error {

@@ -10,6 +10,7 @@ import (
 	eventtapadapter "github.com/y3owk1n/neru/internal/adapter/eventtap"
 	ipcadapter "github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/adapter/keyfeed"
+	"github.com/y3owk1n/neru/internal/adapter/mouse"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
 	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
@@ -75,6 +76,10 @@ func initializeInfrastructure(app *App) error {
 		app.keyFeed = keyfeed.NewAdapter(logger)
 	}
 
+	if app.mouse == nil {
+		app.mouse = mouse.NewAdapter(logger)
+	}
+
 	if app.clipboard == nil {
 		app.clipboard = clipboard.NewAdapter(logger)
 	}
@@ -130,6 +135,7 @@ func initializeServicesAndAdapters(app *App) error {
 	hintService, gridService, actionService, scrollService, indicators, err := initializeServices(
 		cfg,
 		accAdapter,
+		app.mouse,
 		overlayAdapter,
 		app.systemPort,
 		app.vision,

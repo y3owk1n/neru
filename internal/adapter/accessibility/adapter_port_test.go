@@ -58,37 +58,3 @@ func TestAdapter_PrimeApplicationHonorsCanceledContext(t *testing.T) {
 		t.Fatal("PrimeApplication() on a canceled context error = nil, want an error")
 	}
 }
-
-// TestAdapter_ReleaseHeldButtons covers the port method that replaced the
-// exported accessibility.EnsureMouseUp free function.
-//
-// It runs on every mode-exit path, so it must be idempotent and safe when
-// nothing is held.
-func TestAdapter_ReleaseHeldButtons(t *testing.T) {
-	t.Parallel()
-
-	adapter := newTestAdapter(t)
-
-	for attempt := range 3 {
-		err := adapter.ReleaseHeldButtons(t.Context())
-		if err != nil {
-			t.Fatalf("ReleaseHeldButtons() attempt %d error = %v, want nil", attempt+1, err)
-		}
-	}
-}
-
-// TestAdapter_ReleaseHeldButtonsHonorsCanceledContext pins the context check,
-// so a canceled cleanup does not reach into the platform layer.
-func TestAdapter_ReleaseHeldButtonsHonorsCanceledContext(t *testing.T) {
-	t.Parallel()
-
-	adapter := newTestAdapter(t)
-
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-
-	err := adapter.ReleaseHeldButtons(ctx)
-	if err == nil {
-		t.Fatal("ReleaseHeldButtons() on a canceled context error = nil, want an error")
-	}
-}

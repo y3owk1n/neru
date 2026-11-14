@@ -53,8 +53,8 @@ func TestRealComponents_StartupModesShutdown(t *testing.T) {
 
 	// Overlay, IPC, watcher and hotkeys stay mocked, because they would create native
 	// windows, bind sockets, and register global hotkeys on the developer's
-	// machine. System port, accessibility and event tap stay real, since that
-	// is what this test exists to cover.
+	// machine. System port, accessibility, mouse and event tap stay real, since
+	// that is what this test exists to cover.
 	application, err := app.New(
 		app.WithConfig(cfg),
 		app.WithConfigPath(""),

@@ -162,6 +162,7 @@ func newIndicatorServices(
 func initializeServices(
 	cfg *config.Config,
 	accAdapter ports.AccessibilityPort,
+	mousePort ports.MousePort,
 	overlayAdapter ports.OverlayPort,
 	systemPort ports.SystemPort,
 	visionPort ports.VisionPort,
@@ -199,6 +200,7 @@ func initializeServices(
 
 	actionService := services.NewActionService(
 		accAdapter,
+		mousePort,
 		overlayAdapter,
 		systemPort,
 		logger,
@@ -207,6 +209,7 @@ func initializeServices(
 
 	scrollService := services.NewScrollService(
 		accAdapter,
+		mousePort,
 		systemPort,
 		cfg.Scroll,
 		logger,

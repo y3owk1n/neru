@@ -119,6 +119,7 @@ func newSyncOrderHandler(system *syncOrderSystem) *Handler {
 		overlayPort:   &portmocks.MockOverlayPort{},
 		actionService: services.NewActionService(
 			&portmocks.MockAccessibilityPort{},
+			&portmocks.MockMousePort{},
 			&portmocks.MockOverlayPort{},
 			system,
 			zap.NewNop(),
