@@ -1,6 +1,4 @@
-//go:build linux
-
-package linux
+package cursoranim
 
 import (
 	"context"
@@ -16,28 +14,35 @@ import (
 // constant ValidateSmoothCursor checks against, so validator and animator
 // cannot disagree. darwin reads it the same way.
 const (
-	// minCursorStepDelay is the shortest gap between injected steps, a
-	// scheduling floor on this animator's timer and not a config value.
-	minCursorStepDelay = 1 // ms
-	// defaultCursorSteps is the step count for a caller that passes none
-	// (<= 0). It equals config.DefaultSmoothCursorSteps by coincidence. No
-	// validated config reaches it, and moving the config default must not
-	// move it.
-	defaultCursorSteps = 10
+	// MinStepDelay is the shortest gap between injected steps, in
+	// milliseconds, a scheduling floor on the animator's timer and not a
+	// config value.
+	MinStepDelay = 1
+	// DefaultSteps is the step count for a caller that passes none (<= 0). It
+	// equals config.DefaultSmoothCursorSteps by coincidence. No validated
+	// config reaches it, and moving the config default must not move it.
+	DefaultSteps = 10
 )
 
-// cursorAnimationDone is a once-closable completion signal WaitForCursorIdle
-// blocks on, mirroring the darwin animator's done channel.
-type cursorAnimationDone struct {
+// Done is a once-closable completion signal WaitForCursorIdle blocks on,
+// mirroring the darwin animator's done channel.
+type Done struct {
 	ch   chan struct{}
 	once sync.Once
 }
 
-func newCursorAnimationDone() *cursorAnimationDone {
-	return &cursorAnimationDone{ch: make(chan struct{})}
+// NewDone returns an open completion signal.
+func NewDone() *Done {
+	return &Done{ch: make(chan struct{})}
 }
 
-func (d *cursorAnimationDone) close() {
+// C returns the channel that closes when the signal does.
+func (d *Done) C() <-chan struct{} {
+	return d.ch
+}
+
+// Close closes the signal. It is safe to call more than once and on nil.
+func (d *Done) Close() {
 	if d == nil {
 		return
 	}
@@ -48,7 +53,7 @@ func (d *cursorAnimationDone) close() {
 }
 
 // cursorRequest is one "animate to end" target. Completion is tracked per
-// session (see smoothCursorAnimator), not per target, so coalescing a
+// session (see Animator), not per target, so coalescing a
 // superseded target never releases a waiter early.
 type cursorRequest struct {
 	end              image.Point
@@ -58,25 +63,25 @@ type cursorRequest struct {
 	fixedDuration    int // when > 0, overrides the distance-derived duration
 }
 
-// smoothCursorAnimator glides the cursor toward a target like the darwin
+// Animator glides the cursor toward a target like the darwin
 // animator, with one worker goroutine, latest target wins, and a completion
 // WaitForCursorIdle blocks on. A direct move cancels an in-flight animation,
-// and stop() fences on injectSem so a canceled step never lands after the
+// and Stop fences on injectSem so a canceled step never lands after the
 // warp. Step errors are dropped, as darwin's native move cannot report them,
 // while MoveCursorToPoint still returns them.
 //
 // Targets arriving mid-session share one completion, so a waiter tracks the
-// latest target. pos samples once per request, so a stale Wayland cache bends
-// the glide path but never moves where the cursor lands.
-type smoothCursorAnimator struct {
+// latest target. pos samples once per request, so a stale or wrong position
+// read bends the glide path but never moves where the cursor lands.
+type Animator struct {
 	pos  func() image.Point
 	move func(image.Point) error
 
 	mu     sync.Mutex
 	reqCh  chan cursorRequest
 	stopCh chan struct{}
-	done   *cursorAnimationDone // current session completion; nil only between stop() and the next session
-	busy   bool                 // a session is in progress (worker actively draining toward a target)
+	done   *Done // current session completion; nil only between Stop and the next session
+	busy   bool  // a session is in progress (worker actively draining toward a target)
 
 	// pendingEnd is the in-flight target. Relative moves extend it rather than
 	// the possibly stale cursor position, so key repeat loses no delta.
@@ -84,26 +89,28 @@ type smoothCursorAnimator struct {
 	hasPending bool
 
 	// injectSem is a size-1 semaphore serializing backend injection, and the
-	// ordering handoff to stop(). The worker holds it per step and re-checks
-	// stopCh under it, so once stop() holds it no canceled step can run. It is
+	// ordering handoff to Stop. The worker holds it per step and re-checks
+	// stopCh under it, so once Stop holds it no canceled step can run. It is
 	// never held together with mu.
 	injectSem chan struct{}
 }
 
-func newSmoothCursorAnimator(
+// New returns an animator that reads the cursor with pos and injects each
+// step with move.
+func New(
 	pos func() image.Point,
 	move func(image.Point) error,
-) *smoothCursorAnimator {
-	return &smoothCursorAnimator{
+) *Animator {
+	return &Animator{
 		pos:       pos,
 		move:      move,
 		injectSem: make(chan struct{}, 1),
 	}
 }
 
-// stop cancels any in-flight animation and releases waiters, so a direct warp
+// Stop cancels any in-flight animation and releases waiters, so a direct warp
 // wins over a running tween. Closing stopCh detaches the stale worker.
-func (a *smoothCursorAnimator) stop() {
+func (a *Animator) Stop() {
 	a.mu.Lock()
 	stopCh := a.stopCh
 	done := a.done
@@ -118,7 +125,7 @@ func (a *smoothCursorAnimator) stop() {
 	}
 	a.mu.Unlock()
 
-	done.close()
+	done.Close()
 
 	// stopCh is closed, so once we hold injectSem any mid-injection step has
 	// finished and any later one skips in stepMove. The caller's direct move
@@ -128,20 +135,11 @@ func (a *smoothCursorAnimator) stop() {
 	<-a.injectSem
 }
 
-// pendingTarget returns the endpoint of the animation currently in flight,
-// or ok == false when no animation is active.
-func (a *smoothCursorAnimator) pendingTarget() (image.Point, bool) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	return a.pendingEnd, a.hasPending
-}
-
-// settle cancels any in-flight animation and warps straight to its endpoint,
+// Settle cancels any in-flight animation and warps straight to its endpoint,
 // so a position-dependent action acts where the user aimed without waiting.
-// The warp happens under injectSem, as in stop(), so no canceled step lands
+// The warp happens under injectSem, as in Stop, so no canceled step lands
 // after it.
-func (a *smoothCursorAnimator) settle() {
+func (a *Animator) Settle() {
 	a.mu.Lock()
 
 	if !a.hasPending {
@@ -164,7 +162,7 @@ func (a *smoothCursorAnimator) settle() {
 	}
 	a.mu.Unlock()
 
-	done.close()
+	done.Close()
 
 	a.injectSem <- struct{}{}
 
@@ -173,28 +171,9 @@ func (a *smoothCursorAnimator) settle() {
 	<-a.injectSem
 }
 
-// stepMove injects one step under injectSem, and skips it, returning false,
-// once stopCh is closed. With stop()'s barrier, a canceled tween never warps
-// the cursor after a direct move.
-func (a *smoothCursorAnimator) stepMove(point image.Point, stopCh <-chan struct{}) bool {
-	a.injectSem <- struct{}{}
-	defer func() { <-a.injectSem }()
-
-	select {
-	case <-stopCh:
-		return false
-	default:
-	}
-
-	// Best-effort, see smoothCursorAnimator.
-	_ = a.move(point)
-
-	return true
-}
-
-// wait blocks until the current session settles or ctx is canceled, and
+// Wait blocks until the current session settles or ctx is canceled, and
 // returns at once when no session is active (the non-smooth path).
-func (a *smoothCursorAnimator) wait(ctx context.Context) error {
+func (a *Animator) Wait(ctx context.Context) error {
 	a.mu.Lock()
 	done := a.done
 	a.mu.Unlock()
@@ -204,20 +183,20 @@ func (a *smoothCursorAnimator) wait(ctx context.Context) error {
 	}
 
 	select {
-	case <-done.ch:
+	case <-done.C():
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 }
 
-// animateTo enqueues an animation toward end. A target arriving mid-session
+// AnimateTo enqueues an animation toward end. A target arriving mid-session
 // joins the running session so its waiter tracks the latest target.
 //
 // Worker start and enqueue share one a.mu critical section, so a concurrent
-// stop() cannot swap the channel between picking it and sending, and no
+// Stop cannot swap the channel between picking it and sending, and no
 // request is stranded on an orphaned channel.
-func (a *smoothCursorAnimator) animateTo(
+func (a *Animator) AnimateTo(
 	end image.Point,
 	steps, maxDuration int,
 	durationPerPixel float64,
@@ -235,12 +214,12 @@ func (a *smoothCursorAnimator) animateTo(
 	a.submitLocked(req)
 }
 
-// animateRelativeBy animates a relative move over a fixed duration, so speed
+// AnimateRelativeBy animates a relative move over a fixed duration, so speed
 // scales with the delta instead of collapsing to constant velocity. The base is
 // the pending endpoint (else the sampled position) plus delta, clamped. It is
 // computed and submitted under one lock hold, so concurrent relative movers
 // compose their deltas instead of overwriting each other.
-func (a *smoothCursorAnimator) animateRelativeBy(
+func (a *Animator) AnimateRelativeBy(
 	delta image.Point,
 	clamp func(image.Point) image.Point,
 	steps int,
@@ -268,10 +247,38 @@ func (a *smoothCursorAnimator) animateRelativeBy(
 	})
 }
 
+// pendingTarget returns the endpoint of the animation currently in flight,
+// or ok == false when no animation is active.
+func (a *Animator) pendingTarget() (image.Point, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	return a.pendingEnd, a.hasPending
+}
+
+// stepMove injects one step under injectSem, and skips it, returning false,
+// once stopCh is closed. With Stop's barrier, a canceled tween never warps
+// the cursor after a direct move.
+func (a *Animator) stepMove(point image.Point, stopCh <-chan struct{}) bool {
+	a.injectSem <- struct{}{}
+	defer func() { <-a.injectSem }()
+
+	select {
+	case <-stopCh:
+		return false
+	default:
+	}
+
+	// Best-effort, see Animator.
+	_ = a.move(point)
+
+	return true
+}
+
 // submitLocked records req as the pending animation target and hands it to
 // the worker, starting the worker and a fresh session completion when needed.
 // Callers must hold a.mu.
-func (a *smoothCursorAnimator) submitLocked(req cursorRequest) {
+func (a *Animator) submitLocked(req cursorRequest) {
 	if a.reqCh == nil {
 		a.reqCh = make(chan cursorRequest, 1)
 		a.stopCh = make(chan struct{})
@@ -280,7 +287,7 @@ func (a *smoothCursorAnimator) submitLocked(req cursorRequest) {
 	}
 
 	if !a.busy {
-		a.done = newCursorAnimationDone()
+		a.done = NewDone()
 		a.busy = true
 	}
 
@@ -294,7 +301,7 @@ func (a *smoothCursorAnimator) submitLocked(req cursorRequest) {
 // survives. The caller must hold a.mu. Under the lock we are the only producer
 // and the worker only removes, so after draining a stale target the send
 // cannot block. Targets carry no completion, so dropping one is a plain discard.
-func (a *smoothCursorAnimator) enqueueLocked(req cursorRequest) {
+func (a *Animator) enqueueLocked(req cursorRequest) {
 	select {
 	case a.reqCh <- req:
 		return
@@ -312,10 +319,10 @@ func (a *smoothCursorAnimator) enqueueLocked(req cursorRequest) {
 	}
 }
 
-func (a *smoothCursorAnimator) run(reqCh <-chan cursorRequest, stopCh <-chan struct{}) {
+func (a *Animator) run(reqCh <-chan cursorRequest, stopCh <-chan struct{}) {
 	timer := time.NewTimer(time.Hour)
 
-	stopAndDrainTimer(timer)
+	StopAndDrainTimer(timer)
 	defer timer.Stop()
 
 	for {
@@ -328,7 +335,7 @@ func (a *smoothCursorAnimator) run(reqCh <-chan cursorRequest, stopCh <-chan str
 	}
 }
 
-func (a *smoothCursorAnimator) runRequest(
+func (a *Animator) runRequest(
 	req cursorRequest,
 	reqCh <-chan cursorRequest,
 	stopCh <-chan struct{},
@@ -350,15 +357,15 @@ restart:
 
 	actualSteps := req.steps
 	if actualSteps <= 0 {
-		actualSteps = defaultCursorSteps
+		actualSteps = DefaultSteps
 	}
 
-	maxSteps := max(int(duration/float64(minCursorStepDelay)), 1)
+	maxSteps := max(int(duration/float64(MinStepDelay)), 1)
 	if actualSteps > maxSteps {
 		actualSteps = maxSteps
 	}
 
-	stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), minCursorStepDelay)
+	stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), MinStepDelay)
 	stepDelay := time.Duration(stepDelayMs) * time.Millisecond
 
 	for step := 1; step <= actualSteps; step++ {
@@ -387,11 +394,11 @@ restart:
 
 			select {
 			case <-stopCh:
-				stopAndDrainTimer(timer)
+				StopAndDrainTimer(timer)
 
 				return
 			case nextReq := <-reqCh:
-				stopAndDrainTimer(timer)
+				StopAndDrainTimer(timer)
 
 				req = nextReq
 
@@ -413,10 +420,10 @@ restart:
 
 // finishOrNext, after a target is reached, returns the next queued target or
 // ends the session by closing its completion. a.done keeps the closed one so a
-// late WaitForCursorIdle sees idle. A worker superseded by stop(), detected by
+// late WaitForCursorIdle sees idle. A worker superseded by Stop, detected by
 // stopCh identity, does nothing, so it never closes a newer session's
 // completion.
-func (a *smoothCursorAnimator) finishOrNext(
+func (a *Animator) finishOrNext(
 	reqCh <-chan cursorRequest,
 	stopCh <-chan struct{},
 ) (cursorRequest, bool) {
@@ -441,14 +448,14 @@ func (a *smoothCursorAnimator) finishOrNext(
 	a.hasPending = false
 	a.mu.Unlock()
 
-	done.close()
+	done.Close()
 
 	return cursorRequest{}, false
 }
 
-// stopAndDrainTimer stops timer and clears any pending tick so the next Reset
+// StopAndDrainTimer stops timer and clears any pending tick so the next Reset
 // starts clean.
-func stopAndDrainTimer(timer *time.Timer) {
+func StopAndDrainTimer(timer *time.Timer) {
 	if !timer.Stop() {
 		select {
 		case <-timer.C:

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/cursoranim"
 	"github.com/y3owk1n/neru/internal/domain/motion"
 )
 
@@ -20,7 +21,7 @@ import (
 //
 // A delta arriving mid-drain is added to the remainder and the schedule
 // restarts, so held-key repeat composes losslessly. Completion is per session,
-// as in smoothCursorAnimator.
+// as in cursoranim.Animator.
 //
 // A move reports success before its motion completes, so a failed injection
 // loses at most the rest of that gesture. It is not replayed later, which
@@ -35,7 +36,7 @@ type relativeCursorAnimator struct {
 	stepDelay time.Duration
 	running   bool
 	stopCh    chan struct{}
-	done      *cursorAnimationDone // session completion; nil until the first session
+	done      *cursoranim.Done // session completion; nil until the first session
 
 	// injectionFailed is set when a native motion errors, which the drain
 	// cannot return because the move already reported success. The caller reads
@@ -43,7 +44,7 @@ type relativeCursorAnimator struct {
 	injectionFailed bool
 
 	// injectSem serializes injection and fences stop()/settle(), exactly as in
-	// smoothCursorAnimator.
+	// cursoranim.Animator.
 	injectSem chan struct{}
 }
 
@@ -73,21 +74,21 @@ func (a *relativeCursorAnimator) addDelta(delta image.Point, steps, durationMs i
 
 	actualSteps := steps
 	if actualSteps <= 0 {
-		actualSteps = defaultCursorSteps
+		actualSteps = cursoranim.DefaultSteps
 	}
 
-	maxSteps := max(int(duration/float64(minCursorStepDelay)), 1)
+	maxSteps := max(int(duration/float64(cursoranim.MinStepDelay)), 1)
 	if actualSteps > maxSteps {
 		actualSteps = maxSteps
 	}
 
 	a.stepsLeft = actualSteps
-	stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), minCursorStepDelay)
+	stepDelayMs := max(int(math.Round(duration/float64(actualSteps))), cursoranim.MinStepDelay)
 	a.stepDelay = time.Duration(stepDelayMs) * time.Millisecond
 
 	if !a.running {
 		a.running = true
-		a.done = newCursorAnimationDone()
+		a.done = cursoranim.NewDone()
 		a.stopCh = make(chan struct{})
 
 		go a.run(a.stopCh)
@@ -99,7 +100,7 @@ func (a *relativeCursorAnimator) addDelta(delta image.Point, steps, durationMs i
 func (a *relativeCursorAnimator) run(stopCh chan struct{}) {
 	timer := time.NewTimer(time.Hour)
 
-	stopAndDrainTimer(timer)
+	cursoranim.StopAndDrainTimer(timer)
 	defer timer.Stop()
 
 	for {
@@ -116,7 +117,7 @@ func (a *relativeCursorAnimator) run(stopCh chan struct{}) {
 
 		select {
 		case <-stopCh:
-			stopAndDrainTimer(timer)
+			cursoranim.StopAndDrainTimer(timer)
 
 			return
 		case <-timer.C:
@@ -145,7 +146,7 @@ func (a *relativeCursorAnimator) nextChunk(
 		a.stopCh = nil
 		a.mu.Unlock()
 
-		done.close()
+		done.Close()
 
 		return image.Point{}, 0, false
 	}
@@ -253,7 +254,7 @@ func clampTowardZero(step, remaining int) int {
 // exactly once.
 func (a *relativeCursorAnimator) settle() {
 	done := a.detachWorker()
-	done.close()
+	done.Close()
 
 	a.injectSem <- struct{}{}
 
@@ -280,7 +281,7 @@ func (a *relativeCursorAnimator) settle() {
 // cannot drive it negative.
 func (a *relativeCursorAnimator) stop() {
 	done := a.detachWorker()
-	done.close()
+	done.Close()
 
 	a.injectSem <- struct{}{}
 
@@ -293,7 +294,7 @@ func (a *relativeCursorAnimator) stop() {
 
 // detachWorker cancels the current worker and returns the session completion
 // to close, nil (safe to close) when no session ever ran.
-func (a *relativeCursorAnimator) detachWorker() *cursorAnimationDone {
+func (a *relativeCursorAnimator) detachWorker() *cursoranim.Done {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -321,7 +322,7 @@ func (a *relativeCursorAnimator) wait(ctx context.Context) error {
 	}
 
 	select {
-	case <-done.ch:
+	case <-done.C():
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

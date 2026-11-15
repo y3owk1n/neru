@@ -16,7 +16,7 @@ const (
 	minScrollAnimationDuration = 10
 	// minScrollStepDelay is the shortest gap between injected steps, in ms. A
 	// scheduling floor on this animator's own timer rather than a config
-	// value, as minCursorStepDelay is for the cursor animator.
+	// value, as cursoranim.MinStepDelay is for the cursor animator.
 	minScrollStepDelay = 1
 	// easeOutCubicExponent shapes the curve: fast at the start, settling at
 	// the end. It matches the other two animators, so one configuration
@@ -462,4 +462,15 @@ func scrollScheduleTiming(req scrollRequest) (int, time.Duration) {
 	stepDelayMs := max(int(math.Round(duration/float64(steps))), minScrollStepDelay)
 
 	return steps, time.Duration(stepDelayMs) * time.Millisecond
+}
+
+// stopAndDrainTimer stops timer and clears any pending tick so the next Reset
+// starts clean.
+func stopAndDrainTimer(timer *time.Timer) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
 }

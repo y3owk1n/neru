@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/cursoranim"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/motion"
 )
@@ -78,16 +79,16 @@ func TestRelativeCursorAnimatorDrainsExactly(t *testing.T) {
 }
 
 // TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum is the drain twin
-// of TestSmoothCursorAnimatorFloorsShortAnimationsAtConfigMinimum. This
+// of cursoranim.TestAnimatorFloorsShortAnimationsAtConfigMinimum. This
 // animator floors a below-floor drain at the same
 // motion.MinCursorAnimationDuration, so a gesture asked for in more
 // chunks than the floor can schedule posts exactly one chunk per
-// minCursorStepDelay of the floor. Exactness of the drained total is
+// cursoranim.MinStepDelay of the floor. Exactness of the drained total is
 // TestRelativeCursorAnimatorDrainsExactly's question, not this one's.
 func TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum(t *testing.T) {
 	t.Parallel()
 
-	wantChunks := motion.MinCursorAnimationDuration / minCursorStepDelay
+	wantChunks := motion.MinCursorAnimationDuration / cursoranim.MinStepDelay
 
 	rec := &deltaRecorder{}
 	animator := newRelativeCursorAnimator(rec.moveBy)
@@ -108,7 +109,7 @@ func TestRelativeCursorAnimatorFloorsShortDrainsAtConfigMinimum(t *testing.T) {
 	if got := rec.count(); got != wantChunks {
 		t.Fatalf(
 			"posted %d chunks for a below-floor drain, want %d "+
-				"(motion.MinCursorAnimationDuration / minCursorStepDelay)",
+				"(motion.MinCursorAnimationDuration / cursoranim.MinStepDelay)",
 			got,
 			wantChunks,
 		)
