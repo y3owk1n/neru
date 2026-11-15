@@ -17,30 +17,52 @@ func TestLabelCache_Get_ReturnsOneCStringPerLabelUntilFree(t *testing.T) {
 	var cache overlayutil.LabelCache
 	t.Cleanup(cache.Free)
 
-	first := cache.Get("AB")
-	if first == nil {
-		t.Fatal(`Get("AB") = nil, want a C string`)
+	tests := []struct {
+		name  string
+		label string
+	}{
+		{name: "hint label", label: "AB"},
+		{name: "single key", label: "r"},
+		{name: "grid coordinate", label: "AED"},
 	}
 
-	if again := cache.Get("AB"); again != first {
-		t.Errorf(`second Get("AB") = %p, want the cached %p`, again, first)
-	}
+	seen := map[unsafe.Pointer]string{}
 
-	if other := cache.Get("CD"); other == first {
-		t.Errorf(`Get("CD") returned the pointer cached for "AB"`)
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			first := cache.Get(testCase.label)
+			if first == nil {
+				t.Fatalf("Get(%q) = nil, want a C string", testCase.label)
+			}
 
-	if got := unsafe.String((*byte)(first), 2); got != "AB" {
-		t.Errorf("cached C string reads %q, want %q", got, "AB")
-	}
+			if again := cache.Get(testCase.label); again != first {
+				t.Errorf("second Get(%q) = %p, want the cached %p", testCase.label, again, first)
+			}
 
-	if terminator := *(*byte)(unsafe.Add(first, 2)); terminator != 0 {
-		t.Errorf("cached C string is not NUL-terminated, byte after it is %d", terminator)
+			if owner, taken := seen[first]; taken {
+				t.Errorf("Get(%q) returned the pointer cached for %q", testCase.label, owner)
+			}
+
+			seen[first] = testCase.label
+
+			assertCString(t, first, testCase.label)
+		})
 	}
 
 	cache.Free()
 
-	if got := unsafe.String((*byte)(cache.Get("AB")), 2); got != "AB" {
-		t.Errorf("Get after Free reads %q, want a fresh %q", got, "AB")
+	assertCString(t, cache.Get("AB"), "AB")
+}
+
+// assertCString checks that ptr holds want followed by a NUL byte.
+func assertCString(t *testing.T, ptr unsafe.Pointer, want string) {
+	t.Helper()
+
+	if got := unsafe.String((*byte)(ptr), len(want)); got != want {
+		t.Errorf("C string reads %q, want %q", got, want)
+	}
+
+	if terminator := *(*byte)(unsafe.Add(ptr, len(want))); terminator != 0 {
+		t.Errorf("C string for %q is not NUL-terminated, byte after it is %d", want, terminator)
 	}
 }
