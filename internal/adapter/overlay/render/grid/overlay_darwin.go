@@ -72,9 +72,8 @@ type Overlay struct {
 	callbackManager *overlayutil.CallbackManager
 
 	// Cached C strings for style properties to reduce allocations
-	styleCache   *overlayutil.StyleCache
-	labelCacheMu sync.RWMutex
-	cachedLabels map[string]*C.char
+	styleCache *overlayutil.StyleCache
+	labels     overlayutil.LabelCache
 
 	// drawMu serializes draw operations against cache invalidation.
 	// Draw paths hold RLock, and freeAllCaches holds Lock.
@@ -173,7 +172,6 @@ func NewOverlayWithWindow(
 		logger:          logger,
 		callbackManager: base.CallbackManager,
 		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
 	}
 }
 
@@ -229,33 +227,12 @@ func (o *Overlay) ShowVirtualPointer(
 	fillColor string,
 ) {
 	o.configMu.RLock()
-	cfg := o.virtualPointerCfg
-	color := o.virtualPointerColor
+	appearance := o.virtualPointerCfg
+	textColor := o.virtualPointerColor
 	o.configMu.RUnlock()
 
-	cFillColor := C.CString(fillColor)
-	defer C.free(unsafe.Pointer(cFillColor))
-
-	cLabelChar := C.CString(cfg.Char)
-	cFontFamily := C.CString(cfg.FontFamily)
-	cTextColor := C.CString(color)
-	defer C.free(unsafe.Pointer(cLabelChar))
-	defer C.free(unsafe.Pointer(cFontFamily))
-	defer C.free(unsafe.Pointer(cTextColor))
-
-	indicatorStyle := C.CursorIndicatorStyle{
-		radius:     C.double(size),
-		fillColor:  cFillColor,
-		labelChar:  cLabelChar,
-		fontFamily: cFontFamily,
-		fontSize:   C.int(cfg.FontSize),
-		textColor:  cTextColor,
-	}
-
-	C.NeruShowCursorIndicator(
-		o.window,
-		C.CGPoint{x: C.double(point.X), y: C.double(point.Y)},
-		indicatorStyle,
+	overlayutil.ShowCursorIndicator(
+		unsafe.Pointer(o.window), point, size, fillColor, appearance, textColor,
 	)
 }
 
@@ -458,7 +435,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	// the division produces, which is what MaxKeyIndex is.
 	for cellIndex := range cells {
 		label := string(chars[cellIndex])
-		labels[cellIndex] = o.getOrCacheLabel(label)
+		labels[cellIndex] = (*C.char)(o.labels.Get(label))
 		subCell := subCells[cellIndex]
 
 		var gridCell C.GridCell
@@ -760,7 +737,7 @@ func (o *Overlay) convertCellsToC(cellsGo []*domainGrid.Cell, currentInput strin
 	cLabels := make([]*C.char, len(cellsGo))
 
 	for cellIndex, cell := range cellsGo {
-		cLabels[cellIndex] = o.getOrCacheLabel(cell.Coordinate())
+		cLabels[cellIndex] = (*C.char)(o.labels.Get(cell.Coordinate()))
 
 		isMatched := 0
 		matchedPrefixLength := 0
@@ -825,38 +802,7 @@ func (o *Overlay) freeAllCaches() {
 	defer o.drawMu.Unlock()
 
 	o.styleCache.Free()
-	o.freeLabelCacheLocked()
-}
-
-// freeLabelCacheLocked frees all cached label C strings.
-// Caller must hold drawMu.Lock.
-func (o *Overlay) freeLabelCacheLocked() {
-	o.labelCacheMu.Lock()
-	defer o.labelCacheMu.Unlock()
-
-	for _, cStr := range o.cachedLabels {
-		if cStr != nil {
-			C.free(unsafe.Pointer(cStr))
-		}
-	}
-	o.cachedLabels = make(map[string]*C.char)
-}
-
-// getOrCacheLabel returns a cached C string for the label, creating it if needed.
-// Labels are retained until Clear() or Destroy() to avoid dangling pointers in the
-// C overlay, which stores label pointers between draws for incremental updates.
-func (o *Overlay) getOrCacheLabel(label string) *C.char {
-	o.labelCacheMu.Lock()
-	defer o.labelCacheMu.Unlock()
-
-	if cStr, ok := o.cachedLabels[label]; ok {
-		return cStr
-	}
-
-	cStr := C.CString(label)
-	o.cachedLabels[label] = cStr
-
-	return cStr
+	o.labels.Free()
 }
 
 // drawGridCells draws all grid cells with their labels.
@@ -901,7 +847,7 @@ func (o *Overlay) drawGridCells(
 
 	matchedCount := 0
 	for cellIndex, cell := range cellsGo {
-		cLabels[cellIndex] = o.getOrCacheLabel(cell.Coordinate())
+		cLabels[cellIndex] = (*C.char)(o.labels.Get(cell.Coordinate()))
 
 		isMatched := 0
 		matchedPrefixLength := 0

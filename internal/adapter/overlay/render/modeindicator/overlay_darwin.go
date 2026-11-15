@@ -60,8 +60,7 @@ type Overlay struct {
 	lastDrawnMode string
 
 	// Cached C strings for indicator labels to avoid malloc/free per draw
-	labelCacheMu sync.RWMutex
-	cachedLabels map[string]*C.char
+	labels overlayutil.LabelCache
 	// drawMu serializes draw operations against cache invalidation.
 	// DrawModeIndicator and freeAllCaches both hold Lock.
 	drawMu sync.Mutex
@@ -95,7 +94,6 @@ func NewOverlay(
 		theme:           theme,
 		logger:          logger,
 		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
 	}, nil
 }
 
@@ -183,7 +181,7 @@ func (o *Overlay) DrawModeIndicator(mode string, xCoordinate, yCoordinate int) {
 		o.lastDrawnMode = mode
 	}
 
-	label := o.getOrCacheLabel(labelText)
+	label := (*C.char)(o.labels.Get(labelText))
 
 	// Resolve per-mode color overrides (falls back to UI defaults).
 	modeConfig := o.resolveModeConfig(mode)
@@ -362,40 +360,6 @@ func (o *Overlay) freeAllCaches() {
 	defer o.drawMu.Unlock()
 	o.styleCache.Free()
 	o.lastDrawnMode = ""
-	o.freeLabelCacheLocked()
+	o.labels.Free()
 	o.memo.Invalidate()
-}
-
-// freeLabelCacheLocked frees all cached label C strings.
-// Caller must hold drawMu.Lock.
-func (o *Overlay) freeLabelCacheLocked() {
-	o.labelCacheMu.Lock()
-	defer o.labelCacheMu.Unlock()
-	for _, cStr := range o.cachedLabels {
-		if cStr != nil {
-			C.free(unsafe.Pointer(cStr))
-		}
-	}
-	o.cachedLabels = make(map[string]*C.char)
-}
-
-// getOrCacheLabel returns a cached C string for the label, creating it if needed.
-func (o *Overlay) getOrCacheLabel(label string) *C.char {
-	o.labelCacheMu.RLock()
-	if cStr, ok := o.cachedLabels[label]; ok {
-		o.labelCacheMu.RUnlock()
-
-		return cStr
-	}
-	o.labelCacheMu.RUnlock()
-	o.labelCacheMu.Lock()
-	defer o.labelCacheMu.Unlock()
-	// Double-check
-	if cStr, ok := o.cachedLabels[label]; ok {
-		return cStr
-	}
-	cStr := C.CString(label)
-	o.cachedLabels[label] = cStr
-
-	return cStr
 }

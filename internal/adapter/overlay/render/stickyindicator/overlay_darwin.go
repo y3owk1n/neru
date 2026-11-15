@@ -42,8 +42,7 @@ type Overlay struct {
 	configMu sync.RWMutex
 
 	// Cached C strings for labels to avoid malloc/free per draw.
-	labelCacheMu sync.RWMutex
-	cachedLabels map[string]*C.char
+	labels overlayutil.LabelCache
 
 	// drawMu serializes draw operations against cache invalidation.
 	drawMu sync.Mutex
@@ -70,12 +69,11 @@ func NewOverlay(
 	}
 
 	return &Overlay{
-		window:       C.OverlayWindow(base.Window),
-		uiConfig:     uiConfig,
-		theme:        theme,
-		logger:       logger,
-		styleCache:   base.StyleCache,
-		cachedLabels: make(map[string]*C.char),
+		window:     C.OverlayWindow(base.Window),
+		uiConfig:   uiConfig,
+		theme:      theme,
+		logger:     logger,
+		styleCache: base.StyleCache,
 	}, nil
 }
 
@@ -142,7 +140,7 @@ func (o *Overlay) Draw(xCoordinate, yCoordinate int, symbols string) {
 		return
 	}
 
-	label := o.getOrCacheLabel(symbols)
+	label := (*C.char)(o.labels.Get(symbols))
 
 	cachedStyle := o.styleCache.Get(func(cached *overlayutil.CachedStyle) {
 		cached.FontFamily = unsafe.Pointer(
@@ -268,43 +266,6 @@ func (o *Overlay) freeAllCaches() {
 	o.drawMu.Lock()
 	defer o.drawMu.Unlock()
 	o.styleCache.Free()
-	o.freeLabelCacheLocked()
+	o.labels.Free()
 	o.memo.Invalidate()
-}
-
-// freeLabelCacheLocked frees all cached label C strings.
-// Caller must hold drawMu.Lock.
-func (o *Overlay) freeLabelCacheLocked() {
-	o.labelCacheMu.Lock()
-	defer o.labelCacheMu.Unlock()
-	for _, cStr := range o.cachedLabels {
-		if cStr != nil {
-			C.free(unsafe.Pointer(cStr))
-		}
-	}
-	o.cachedLabels = make(map[string]*C.char)
-}
-
-// getOrCacheLabel returns a cached C string for the label, creating it if needed.
-func (o *Overlay) getOrCacheLabel(text string) *C.char {
-	o.labelCacheMu.RLock()
-	if label, ok := o.cachedLabels[text]; ok {
-		o.labelCacheMu.RUnlock()
-
-		return label
-	}
-
-	o.labelCacheMu.RUnlock()
-	o.labelCacheMu.Lock()
-	defer o.labelCacheMu.Unlock()
-
-	// Double-check
-	if label, ok := o.cachedLabels[text]; ok {
-		return label
-	}
-
-	label := C.CString(text)
-	o.cachedLabels[text] = label
-
-	return label
 }
