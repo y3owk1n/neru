@@ -256,9 +256,6 @@ func ProcessClickableNodes(root *TreeNode) []*TreeNode {
 	return root.FindClickableElements(nil, nil, false)
 }
 
-// ReleaseTree is a no-op, since Windows nodes hold no live COM references.
-func ReleaseTree(_ *TreeNode) {}
-
 // ReleaseTreeExcept releases the tree except the nodes in keep. Windows nodes
 // hold no live COM references, so nothing is freed.
 func ReleaseTreeExcept(tree *TreeNode, keep []*TreeNode) {

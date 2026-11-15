@@ -20,23 +20,16 @@ type (
 
 // The platform functions the client shell calls.
 var (
-	AllWindows                    = windows.AllWindows
 	ApplicationByBundleID         = windows.ApplicationByBundleID
-	ApplicationByPID              = windows.ApplicationByPID
 	BuildTree                     = windows.BuildTree
 	CheckAccessibilityPermissions = windows.CheckAccessibilityPermissions
 	ClickableRoles                = windows.ClickableRoles
 	DefaultTreeOptions            = windows.DefaultTreeOptions
-	DetectBundleType              = windows.DetectBundleType
-	ElementAtPosition             = windows.ElementAtPosition
 	FocusedApplication            = windows.FocusedApplication
 	FrontmostAndPopoverWindows    = windows.FrontmostAndPopoverWindows
 	FrontmostWindow               = windows.FrontmostWindow
 	IsMissionControlActive        = windows.IsMissionControlActive
-	ProcessClickableNodes         = windows.ProcessClickableNodes
-	ReleaseTree                   = windows.ReleaseTree
 	SetClickableRoles             = windows.SetClickableRoles
-	SystemWideElement             = windows.SystemWideElement
 )
 
 // The shell calls these by their unexported names, so the dispatch slot binds

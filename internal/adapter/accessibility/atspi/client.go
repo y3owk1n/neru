@@ -253,11 +253,6 @@ func (c *Client) FrontmostAndPopoverWindows(ctx context.Context) ([]ax.Window, e
 	return []ax.Window{win}, nil
 }
 
-// AllWindows is not used by hints, so it returns empty rather than erroring.
-func (c *Client) AllWindows(_ context.Context) ([]ax.Window, error) {
-	return nil, nil
-}
-
 // ClickableNodes walks the given window for clickable elements.
 func (c *Client) ClickableNodes(
 	ctx context.Context,

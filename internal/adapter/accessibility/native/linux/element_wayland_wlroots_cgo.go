@@ -25,9 +25,3 @@ func wlrootsFocusedApplicationIdentity() (string, int) {
 	// Nothing focused yet, or the GNOME extension is not running.
 	return "", 0
 }
-
-func wlrootsApplicationBundleIdentifier(pid int) string {
-	_ = pid
-
-	return ""
-}

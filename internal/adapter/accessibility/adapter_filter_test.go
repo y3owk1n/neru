@@ -68,7 +68,6 @@ func newFilterAdapter(t *testing.T) *accessibility.Adapter {
 	client := &accessibility.MockAXClient{
 		MockPermissions:     true,
 		MockFrontmostWindow: window,
-		MockAllWindows:      []ax.Window{window},
 		MockClickableNodes:  filterTestNodes(),
 	}
 
@@ -226,7 +225,6 @@ func TestAdapter_ClickableElements_PropagatesClientError(t *testing.T) {
 	client := &accessibility.MockAXClient{
 		MockPermissions:       true,
 		MockFrontmostWindow:   window,
-		MockAllWindows:        []ax.Window{window},
 		MockClickableNodesErr: errTestAccessibility,
 	}
 

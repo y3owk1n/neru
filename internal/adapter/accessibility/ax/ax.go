@@ -20,7 +20,6 @@ type Window interface {
 type Client interface {
 	// Window and App operations
 	FrontmostWindow(ctx context.Context) (Window, error)
-	AllWindows(ctx context.Context) ([]Window, error)
 	FrontmostAndPopoverWindows(ctx context.Context) ([]Window, error)
 	FocusedApplication(ctx context.Context) (App, error)
 	ApplicationByBundleID(ctx context.Context, bundleID string) (App, error)

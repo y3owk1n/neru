@@ -14,8 +14,6 @@ type MockAXClient struct {
 
 	MockFrontmostWindow    ax.Window
 	MockFrontmostWindowErr error
-	MockAllWindows         []ax.Window
-	MockAllWindowsErr      error
 	MockHintWindows        []ax.Window
 	MockHintWindowsErr     error
 
@@ -51,11 +49,6 @@ type MockAXClient struct {
 // FrontmostWindow returns the configured frontmost window or error.
 func (m *MockAXClient) FrontmostWindow(_ context.Context) (ax.Window, error) {
 	return m.MockFrontmostWindow, m.MockFrontmostWindowErr
-}
-
-// AllWindows returns the configured windows or error.
-func (m *MockAXClient) AllWindows(_ context.Context) ([]ax.Window, error) {
-	return m.MockAllWindows, m.MockAllWindowsErr
 }
 
 // FrontmostAndPopoverWindows returns configured hint windows or falls back to

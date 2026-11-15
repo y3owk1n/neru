@@ -13,13 +13,6 @@
 
 #pragma mark - Element Accessor Functions
 
-/// Get system-wide accessibility element
-/// @return System-wide element reference
-void *NeruGetSystemWideElement(void) {
-	AXUIElementRef systemWide = AXUIElementCreateSystemWide();
-	return (void *)systemWide;
-}
-
 /// Get focused application
 /// @return Focused application reference
 void *NeruGetFocusedApplication(void) {
@@ -470,26 +463,6 @@ static AXUIElementRef getCachedSystemWideElement(void) {
 }
 
 #pragma mark - Position Functions
-
-/// Get element at screen position
-/// @param position Screen position
-/// @return Element reference
-void *NeruGetElementAtPosition(CGPoint position) {
-	AXUIElementRef systemWide = AXUIElementCreateSystemWide();
-	if (!systemWide)
-		return NULL;
-
-	AXUIElementRef element = NULL;
-	AXError error = AXUIElementCopyElementAtPosition(systemWide, position.x, position.y, &element);
-
-	CFRelease(systemWide);
-
-	if (error != kAXErrorSuccess) {
-		return NULL;
-	}
-
-	return (void *)element;
-}
 
 /// Get the center point of an element
 /// @param element Element reference
