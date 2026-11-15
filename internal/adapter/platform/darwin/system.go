@@ -156,6 +156,15 @@ func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
 	return nil
 }
 
+// HideSystemCursor hides the system cursor.
+func (s *SystemAdapter) HideSystemCursor() { HideSystemCursor() }
+
+// ShowSystemCursor shows the system cursor.
+func (s *SystemAdapter) ShowSystemCursor() { ShowSystemCursor() }
+
+// RehideSystemCursor hides the cursor again after the system revealed it.
+func (s *SystemAdapter) RehideSystemCursor() { RehideSystemCursor() }
+
 // IsDarkMode returns true if macOS Dark Mode is currently active.
 func (s *SystemAdapter) IsDarkMode() bool {
 	return IsDarkMode()
@@ -235,3 +244,6 @@ var _ ports.InstantCursorMover = (*SystemAdapter)(nil)
 // Ensure SystemAdapter opts into settling in-flight cursor animations before
 // position-dependent actions.
 var _ ports.CursorSettler = (*SystemAdapter)(nil)
+
+// SystemAdapter can hide the system cursor.
+var _ ports.SystemCursorHider = (*SystemAdapter)(nil)

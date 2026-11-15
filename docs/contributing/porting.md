@@ -59,7 +59,10 @@ interface **in `ports`, next to the port it extends**, such as
 `RelativeCursorMover` in `ports/system.go`. The caller finds it with a type
 assertion and keeps a working fallback. Adapters that opt in assert it
 (`var _ ports.RelativeCursorMover = (*SystemAdapter)(nil)`) so a signature
-drift fails to compile instead of silently downgrading the platform. The one
+drift fails to compile instead of silently downgrading the platform. Some
+extensions have no fallback, such as `SystemCursorHider`. A caller that finds
+no implementation refuses with `CodeNotSupported`, so a platform must never
+implement one with methods that do nothing. The one
 extension off `ports` is `SyntheticModifierSink` on the Linux `tap.Tap`
 backend contract, because only X11 cannot tell its own injected key events
 from the user's.

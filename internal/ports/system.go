@@ -24,7 +24,8 @@ const (
 // directories, process information, screen and cursor operations, permission
 // gates, theme, and secure-input detection. Every consumer takes the whole
 // port. Optional per-platform extensions (RelativeCursorMover,
-// CursorSynchronizer) are declared separately and reached by type assertion.
+// CursorSynchronizer, SystemCursorHider) are declared separately and reached
+// by type assertion.
 type SystemPort interface {
 	// Health returns nil if the component is healthy, or an error if it is not.
 	Health(ctx context.Context) error
@@ -252,4 +253,21 @@ func ScreenNames(screens []Screen) []string {
 	}
 
 	return names
+}
+
+// SystemCursorHider is an optional SystemPort extension for platforms that can
+// hide the system cursor.
+//
+// Implemented by the darwin adapter. A platform without it cannot hide the
+// cursor, and the hide_cursor and show_cursor actions report CodeNotSupported
+// there.
+type SystemCursorHider interface {
+	// HideSystemCursor hides the system cursor.
+	HideSystemCursor()
+	// ShowSystemCursor shows the system cursor again.
+	ShowSystemCursor()
+	// RehideSystemCursor hides the cursor again after the system revealed it,
+	// such as for a context menu or Mission Control. It leaves the platform's
+	// hide count where HideSystemCursor put it.
+	RehideSystemCursor()
 }

@@ -4,7 +4,16 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/domain"
+	"github.com/y3owk1n/neru/internal/ports"
 )
+
+// CursorVisibilitySupported reports whether the platform can hide the system
+// cursor.
+func (h *Handler) CursorVisibilitySupported() bool {
+	_, ok := h.system.(ports.SystemCursorHider)
+
+	return ok
+}
 
 // HideSystemCursor hides the system cursor and shows the virtual pointer when enabled.
 func (h *Handler) HideSystemCursor() {
@@ -20,7 +29,10 @@ func (h *handlerState) hideSystemCursor() {
 		return
 	}
 
-	h.hideSystemCursorNative()
+	if hider, ok := h.system.(ports.SystemCursorHider); ok {
+		hider.HideSystemCursor()
+	}
+
 	h.systemCursorHidden = true
 	h.ensureCursorOverlayPolling()
 }
@@ -39,7 +51,10 @@ func (h *handlerState) showSystemCursor() {
 		return
 	}
 
-	h.showSystemCursorNative()
+	if hider, ok := h.system.(ports.SystemCursorHider); ok {
+		hider.ShowSystemCursor()
+	}
+
 	h.systemCursorHidden = false
 	h.hideCursorFollowingVirtualPointer()
 	h.stopCursorOverlayPollingIfIdle()
@@ -105,8 +120,14 @@ func (h *Handler) rehideSystemCursor() {
 		return
 	}
 
+	hider, ok := h.system.(ports.SystemCursorHider)
+	if !ok {
+		return
+	}
+
 	h.lastCursorRehideTime = time.Now()
-	h.RehideSystemCursor()
+
+	hider.RehideSystemCursor()
 }
 
 func (h *handlerState) hideCursorFollowingVirtualPointer() {

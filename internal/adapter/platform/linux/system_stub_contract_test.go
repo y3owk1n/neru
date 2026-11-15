@@ -210,6 +210,19 @@ func TestSystemAdapter_CapabilitiesCarryTheBackendSuffix(t *testing.T) {
 	}
 }
 
+// TestSystemAdapter_CannotHideTheCursor checks that the Linux adapter leaves
+// ports.SystemCursorHider out, built directly so it runs with no display while
+// the platform-level check skips headless. The modes handler finds that
+// ability by type assertion, so no-op versions of the methods would turn
+// hide_cursor, which the platform column declares macOS only, into a success
+// that does nothing.
+func TestSystemAdapter_CannotHideTheCursor(t *testing.T) {
+	if _, hides := any(linux.NewSystemAdapter(x11Backend)).(ports.SystemCursorHider); hides {
+		t.Fatal("linux.SystemAdapter implements ports.SystemCursorHider, " +
+			"but hide_cursor is declared macOS only")
+	}
+}
+
 // TestSystemAdapter_CapabilitiesMatchBackendBehavior is the Linux half of the
 // capability cross-check, built directly for a named backend so it runs with
 // no display or compositor, while the platform-level test skips headless. The
