@@ -286,6 +286,9 @@ npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config --skill n
 
 Add `-g` to install them for every project.
 
+An agent with no skill installed can run `neru agent-guide` instead. It
+prints a short guide written for the installed build.
+
 ## Install script reference
 
 ### Flags

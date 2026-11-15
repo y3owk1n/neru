@@ -18,6 +18,11 @@ and keys change between releases.
 Check these before anything remote. The install script, Homebrew, Nix, and a
 source build all ship them.
 
+- `neru agent-guide` and `neru describe`, on a build that has them. The
+  guide names the installed build's version and docs. `neru describe --json`
+  lists every mode, mode flag, action, config key and event the build reads,
+  with `here` saying whether each works on this machine. An older build
+  answers `unknown command`, so fall back to the help below.
 - `neru --help`, then `neru <command> --help`. The help lists the flags and
   accepted values of the installed version.
 - `man neru` on macOS and Linux, and one page per subcommand such as

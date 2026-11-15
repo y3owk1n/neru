@@ -12,6 +12,8 @@ installed version. See [Set up with an agent](installation.md#set-up-with-an-age
 
 | What you want                              | What to use                                         | Where it is documented |
 | :----------------------------------------- | :-------------------------------------------------- | :--------------------- |
+| Learn what the installed build accepts     | `neru describe --json`, `neru schema ipc\|config`   | [`neru describe`](../reference/cli.md#neru-describe), [`neru schema`](../reference/cli.md#neru-schema) |
+| Brief an AI agent on this build            | `neru agent-guide`                                  | [`neru agent-guide`](../reference/cli.md#neru-agent-guide) |
 | React to events from your config           | `[hooks]`                                           | [Configuration reference](../reference/configuration.md#hooks) |
 | Run commands from a script                 | The `neru` CLI                                      | [CLI reference](../reference/cli.md) |
 | Read state as JSON                         | `--json` on `status`, `query`, `action snap`, `doctor`, `roles` and `services status` | [CLI reference](../reference/cli.md#neru-status) |

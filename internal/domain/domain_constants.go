@@ -76,6 +76,10 @@ const (
 	// window. It draws nothing and enters no mode. `neru query hints` is its
 	// CLI spelling.
 	CommandQueryHints = "query-hints"
+
+	// CommandDescribe reports every word Neru reads, with the platforms each
+	// works on. `neru describe --json` is its CLI spelling.
+	CommandDescribe = "describe"
 )
 
 // Mode-related constants.

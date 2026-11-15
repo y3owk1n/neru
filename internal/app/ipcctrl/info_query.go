@@ -7,6 +7,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
 	"github.com/y3owk1n/neru/internal/app/services"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/describe"
 )
 
 // actionServiceMissing answers a query asked of a daemon wired without the
@@ -112,6 +113,18 @@ func (h *InfoHandler) handleQueryApp(ctx context.Context, _ ipc.Command) ipc.Res
 		Success: true,
 		Message: "app retrieved",
 		Data:    ipc.AppData{BundleID: bundleID},
+		Code:    ipc.CodeOK,
+	}
+}
+
+// handleDescribe answers `neru describe` with every word this build reads.
+// It reads no state, so it answers while Neru is stopped and before any
+// service exists.
+func (h *InfoHandler) handleDescribe(_ context.Context, _ ipc.Command) ipc.Response {
+	return ipc.Response{
+		Success: true,
+		Message: "description retrieved",
+		Data:    describe.Manifest(),
 		Code:    ipc.CodeOK,
 	}
 }

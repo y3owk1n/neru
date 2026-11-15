@@ -618,6 +618,7 @@ func TestIPCController_HandleCommand_AnswersStateWhilePaused(t *testing.T) {
 		domain.CommandQueryCursor,
 		domain.CommandQueryWindow,
 		domain.CommandQueryApp,
+		domain.CommandDescribe,
 		domain.CommandToggleScrollInvert,
 		domain.CommandStart,
 	} {

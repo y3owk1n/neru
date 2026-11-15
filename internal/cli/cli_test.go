@@ -93,6 +93,9 @@ func TestCommandInitialization(t *testing.T) {
 		"vim":                            false,
 		"read-text-lines":                false,
 		"mode <name>":                    false,
+		"describe":                       false,
+		"schema":                         false,
+		"agent-guide":                    false,
 	}
 
 	for _, cmd := range cli.RootCmd.Commands() {

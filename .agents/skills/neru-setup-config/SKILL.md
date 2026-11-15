@@ -18,11 +18,15 @@ The user rarely has a checkout. Every install method ships the binary and man
 pages only. Resolve the docs in this order:
 
 1. A checkout in the working directory: `docs/reference/configuration.md` exists.
-2. Man pages on macOS and Linux: `man neru-config-init`,
+2. The binary, on a build that has them. `neru schema config` prints each
+   key's type and default, and `neru describe --json` lists each key's
+   platforms under `options`. An older build answers `unknown command`, so go
+   on to the next step.
+3. Man pages on macOS and Linux: `man neru-config-init`,
    `man neru-config-set`, `man neru-config-validate`, `man neru-services`,
    and `man neru-hints` or another mode page for the flags a hotkey may pass.
    On Windows, `neru <command> --help` carries the same text.
-3. The doc at the installed version, fetched from GitHub:
+4. The doc at the installed version, fetched from GitHub:
 
    ```bash
    tag=$(neru --version | sed -n '1s/^Neru version //p' | cut -d- -f1)

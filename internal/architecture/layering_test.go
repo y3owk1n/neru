@@ -62,6 +62,7 @@ var innerLayers = []string{
 	"internal/adapter/",
 	"internal/flagref/",
 	"internal/supportref/",
+	"internal/describe/",
 }
 
 // TestInfraDoesNotImportApp pins the direction of the hexagon. Adapters

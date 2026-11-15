@@ -71,6 +71,8 @@ command names, and the `data` keys documented here and in the
 - The `message` text.
 - The `version` string.
 - The contents of `capabilities`, `profile` and `components`.
+- The wording of the prose fields in `describe`: `usage`, `description`, `value`
+  and `note`.
 - Anything this page and the CLI reference do not document.
 
 A protocol can gain commands, flags, `data` keys, events and response codes,
@@ -90,7 +92,7 @@ Writing a client:
 
 A Go program can import `github.com/y3owk1n/neru/client` instead of writing
 any of this. It finds the endpoint the way the CLI does, sends `protocol` 1,
-and returns typed replies for `status`, the queries and `watch`. Its API
+and returns typed replies for `status`, `describe`, the queries and `watch`. Its API
 follows the rule above and breaks only at a major Neru release. See the
 [package documentation](https://pkg.go.dev/github.com/y3owk1n/neru/client).
 
@@ -104,7 +106,8 @@ https://raw.githubusercontent.com/y3owk1n/neru/main/schemas/ipc.schema.json
 ```
 
 Replace `main` with a release tag to read that release's copy. Releases from
-before the schema have no copy of it. Each shape is a definition to `$ref`,
+before the schema have no copy of it. [`neru schema ipc`](cli.md#neru-schema)
+prints the installed build's copy without fetching anything. Each shape is a definition to `$ref`,
 such as `#/definitions/status`:
 
 | Definition | Shape |
@@ -115,6 +118,7 @@ such as `#/definitions/status`:
 | `action_snap` | The `data` of `action` running `snap` |
 | `toggle_scroll_invert`, `toggle_screen_share`, `toggle_cursor_follow_selection` | The `data` of each toggle |
 | `watch_line` | One line of a watch after its reply |
+| `describe` | The `data` of `describe` |
 | `config` | The `data` of `config` with no `args`, a reference to `config.schema.json` |
 
 A key the schema marks required is always present, and may be `null` where
@@ -154,6 +158,7 @@ The last column says whether the command answers while Neru is stopped by
 | `toggle-cursor-follow-selection` | Optionally `--state on\|off\|toggle`, as in [Runtime toggles](cli.md#runtime-toggles). | `{"following": bool}` | yes, but `stop` exits the mode, so it gets `ERR_INVALID_INPUT` |
 | `query-displays`, `query-cursor`, `query-window`, `query-app` | See [Querying](#querying). | See [Querying](#querying). | yes |
 | `query-hints` | See [Querying](#querying). | See [Querying](#querying). | no |
+| `describe` | none | The object [`neru describe --json`](cli.md#neru-describe) prints. | yes |
 | `watch` | None, or `--event=<name>[,<name>...]`, repeatable, to send only those events. | A [stream](#streaming). | yes |
 
 A bad key or value for `config set`, or for `config-set`, gets

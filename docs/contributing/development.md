@@ -94,6 +94,7 @@ gofumpt and golines are optional, through `go install`.
 | `just genman` | Generate man pages |
 | `just genflagref` | Rewrite the mode-flag reference in `docs/reference/cli.md` |
 | `just gensupportref` | Rewrite the platform-support table in `docs/reference/platform-support.md` |
+| `just genhookref` | Rewrite the hooks and hook-variable tables in `docs/reference/configuration.md` from the event catalog |
 | `just genschema` | Rewrite `schemas/config.schema.json` and `schemas/ipc.schema.json` through `cmd/genschema` |
 | `just clean` | Remove build artifacts |
 

@@ -97,6 +97,12 @@ func (c *Client) Status(ctx context.Context) (StatusData, error) {
 	return call[StatusData](ctx, c, "status")
 }
 
+// Describe returns what `neru describe --json` prints: every word Neru reads,
+// with the platforms each works on.
+func (c *Client) Describe(ctx context.Context) (DescribeData, error) {
+	return call[DescribeData](ctx, c, "describe")
+}
+
 // Displays returns every connected display.
 func (c *Client) Displays(ctx context.Context) (DisplaysData, error) {
 	return call[DisplaysData](ctx, c, "query-displays")

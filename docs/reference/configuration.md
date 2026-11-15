@@ -305,26 +305,30 @@ on_mode_exit     = "exec [ \"$NERU_REASON\" = switched ] || sketchybar --trigger
 on_config_reload = "exec [ \"$NERU_OK\" = true ] || say 'Neru config did not load'"
 ```
 
-| Option                           | Type         | Default | Runs when                                                                 |
-| -------------------------------- | ------------ | ------- | ------------------------------------------------------------------------- |
-| `on_mode_enter`                  | string/array | none    | A mode opens                                                              |
-| `on_mode_exit`                   | string/array | none    | A mode closes, including on the way into another one                      |
-| `on_select`                      | string/array | none    | A step you take moves a mode's target, such as a hint label, a grid cell or a recursive grid level, or a [`snap`](cli.md#neru-action-snap) moves the cursor |
-| `on_app_focus`                   | string/array | none    | Another application comes to the front                                    |
-| `on_enable`                      | string/array | none    | Neru resumes, such as on `neru start`                                     |
-| `on_disable`                     | string/array | none    | Neru pauses, such as on `neru stop`                                       |
-| `on_config_reload`               | string/array | none    | A config reload finishes, whether or not the new file loaded              |
-| `on_mission_control_activated`   | string/array | none    | Mission Control opens. macOS only, needs `hints.detect_mission_control`   |
-| `on_mission_control_deactivated` | string/array | none    | Mission Control closes. macOS only, needs `hints.detect_mission_control`  |
-| `on_scroll_invert`               | string/array | none    | Scroll inversion switches on or off                                       |
-| `on_screen_share_hide`           | string/array | none    | `toggle-screen-share` switches on or off. macOS and Windows only, since nothing hides the overlay on Linux |
-| `on_cursor_save`                 | string/array | none    | `save_cursor_pos` saves a position                                        |
-| `on_cursor_restore`              | string/array | none    | `restore_cursor_pos` takes a saved position, which empties its slot       |
-| `on_sticky_modifiers`            | string/array | none    | A sticky modifier is armed or released. Needs `sticky_modifiers.enabled`  |
-| `on_monitor_move`                | string/array | none    | `move_monitor` or `monitor_select` moves the cursor to another display    |
-| `on_screen_change`               | string/array | none    | The displays change, such as on a dock, an undock or a wake               |
-| `on_ready`                       | string/array | none    | The daemon has started and takes hotkeys                                  |
-| `on_quit`                        | string/array | none    | The daemon starts to shut down. Runs `exec` steps only                    |
+<!-- BEGIN GENERATED HOOKS: edit internal/domain/event/catalog.go, then run `just genhookref` -->
+
+| Option | Type | Default | Runs when |
+| ------ | ---- | ------- | --------- |
+| `on_mode_enter` | string/array | none | A mode opens |
+| `on_mode_exit` | string/array | none | A mode closes, including on the way into another one |
+| `on_select` | string/array | none | A step you take moves a mode's target, such as a hint label, a grid cell or a recursive grid level, or a `snap` moves the cursor |
+| `on_app_focus` | string/array | none | Another application comes to the front |
+| `on_enable` | string/array | none | Neru resumes, such as on `neru start` |
+| `on_disable` | string/array | none | Neru pauses, such as on `neru stop` |
+| `on_config_reload` | string/array | none | A config reload finishes, whether or not the new file loaded |
+| `on_mission_control_activated` | string/array | none | Mission Control opens. macOS only, needs `hints.detect_mission_control` |
+| `on_mission_control_deactivated` | string/array | none | Mission Control closes. macOS only, needs `hints.detect_mission_control` |
+| `on_scroll_invert` | string/array | none | Scroll inversion switches on or off |
+| `on_screen_share_hide` | string/array | none | `toggle-screen-share` switches on or off. macOS and Windows only, since nothing hides the overlay on Linux |
+| `on_cursor_save` | string/array | none | `save_cursor_pos` saves a position |
+| `on_cursor_restore` | string/array | none | `restore_cursor_pos` takes a saved position, which empties its slot |
+| `on_sticky_modifiers` | string/array | none | A sticky modifier is armed or released. Needs `sticky_modifiers.enabled` |
+| `on_monitor_move` | string/array | none | `move_monitor` or `monitor_select` moves the cursor to another display |
+| `on_screen_change` | string/array | none | The displays change, such as on a dock, an undock or a wake |
+| `on_ready` | string/array | none | The daemon has started and takes hotkeys |
+| `on_quit` | string/array | none | The daemon starts to shut down. Runs `exec` steps only |
+
+<!-- END GENERATED HOOKS -->
 
 A reload takes effect from the next event.
 
@@ -363,19 +367,24 @@ With it on, `neru config validate` warns about each deprecated key set.
 `exec` steps get the event as environment variables. Each is set only for the
 events that carry it.
 
-| Variable         | Set for                         | Value                                                            |
-| ---------------- | ------------------------------- | ---------------------------------------------------------------- |
-| `NERU_EVENT`     | every hook                      | The event, such as `mode_enter`                                  |
-| `NERU_MODE`      | `on_mode_enter`, `on_mode_exit`, `on_select` | The mode, named as `neru status` names it           |
-| `NERU_REASON`    | `on_mode_exit`                  | `completed` after a selection, `switched` when another mode opens in its place, else `canceled` |
-| `NERU_ACTION`    | `on_select`, and `on_mode_exit` when `completed` | The action the selection ran, such as `left_click`, or `left_click,left_click` for a chain, or `snap` for a snap. Unset when it ran none, such as for a binding with no `--action` |
-| `NERU_BUNDLE_ID` | `on_app_focus`                  | The application, as [`bundle_id`](#app-identity-across-platforms-bundle_id) names it |
-| `NERU_OK`        | `on_config_reload`              | `true` or `false`                                                |
-| `NERU_ON`        | `on_scroll_invert`, `on_screen_share_hide` | `true` when switched on, else `false`                 |
-| `NERU_SLOT`      | `on_cursor_save`, `on_cursor_restore` | The cursor slot, `default` when none was named             |
-| `NERU_X`, `NERU_Y` | `on_cursor_save`, `on_select` | The position saved, or the point selected                         |
-| `NERU_MODIFIERS` | `on_sticky_modifiers`           | The set held now, such as `cmd,shift`, in the spelling `--modifier` takes. Empty when none is |
-| `NERU_MONITOR`   | `on_monitor_move`               | The display, as `move_monitor --name` takes it                   |
+<!-- BEGIN GENERATED HOOK VARIABLES: edit internal/domain/event/catalog.go, then run `just genhookref` -->
+
+| Variable | Set for | Value |
+| -------- | ------- | ----- |
+| `NERU_EVENT` | every hook | The event, such as `mode_enter` |
+| `NERU_MODE` | `on_mode_enter`, `on_mode_exit`, `on_select` | The mode, named as `neru status` names it |
+| `NERU_REASON` | `on_mode_exit` | `completed` after a selection, `switched` when another mode opens in its place, else `canceled` |
+| `NERU_ACTION` | `on_mode_exit`, `on_select` | The action the selection ran, such as `left_click`, or `left_click,left_click` for a chain, or `snap` for a snap. `on_mode_exit` sees it only when `NERU_REASON` is `completed`. Unset when it ran none, such as for a binding with no `--action` |
+| `NERU_BUNDLE_ID` | `on_app_focus` | The application, as `bundle_id` names it |
+| `NERU_OK` | `on_config_reload` | `true` or `false` |
+| `NERU_ON` | `on_scroll_invert`, `on_screen_share_hide` | `true` when switched on, else `false` |
+| `NERU_SLOT` | `on_cursor_save`, `on_cursor_restore` | The cursor slot, `default` when none was named |
+| `NERU_X` | `on_select`, `on_cursor_save` | The x of the position saved, or of the point selected |
+| `NERU_Y` | `on_select`, `on_cursor_save` | The y of the position saved, or of the point selected |
+| `NERU_MODIFIERS` | `on_sticky_modifiers` | The set held now, such as `cmd,shift`, in the spelling `--modifier` takes. Empty when none is |
+| `NERU_MONITOR` | `on_monitor_move` | The display, as `move_monitor --name` takes it |
+
+<!-- END GENERATED HOOK VARIABLES -->
 
 A binding's `--on-exit` steps get the same variables as the `on_select` hook
 for that selection, so `NERU_EVENT` is `select`. They are not a hook, so they

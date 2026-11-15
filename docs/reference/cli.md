@@ -4,8 +4,9 @@ Every `neru` command and flag. The same content ships as man pages
 (`man neru`). To drive Neru from scripts, see [Scripting](../guide/scripting.md).
 
 `neru launch` starts the daemon. Every other command sends one request to it
-and prints the reply, except `doctor`, `roles`, `services`, `docs`,
-`config init` and `config validate`, which run without a daemon.
+and prints the reply, except `doctor`, `roles`, `describe`, `schema`,
+`agent-guide`, `services`, `docs`, `config init` and `config validate`, which
+run without a daemon.
 
 Synopses use `<value>` for a required value, `[--flag]` for an optional flag,
 `a|b` for a choice, and `[<key>...]` for a repeatable argument. Every command
@@ -1484,6 +1485,71 @@ With `--explain --json`, the keys are:
 | `config`   | string | Path of the config file resolved, empty for the built-in defaults. |
 | `entries`  | array  | One object per `hints.clickable_roles` entry, in order. `entry` is the entry as written, and `vocabulary` its prefix, empty for a semantic name. `native` lists the native roles it adds here. `ignored` says why it adds none, and is empty when it applies. |
 | `native`   | array  | Every native role the entries select, once each. |
+
+### neru describe
+
+```
+neru describe [--json]
+```
+
+List every mode, mode flag, action, config option, event and hook variable
+this build reads, with the platforms each one does something on. It describes
+the binary, so it needs no daemon and no config. The daemon answers the same
+object to the IPC command `describe`.
+
+Without `--json` it prints the counts and each word that does nothing on this
+platform, with the reason. With `--json` it prints the whole object, which
+`describe` in the [IPC schema](ipc.md#schemas) defines.
+
+| Flag     | Type | Default | Description                    |
+| -------- | ---- | ------- | ------------------------------ |
+| `--json` | bool | `false` | Print the whole description as one JSON object. |
+
+| Key          | Type    | Description |
+| ------------ | ------- | ----------- |
+| `version`    | string  | The build's version, as `neru --version` prints it. |
+| `protocol`   | integer | The IPC protocol this build speaks. |
+| `platform`   | string  | `darwin`, `linux` or `windows`, empty on a build Neru declares nothing about. |
+| `modes`      | array   | Every built-in mode, named as `neru status` and `NERU_MODE` name it. Declared modes are in the config. |
+| `mode_flags` | array   | One object per [mode flag](#mode-flag-reference): `name`, `short`, `shape` (`presence`, `value` or `list`), the `modes` that take it, and `usage`. |
+| `actions`    | array   | One object per [action name](#action-names). `modes` lists the modes whose `--action` can run it, and is empty for an action that runs only on its own. |
+| `options`    | array   | One object per config key, as its full TOML path. Its type and default are in [`neru schema config`](#neru-schema). |
+| `events`     | array   | One object per event, as [`neru watch`](#neru-watch) names it: the `hook` that runs on it, a `description`, and the `variables` its hook sees. |
+| `variables`  | array   | One object per hook variable, with its `name` and the `value` it holds. |
+
+Every object in `mode_flags`, `actions`, `options` and `events` also carries
+`platforms`, the platforms it does something on, `here`, whether it does on
+this machine, and `note`, which says why `platforms` is short and is empty when
+it is not. `mode_flags` and `options` carry `values` too, listing each value
+that works on fewer platforms than the word itself. The text of `usage`,
+`description`, `value` and `note` may change in any release.
+
+```bash
+neru describe --json | jq -r '.actions[] | select(.here) | .name'
+```
+
+### neru schema
+
+```
+neru schema ipc|config
+```
+
+Print the [IPC schema](ipc.md#schemas) (`ipc`) or the
+[config schema](configuration.md#editor-support) (`config`) this build speaks,
+the same file the repository publishes for its version. It needs no daemon and
+fetches nothing.
+
+### neru agent-guide
+
+```
+neru agent-guide
+```
+
+Print a short guide for an AI agent or a program that drives Neru: how to learn
+what this build accepts, read its state, drive it and change its config, and
+the rules a tool built on it follows. It names this build's version, protocol
+and docs, so an agent can read it instead of docs for another release. It
+needs no daemon.
 
 ### neru services
 

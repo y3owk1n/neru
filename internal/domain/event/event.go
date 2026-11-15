@@ -1,9 +1,6 @@
 package event
 
-import (
-	"image"
-	"strconv"
-)
+import "image"
 
 // Name names one kind of event.
 type Name string
@@ -61,26 +58,12 @@ const (
 
 // All returns every event name, in the order the hooks table lists them.
 func All() []Name {
-	return []Name{
-		ModeEnter,
-		ModeExit,
-		Select,
-		AppFocus,
-		Enable,
-		Disable,
-		ConfigReload,
-		MissionControlActivated,
-		MissionControlDeactivated,
-		ScrollInvert,
-		ScreenShareHide,
-		CursorSave,
-		CursorRestore,
-		StickyModifiers,
-		MonitorMove,
-		ScreenChange,
-		Ready,
-		Quit,
+	names := make([]Name, 0, len(catalog))
+	for _, spec := range catalog {
+		names = append(names, spec.Name)
 	}
+
+	return names
 }
 
 // ExitReason says why a mode closed.
@@ -119,52 +102,16 @@ type Event struct {
 }
 
 // Env is the environment an exec step run for the event sees: the event's
-// name, as NERU_EVENT, and each field the event carries, as NERU_<FIELD>.
-// Hooks and a mode's --on-exit both run with it.
+// name, as NERU_EVENT, and each variable its Spec lists that the event
+// carries. Hooks and a mode's --on-exit both run with it.
 func (evt Event) Env() []string {
-	env := []string{"NERU_EVENT=" + string(evt.Name)}
+	env := []string{varEvent.Name + "=" + string(evt.Name)}
 
-	if evt.Mode != "" {
-		env = append(env, "NERU_MODE="+evt.Mode)
-	}
-
-	if evt.Reason != "" {
-		env = append(env, "NERU_REASON="+string(evt.Reason))
-	}
-
-	if evt.Action != "" {
-		env = append(env, "NERU_ACTION="+evt.Action)
-	}
-
-	if evt.BundleID != "" {
-		env = append(env, "NERU_BUNDLE_ID="+evt.BundleID)
-	}
-
-	if evt.Slot != "" {
-		env = append(env, "NERU_SLOT="+evt.Slot)
-	}
-
-	if evt.Monitor != "" {
-		env = append(env, "NERU_MONITOR="+evt.Monitor)
-	}
-
-	if evt.Name == ConfigReload {
-		env = append(env, "NERU_OK="+strconv.FormatBool(evt.OK))
-	}
-
-	if evt.Name == ScrollInvert || evt.Name == ScreenShareHide {
-		env = append(env, "NERU_ON="+strconv.FormatBool(evt.On))
-	}
-
-	if evt.Name == CursorSave || evt.Name == Select {
-		env = append(env,
-			"NERU_X="+strconv.Itoa(evt.Point.X),
-			"NERU_Y="+strconv.Itoa(evt.Point.Y))
-	}
-
-	// Set even when empty, so a hook reads a release as no modifiers.
-	if evt.Name == StickyModifiers {
-		env = append(env, "NERU_MODIFIERS="+evt.Modifiers)
+	spec, _ := lookup(evt.Name)
+	for _, variable := range spec.Variables {
+		if value, ok := variable.read(evt); ok {
+			env = append(env, variable.Name+"="+value)
+		}
 	}
 
 	return env

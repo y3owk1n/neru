@@ -47,6 +47,8 @@
 //     by naming it, and every test name or test file it names resolves.
 //   - hint_placement_vocabulary_test.go: each configured hint placement
 //     becomes its own HINT_PLACEMENT_* macro on macOS.
+//   - hook_reference_test.go: the hooks tables in
+//     docs/reference/configuration.md are generated from the event catalog.
 //   - hotkey_delete_key_test.go: every platform's [hotkeys] table resolves
 //     "Delete" and "Backspace" to one physical key, the backspace key, so a
 //     config file binds the same key on all three.

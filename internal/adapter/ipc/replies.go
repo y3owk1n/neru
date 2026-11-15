@@ -49,3 +49,24 @@ type SnapData = client.SnapData
 
 // SnapBounds is client.SnapBounds.
 type SnapBounds = client.SnapBounds
+
+// DescribeData is client.DescribeData.
+type DescribeData = client.DescribeData
+
+// DescribeModeFlag is client.DescribeModeFlag.
+type DescribeModeFlag = client.DescribeModeFlag
+
+// DescribeAction is client.DescribeAction.
+type DescribeAction = client.DescribeAction
+
+// DescribeOption is client.DescribeOption.
+type DescribeOption = client.DescribeOption
+
+// DescribeValue is client.DescribeValue.
+type DescribeValue = client.DescribeValue
+
+// DescribeEvent is client.DescribeEvent.
+type DescribeEvent = client.DescribeEvent
+
+// DescribeVariable is client.DescribeVariable.
+type DescribeVariable = client.DescribeVariable
