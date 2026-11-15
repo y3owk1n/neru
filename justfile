@@ -299,6 +299,7 @@ test-foundation:
         ./internal/adapter/overlay/render/badge \
         ./internal/adapter/overlay/render/motion \
         ./internal/adapter/platform/compositorcli \
+        ./internal/adapter/platform/cursoranim \
         ./internal/adapter/platform/fontcache \
         ./internal/adapter/platform/fontgeneric \
         ./internal/adapter/platform/modifierstate \

@@ -231,9 +231,9 @@ bindings (`x/sys/windows` or syscall), and add no further Windows backend
 naming without a real need. User Interface Privilege Isolation keeps elevated
 windows out of reach of `SendInput` and the `WH_KEYBOARD_LL` hook
 ([Known Gaps](../reference/platform-support.md#known-gaps)). Smooth cursor
-animation ([mouse_animator.go](../../internal/adapter/platform/windows/mouse_animator.go))
-reuses the Linux animator's shape with `SetCursorPos` as the sink, and stays
-off unless `smooth_cursor.move_mouse_enabled` is set.
+animation uses the same animator as Linux
+([cursoranim](../../internal/adapter/platform/cursoranim/animator.go)) and
+stays off unless `smooth_cursor.move_mouse_enabled` is set.
 
 ## CGO guidance
 

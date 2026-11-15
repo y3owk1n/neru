@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/cursoranim"
 	"github.com/y3owk1n/neru/internal/adapter/platform/gnomeshell"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/geometry"
@@ -40,7 +41,7 @@ const (
 type SystemAdapter struct {
 	backend          string
 	uinputScroll     bool
-	cursorAnimator   *smoothCursorAnimator
+	cursorAnimator   *cursoranim.Animator
 	relativeAnimator *relativeCursorAnimator
 	probes           *capabilityProbes
 }
@@ -50,7 +51,7 @@ func NewSystemAdapter(backend string) *SystemAdapter {
 	setTokenDesktop(backend)
 
 	adapter := &SystemAdapter{backend: backend, probes: newCapabilityProbes()}
-	adapter.cursorAnimator = newSmoothCursorAnimator(
+	adapter.cursorAnimator = cursoranim.New(
 		adapter.currentCursorPosition,
 		adapter.moveCursorDirect,
 	)
@@ -359,7 +360,7 @@ func (s *SystemAdapter) MoveCursorToPoint(
 
 	anim, ok := CurrentAnimation()
 	if ok && anim.Cursor.MoveMouseEnabled && !bypassSmooth {
-		s.cursorAnimator.animateTo(
+		s.cursorAnimator.AnimateTo(
 			point,
 			anim.Cursor.Steps,
 			anim.Cursor.MaxDuration,
@@ -370,9 +371,9 @@ func (s *SystemAdapter) MoveCursorToPoint(
 	}
 
 	// Stop before warping so a pending tween step cannot override the warp.
-	// stop() drains the injection mutex, so no step is in flight on return.
+	// Stop drains the injection mutex, so no step is in flight on return.
 	// Two concurrent callers are still last-writer-wins, as on macOS.
-	s.cursorAnimator.stop()
+	s.cursorAnimator.Stop()
 
 	return s.moveCursorDirect(point)
 }
@@ -388,7 +389,7 @@ func (s *SystemAdapter) MoveCursorInstantly(ctx context.Context, point image.Poi
 	}
 
 	s.relativeAnimator.stop()
-	s.cursorAnimator.stop()
+	s.cursorAnimator.Stop()
 
 	if s.backend == backendWaylandWlroots {
 		cached, err := waylandCursorPosition()
@@ -432,7 +433,7 @@ func (s *SystemAdapter) MoveCursorBy(
 
 			// Finish any absolute glide first so the delta drain composes from
 			// where that animation was headed, not against its remaining steps.
-			s.cursorAnimator.settle()
+			s.cursorAnimator.Settle()
 			s.relativeAnimator.addDelta(
 				delta,
 				anim.Cursor.Steps,
@@ -445,7 +446,7 @@ func (s *SystemAdapter) MoveCursorBy(
 		if s.backend == backendX11 || backendCapturesViaPortal(s.backend) {
 			bounds, err := s.ScreenBounds(ctx)
 			if err == nil {
-				s.cursorAnimator.animateRelativeBy(
+				s.cursorAnimator.AnimateRelativeBy(
 					delta,
 					func(point image.Point) image.Point {
 						return image.Point{
@@ -481,7 +482,7 @@ func (s *SystemAdapter) MoveCursorBy(
 // WaitForCursorIdle blocks until both the absolute glide and the wlroots
 // relative drain settle, or ctx is canceled.
 func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
-	err := s.cursorAnimator.wait(ctx)
+	err := s.cursorAnimator.Wait(ctx)
 	if err != nil {
 		return err
 	}
@@ -493,7 +494,7 @@ func (s *SystemAdapter) WaitForCursorIdle(ctx context.Context) error {
 // its endpoint. Actions call it before reading the cursor, so one fired
 // mid-animation acts where the user aimed without waiting it out.
 func (s *SystemAdapter) SettleCursor(ctx context.Context) error {
-	s.cursorAnimator.settle()
+	s.cursorAnimator.Settle()
 	s.relativeAnimator.settle()
 
 	return nil
