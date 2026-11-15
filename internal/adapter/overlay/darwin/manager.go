@@ -90,11 +90,6 @@ func Init(logger *zap.Logger) *Manager {
 	return instance
 }
 
-// Get returns the singleton instance of the overlay instance.
-func Get() *Manager {
-	return instance
-}
-
 // WindowPtr returns the window pointer.
 func (m *Manager) WindowPtr() unsafe.Pointer {
 	return unsafe.Pointer(m.window)

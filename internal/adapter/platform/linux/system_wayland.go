@@ -36,17 +36,10 @@ func WaylandButtonRelease(button int) error {
 	return waylandButtonRelease(button)
 }
 
-// WaylandScroll sends one scroll event. axis is 0 for vertical and 1 for
-// horizontal. delta is in logical pixels (positive is down or right), and
-// discrete is the step count.
-func WaylandScroll(axis, delta, discrete int) error {
-	return waylandScroll(axis, delta, discrete)
-}
-
-// WaylandScrollContinuous sends one scroll step of an arbitrary distance in
-// WaylandScroll's units. Unlike a discrete step, which a compositor may hold
-// back until whole notches accumulate, it is delivered as written, which
-// smooth scroll needs.
+// WaylandScrollContinuous sends one scroll step of an arbitrary distance, in
+// the units of WlrootsScrollBatch's deltas. Unlike a discrete step, which a
+// compositor may hold back until whole notches accumulate, it is delivered as
+// written, which smooth scroll needs.
 func WaylandScrollContinuous(axis int, delta float64) error {
 	return waylandScrollContinuous(axis, delta)
 }
@@ -104,13 +97,6 @@ func WaylandAwaitModifierReports(mark ModifierReportMark, count int) {
 	}
 
 	libeiAwaitModifiersRisen(mark.risen, uint32(count))
-}
-
-// WaylandKeyEvent presses or releases one key by evdev keycode on the virtual
-// keyboard. It injects releases for keys held before an evdev grab and released
-// during it, keeping the compositor's key state consistent.
-func WaylandKeyEvent(keycode uint32, pressed bool) error {
-	return waylandKeyEvent(keycode, pressed)
 }
 
 // WaylandFocusedAppID returns the app_id of the focused toplevel, which keys

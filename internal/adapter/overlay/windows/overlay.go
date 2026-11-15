@@ -655,7 +655,7 @@ func (o *winOverlay) drawCellFill(bounds image.Rectangle, fill uint32) {
 	o.window.FillRect(bounds, fill)
 }
 
-// drawCellBorder draws only the grid outline. Cell interiors stay color-key transparent.
+// drawCellBorder draws only the grid outline. Cell interiors stay transparent.
 func (o *winOverlay) drawCellBorder(
 	bounds image.Rectangle,
 	border uint32,

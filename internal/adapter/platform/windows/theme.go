@@ -6,13 +6,8 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
-// Reads Windows app theme state for overlay color compositing.
-// Does not implement ports.SystemPort. system.go delegates dark mode here.
-const (
-	// Match config/theme_palette.go defaultThemeLightSurface / defaultThemeDarkSurface.
-	themeSurfaceLight uint32 = 0xEEF2FF
-	themeSurfaceDark  uint32 = 0x0A1338
-)
+// This file reads the Windows app theme. It does not implement
+// ports.SystemPort, and system.go delegates dark mode here.
 
 // AppsUseDarkTheme reports whether Windows app dark mode is active.
 func AppsUseDarkTheme() bool {
@@ -33,14 +28,4 @@ func AppsUseDarkTheme() bool {
 	}
 
 	return value == 0
-}
-
-// ThemeSurfaceRGB returns the opaque RGB surface used to approximate semi-transparent
-// theme colors on the color-key GDI overlay (mirrors cairo compositing on Linux/macOS).
-func ThemeSurfaceRGB() uint32 {
-	if AppsUseDarkTheme() {
-		return themeSurfaceDark
-	}
-
-	return themeSurfaceLight
 }

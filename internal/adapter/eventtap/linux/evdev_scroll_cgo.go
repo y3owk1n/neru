@@ -35,9 +35,8 @@ var (
 	errUinputScroll  error
 )
 
-// uinputScrollMu serializes writes to the shared scroll device fd. One
-// ScrollDeviceScroll is three write() calls (hi-res, lo-res, SYN), and
-// concurrent IPC goroutines would interleave them into a malformed stream.
+// uinputScrollMu serializes writes to the shared scroll device fd, so batches
+// from concurrent IPC goroutines reach the device one after another.
 var uinputScrollMu sync.Mutex
 
 func initUinputScroll() error {
@@ -81,23 +80,6 @@ func IsUinputScrollAvailable() bool {
 	_, _ = getUinputScrollFd()
 
 	return errUinputScroll == nil
-}
-
-// ScrollDeviceScroll sends a scroll event via the uinput virtual device.
-func ScrollDeviceScroll(axis, value int) error {
-	scrollFd, err := getUinputScrollFd()
-	if err != nil {
-		return err
-	}
-
-	uinputScrollMu.Lock()
-	defer uinputScrollMu.Unlock()
-
-	if C.neru_uinput_scroll(C.int(scrollFd), C.int(axis), C.int(value)) == 0 {
-		return fmt.Errorf("%w", errUinputScrollSend)
-	}
-
-	return nil
 }
 
 // ScrollDeviceScrollBatch sends multiple scroll events in a single write.

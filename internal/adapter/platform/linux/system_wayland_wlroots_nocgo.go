@@ -83,15 +83,6 @@ func wlrootsButtonRelease(button int) error {
 	)
 }
 
-func wlrootsScroll(axis, delta, discrete int) error {
-	_, _, _ = axis, delta, discrete
-
-	return derrors.New(
-		derrors.CodeNotSupported,
-		"wlroots backend requires CGO-enabled Linux builds",
-	)
-}
-
 func wlrootsScrollContinuous(axis int, delta float64) error {
 	_, _ = axis, delta
 

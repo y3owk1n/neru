@@ -206,21 +206,9 @@ func waylandButtonRelease(button int) error {
 	return libeiButtonRelease(button)
 }
 
-func waylandScroll(axis, delta, discrete int) error {
-	hasVirtualPointer, err := wlrootsHasVirtualPointer()
-	if err != nil {
-		return err
-	}
-
-	if hasVirtualPointer {
-		return wlrootsScroll(axis, delta, discrete)
-	}
-
-	return libeiScroll(axis, delta)
-}
-
-// waylandScrollContinuous routes one fractional scroll step like waylandScroll.
-// Both backends carry fractions natively, so it needs no fallback.
+// waylandScrollContinuous routes one fractional scroll step to the wlroots
+// virtual pointer when the compositor has one and to libei otherwise. Both
+// backends carry fractions natively, so it needs no fallback.
 func waylandScrollContinuous(axis int, delta float64) error {
 	hasVirtualPointer, err := wlrootsHasVirtualPointer()
 	if err != nil {
@@ -237,7 +225,7 @@ func waylandScrollContinuous(axis int, delta float64) error {
 // libeiWheelClick is one wheel click in libei's discrete units.
 const libeiWheelClick = 120
 
-// waylandScrollBatch routes a batched scroll like waylandScroll. wlroots
+// waylandScrollBatch routes a batched scroll the same way. wlroots
 // flushes it in one call. libei has no batch API, so it emits one wheel click
 // per entry from discretes. Mutter treats a burst of pixel deltas as a touchpad
 // fling and keeps scrolling after it ends.
@@ -283,19 +271,4 @@ func waylandModifierEvent(modifier string, isDown bool) error {
 	}
 
 	return libeiKey(keycode, isDown)
-}
-
-// waylandKeyEvent presses or releases a key on the virtual keyboard, routing
-// through the wlroots virtual keyboard or libei depending on the compositor.
-func waylandKeyEvent(keycode uint32, pressed bool) error {
-	hasVirtualKeyboard, err := wlrootsHasVirtualKeyboard()
-	if err != nil {
-		return err
-	}
-
-	if hasVirtualKeyboard {
-		return wlrootsKey(keycode, pressed)
-	}
-
-	return libeiKey(int(keycode), pressed)
 }
