@@ -53,8 +53,8 @@ func TestHintPlacementValue_EveryPlacementMapsToItsOwnConstant(t *testing.T) {
 // same constant the declared default resolves to, so a configuration that
 // reaches the overlay before validation settles it still draws where the
 // documented default says. Refusing it instead would leave an unsettled style
-// drawing no hints at all, and the Linux overlay answers it the same way
-// (resolveHintBadgeOffset).
+// drawing no hints at all, and the Linux and Windows overlays answer it the
+// same way (badge.ResolveHintOffset).
 func TestHintPlacementValue_UnsetDrawsTheDefault(t *testing.T) {
 	t.Parallel()
 

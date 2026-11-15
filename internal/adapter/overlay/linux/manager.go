@@ -433,7 +433,7 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		)
 	}
 
-	offset, offsetErr := resolveHintBadgeOffset(style.Placement())
+	offset, offsetErr := badge.ResolveHintOffset(style.Placement())
 	if offsetErr != nil {
 		// The mode handler degrades quietly on CodeNotSupported, so warn here too
 		// or the user loses every hint with only a debug line. The placement is a
@@ -1453,35 +1453,6 @@ const (
 	hintTailTop    = 1 // tail on the badge's top edge, apex above (placement "bottom")
 	hintTailBottom = 2 // tail on the badge's bottom edge, apex below (placement "top")
 )
-
-// resolveHintBadgeOffset maps a configured placement onto the offset this
-// overlay draws it with. It is the one place the placement vocabulary is read
-// here, and every value config.HintPlacements() declares has a branch.
-// Anything else is refused, so a placement added without a Linux branch fails
-// loudly instead of drawing centered.
-//
-// The empty string is a style that reached the overlay before a configuration
-// settled it. It draws at the documented default, as macOS does
-// (`hintPlacementValue`).
-func resolveHintBadgeOffset(placement string) (badge.HintOffset, error) {
-	if placement == "" {
-		placement = config.HintPlacementDefault
-	}
-
-	switch placement {
-	case config.HintPlacementTop:
-		return badge.HintAbove, nil
-	case config.HintPlacementCenter:
-		return badge.HintOnTarget, nil
-	case config.HintPlacementBottom:
-		return badge.HintBelow, nil
-	default:
-		return badge.HintOnTarget, derrors.New(
-			derrors.CodeNotSupported,
-			"hint placement is not drawn by the linux overlay",
-		)
-	}
-}
 
 // hintTailEdge reports which badge edge the connector tail merges into, so
 // the renderer can draw badge and tail as one outline. It returns

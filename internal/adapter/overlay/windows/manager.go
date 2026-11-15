@@ -333,7 +333,7 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 		)
 	}
 
-	offset, offsetErr := resolveHintBadgeOffset(style.Placement())
+	offset, offsetErr := badge.ResolveHintOffset(style.Placement())
 	if offsetErr != nil {
 		// The error reaches the mode handler, which degrades quietly on
 		// CodeNotSupported, so say it here too, or a placement this overlay
@@ -397,39 +397,6 @@ func (m *Manager) DrawVim(scene manager.VimScene, style manager.VimStyle) error 
 }
 
 var _ manager.VimDrawer = (*Manager)(nil)
-
-// resolveHintBadgeOffset maps a configured placement onto the offset this
-// overlay draws it with. It is the one place the placement vocabulary is read
-// here, and every value config.HintPlacements() declares has a branch.
-//
-// Anything else is refused rather than drawn, the way the Linux and macOS
-// overlays refuse it. A placement added to the vocabulary without a branch
-// here would otherwise validate, reach this backend and draw somewhere nobody
-// chose, with nothing failing anywhere.
-//
-// The empty string is not one of those. It is a style that reached the overlay
-// before a configuration settled it, and it draws at the documented default.
-// That is the same answer the other two backends give it, so a draw that beats the
-// first Apply puts hints in the same place on all three.
-func resolveHintBadgeOffset(placement string) (badge.HintOffset, error) {
-	if placement == "" {
-		placement = config.HintPlacementDefault
-	}
-
-	switch placement {
-	case config.HintPlacementTop:
-		return badge.HintAbove, nil
-	case config.HintPlacementCenter:
-		return badge.HintOnTarget, nil
-	case config.HintPlacementBottom:
-		return badge.HintBelow, nil
-	default:
-		return badge.HintOnTarget, derrors.New(
-			derrors.CodeNotSupported,
-			"hint placement is not drawn by the windows overlay",
-		)
-	}
-}
 
 // DrawHintSearchInput renders the hints search input on the Windows overlay.
 func (m *Manager) DrawHintSearchInput(

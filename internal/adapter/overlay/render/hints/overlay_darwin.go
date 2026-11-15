@@ -69,8 +69,9 @@ func boolToInt(v bool) int {
 //
 // The empty string is not one of those. It is a style that reached the overlay
 // before a configuration settled it, and it draws at the documented default.
-// That is the same answer the Linux overlay gives it (`resolveHintBadgeOffset`), so a
-// draw that beats the first Apply puts hints in the same place on both.
+// That is the same answer the Linux and Windows overlays give it
+// (`badge.ResolveHintOffset`), so a draw that beats the first Apply puts hints
+// in the same place on all three.
 func hintPlacementValue(placement string) (int, error) {
 	if placement == "" {
 		placement = config.HintPlacementDefault

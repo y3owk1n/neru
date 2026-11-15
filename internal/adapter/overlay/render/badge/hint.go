@@ -1,6 +1,11 @@
 package badge
 
-import "image"
+import (
+	"image"
+
+	"github.com/y3owk1n/neru/internal/config"
+	"github.com/y3owk1n/neru/internal/derrors"
+)
 
 // The geometry `hints.ui.placement` decides, in device pixels. They live here
 // rather than in a backend so that the same configured placement puts a badge
@@ -33,10 +38,9 @@ const (
 // where a hint badge sits relative to the point it labels, and so whether there
 // is a connector arrow at all.
 //
-// Each backend maps the configured placement string onto one of these itself,
-// which is where a backend declares which placements it can draw. The drawing
-// math below takes the offset rather than the string, so a placement no backend
-// branch names cannot reach a badge.
+// ResolveHintOffset maps the configured placement string onto one of these.
+// The drawing math below takes the offset rather than the string, so a
+// placement ResolveHintOffset has no branch for cannot reach a badge.
 type HintOffset int
 
 const (
@@ -49,6 +53,39 @@ const (
 	// edge pointing up at the target.
 	HintBelow
 )
+
+// ResolveHintOffset maps a configured placement onto the offset the Linux and
+// Windows overlays draw it with. Both draw every offset through PlaceHint, so
+// the placements they can draw are the ones this function has a branch for,
+// and every value config.HintPlacements() declares has one.
+//
+// Anything else is refused with CodeNotSupported rather than drawn, the way
+// the macOS overlay refuses it (hintPlacementValue). Without the refusal, a
+// placement added to the vocabulary without a branch here would pass
+// validation and draw at a placement nobody chose, and no test would fail.
+//
+// An empty string means the style reached the overlay before a configuration
+// settled it. It draws at the documented default, as macOS does, so a draw
+// that beats the first Apply puts hints in the same place on all three.
+func ResolveHintOffset(placement string) (HintOffset, error) {
+	if placement == "" {
+		placement = config.HintPlacementDefault
+	}
+
+	switch placement {
+	case config.HintPlacementTop:
+		return HintAbove, nil
+	case config.HintPlacementCenter:
+		return HintOnTarget, nil
+	case config.HintPlacementBottom:
+		return HintBelow, nil
+	default:
+		return HintOnTarget, derrors.New(
+			derrors.CodeNotSupported,
+			"hint placement has no badge offset",
+		)
+	}
+}
 
 // HintArrow holds the three vertices of a hint connector arrow in screen
 // coordinates: the two base corners flush with the badge edge and the tip
@@ -93,8 +130,8 @@ func HintRadius(radius, badgeWidth int, offset HintOffset) int {
 // and for a badge too narrow to attach an arrow to at all.
 //
 // It takes a resolved offset rather than a configured placement string, so
-// there is no unrecognized case for it to answer, because each backend refuses one
-// before a draw begins.
+// there is no unrecognized case for it to answer, because ResolveHintOffset
+// refuses one before a draw begins.
 func PlaceHint(
 	target image.Point,
 	badgeWidth, badgeHeight, radius int,
