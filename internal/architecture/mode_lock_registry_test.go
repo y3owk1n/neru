@@ -297,8 +297,8 @@ type modeHandlerFile struct {
 // modeHandlerSourceFiles parses the non-test Go files of the mode handler
 // package, off the walk goFiles already does over the checkout.
 //
-// Files are parsed rather than built, so the build-tagged ones
-// (cursor_darwin.go, cursor_other.go) are read on every platform.
+// Files are parsed rather than built, so a build-tagged file would be read on
+// every platform.
 func modeHandlerSourceFiles(t *testing.T) []modeHandlerFile {
 	t.Helper()
 

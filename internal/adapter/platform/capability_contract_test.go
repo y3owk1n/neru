@@ -8,6 +8,8 @@ import (
 
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/parity"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
@@ -317,5 +319,30 @@ func TestCapabilities_ProbeCoverageIsDocumented(t *testing.T) {
 		if !known[key] {
 			t.Errorf("exclusion list names %q, which is not a registered capability", key)
 		}
+	}
+}
+
+// TestNewSystemPort_HidesTheCursorWhereHideCursorIsDeclared checks that the
+// platform's system port can hide the cursor exactly where the hide_cursor
+// action is declared to work. The modes handler finds that ability by type
+// assertion, so a Linux or Windows adapter that gained no-op versions of the
+// methods would turn hide_cursor into a success that does nothing.
+func TestNewSystemPort_HidesTheCursorWhereHideCursorIsDeclared(t *testing.T) {
+	current, declared := parity.Current()
+	if !declared {
+		t.Skipf("no platform column for %s", runtime.GOOS)
+	}
+
+	word, found := action.PlatformSupport().
+		Lookup(parity.KindAction, string(action.NameHideCursor), "")
+	if !found {
+		t.Fatal("hide_cursor has no platform declaration")
+	}
+
+	_, hides := newSystemPort(t).(ports.SystemCursorHider)
+
+	if want := word.Platforms.Supports(current); hides != want {
+		t.Fatalf("system port on %s implements ports.SystemCursorHider = %t, want %t "+
+			"to match the hide_cursor platform column", current, hides, want)
 	}
 }
