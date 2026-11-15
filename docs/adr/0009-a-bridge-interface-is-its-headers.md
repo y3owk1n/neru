@@ -72,7 +72,12 @@ shape, and *Bridge* in `CONTEXT.md` is written for both.
   Rule it cannot import `platform/darwin` at all, and `native` is the
   build-tagged dispatch pair `internal/adapter/platform/AGENTS.md` prescribes
   for that crossing. `native_other.go:7` already says so. It is the
-  prescribed pattern correctly applied, and it stays.
+  prescribed pattern correctly applied, and it stays. **Amended.** Only the macOS
+  render packages ever used the callback registry and the style cache, so
+  those two files no longer need to be untagged. They are now `darwin`-tagged
+  and call `platform/darwin` directly, and the `native` pair is deleted. Every
+  render package already states its own link edge, as this ADR requires, so
+  no package reached the archive through `native`.
 - **Rely on the linker.** The status quo. Rejected above. It is true only until
   the accident stops holding, and it reports the failure in the place least
   able to explain it.

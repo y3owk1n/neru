@@ -1,10 +1,12 @@
+//go:build darwin
+
 package overlayutil
 
 import (
 	"sync"
 	"unsafe"
 
-	"github.com/y3owk1n/neru/internal/adapter/overlay/render/overlayutil/native"
+	"github.com/y3owk1n/neru/internal/adapter/platform/darwin"
 )
 
 // CachedStyle holds pointers to C strings for style properties.
@@ -72,30 +74,30 @@ func (c *StyleCache) Free() {
 }
 
 func (c *StyleCache) freeLocked() {
-	native.FreeCString(c.style.FontFamily)
+	darwin.FreeCString(c.style.FontFamily)
 	c.style.FontFamily = nil
-	native.FreeCString(c.style.BgColor)
+	darwin.FreeCString(c.style.BgColor)
 	c.style.BgColor = nil
-	native.FreeCString(c.style.LabelBgColor)
+	darwin.FreeCString(c.style.LabelBgColor)
 	c.style.LabelBgColor = nil
-	native.FreeCString(c.style.TextColor)
+	darwin.FreeCString(c.style.TextColor)
 	c.style.TextColor = nil
-	native.FreeCString(c.style.MatchedTextColor)
+	darwin.FreeCString(c.style.MatchedTextColor)
 	c.style.MatchedTextColor = nil
-	native.FreeCString(c.style.BorderColor)
+	darwin.FreeCString(c.style.BorderColor)
 	c.style.BorderColor = nil
-	native.FreeCString(c.style.MatchedBgColor)
+	darwin.FreeCString(c.style.MatchedBgColor)
 	c.style.MatchedBgColor = nil
-	native.FreeCString(c.style.MatchedBorderColor)
+	darwin.FreeCString(c.style.MatchedBorderColor)
 	c.style.MatchedBorderColor = nil
-	native.FreeCString(c.style.HighlightColor)
+	darwin.FreeCString(c.style.HighlightColor)
 	c.style.HighlightColor = nil
-	native.FreeCString(c.style.SubKeyTextColor)
+	darwin.FreeCString(c.style.SubKeyTextColor)
 	c.style.SubKeyTextColor = nil
-	native.FreeCString(c.style.SubKeyFontFamily)
+	darwin.FreeCString(c.style.SubKeyFontFamily)
 	c.style.SubKeyFontFamily = nil
-	native.FreeCString(c.style.BoundaryBgColor)
+	darwin.FreeCString(c.style.BoundaryBgColor)
 	c.style.BoundaryBgColor = nil
-	native.FreeCString(c.style.BoundaryBorderColor)
+	darwin.FreeCString(c.style.BoundaryBorderColor)
 	c.style.BoundaryBorderColor = nil
 }

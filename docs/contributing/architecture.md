@@ -271,7 +271,7 @@ The code says "bundle ID" for whatever identifier the platform uses, which
 3. **Caching**: a TTL/LRU cache holds computed grid layouts
    ([grid/cache.go](../../internal/domain/grid/cache.go)), and another holds C
    string pointers for overlay styles
-   ([style_cache.go](../../internal/adapter/overlay/render/overlayutil/style_cache.go)).
+   ([style_cache_darwin.go](../../internal/adapter/overlay/render/overlayutil/style_cache_darwin.go)).
 4. **Native rendering**: CoreAnimation on macOS, Cairo on Linux, Direct2D on a
    DirectComposition swapchain on Windows (GDI on a layered window as the
    fallback). Windows paints on a dedicated UI thread that coalesces frames, so
