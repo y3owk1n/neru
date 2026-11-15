@@ -237,7 +237,7 @@ func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 			return nil
 		}
 
-		scrollAnim.animate(
+		scrollAnim.Animate(
 			deltaX,
 			deltaY,
 			modifiers,
@@ -251,7 +251,7 @@ func ScrollAtCursor(deltaX, deltaY int, modifiers action.Modifiers) error {
 
 	// A scroll arriving with the animation switched off must not be chased by
 	// chunks scheduled before the reload.
-	scrollAnim.stop()
+	scrollAnim.Stop()
 
 	return scrollAtCursorNow(deltaX, deltaY, modifiers)
 }

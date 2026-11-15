@@ -638,7 +638,7 @@ func ScrollWheel(deltaX, deltaY int, modifiers action.Modifiers) error {
 
 	anim, ok := currentAnimation()
 	if ok && anim.Scroll.Enabled {
-		scrollAnim.animate(
+		scrollAnim.Animate(
 			deltaX,
 			deltaY,
 			modifiers,
@@ -652,7 +652,7 @@ func ScrollWheel(deltaX, deltaY int, modifiers action.Modifiers) error {
 
 	// A scroll arriving with the animation switched off must not be chased by
 	// chunks scheduled before the reload.
-	scrollAnim.stop()
+	scrollAnim.Stop()
 
 	return scrollWheelNow(deltaX, deltaY, modifiers)
 }

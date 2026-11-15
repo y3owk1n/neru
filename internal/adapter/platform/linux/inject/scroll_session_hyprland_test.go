@@ -68,7 +68,7 @@ func TestHyprlandScrollSession_HoldsTheModifierAcrossEveryChunk(t *testing.T) {
 	session.pressed = pressed
 
 	for range 3 {
-		err = session.inject(0, -scrollPixelsPerNotch)
+		err = session.Inject(0, -scrollPixelsPerNotch)
 		if err != nil {
 			t.Fatalf("inject() = %v, want no error", err)
 		}
@@ -78,7 +78,7 @@ func TestHyprlandScrollSession_HoldsTheModifierAcrossEveryChunk(t *testing.T) {
 		t.Fatalf("key events during the animation = %v, want only the press", modifiers.events)
 	}
 
-	session.close()
+	session.Close()
 
 	assertEvents(t, modifiers.events, []string{ctrlDown, ctrlUp})
 
@@ -111,7 +111,7 @@ func TestHyprlandScrollSession_Close_RestoresHeldModifiersAfterRelease(t *testin
 				restore: func() { modifiers.events = append(modifiers.events, "restore") },
 			}
 
-			session.close()
+			session.Close()
 
 			assertEvents(t, modifiers.events, testCase.want)
 		})
@@ -166,7 +166,7 @@ func TestHyprlandScrollSession_Inject(t *testing.T) {
 
 			session := &hyprlandScrollSession{restore: func() {}}
 
-			err := session.inject(testCase.deltaX, testCase.deltaY)
+			err := session.Inject(testCase.deltaX, testCase.deltaY)
 			if err != nil {
 				t.Fatalf("inject() = %v, want no error", err)
 			}
@@ -184,7 +184,7 @@ func TestHyprlandScrollSession_InjectReportsAFailedBatch(t *testing.T) {
 
 	session := &hyprlandScrollSession{restore: func() {}}
 
-	err := session.inject(0, scrollPixelsPerNotch)
+	err := session.Inject(0, scrollPixelsPerNotch)
 	if !errors.Is(err, errScrollDeviceGone) {
 		t.Fatalf("inject() = %v, want the recorder's refusal", err)
 	}
@@ -196,8 +196,8 @@ func TestHyprlandScrollSession_InjectReportsAFailedBatch(t *testing.T) {
 func TestHyprlandScrollSession_Granularity(t *testing.T) {
 	session := &hyprlandScrollSession{restore: func() {}}
 
-	if got := session.granularity(); got != scrollPixelsPerNotch {
-		t.Fatalf("granularity() = %v, want %v", got, float64(scrollPixelsPerNotch))
+	if got := session.Granularity(); got != scrollPixelsPerNotch {
+		t.Fatalf("Granularity() = %v, want %v", got, float64(scrollPixelsPerNotch))
 	}
 }
 

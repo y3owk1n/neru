@@ -5,6 +5,7 @@ package inject
 import (
 	"image"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/scrollanim"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -97,7 +98,7 @@ func waylandScrollBackendAvailable() error {
 	)
 }
 
-func newWaylandScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+func newWaylandScrollSession(modifiers action.Modifiers) (scrollanim.Session, error) {
 	_ = modifiers
 
 	return nil, waylandScrollBackendAvailable()

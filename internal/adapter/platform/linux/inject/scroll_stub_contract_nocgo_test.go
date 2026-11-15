@@ -5,6 +5,7 @@ package inject
 import (
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/scrollanim"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -50,7 +51,7 @@ func TestScrollBackendAvailable_RefusesOnACgoLessBuild(t *testing.T) {
 // the worker would open refuses too, so a backend that somehow reached the
 // animator still injects nothing rather than half of something.
 func TestBeginScrollSession_RefusesOnACgoLessBuild(t *testing.T) {
-	sessions := map[string]func(action.Modifiers) (scrollSession, error){
+	sessions := map[string]func(action.Modifiers) (scrollanim.Session, error){
 		"x11":     newX11ScrollSession,
 		"wayland": newWaylandScrollSession,
 	}
