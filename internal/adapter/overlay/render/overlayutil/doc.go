@@ -1,5 +1,7 @@
-// Package overlayutil provides shared utilities for overlay management.
+// Package overlayutil holds what the overlay render components share.
 //
-// It holds the callback management and style caching shared by the overlay
-// implementations.
+// The callback registry and the style cache are macOS only. They hand C heap
+// pointers to the Objective-C bridge and free them again, so they call
+// platform/darwin directly. The indicator memo is pure Go and builds
+// everywhere.
 package overlayutil
