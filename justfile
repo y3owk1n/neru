@@ -293,6 +293,7 @@ test-foundation:
         ./internal/domain/bisect \
         ./internal/domain/state ./internal/derrors \
         ./internal/flagref ./internal/supportref ./internal/configschema \
+        ./internal/describe ./internal/hookref \
         ./internal/schematest \
         ./client \
         ./internal/adapter/logger \
@@ -476,6 +477,14 @@ genman OUTPUT_DIR="build/man":
 genflagref:
     @echo "Generating the mode-flag reference..."
     go run ./cmd/genflagref docs/reference/cli.md
+
+# Rewrite the hooks and hook-variable tables from the event catalog. Run after
+# adding an event or changing what one carries. The architecture guardrail
+# fails while the page is out of date.
+[doc('Rewrite the hooks tables in docs/reference/configuration.md.')]
+genhookref:
+    @echo "Generating the hooks reference..."
+    go run ./cmd/genhookref docs/reference/configuration.md
 
 # Rewrite the published schemas: the one editors read for config.toml, from
 # the config structs, and the IPC one, from the wire types. Run after changing

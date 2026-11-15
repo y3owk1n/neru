@@ -102,6 +102,34 @@ func TestClient_Status_DecodesTheReply(t *testing.T) {
 	}
 }
 
+func TestClient_Describe_DecodesTheReply(t *testing.T) {
+	isolate(t)
+
+	requests := make(chan ipc.Command, 1)
+
+	serve(t, func(_ context.Context, cmd ipc.Command) ipc.Response {
+		requests <- cmd
+
+		return ipc.Response{Success: true, Data: ipc.DescribeData{
+			Protocol: client.ProtocolVersion,
+			Actions:  []ipc.DescribeAction{{Name: "left_click", Here: true}},
+		}}
+	}, nil)
+
+	described, err := client.New().Describe(testContext(t))
+	if err != nil {
+		t.Fatalf("Describe() error = %v", err)
+	}
+
+	if len(described.Actions) != 1 || described.Actions[0].Name != "left_click" {
+		t.Errorf("Describe() = %+v, want left_click", described)
+	}
+
+	if got := <-requests; got.Action != "describe" {
+		t.Errorf("request action = %q, want describe", got.Action)
+	}
+}
+
 func TestClient_Hints_PassesItsFlags(t *testing.T) {
 	isolate(t)
 

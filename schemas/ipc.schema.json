@@ -54,6 +54,273 @@
       "$ref": "config.schema.json",
       "description": "The data of config with no args: the running configuration, as config.toml writes it."
     },
+    "describe": {
+      "description": "The data of describe: every word Neru reads, with the platforms each works on.",
+      "properties": {
+        "actions": {
+          "items": {
+            "properties": {
+              "here": {
+                "type": "boolean"
+              },
+              "modes": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "name": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "platforms": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "name",
+              "modes",
+              "platforms",
+              "here",
+              "note"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "events": {
+          "items": {
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "here": {
+                "type": "boolean"
+              },
+              "hook": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "platforms": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "variables": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "name",
+              "hook",
+              "description",
+              "variables",
+              "platforms",
+              "here",
+              "note"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "mode_flags": {
+          "items": {
+            "properties": {
+              "here": {
+                "type": "boolean"
+              },
+              "modes": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "name": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "platforms": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "shape": {
+                "type": "string"
+              },
+              "short": {
+                "type": "string"
+              },
+              "usage": {
+                "type": "string"
+              },
+              "values": {
+                "items": {
+                  "properties": {
+                    "here": {
+                      "type": "boolean"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "platforms": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "platforms",
+                    "here",
+                    "note"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "name",
+              "short",
+              "shape",
+              "modes",
+              "usage",
+              "platforms",
+              "here",
+              "note",
+              "values"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "modes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "options": {
+          "items": {
+            "properties": {
+              "here": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              },
+              "platforms": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "values": {
+                "items": {
+                  "properties": {
+                    "here": {
+                      "type": "boolean"
+                    },
+                    "note": {
+                      "type": "string"
+                    },
+                    "platforms": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "type": "array"
+                    },
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "platforms",
+                    "here",
+                    "note"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "name",
+              "platforms",
+              "here",
+              "note",
+              "values"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "platform": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "integer"
+        },
+        "variables": {
+          "items": {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "value"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "protocol",
+        "platform",
+        "modes",
+        "mode_flags",
+        "actions",
+        "options",
+        "events",
+        "variables"
+      ],
+      "type": "object"
+    },
     "query_app": {
       "description": "The data of query-app.",
       "properties": {

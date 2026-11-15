@@ -27,8 +27,8 @@ const (
 const focusedBundleID = "com.apple.Safari"
 
 // TestReplies_MatchThePublishedSchema pins that what the daemon sends is what
-// schemas/ipc.schema.json tells a client to expect, for the status, toggle and
-// refused replies and a request. The queries have a test of their own.
+// schemas/ipc.schema.json tells a client to expect, for the status, describe,
+// toggle and refused replies and a request. The queries have a test of their own.
 func TestReplies_MatchThePublishedSchema(t *testing.T) {
 	schema := ipcSchema(t)
 	controller := newTestController()
@@ -39,6 +39,13 @@ func TestReplies_MatchThePublishedSchema(t *testing.T) {
 	)
 	assertMatches(t, schema, "response", status)
 	assertMatches(t, schema, statusDefinition, status.Data)
+
+	described := controller.HandleCommand(
+		context.Background(),
+		ipc.Command{Action: domain.CommandDescribe},
+	)
+	assertMatches(t, schema, "response", described)
+	assertMatches(t, schema, "describe", described.Data)
 
 	toggle := controller.HandleCommand(
 		context.Background(),

@@ -98,6 +98,11 @@ func definitions() []definition {
 			description: "The data of toggle-cursor-follow-selection.",
 		},
 		{
+			name:        "describe",
+			goType:      reflect.TypeFor[ipc.DescribeData](),
+			description: "The data of describe: every word Neru reads, with the platforms each works on.",
+		},
+		{
 			name:        "watch_line",
 			goType:      reflect.TypeFor[ipc.WatchLine](),
 			description: "One line of a watch stream after its reply: a snapshot or an event.",

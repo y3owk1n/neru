@@ -30,6 +30,11 @@ process per update.
 
 ## Check the installed version has it
 
+Start with `neru agent-guide`. A build that has it prints a guide written for
+that build, and `neru describe --json` and `neru schema ipc` then give its
+whole vocabulary and wire shapes without fetching anything. An older build
+answers `unknown command`, so carry on with the checks below.
+
 Run these before writing anything. When the binary and the docs disagree,
 the binary is right. Check the flags the plan uses, such as these:
 
