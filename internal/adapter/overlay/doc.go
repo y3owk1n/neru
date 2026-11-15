@@ -3,5 +3,5 @@
 // the render models the backends draw. The manager subpackage holds the
 // contract, the darwin, linux and windows subpackages implement it, and the
 // render subpackages own what is drawn.
-// Init and Get build and reach the process-wide manager.
+// Init builds the process-wide manager, and on Linux Get reaches it.
 package overlay

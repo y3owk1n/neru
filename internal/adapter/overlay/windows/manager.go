@@ -91,11 +91,6 @@ func NewOverlayManager(logger *zap.Logger) *Manager {
 	return mgr
 }
 
-// Get returns the global overlay Manager.
-func Get() *Manager {
-	return windowsManager
-}
-
 // Init initializes the global overlay Manager.
 func Init(logger *zap.Logger) *Manager {
 	windowsManagerOnce.Do(func() {

@@ -255,10 +255,6 @@ func libeiButton(button int, pressed bool) error {
 	)
 }
 
-func libeiScroll(axis, delta int) error {
-	return libeiScrollContinuous(axis, float64(delta))
-}
-
 // libeiScrollContinuous emits one scroll of an arbitrary pixel distance. KWin
 // forwards ei_device_scroll_delta with a zero v120 step count, so a fraction
 // of a notch reaches the client at once, which the smooth-scroll animator needs.

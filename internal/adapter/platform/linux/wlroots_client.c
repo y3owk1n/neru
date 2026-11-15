@@ -1725,23 +1725,6 @@ int neru_wlr_click(NeruWlrootsClient *c, int button) {
 	return 1;
 }
 
-int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete) {
-	if (!c || !c->vptr)
-		return 0;
-
-	pthread_mutex_lock(&c->display_mutex);
-	zwlr_virtual_pointer_v1_axis_source(c->vptr, 0);
-	if (discrete != 0) {
-		zwlr_virtual_pointer_v1_axis_discrete(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta), discrete);
-	} else {
-		zwlr_virtual_pointer_v1_axis(c->vptr, 0, (uint32_t)axis, wl_fixed_from_int(delta));
-	}
-	zwlr_virtual_pointer_v1_frame(c->vptr);
-	wl_display_flush(c->display);
-	pthread_mutex_unlock(&c->display_mutex);
-	return 1;
-}
-
 int neru_wlr_scroll_continuous(NeruWlrootsClient *c, int axis, double value) {
 	if (!c || !c->vptr)
 		return 0;

@@ -188,30 +188,6 @@ int neru_uinput_probe_scroll(void) {
 	return 1;
 }
 
-int neru_uinput_scroll(int fd, int axis, int value) {
-	struct input_event ev;
-	memset(&ev, 0, sizeof(ev));
-
-	ev.type = EV_REL;
-	ev.code = (axis == 0) ? REL_WHEEL_HI_RES : REL_HWHEEL_HI_RES;
-	ev.value = value * 120;
-	ssize_t w1 = write(fd, &ev, sizeof(ev));
-
-	memset(&ev, 0, sizeof(ev));
-	ev.type = EV_REL;
-	ev.code = (axis == 0) ? REL_WHEEL : REL_HWHEEL;
-	ev.value = value;
-	ssize_t w2 = write(fd, &ev, sizeof(ev));
-
-	memset(&ev, 0, sizeof(ev));
-	ev.type = EV_SYN;
-	ev.code = SYN_REPORT;
-	ev.value = 0;
-	ssize_t w3 = write(fd, &ev, sizeof(ev));
-
-	return (w1 == sizeof(ev) && w2 == sizeof(ev) && w3 == sizeof(ev)) ? 1 : 0;
-}
-
 int neru_uinput_scroll_batch(int fd, int axis, int *values, int count) {
 	if (fd < 0 || !values || count <= 0)
 		return 0;

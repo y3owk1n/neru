@@ -565,33 +565,11 @@ func wlrootsButtonRelease(button int) error {
 	return nil
 }
 
-// wlrootsScroll sends a scroll event on the virtual pointer. axis is 0 for
-// vertical and 1 for horizontal, and discrete is the step count.
-func wlrootsScroll(axis, delta, discrete int) error {
-	err := ensureWlrootsState()
-	if err != nil {
-		return err
-	}
-
-	globalWlrootsState.mu.Lock()
-	client := globalWlrootsState.client
-	defer globalWlrootsState.mu.Unlock()
-
-	res := C.neru_wlr_scroll(client, C.int(axis), C.int(delta), C.int(discrete))
-	if res == 0 {
-		return derrors.New(
-			derrors.CodeActionFailed,
-			"failed to perform wlroots scroll event",
-		)
-	}
-
-	return nil
-}
-
 // wlrootsScrollContinuous sends one fractional scroll step with no discrete
 // count, which smooth scroll is built on. A zero delta_discrete makes the
 // compositor pass the fraction on as a wl_pointer.axis instead of holding it
-// until a whole notch adds up. delta is in wlrootsScroll's units.
+// until a whole notch adds up. delta is in the units of wlrootsScrollBatch's
+// deltas.
 func wlrootsScrollContinuous(axis int, delta float64) error {
 	err := ensureWlrootsState()
 	if err != nil {

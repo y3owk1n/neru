@@ -157,12 +157,11 @@ int neru_wlr_move_absolute(NeruWlrootsClient *c, int x, int y);
 int neru_wlr_move_relative(NeruWlrootsClient *c, int dx, int dy);
 int neru_wlr_button(NeruWlrootsClient *c, int button, int pressed);
 int neru_wlr_click(NeruWlrootsClient *c, int button);
-int neru_wlr_scroll(NeruWlrootsClient *c, int axis, int delta, int discrete);
 int neru_wlr_scroll_batch(NeruWlrootsClient *c, int axis, int *deltas, int *discretes, int count);
 // Emit one continuous scroll step, a fractional wl_fixed axis value with no
 // discrete count. The compositor forwards it to the focused client as a plain
 // wl_pointer.axis, which lets an animated scroll go finer than a notch. value
-// uses neru_wlr_scroll's delta units.
+// is in the units of neru_wlr_scroll_batch's deltas.
 int neru_wlr_scroll_continuous(NeruWlrootsClient *c, int axis, double value);
 int neru_wlr_modifier_event(NeruWlrootsClient *c, const char *modifier, int is_down);
 

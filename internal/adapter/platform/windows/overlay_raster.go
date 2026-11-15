@@ -11,6 +11,13 @@ import (
 // into a premultiplied BGRA buffer. The DirectComposition surface paints the
 // same commands on the GPU and never reaches this file.
 
+// Bit offsets for the channels of an AARRGGBB packed color.
+const (
+	greenShift = 8
+	redShift   = 16
+	alphaShift = 24
+)
+
 // paintCommand rasterizes one command into pixels and returns the rectangle it
 // touched, clipped to the buffer. Text is painted through text, which owns the
 // GDI objects the glyphs come from.
