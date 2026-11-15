@@ -33,9 +33,9 @@ import (
 func TestOverlay_DrawHintsReportsNotSupportedOffDarwin(t *testing.T) {
 	t.Parallel()
 
-	overlay, err := hints.NewOverlay(config.DefaultConfig().Hints, zap.NewNop())
+	overlay, err := hints.NewOverlayWithWindow(config.DefaultConfig().Hints, zap.NewNop(), nil)
 	if err != nil {
-		t.Fatalf("NewOverlay returned error: %v", err)
+		t.Fatalf("NewOverlayWithWindow returned error: %v", err)
 	}
 
 	drawn := []*hints.Hint{

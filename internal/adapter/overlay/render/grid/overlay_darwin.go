@@ -156,26 +156,6 @@ func prewarm(config config.GridConfig) {
 	}()
 }
 
-// NewOverlay creates a new grid overlay instance with its own window and prewarms common grid sizes.
-func NewOverlay(config config.GridConfig, logger *zap.Logger) (*Overlay, error) {
-	base, err := overlayutil.NewBaseOverlay(logger)
-	if err != nil {
-		return nil, err
-	}
-	base.CallbackManager.SetComponent("grid")
-	initGridPools()
-	prewarm(config)
-
-	return &Overlay{
-		window:          C.OverlayWindow(base.Window),
-		config:          config,
-		logger:          logger,
-		callbackManager: base.CallbackManager,
-		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
-	}, nil
-}
-
 // NewOverlayWithWindow creates a grid overlay instance using a shared window and prewarms common grid sizes.
 func NewOverlayWithWindow(
 	config config.GridConfig,

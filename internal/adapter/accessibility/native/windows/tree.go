@@ -121,16 +121,9 @@ func DefaultTreeOptions(logger *zap.Logger) TreeOptions {
 	return TreeOptions{logger: logger}
 }
 
-// SetCache is a no-op on Windows. The UIA cache request is built inside every
-// enumeration rather than handed in by the caller.
-func (o *TreeOptions) SetCache(_ any) {}
-
 // SetMaxDepth sets the deepest control-view level enumeration reads, 0 for
 // unlimited.
 func (o *TreeOptions) SetMaxDepth(depth int) { o.MaxDepth = depth }
-
-// SetBundleID is a no-op on Windows.
-func (o *TreeOptions) SetBundleID(_ string) {}
 
 // SetSettingsSource records the config source the visible check reads.
 func (o *TreeOptions) SetSettingsSource(provider ax.SettingsSource) { o.settingsSource = provider }

@@ -136,25 +136,6 @@ func initPools() {
 	})
 }
 
-// NewOverlay creates a new hint overlay instance with its own window.
-func NewOverlay(config config.HintsConfig, logger *zap.Logger) (*Overlay, error) {
-	base, err := overlayutil.NewBaseOverlay(logger)
-	if err != nil {
-		return nil, err
-	}
-	base.CallbackManager.SetComponent("hints")
-	initPools()
-
-	return &Overlay{
-		window:          C.OverlayWindow(base.Window),
-		config:          config,
-		logger:          logger,
-		callbackManager: base.CallbackManager,
-		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
-	}, nil
-}
-
 // NewOverlayWithWindow creates a hint overlay instance using a shared window.
 func NewOverlayWithWindow(
 	config config.HintsConfig,

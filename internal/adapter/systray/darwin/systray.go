@@ -96,15 +96,6 @@ func SetTitle(title string) {
 	C.NeruSetTitle(cTitle)
 }
 
-// SetIcon sets the icon of the system tray item.
-func SetIcon(icon []byte) {
-	if len(icon) == 0 {
-		return
-	}
-	cIcon := (*C.char)(unsafe.Pointer(&icon[0]))
-	C.NeruSetIcon(cIcon, C.int(len(icon)), C.bool(false))
-}
-
 // SetTemplateIcon sets the icon of the system tray item as a template icon (monochrome).
 func SetTemplateIcon(icon []byte, template bool) {
 	if len(icon) == 0 {

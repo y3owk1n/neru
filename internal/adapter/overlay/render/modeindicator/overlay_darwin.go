@@ -99,25 +99,6 @@ func NewOverlay(
 	}, nil
 }
 
-// NewOverlayWithWindow initializes a mode indicator overlay instance using a shared window.
-func NewOverlayWithWindow(
-	indicatorCfg config.ModeIndicatorConfig,
-	theme config.ThemeProvider,
-	logger *zap.Logger,
-	windowPtr unsafe.Pointer,
-) (*Overlay, error) {
-	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
-
-	return &Overlay{
-		window:          C.OverlayWindow(base.Window),
-		indicatorConfig: indicatorCfg,
-		theme:           theme,
-		logger:          logger,
-		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
-	}, nil
-}
-
 // Window returns the underlying C overlay window.
 func (o *Overlay) Window() C.OverlayWindow {
 	return o.window
