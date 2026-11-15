@@ -73,24 +73,6 @@ type Overlay struct {
 	drawMu sync.RWMutex
 }
 
-// NewOverlay creates a new recursive_grid overlay instance.
-func NewOverlay(cfg config.RecursiveGridConfig, logger *zap.Logger) (*Overlay, error) {
-	base, err := overlayutil.NewBaseOverlay(logger)
-	if err != nil {
-		return nil, err
-	}
-	base.CallbackManager.SetComponent("recursivegrid")
-
-	return &Overlay{
-		window:          C.OverlayWindow(base.Window),
-		config:          cfg,
-		logger:          logger,
-		callbackManager: base.CallbackManager,
-		styleCache:      base.StyleCache,
-		cachedLabels:    make(map[string]*C.char),
-	}, nil
-}
-
 // NewOverlayWithWindow creates a recursive_grid overlay instance using a shared window.
 func NewOverlayWithWindow(
 	cfg config.RecursiveGridConfig,

@@ -486,8 +486,3 @@ func eventTapPassthroughBridge(_ unsafe.Pointer) {
 		}
 	}
 }
-
-// IsUinputScrollAvailable returns false on Darwin.
-func IsUinputScrollAvailable() bool {
-	return false
-}

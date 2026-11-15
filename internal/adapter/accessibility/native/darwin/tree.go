@@ -163,34 +163,13 @@ type TreeOptions struct {
 	maxDepth       int
 	logger         *zap.Logger
 	stats          *treeStats
-	bundleID       string            // Bundle ID for auto-detecting Chromium/Electron strict filtering
 	settingsSource ax.SettingsSource // Per-app clickable and visible checks
 	bundleType     string            // "electron", "chromium", "firefox", "webkit", or ""
-}
-
-// FilterFunc returns the filter function.
-func (o *TreeOptions) FilterFunc() func(*ElementInfo) bool {
-	return o.filterFunc
-}
-
-// MaxDepth returns the max depth.
-func (o *TreeOptions) MaxDepth() int {
-	return o.maxDepth
 }
 
 // Logger returns the logger.
 func (o *TreeOptions) Logger() *zap.Logger {
 	return o.logger
-}
-
-// Stats returns the tree stats.
-func (o *TreeOptions) Stats() *treeStats {
-	return o.stats
-}
-
-// SetBundleID sets the bundle ID for auto-detecting Chromium/Electron strict filtering.
-func (o *TreeOptions) SetBundleID(bundleID string) {
-	o.bundleID = bundleID
 }
 
 // SetSettingsSource sets where the tree reads the per-app clickable and
@@ -300,10 +279,8 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 	}
 
 	// Auto-detect Chromium/Electron from root element's bundle ID for strict filtering.
-	if opts.bundleID == "" {
-		opts.bundleID = root.BundleIdentifier()
-	}
-	opts.bundleType = DetectBundleType(opts.bundleID)
+	bundleID := root.BundleIdentifier()
+	opts.bundleType = DetectBundleType(bundleID)
 
 	node := getTreeNode(root, info, nil, defaultChildrenCapacity)
 
@@ -330,7 +307,7 @@ func BuildTree(ctx context.Context, root *Element, opts TreeOptions) (*TreeNode,
 			zap.Duration("elapsed", buildElapsed),
 			zap.String("root_role", info.Role()),
 			zap.Int("pid", info.PID()),
-			zap.String("bundle_id", opts.bundleID),
+			zap.String("bundle_id", bundleID),
 			zap.String("bundle_type", opts.bundleType),
 			zap.Int64("nodes_visited", stats.nodesVisited.Load()),
 			zap.Int64("skipped_non_interactive", stats.skippedNonInteractive.Load()),

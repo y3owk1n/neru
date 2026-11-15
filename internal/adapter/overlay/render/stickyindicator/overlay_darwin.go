@@ -79,25 +79,6 @@ func NewOverlay(
 	}, nil
 }
 
-// NewOverlayWithWindow initializes a sticky modifiers indicator overlay using a shared window.
-func NewOverlayWithWindow(
-	uiConfig config.StickyModifiersUI,
-	theme config.ThemeProvider,
-	logger *zap.Logger,
-	windowPtr unsafe.Pointer,
-) (*Overlay, error) {
-	base := overlayutil.NewBaseOverlayWithWindow(logger, windowPtr)
-
-	return &Overlay{
-		window:       C.OverlayWindow(base.Window),
-		uiConfig:     uiConfig,
-		theme:        theme,
-		logger:       logger,
-		styleCache:   base.StyleCache,
-		cachedLabels: make(map[string]*C.char),
-	}, nil
-}
-
 // Show displays the sticky modifiers indicator overlay window.
 func (o *Overlay) Show() {
 	if o.memo.Show(time.Now()) {

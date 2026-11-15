@@ -19,12 +19,6 @@ func CheckAccessibilityPermissions() bool {
 	return C.NeruCheckAccessibilityPermissions() != 0
 }
 
-// RequestAccessibilityPermissions asks macOS to start the accessibility
-// permission flow and returns whether permission is granted afterward.
-func RequestAccessibilityPermissions() bool {
-	return C.NeruRequestAccessibilityPermissions() != 0
-}
-
 // FocusedApplicationPID returns the PID of the currently focused application.
 func FocusedApplicationPID() (int, error) {
 	ref := C.NeruGetFocusedApplication()

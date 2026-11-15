@@ -35,10 +35,7 @@ import (
 func TestOverlay_DrawGridReportsNotSupportedOffDarwin(t *testing.T) {
 	t.Parallel()
 
-	overlay, err := grid.NewOverlay(config.DefaultConfig().Grid, zap.NewNop())
-	if err != nil {
-		t.Fatalf("NewOverlay returned error: %v", err)
-	}
+	overlay := grid.NewOverlayWithWindow(config.DefaultConfig().Grid, zap.NewNop(), nil)
 
 	drawn := domainGrid.NewGrid("abc", image.Rect(0, 0, 800, 600), zap.NewNop())
 

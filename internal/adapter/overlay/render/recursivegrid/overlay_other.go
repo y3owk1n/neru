@@ -18,14 +18,6 @@ type Overlay struct {
 	logger *zap.Logger
 }
 
-// NewOverlay creates a new recursive_grid overlay instance (non-darwin stub).
-func NewOverlay(cfg config.RecursiveGridConfig, logger *zap.Logger) (*Overlay, error) {
-	return &Overlay{
-		config: cfg,
-		logger: logger,
-	}, nil
-}
-
 // NewOverlayWithWindow creates a recursive_grid overlay instance using a shared window (non-darwin stub).
 func NewOverlayWithWindow(
 	cfg config.RecursiveGridConfig,

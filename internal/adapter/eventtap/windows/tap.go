@@ -282,11 +282,6 @@ func (et *EventTap) DisableWithContext(_ context.Context) error {
 	return nil
 }
 
-// IsUinputScrollAvailable returns false on Windows.
-func IsUinputScrollAvailable() bool {
-	return false
-}
-
 // notePostedModifier records a modifier this tap holds down (or released) on
 // the handler's behalf.
 func (et *EventTap) notePostedModifier(modifier string, isDown bool) {

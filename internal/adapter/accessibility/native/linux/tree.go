@@ -47,14 +47,8 @@ type TreeOptions struct {
 // DefaultTreeOptions returns the default tree options (Linux stub).
 func DefaultTreeOptions(logger *zap.Logger) TreeOptions { return TreeOptions{} }
 
-// SetCache is a Linux stub.
-func (o *TreeOptions) SetCache(cache any) {}
-
 // SetMaxDepth is a Linux stub.
 func (o *TreeOptions) SetMaxDepth(depth int) {}
-
-// SetBundleID is a Linux stub.
-func (o *TreeOptions) SetBundleID(bundleID string) {}
 
 // SetSettingsSource is a Linux stub.
 func (o *TreeOptions) SetSettingsSource(_ ax.SettingsSource) {}

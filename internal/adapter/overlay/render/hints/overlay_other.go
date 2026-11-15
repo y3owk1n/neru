@@ -21,14 +21,6 @@ type Overlay struct {
 	logger *zap.Logger
 }
 
-// NewOverlay creates a new hint overlay instance with its own window (non-darwin stub).
-func NewOverlay(hintsCfg config.HintsConfig, logger *zap.Logger) (*Overlay, error) {
-	return &Overlay{
-		config: hintsCfg,
-		logger: logger,
-	}, nil
-}
-
 // NewOverlayWithWindow creates a new hint overlay instance with an existing window (non-darwin stub).
 func NewOverlayWithWindow(
 	hintsCfg config.HintsConfig,

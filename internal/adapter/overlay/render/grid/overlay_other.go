@@ -23,11 +23,6 @@ type Overlay struct {
 	logger *zap.Logger
 }
 
-// NewOverlay creates a new grid overlay instance (non-darwin stub).
-func NewOverlay(cfg config.GridConfig, logger *zap.Logger) (*Overlay, error) {
-	return NewOverlayWithWindow(cfg, logger, nil), nil
-}
-
 // NewOverlayWithWindow creates a grid overlay instance using a shared window (non-darwin stub).
 func NewOverlayWithWindow(
 	cfg config.GridConfig,

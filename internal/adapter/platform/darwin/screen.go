@@ -58,11 +58,6 @@ func Screens() []ports.Screen {
 	return screens
 }
 
-// IsMissionControlActive returns true if Mission Control is active.
-func IsMissionControlActive() bool {
-	return bool(C.NeruIsMissionControlActive())
-}
-
 // IsScreenZoomed reports whether the macOS Accessibility Zoom feature is
 // currently zoomed in. Cursor positioning does not depend on this, because
 // synthetic mouse events are posted at the session tap and so bypass the window
