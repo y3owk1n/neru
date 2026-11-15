@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"slices"
 	"testing"
 
 	"go.uber.org/zap"
@@ -64,6 +65,67 @@ func TestNew_ServicesPhaseFailureUnwindsWithoutPanicking(t *testing.T) {
 
 			if !derrors.IsCode(err, testCase.wantCode) {
 				t.Fatalf("New error = %v, want code %s", err, testCase.wantCode)
+			}
+		})
+	}
+}
+
+// TestNew_HandsTheConfiguredClickableRolesToTheAccessibilityPort checks that
+// startup applies hints.clickable_roles through the accessibility port, so
+// the roles a user configures take effect before the first reload.
+func TestNew_HandsTheConfiguredClickableRolesToTheAccessibilityPort(t *testing.T) {
+	tests := []struct {
+		name         string
+		hintsEnabled bool
+	}{
+		{name: "hints enabled", hintsEnabled: true},
+		{name: "hints disabled", hintsEnabled: false},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
+			cfg.Hints.Enabled = testCase.hintsEnabled
+			cfg.Hints.ClickableRoles = []string{"button", "ax:AXCell"}
+
+			var applied [][]string
+
+			axPort := &mocks.MockAccessibilityPort{
+				UpdateClickableRolesFunc: func(roles []string) {
+					applied = append(applied, roles)
+				},
+			}
+
+			application, err := app.New(
+				app.WithConfig(cfg),
+				app.WithConfigPath(""),
+				app.WithLogger(zap.NewNop()),
+				app.WithEventTap(&mocks.MockEventTapPort{}),
+				app.WithTextInput(&mocks.MockTextInputPort{}),
+				app.WithIPCServer(&mocks.MockIPCPort{}),
+				app.WithWatcher(&mocks.MockAppWatcherPort{}),
+				app.WithHotkeyService(&mocks.MockHotkeyPort{}),
+				app.WithOverlayPort(&mocks.MockOverlayPort{}),
+				app.WithSystemPort(&mocks.MockSystemPort{}),
+				app.WithAccessibility(axPort),
+				app.WithMouse(&mocks.MockMousePort{}),
+				app.WithVisionPort(&mocks.MockVisionPort{}),
+				app.WithClipboard(&mocks.MockClipboardPort{}),
+				app.WithKeyFeed(&mocks.MockKeyFeedPort{}),
+			)
+			if err != nil {
+				t.Fatalf("New failed: %v", err)
+			}
+
+			t.Cleanup(application.Cleanup)
+
+			var want [][]string
+			if testCase.hintsEnabled {
+				want = [][]string{cfg.Hints.ResolvedClickableRoles()}
+			}
+
+			if !slices.EqualFunc(applied, want, slices.Equal[[]string]) {
+				t.Fatalf("startup applied clickable roles %v, want %v", applied, want)
 			}
 		})
 	}
