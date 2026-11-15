@@ -166,7 +166,7 @@ func (o *Overlay) HideVirtualPointer() {
 	C.NeruHideCursorIndicator(o.window)
 }
 
-// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
+// Cleanup frees Go-side resources (callbackManager, styleCache, labels)
 // without destroying the native window. Use this for overlays that share a
 // window managed by the overlay Manager.
 func (o *Overlay) Cleanup() {
@@ -276,7 +276,7 @@ func (o *Overlay) DrawRecursiveGrid(
 	}
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
-	// draw call so that freeLabelCache cannot free labels mid-draw.
+	// draw call so that freeAllCaches cannot free labels mid-draw.
 	o.drawMu.RLock()
 
 	cellRects := recursivegrid.ComputeGridCells(bounds, dims)

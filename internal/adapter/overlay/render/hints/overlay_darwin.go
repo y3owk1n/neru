@@ -287,7 +287,7 @@ func (o *Overlay) SetConfig(config config.HintsConfig) {
 	o.freeAllCaches()
 }
 
-// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
+// Cleanup frees Go-side resources (callbackManager, styleCache, labels)
 // without destroying the native window. Use this for overlays that share a
 // window managed by the overlay Manager.
 func (o *Overlay) Cleanup() {
@@ -394,7 +394,7 @@ func (o *Overlay) drawHintsInternal(hints []*Hint, style StyleMode, showArrow bo
 	}
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
-	// draw call so that freeLabelCache (which takes drawMu.Lock) cannot free
+	// draw call so that freeAllCaches (which takes drawMu.Lock) cannot free
 	// the C strings while they are still referenced in the HintData slice.
 	o.drawMu.RLock()
 
@@ -666,7 +666,7 @@ func (o *Overlay) drawHintsIncrementalStructural(
 	}
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
-	// draw call so that freeLabelCache cannot free labels mid-draw.
+	// draw call so that freeAllCaches cannot free labels mid-draw.
 	o.drawMu.RLock()
 
 	// Convert hints to C structures (labels are cached, not freed per call)

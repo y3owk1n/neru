@@ -262,7 +262,7 @@ func (o *Overlay) Clear() {
 	o.gridStateMu.Unlock()
 }
 
-// Cleanup frees Go-side resources (callbackManager, styleCache, labelCache)
+// Cleanup frees Go-side resources (callbackManager, styleCache, labels)
 // without destroying the native window. Use this for overlays that share a
 // window managed by the overlay Manager.
 func (o *Overlay) Cleanup() {
@@ -399,7 +399,7 @@ func (o *Overlay) ShowSubgrid(cell *domainGrid.Cell, style Style) {
 	o.configMu.RUnlock()
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
-	// draw call so that freeLabelCache cannot free labels mid-draw.
+	// draw call so that freeAllCaches cannot free labels mid-draw.
 	o.drawMu.RLock()
 
 	// The keys this subgrid is drawn with, which are the keys the mode layer
@@ -654,7 +654,7 @@ func (o *Overlay) drawGridIncrementalStructural(
 	}
 
 	// Hold drawMu.RLock for the entire span from label lookup through the C
-	// draw call so that freeLabelCache cannot free labels mid-draw.
+	// draw call so that freeAllCaches cannot free labels mid-draw.
 	o.drawMu.RLock()
 
 	cellsToAddC := o.convertCellsToC(cellsToAdd, currentInput)
@@ -813,7 +813,7 @@ func (o *Overlay) drawGridCells(
 	labelSize float64,
 ) {
 	// Hold drawMu.RLock for the entire span from label lookup through the C
-	// draw call so that freeLabelCache cannot free labels mid-draw.
+	// draw call so that freeAllCaches cannot free labels mid-draw.
 	o.drawMu.RLock()
 
 	tmpCells := gridCellSlicePool.Get()

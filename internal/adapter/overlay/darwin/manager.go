@@ -250,7 +250,7 @@ func (m *Manager) Destroy() {
 	m.shareMu.Lock()
 	defer m.shareMu.Unlock()
 
-	// Clean up Go-side resources (callbackManager, styleCache, labelCache) for
+	// Clean up Go-side resources (callbackManager, styleCache, labels) for
 	// overlays that share the manager's window. We call Cleanup() instead of
 	// Destroy() because the shared window is destroyed below, and calling each
 	// overlay's Destroy() would double-destroy the same native window.
