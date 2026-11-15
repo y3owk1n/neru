@@ -33,6 +33,31 @@ func setScreenSize(ctx context.Context, size image.Point) error {
 	return nil
 }
 
+// currentScreenSize reads the root window's size from xrandr. It skips the
+// test when xrandr cannot report one.
+func currentScreenSize(t *testing.T) image.Point {
+	t.Helper()
+
+	out, err := exec.CommandContext(t.Context(), "xrandr", "--query").Output()
+	if err != nil {
+		t.Skipf("skipping: xrandr: %v", err)
+	}
+
+	match := xrandrCurrentSize.Find(out)
+	if match == nil {
+		t.Skipf("skipping: no current screen size in xrandr output: %s", out)
+	}
+
+	var size image.Point
+
+	_, err = fmt.Sscanf(string(match), "current %d x %d", &size.X, &size.Y)
+	if err != nil {
+		t.Fatalf("parsing the screen size: %v", err)
+	}
+
+	return size
+}
+
 // TestManagerResizeToActiveScreen_CoversARootThatGrewAfterStartup pins the
 // overlay following the root window when the desktop grows after the daemon
 // started, such as a monitor attached later. The overlay used to keep the size
@@ -41,7 +66,8 @@ func setScreenSize(ctx context.Context, size image.Point) error {
 //
 // It resizes the X server's screen, so it runs only in the desktop tier, and
 // only on a single-monitor display: xrandr -s cannot restore a size spanning
-// several monitors. Run it in a nested Xephyr -resizeable.
+// several monitors. Run it in a nested Xephyr -resizeable that no window
+// manager resizes, such as one inside Xvfb.
 func TestManagerResizeToActiveScreen_CoversARootThatGrewAfterStartup(t *testing.T) {
 	if os.Getenv("NERU_DESKTOP_TESTS") == "" {
 		t.Skip("skipping desktop-driving test; run `just test-desktop` to include it")
@@ -60,22 +86,7 @@ func TestManagerResizeToActiveScreen_CoversARootThatGrewAfterStartup(t *testing.
 		t.Skip("skipping: resizes the screen, which is undone reliably on one monitor only")
 	}
 
-	out, err := exec.CommandContext(t.Context(), "xrandr", "--query").Output()
-	if err != nil {
-		t.Skipf("skipping: xrandr: %v", err)
-	}
-
-	match := xrandrCurrentSize.Find(out)
-	if match == nil {
-		t.Skipf("skipping: no current screen size in xrandr output: %s", out)
-	}
-
-	var full image.Point
-
-	_, err = fmt.Sscanf(string(match), "current %d x %d", &full.X, &full.Y)
-	if err != nil {
-		t.Fatalf("parsing the screen size: %v", err)
-	}
+	full := currentScreenSize(t)
 
 	small := image.Pt(800, 600)
 	if full.X <= small.X || full.Y <= small.Y {
@@ -94,6 +105,13 @@ func TestManagerResizeToActiveScreen_CoversARootThatGrewAfterStartup(t *testing.
 			t.Errorf("restoring the screen size: %v", restoreErr)
 		}
 	})
+
+	// xrandr reports success even when a window manager keeps the nested
+	// server at its old size. The overlay would then start at full size, and
+	// the test would pass without the fix.
+	if shrunk := currentScreenSize(t); shrunk != small {
+		t.Skipf("skipping: the screen stayed %v after asking for %v", shrunk, small)
+	}
 
 	mgr := NewOverlayManager(zap.NewNop())
 	if mgr == nil || mgr.x11 == nil {
