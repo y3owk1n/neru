@@ -43,7 +43,9 @@ var RootCmd = &cobra.Command{
 	Use:   "neru",
 	Short: "Neru - Keyboard-driven navigation tool",
 	Long: `Neru is a keyboard-driven navigation tool that provides
-vim-like navigation capabilities across applications using accessibility APIs.`,
+vim-like navigation capabilities across applications using accessibility APIs.
+
+AI agents: run 'neru agent-guide' first. It describes this build.`,
 	Example: `  neru launch                        Start the Neru daemon
   neru status                        Show daemon status
   neru hints --action left_click     Activate hints mode with pending click

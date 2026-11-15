@@ -287,7 +287,17 @@ npx skills add y3owk1n/neru --skill neru-ask --skill neru-setup-config --skill n
 Add `-g` to install them for every project.
 
 An agent with no skill installed can run `neru agent-guide` instead. It
-prints a short guide written for the installed build.
+prints a short guide written for the installed build. Point the agent at it
+with one line in its instructions file, such as `~/.claude/CLAUDE.md` or
+`AGENTS.md`:
+
+```markdown
+- Before doing anything with Neru, run `neru agent-guide` and follow it.
+```
+
+A chat assistant that cannot run commands can read it too. Copy the output,
+such as with `neru agent-guide | pbcopy` on macOS, and paste it in with your
+question.
 
 ## Install script reference
 
