@@ -28,58 +28,6 @@ int NeruSetFocus(void *element) {
 
 #pragma mark - Window Functions
 
-/// Get all windows of focused application
-/// @param count Output parameter for number of windows
-/// @return Array of window references
-void **NeruGetAllWindows(int *count) {
-	if (!count)
-		return NULL;
-
-	@autoreleasepool {
-		AXUIElementRef focusedApp = (AXUIElementRef)NeruGetFocusedApplication();
-		if (!focusedApp) {
-			*count = 0;
-			return NULL;
-		}
-
-		CFTypeRef windowsValue = NULL;
-		if (AXUIElementCopyAttributeValue(focusedApp, kAXWindowsAttribute, &windowsValue) != kAXErrorSuccess) {
-			CFRelease(focusedApp);
-			*count = 0;
-			return NULL;
-		}
-
-		if (CFGetTypeID(windowsValue) != CFArrayGetTypeID()) {
-			CFRelease(windowsValue);
-			CFRelease(focusedApp);
-			*count = 0;
-			return NULL;
-		}
-
-		CFArrayRef windows = (CFArrayRef)windowsValue;
-		CFIndex windowCount = CFArrayGetCount(windows);
-		*count = (int)windowCount;
-
-		void **result = (void **)malloc(windowCount * sizeof(void *));
-		if (!result) {
-			CFRelease(windowsValue);
-			CFRelease(focusedApp);
-			*count = 0;
-			return NULL;
-		}
-
-		for (CFIndex i = 0; i < windowCount; i++) {
-			AXUIElementRef window = (AXUIElementRef)CFArrayGetValueAtIndex(windows, i);
-			CFRetain(window);
-			result[i] = (void *)window;
-		}
-
-		CFRelease(windowsValue);
-		CFRelease(focusedApp);
-		return result;
-	}
-}
-
 /// Get focused window plus popover windows of the focused application.
 /// This keeps hint activation on one focused-app lookup and avoids asking Go
 /// to fetch each window role separately just to discover AXPopover siblings.

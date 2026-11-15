@@ -84,9 +84,6 @@ func (ei *ElementInfo) PID() int { return ei.pid }
 // CheckAccessibilityPermissions verifies permissions for Linux (Linux stub).
 func CheckAccessibilityPermissions() bool { return true }
 
-// SystemWideElement returns the system-wide element (Linux stub).
-func SystemWideElement() *Element { return nil }
-
 // FocusedApplication returns the focused application.
 func FocusedApplication() *Element {
 	if currentLinuxBackend() == linuxBackendWayland {
@@ -122,41 +119,6 @@ func FocusedApplication() *Element {
 	}
 }
 
-// ApplicationByPID returns an application by PID.
-func ApplicationByPID(pid int) *Element {
-	if currentLinuxBackend() == linuxBackendWayland {
-		bundleID := wlrootsApplicationBundleIdentifier(pid)
-		if bundleID != "" {
-			return &Element{
-				bundleIdentifier: bundleID,
-				pid:              pid,
-			}
-		}
-
-		if os.Getenv("DISPLAY") != "" {
-			bundleID = linuxApplicationBundleIdentifier(pid)
-			if bundleID != "" {
-				return &Element{
-					bundleIdentifier: bundleID,
-					pid:              pid,
-				}
-			}
-		}
-
-		return nil
-	}
-
-	bundleID := linuxApplicationBundleIdentifier(pid)
-	if bundleID == "" {
-		return nil
-	}
-
-	return &Element{
-		bundleIdentifier: bundleID,
-		pid:              pid,
-	}
-}
-
 // ApplicationByBundleID returns an application by bundle ID.
 func ApplicationByBundleID(bundleID string) *Element {
 	if bundleID == "" {
@@ -165,9 +127,6 @@ func ApplicationByBundleID(bundleID string) *Element {
 
 	return &Element{bundleIdentifier: bundleID}
 }
-
-// ElementAtPosition returns the element at a position (Linux stub).
-func ElementAtPosition(_, _ int) *Element { return nil }
 
 // Info retrieves metadata and positioning information for the element (Linux stub).
 func (e *Element) Info() (*ElementInfo, error) {
@@ -189,9 +148,6 @@ func (e *Element) Attribute(_ string) (string, error) { return "", nil }
 // Release releases the element (Linux stub).
 func (e *Element) Release() {}
 
-// ReleaseAll releases all elements (Linux stub).
-func ReleaseAll(_ []*Element) {}
-
 // Hash returns a hash of the element (Linux stub).
 func (e *Element) Hash() (uint64, error) { return 0, nil }
 
@@ -200,9 +156,6 @@ func (e *Element) Equal(_ *Element) bool { return false }
 
 // Clone returns a clone of the element (Linux stub).
 func (e *Element) Clone() (*Element, error) { return &Element{}, nil }
-
-// AllWindows returns all windows (Linux stub).
-func AllWindows() ([]*Element, error) { return []*Element{}, nil }
 
 // FrontmostAndPopoverWindows returns frontmost/popover windows (Linux stub).
 func FrontmostAndPopoverWindows() ([]*Element, error) { return []*Element{}, nil }
@@ -274,9 +227,6 @@ const (
 	linuxBackendX11     linuxBackend = "x11"
 	linuxBackendWayland linuxBackend = "wayland"
 )
-
-// DetectBundleType returns "" on Linux (stub).
-func DetectBundleType(_ string) string { return "" }
 
 // currentLinuxBackend maps platform.DetectLinuxBackend so compositor-family
 // detection is consistent across layers.

@@ -20,23 +20,17 @@ type (
 
 // The platform functions the client shell calls.
 var (
-	AllWindows                    = darwin.AllWindows
 	ApplicationByBundleID         = darwin.ApplicationByBundleID
-	ApplicationByPID              = darwin.ApplicationByPID
 	BuildTree                     = darwin.BuildTree
 	CheckAccessibilityPermissions = darwin.CheckAccessibilityPermissions
 	ClickableRoles                = darwin.ClickableRoles
 	DefaultTreeOptions            = darwin.DefaultTreeOptions
-	DetectBundleType              = darwin.DetectBundleType
-	ElementAtPosition             = darwin.ElementAtPosition
 	FocusedApplication            = darwin.FocusedApplication
 	FrontmostAndPopoverWindows    = darwin.FrontmostAndPopoverWindows
 	FrontmostWindow               = darwin.FrontmostWindow
 	IsMissionControlActive        = darwin.IsMissionControlActive
 	PrimeApplication              = darwin.PrimeApplication
-	ReleaseAll                    = darwin.ReleaseAll
 	SetClickableRoles             = darwin.SetClickableRoles
-	SystemWideElement             = darwin.SystemWideElement
 )
 
 // The shell calls these by their unexported names, so the dispatch slot binds

@@ -164,9 +164,6 @@ func CheckAccessibilityPermissions() bool {
 	return true
 }
 
-// SystemWideElement returns the system-wide element (stub).
-func SystemWideElement() *Element { return nil }
-
 // FocusedApplication returns the focused application via Win32 foreground window APIs.
 func FocusedApplication() *Element {
 	bundleID, pid, err := winplatform.FocusedApplicationIdentity()
@@ -180,25 +177,8 @@ func FocusedApplication() *Element {
 	}
 }
 
-// ApplicationByPID returns an application by PID (stub).
-func ApplicationByPID(pid int) *Element { return nil }
-
 // ApplicationByBundleID returns an application by bundle ID (stub).
 func ApplicationByBundleID(bundleID string) *Element { return nil }
-
-// ElementAtPosition returns the element at a position (stub).
-func ElementAtPosition(x, y int) *Element { return nil }
-
-// AllWindows returns the windows of the focused application. Windows
-// enumeration is limited to the foreground top-level window for now.
-func AllWindows() ([]*Element, error) {
-	window := FrontmostWindow()
-	if window == nil {
-		return []*Element{}, nil
-	}
-
-	return []*Element{window}, nil
-}
 
 // FrontmostAndPopoverWindows returns the foreground window. Popover tracking is
 // not modeled on Windows. UI Automation enumerates popups under the same root.
@@ -235,6 +215,3 @@ func FrontmostWindow() *Element {
 
 // IsMissionControlActive returns whether Mission Control is active (stub).
 func IsMissionControlActive() bool { return false }
-
-// DetectBundleType returns "" on Windows (stub).
-func DetectBundleType(_ string) string { return "" }

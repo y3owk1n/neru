@@ -250,29 +250,9 @@ func CheckAccessibilityPermissions() bool {
 	return result == 1
 }
 
-// SystemWideElement returns the system-wide accessibility element representing the entire screen.
-func SystemWideElement() *Element {
-	ref := C.NeruGetSystemWideElement()
-	if ref == nil {
-		return nil
-	}
-
-	return newElement(ref)
-}
-
 // FocusedApplication returns the currently focused application element.
 func FocusedApplication() *Element {
 	ref := C.NeruGetFocusedApplication()
-	if ref == nil {
-		return nil
-	}
-
-	return newElement(ref)
-}
-
-// ApplicationByPID returns an application element identified by its process ID.
-func ApplicationByPID(pid int) *Element {
-	ref := C.NeruGetApplicationByPID(C.int(pid))
 	if ref == nil {
 		return nil
 	}
@@ -286,17 +266,6 @@ func ApplicationByBundleID(bundleID string) *Element {
 	defer C.free(unsafe.Pointer(cBundle))
 
 	ref := C.NeruGetApplicationByBundleId(cBundle)
-	if ref == nil {
-		return nil
-	}
-
-	return newElement(ref)
-}
-
-// ElementAtPosition returns the UI element at the specified screen coordinates.
-func ElementAtPosition(x, y int) *Element {
-	pos := C.CGPoint{x: C.double(x), y: C.double(y)}
-	ref := C.NeruGetElementAtPosition(pos)
 	if ref == nil {
 		return nil
 	}
@@ -511,30 +480,6 @@ func (e *Element) Clone() (*Element, error) {
 	C.NeruRetainElement(e.ref)
 
 	return newElement(e.ref), nil
-}
-
-// AllWindows returns all windows of the focused application.
-func AllWindows() ([]*Element, error) {
-	var count C.int
-	windows := C.NeruGetAllWindows(&count)
-	if windows == nil || count == 0 {
-		if windows != nil {
-			C.free(unsafe.Pointer(windows))
-		}
-
-		return []*Element{}, nil
-	}
-	defer C.free(unsafe.Pointer(windows))
-
-	countInt := int(count)
-	windowSlice := (*[1 << 30]unsafe.Pointer)(unsafe.Pointer(windows))[:countInt:countInt]
-	result := make([]*Element, countInt)
-
-	for index := range result {
-		result[index] = newElement(windowSlice[index])
-	}
-
-	return result, nil
 }
 
 // FrontmostAndPopoverWindows returns the frontmost window plus focused-app

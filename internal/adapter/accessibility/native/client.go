@@ -42,21 +42,6 @@ func (c *Client) FrontmostWindow(_ context.Context) (ax.Window, error) {
 	return &InfraWindow{element: window}, nil
 }
 
-// AllWindows returns all windows of the focused application.
-func (c *Client) AllWindows(_ context.Context) ([]ax.Window, error) {
-	windows, err := AllWindows()
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]ax.Window, len(windows))
-	for i, w := range windows {
-		result[i] = &InfraWindow{element: w}
-	}
-
-	return result, nil
-}
-
 // FrontmostAndPopoverWindows returns the frontmost window plus popovers.
 func (c *Client) FrontmostAndPopoverWindows(_ context.Context) ([]ax.Window, error) {
 	windows, err := FrontmostAndPopoverWindows()

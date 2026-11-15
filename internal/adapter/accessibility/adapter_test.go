@@ -206,7 +206,6 @@ func TestAdapter_RolePassing(t *testing.T) {
 	mockClient := &accessibility.MockAXClient{
 		MockPermissions:     true,
 		MockFrontmostWindow: mockWindow,
-		MockAllWindows:      []ax.Window{mockWindow},
 	}
 
 	initialRoles := []string{axButtonRole}
@@ -375,7 +374,6 @@ func TestAdapter_ClickableElements_MissionControlIsPartOfDockHints(t *testing.T)
 			mockClient := &accessibility.MockAXClient{
 				MockPermissions:          true,
 				MockFrontmostWindow:      mockWindow,
-				MockAllWindows:           []ax.Window{mockWindow},
 				MockMissionControlActive: testCase.missionControl,
 				MockFocusedApp: &mockAXApp{
 					bundleID: bundleIDAppleDock,
@@ -429,7 +427,6 @@ func TestAdapter_UpdateMissionControlDetection_FollowsTheReloadedSetting(t *test
 			mockClient := &accessibility.MockAXClient{
 				MockPermissions:          true,
 				MockFrontmostWindow:      mockWindow,
-				MockAllWindows:           []ax.Window{mockWindow},
 				MockMissionControlActive: true,
 				MockFocusedApp: &mockAXApp{
 					bundleID: bundleIDAppleDock,

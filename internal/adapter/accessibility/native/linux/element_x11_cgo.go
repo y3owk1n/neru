@@ -12,9 +12,6 @@ import "C"
 
 import (
 	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 	"unsafe"
 
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
@@ -59,22 +56,4 @@ func linuxFocusedApplicationIdentity() (string, int) {
 	}
 
 	return bundleID, int(pid)
-}
-
-func linuxApplicationBundleIdentifier(pid int) string {
-	if pid <= 0 {
-		return ""
-	}
-
-	data, err := os.ReadFile(filepath.Join("/proc", strconv.Itoa(pid), "cmdline"))
-	if err != nil {
-		return ""
-	}
-
-	parts := strings.Split(string(data), "\x00")
-	if len(parts) == 0 || parts[0] == "" {
-		return ""
-	}
-
-	return filepath.Base(parts[0])
 }

@@ -73,14 +73,6 @@ func BuildTree(_ context.Context, _ *Element, _ TreeOptions) (*TreeNode, error) 
 	return &TreeNode{}, nil
 }
 
-// ProcessClickableNodes processes the clickable nodes in the tree (Linux stub).
-func ProcessClickableNodes(_ *TreeNode) []*TreeNode {
-	return nil
-}
-
-// ReleaseTree releases the tree and its nodes to the pool (Linux stub).
-func ReleaseTree(root *TreeNode) {}
-
 // ReleaseTreeExcept releases the tree except the nodes in keep (Linux stub).
 func ReleaseTreeExcept(tree *TreeNode, keep []*TreeNode) {
 	keepSet := make(map[*Element]struct{}, len(keep))

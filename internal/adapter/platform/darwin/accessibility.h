@@ -63,10 +63,6 @@ int NeruRequestAccessibilityPermissions(void);
 /// @return "electron", "chromium", "firefox", "webkit", or NULL if unknown
 char *NeruDetectBundleType(const char *bundle_id);
 
-/// Get system-wide accessibility element
-/// @return System-wide element reference
-void *NeruGetSystemWideElement(void);
-
 /// Get currently focused application
 /// @return Focused application reference
 void *NeruGetFocusedApplication(void);
@@ -96,11 +92,6 @@ ElementInfo *NeruGetElementInfo(void *element);
 /// Free element information structure
 /// @param info Element information structure
 void NeruFreeElementInfo(ElementInfo *info);
-
-/// Get element at screen position
-/// @param position Screen position
-/// @return Element reference
-void *NeruGetElementAtPosition(CGPoint position);
 
 /// Get child elements
 /// @param element Element reference
@@ -201,11 +192,6 @@ unsigned long NeruGetElementHash(void *element);
 int NeruAreElementsEqual(void *element1, void *element2);
 
 #pragma mark - Window Functions
-
-/// Get all windows of focused application
-/// @param count Output parameter for number of windows
-/// @return Array of window references
-void **NeruGetAllWindows(int *count);
 
 /// Get the focused window plus AXPopover windows of the focused application
 /// @param count Output parameter for number of returned windows

@@ -20,24 +20,16 @@ type (
 
 // The platform functions the client shell calls.
 var (
-	AllWindows                    = linux.AllWindows
 	ApplicationByBundleID         = linux.ApplicationByBundleID
-	ApplicationByPID              = linux.ApplicationByPID
 	BuildTree                     = linux.BuildTree
 	CheckAccessibilityPermissions = linux.CheckAccessibilityPermissions
 	ClickableRoles                = linux.ClickableRoles
 	DefaultTreeOptions            = linux.DefaultTreeOptions
-	DetectBundleType              = linux.DetectBundleType
-	ElementAtPosition             = linux.ElementAtPosition
 	FocusedApplication            = linux.FocusedApplication
 	FrontmostAndPopoverWindows    = linux.FrontmostAndPopoverWindows
 	FrontmostWindow               = linux.FrontmostWindow
 	IsMissionControlActive        = linux.IsMissionControlActive
-	ProcessClickableNodes         = linux.ProcessClickableNodes
-	ReleaseAll                    = linux.ReleaseAll
-	ReleaseTree                   = linux.ReleaseTree
 	SetClickableRoles             = linux.SetClickableRoles
-	SystemWideElement             = linux.SystemWideElement
 )
 
 // The shell calls these by their unexported names, so the dispatch slot binds
