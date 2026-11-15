@@ -251,6 +251,17 @@ func TestClient_Send_WithNoDaemon(t *testing.T) {
 	}
 }
 
+// TestClientProtocolVersion_MatchesTheDaemons pins the client to the protocol
+// the daemon in the same release speaks. A daemon accepts a request on a lower
+// protocol, so if the daemon's version rose and the client's did not, every
+// other test would still pass and the client would keep sending the old one.
+func TestClientProtocolVersion_MatchesTheDaemons(t *testing.T) {
+	if client.ProtocolVersion != ipc.ProtocolVersion {
+		t.Errorf("client.ProtocolVersion = %d, want ipc.ProtocolVersion %d",
+			client.ProtocolVersion, ipc.ProtocolVersion)
+	}
+}
+
 func TestClient_Ping_ReturnsTheDaemonsProtocol(t *testing.T) {
 	isolate(t)
 
