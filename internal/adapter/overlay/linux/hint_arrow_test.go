@@ -12,91 +12,14 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-// What this overlay decides about hint placement on its own: which offset each
-// configured placement resolves to, and which badge edge the connector tail is
-// merged into by the C renderer. The geometry itself is shared with the Windows
-// backend and tested beside it (render/badge).
+// What this overlay decides about hint placement on its own: where a refused
+// placement reaches a caller, and which badge edge the connector tail is
+// merged into by the C renderer. Which offset each placement resolves to, and
+// the geometry it selects, are shared with the Windows backend and tested
+// beside them (render/badge).
 
-// TestResolveHintBadgeOffset_EveryPlacementInTheVocabulary pins this overlay to
-// config's declaration of the vocabulary. Every value `hints.ui.placement`
-// accepts has to resolve to an offset here. A placement added to
-// config.HintPlacements() without a branch below fails this test rather than
-// drawing a badge in a placement nobody chose.
-func TestResolveHintBadgeOffset_EveryPlacementInTheVocabulary(t *testing.T) {
-	want := map[string]badge.HintOffset{
-		config.HintPlacementTop:    badge.HintAbove,
-		config.HintPlacementCenter: badge.HintOnTarget,
-		config.HintPlacementBottom: badge.HintBelow,
-	}
-
-	for _, placement := range config.HintPlacements() {
-		t.Run(placement, func(t *testing.T) {
-			offset, err := resolveHintBadgeOffset(placement)
-			if err != nil {
-				t.Fatalf("resolveHintBadgeOffset(%q) error = %v, want an offset", placement, err)
-			}
-
-			if offset != want[placement] {
-				t.Errorf(
-					"resolveHintBadgeOffset(%q) = %v, want %v",
-					placement,
-					offset,
-					want[placement],
-				)
-			}
-		})
-	}
-
-	if len(want) != len(config.HintPlacements()) {
-		t.Fatalf(
-			"the vocabulary has %d values but this test maps %d; every one needs an expected offset",
-			len(config.HintPlacements()),
-			len(want),
-		)
-	}
-}
-
-// TestResolveHintBadgeOffset_UnsetDrawsTheDefault pins the empty string to the
-// offset the declared default resolves to, matching what the macOS renderer
-// answers it (TestHintPlacementValue_UnsetDrawsTheDefault). A style can reach
-// an overlay before a configuration settles it, and a hint that draws on macOS
-// and vanishes on Linux would be this package disagreeing with that one.
-func TestResolveHintBadgeOffset_UnsetDrawsTheDefault(t *testing.T) {
-	unset, err := resolveHintBadgeOffset("")
-	if err != nil {
-		t.Fatalf(`resolveHintBadgeOffset("") error = %v, want the default's offset`, err)
-	}
-
-	fallback, err := resolveHintBadgeOffset(config.HintPlacementDefault)
-	if err != nil {
-		t.Fatalf("resolveHintBadgeOffset(%q) error = %v", config.HintPlacementDefault, err)
-	}
-
-	if unset != fallback {
-		t.Errorf(`resolveHintBadgeOffset("") = %v, want %v (the offset of %q)`,
-			unset, fallback, config.HintPlacementDefault)
-	}
-}
-
-// TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported pins the other half.
-// A value outside the vocabulary is refused, not drawn. It used to be drawn
-// centered, which made a placement with no Linux branch indistinguishable from
-// `center`, silent everywhere and wrong on screen.
-func TestResolveHintBadgeOffset_UnknownPlacementIsNotSupported(t *testing.T) {
-	offset, err := resolveHintBadgeOffset("floating")
-	if err == nil {
-		t.Fatalf("resolveHintBadgeOffset(%q) = %v, nil; an unrecognized placement must be refused",
-			"floating", offset)
-	}
-
-	if !derrors.IsNotSupported(err) {
-		t.Errorf("resolveHintBadgeOffset returned %v (code %q), want CodeNotSupported",
-			err, derrors.GetCode(err))
-	}
-}
-
-// TestLinuxOverlayManager_UnknownHintPlacementIsRefusedNotDrawn pins where that
-// refusal reaches a caller: the draw call the mode handler makes, before a
+// TestLinuxOverlayManager_UnknownHintPlacementIsRefusedNotDrawn pins where a
+// placement refusal reaches a caller: the draw call the mode handler makes, before a
 // single badge is painted. A backend is attached here on purpose. With none,
 // every draw already reports CodeNotSupported and the assertion would prove
 // nothing about the placement.

@@ -32,10 +32,10 @@ const (
 // window paints in queue order, so overlapping hints have correct Z-ordering.
 // Later hints are fully on top of earlier ones, matching macOS behavior.
 //
-// offset is the resolved `hints.ui.placement`. The caller reads the vocabulary
-// and refuses a placement this backend cannot draw before anything is painted
-// (Manager.DrawHintsWithStyle), so there is no configured string here and no
-// unrecognized case to answer.
+// offset is the resolved `hints.ui.placement`. The caller resolves it through
+// badge.ResolveHintOffset and refuses a placement that has no offset before
+// anything is painted (Manager.DrawHintsWithStyle), so there is no configured
+// string here and no unrecognized case to answer.
 func (o *winOverlay) DrawHints(
 	hintsSlice []*hintscomponent.Hint,
 	style hintscomponent.StyleMode,
