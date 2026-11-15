@@ -233,8 +233,18 @@ void neru_x11_overlay_clear_rect(NeruX11Overlay *overlay, int x, int y, int widt
 }
 
 void neru_x11_overlay_resize(NeruX11Overlay *overlay) {
-	int width = DisplayWidth(overlay->display, overlay->screen);
-	int height = DisplayHeight(overlay->display, overlay->screen);
+	// Ask the server rather than DisplayWidth/DisplayHeight. Those read
+	// Xlib's copy of the root size, which only XRRUpdateConfiguration
+	// refreshes, and nothing reads RandR events on this connection, so a
+	// monitor attached after startup would stay outside the overlay.
+	Window root;
+	int x, y;
+	unsigned int root_width, root_height, border, depth;
+	if (!XGetGeometry(overlay->display, overlay->root, &root, &x, &y, &root_width, &root_height, &border, &depth)) {
+		return;
+	}
+	int width = (int)root_width;
+	int height = (int)root_height;
 	if (width == overlay->width && height == overlay->height) {
 		return;
 	}

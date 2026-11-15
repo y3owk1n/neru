@@ -736,8 +736,8 @@ struct NeruX11ScreenMonitor {
 };
 
 // Same shape as the focus monitor. On each RRScreenChangeNotify it refreshes
-// Xlib's cached configuration and signals the event pipe, and the Go reader
-// re-enumerates monitors on wake.
+// this connection's cached configuration and signals the event pipe, and the
+// Go reader re-enumerates monitors on wake.
 static void *neru_x11_screen_loop(void *arg) {
 	NeruX11ScreenMonitor *m = (NeruX11ScreenMonitor *)arg;
 	int xfd = ConnectionNumber(m->display);
@@ -780,8 +780,8 @@ static void *neru_x11_screen_loop(void *arg) {
 		while (XPending(m->display) > 0) {
 			XEvent ev;
 			XNextEvent(m->display, &ev);
-			// Let Xlib refresh its cached screen configuration so a subsequent
-			// XRRGetMonitors on any connection reflects the new layout.
+			// This refreshes the cached screen size on this connection only.
+			// DisplayWidth on any other connection keeps returning the old size.
 			XRRUpdateConfiguration(&ev);
 			if (ev.type == m->randr_event_base + RRScreenChangeNotify) {
 				changed = 1;
