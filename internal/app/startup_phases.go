@@ -34,7 +34,6 @@ import (
 // initializeInfrastructure sets up the core infrastructure components
 // that are needed by other parts of the application.
 func initializeInfrastructure(app *App) error {
-	cfg := app.config
 	logger := app.logger
 
 	if app.systemPort == nil {
@@ -52,12 +51,6 @@ func initializeInfrastructure(app *App) error {
 	// there.
 	if app.overlayPort == nil {
 		app.overlayManager = initializeOverlayManager(logger)
-	}
-
-	// Initialize accessibility infrastructure early as it's required by adapters
-	err := initializeAccessibility(cfg, logger)
-	if err != nil {
-		return err
 	}
 
 	if app.appWatcher == nil {
@@ -122,6 +115,7 @@ func initializeServicesAndAdapters(app *App) error {
 	)
 	app.accessibility = accAdapter
 	app.overlayPort = overlayAdapter
+	app.applyClickableRoles(cfg)
 
 	// Vim mode reads the screen through the same port, so it is built here
 	// rather than inside the hint service's wiring.

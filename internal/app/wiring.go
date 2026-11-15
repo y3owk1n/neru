@@ -8,7 +8,6 @@ import (
 
 	accessibilityAdapter "github.com/y3owk1n/neru/internal/adapter/accessibility"
 	"github.com/y3owk1n/neru/internal/adapter/accessibility/ax"
-	accessibilityNative "github.com/y3owk1n/neru/internal/adapter/accessibility/native"
 	"github.com/y3owk1n/neru/internal/adapter/appwatcher"
 	"github.com/y3owk1n/neru/internal/adapter/hotkeys"
 	"github.com/y3owk1n/neru/internal/adapter/logger"
@@ -58,21 +57,6 @@ type OverlayManager = overlay.ManagerInterface
 // initializeOverlayManager creates and initializes the overlay manager.
 func initializeOverlayManager(logger *zap.Logger) OverlayManager {
 	return overlay.Init(logger.Named("overlay"))
-}
-
-// initializeAccessibility checks and configures accessibility permissions and settings.
-func initializeAccessibility(cfg *config.Config, logger *zap.Logger) error {
-	// Apply clickable roles if hints are enabled
-	if cfg.Hints.Enabled {
-		roles := cfg.Hints.ResolvedClickableRoles()
-
-		logger.Debug("Applying clickable roles",
-			zap.Int("configured", len(cfg.Hints.ClickableRoles)),
-			zap.Int("resolved", len(roles)))
-		accessibilityNative.SetClickableRoles(roles, logger)
-	}
-
-	return nil
 }
 
 // initializeHotkeyService creates the hotkey service.
