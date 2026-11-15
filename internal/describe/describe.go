@@ -196,8 +196,10 @@ func events(idx index) []ipc.DescribeEvent {
 	for _, spec := range specs {
 		column := idx.word(parity.KindOption, hooksSection+spec.Hook())
 
-		names := make([]string, 0, len(spec.Variables))
-		for _, variable := range spec.Variables {
+		seen := spec.HookVariables()
+
+		names := make([]string, 0, len(seen))
+		for _, variable := range seen {
 			names = append(names, variable.Name)
 		}
 

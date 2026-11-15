@@ -25,6 +25,12 @@ type Spec struct {
 // Hook is the [hooks] key that runs for the event.
 func (s Spec) Hook() string { return HookPrefix + string(s.Name) }
 
+// HookVariables returns every variable the event's hook can see, NERU_EVENT
+// first.
+func (s Spec) HookVariables() []Variable {
+	return append([]Variable{varEvent}, s.Variables...)
+}
+
 // The variables, in the order the hooks reference lists them. NERU_EVENT is
 // set for every event and so is not listed against any one of them.
 var (

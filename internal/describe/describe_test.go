@@ -53,6 +53,11 @@ func TestBuild_Events_TakeTheirPlatformsFromTheHookKey(t *testing.T) {
 			t.Errorf("hook = %q", described.Hook)
 		}
 
+		if len(described.Variables) == 0 || described.Variables[0] != "NERU_EVENT" {
+			t.Errorf("variables = %v, want NERU_EVENT first, since every hook sees it",
+				described.Variables)
+		}
+
 		if described.Here || described.Note == "" {
 			t.Errorf(
 				"a macOS-only event reads here=%v note=%q on linux",

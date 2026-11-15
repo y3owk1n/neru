@@ -118,6 +118,12 @@ func unavailable(manifest ipc.DescribeData) []string {
 		}
 	}
 
+	for _, described := range manifest.Events {
+		if !described.Here {
+			add(described.Name, "event", described.Note)
+		}
+	}
+
 	for _, option := range manifest.Options {
 		if !option.Here {
 			add(option.Name, "option", option.Note)
