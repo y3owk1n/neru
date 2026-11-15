@@ -1,6 +1,4 @@
-//go:build linux
-
-package inject
+package scrollanim
 
 import (
 	"math"
@@ -10,6 +8,13 @@ import (
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
+)
+
+// testNotch and testMaxUnits are the Linux X11 notch and per-request cap, so
+// the granular cases read the way that backend drives the animator.
+const (
+	testNotch    = 30
+	testMaxUnits = 50
 )
 
 // fakeScrollSession stands in for a backend so the schedule can be checked
@@ -22,9 +27,9 @@ type fakeScrollSession struct {
 	injectErr error
 }
 
-func (s *fakeScrollSession) granularity() float64 { return s.gran }
+func (s *fakeScrollSession) Granularity() float64 { return s.gran }
 
-func (s *fakeScrollSession) inject(deltaX, deltaY float64) error {
+func (s *fakeScrollSession) Inject(deltaX, deltaY float64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -33,7 +38,7 @@ func (s *fakeScrollSession) inject(deltaX, deltaY float64) error {
 	return s.injectErr
 }
 
-func (s *fakeScrollSession) close() {
+func (s *fakeScrollSession) Close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -124,9 +129,9 @@ func TestScrollChunks_EasesOut(t *testing.T) {
 // has to be a whole notch and the remainder has to survive into a later chunk
 // instead of being rounded away step by step.
 func TestScrollChunks_KeepsAGranularBackendOnWholeUnits(t *testing.T) {
-	const notch = scrollPixelsPerNotch
+	const notch = testNotch
 
-	chunks := scrollChunks(-500, 20, notch, maxScrollUnitsPerRequest)
+	chunks := scrollChunks(-500, 20, notch, testMaxUnits)
 
 	for i, chunk := range chunks {
 		if math.Mod(chunk, notch) != 0 {
@@ -134,8 +139,8 @@ func TestScrollChunks_KeepsAGranularBackendOnWholeUnits(t *testing.T) {
 		}
 	}
 
-	// The unanimated X11 path sends scrollNotches(delta) clicks, which is 500
-	// px rounded to the nearest notch, 17. Rounding per step would lose several.
+	// The unanimated X11 path sends 500 px rounded to the nearest notch, 17.
+	// Rounding per step would lose several.
 	if got, want := sum(chunks), -17*float64(notch); got != want {
 		t.Errorf("chunks total %v, want %v (17 notches)", got, want)
 	}
@@ -146,12 +151,12 @@ func TestScrollChunks_KeepsAGranularBackendOnWholeUnits(t *testing.T) {
 // One event goes out either way, so scheduling it anywhere but the first step
 // would deliver the same scroll later, which adds latency and nothing else.
 func TestScrollChunks_SendsAOneUnitScrollImmediately(t *testing.T) {
-	const notch = scrollPixelsPerNotch
+	const notch = testNotch
 
 	// Shorter than a notch, exactly a notch, and the last step that still
 	// rounds down to one.
 	for _, delta := range []float64{10, -10, 1, -1, notch, -notch, 44, -44} {
-		chunks := scrollChunks(delta, 20, notch, maxScrollUnitsPerRequest)
+		chunks := scrollChunks(delta, 20, notch, testMaxUnits)
 
 		want := float64(notch)
 		if delta < 0 {
@@ -173,36 +178,37 @@ func TestScrollChunks_SendsAOneUnitScrollImmediately(t *testing.T) {
 // path already applies, since scroll_step_full is a million pixels and
 // thirty-three thousand button clicks is not an animation.
 func TestScrollChunks_CapsAGranularBackend(t *testing.T) {
-	const notch = scrollPixelsPerNotch
+	const notch = testNotch
 
-	chunks := scrollChunks(1000000, 20, notch, maxScrollUnitsPerRequest)
+	chunks := scrollChunks(1000000, 20, notch, testMaxUnits)
 
-	if got, want := sum(chunks), float64(maxScrollUnitsPerRequest*notch); got != want {
+	if got, want := sum(chunks), float64(testMaxUnits*notch); got != want {
 		t.Errorf("chunks total %v, want the %d-notch ceiling (%v)",
-			got, maxScrollUnitsPerRequest, want)
+			got, testMaxUnits, want)
 	}
 
 	// A continuous backend has no ceiling. Capping it would make a modified
 	// go_bottom travel a different distance from an unmodified one.
-	if got := sum(scrollChunks(1000000, 20, 0, maxScrollUnitsPerRequest)); got != 1000000 {
+	if got := sum(scrollChunks(1000000, 20, 0, testMaxUnits)); got != 1000000 {
 		t.Errorf("continuous chunks total %v, want the full 1000000", got)
 	}
 }
 
-// TestScrollAnimator_Animate_TravelsTheWholeDistance is the end-to-end of the
+// TestAnimator_Animate_TravelsTheWholeDistance is the end-to-end of the
 // scheduler against a stand-in backend. Every chunk reaches it, and the session
 // is closed when the animation ends.
-func TestScrollAnimator_Animate_TravelsTheWholeDistance(t *testing.T) {
+func TestAnimator_Animate_TravelsTheWholeDistance(t *testing.T) {
 	session := &fakeScrollSession{}
-	animator := newScrollAnimator(
-		func(_ action.Modifiers) (scrollSession, error) { return session, nil },
+	animator := New(
+		func(_ action.Modifiers) (Session, error) { return session, nil },
+		testMaxUnits,
 	)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
 	// Both axes at once. A scroll_right bound alongside a scroll_down has to
 	// arrive as one diagonal animation, not as one axis lost to the other.
-	animator.animate(120, -500, 0, 8, 40, 0.1)
+	animator.Animate(120, -500, 0, 8, 40, 0.1)
 
 	waitFor(t, func() bool { return session.isClosed() })
 
@@ -216,11 +222,11 @@ func TestScrollAnimator_Animate_TravelsTheWholeDistance(t *testing.T) {
 	}
 }
 
-// TestScrollAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning pins
+// TestAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning pins
 // the reason a session exists at all. The modifier is a real key, pressed once
 // before the animation and released once after it, not toggled around every
 // chunk.
-func TestScrollAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning(t *testing.T) {
+func TestAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning(t *testing.T) {
 	session := &fakeScrollSession{}
 
 	var (
@@ -229,18 +235,18 @@ func TestScrollAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning(t *te
 		lastMod action.Modifiers
 	)
 
-	animator := newScrollAnimator(func(modifiers action.Modifiers) (scrollSession, error) {
+	animator := New(func(modifiers action.Modifiers) (Session, error) {
 		guard.Lock()
 		opens++
 		lastMod = modifiers
 		guard.Unlock()
 
 		return session, nil
-	})
+	}, testMaxUnits)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
-	animator.animate(0, -300, action.ModCtrl, 6, 30, 0.1)
+	animator.Animate(0, -300, action.ModCtrl, 6, 30, 0.1)
 
 	waitFor(t, func() bool { return session.isClosed() })
 
@@ -256,29 +262,29 @@ func TestScrollAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning(t *te
 	}
 }
 
-// TestScrollAnimator_Animate_StopsOnABackendThatDiesMidAnimation covers the
-// backend that passed ScrollAtCursor's availability check and then broke, such
+// TestAnimator_Animate_StopsOnABackendThatDiesMidAnimation covers the
+// backend that passed the caller's availability check and then broke, such
 // as a dropped KDE portal grant or a lost compositor connection. There is no caller
 // left to return the error to, so the animation ends rather than spending its
 // whole duration failing once per step. The loud refusal belongs to
-// scrollBackendAvailable, which runs before any of this.
-func TestScrollAnimator_Animate_StopsOnABackendThatDiesMidAnimation(t *testing.T) {
+// the caller's backend check, which runs before any of this.
+func TestAnimator_Animate_StopsOnABackendThatDiesMidAnimation(t *testing.T) {
 	var (
 		guard sync.Mutex
 		tries int
 	)
 
-	animator := newScrollAnimator(func(_ action.Modifiers) (scrollSession, error) {
+	animator := New(func(_ action.Modifiers) (Session, error) {
 		guard.Lock()
 		tries++
 		guard.Unlock()
 
 		return nil, derrors.New(derrors.CodeNotSupported, "no backend")
-	})
+	}, testMaxUnits)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
-	animator.animate(0, -300, 0, 6, 30, 0.1)
+	animator.Animate(0, -300, 0, 6, 30, 0.1)
 
 	waitFor(t, func() bool {
 		guard.Lock()
@@ -288,26 +294,26 @@ func TestScrollAnimator_Animate_StopsOnABackendThatDiesMidAnimation(t *testing.T
 	})
 }
 
-// TestScrollAnimator_Animate_IgnoresAnEmptyScroll keeps a zero delta from
+// TestAnimator_Animate_IgnoresAnEmptyScroll keeps a zero delta from
 // opening a session, which on X11 is a display connection and a modifier press
 // for no movement at all.
-func TestScrollAnimator_Animate_IgnoresAnEmptyScroll(t *testing.T) {
+func TestAnimator_Animate_IgnoresAnEmptyScroll(t *testing.T) {
 	var (
 		guard sync.Mutex
 		opens int
 	)
 
-	animator := newScrollAnimator(func(_ action.Modifiers) (scrollSession, error) {
+	animator := New(func(_ action.Modifiers) (Session, error) {
 		guard.Lock()
 		opens++
 		guard.Unlock()
 
 		return &fakeScrollSession{}, nil
-	})
+	}, testMaxUnits)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
-	animator.animate(0, 0, 0, 6, 30, 0.1)
+	animator.Animate(0, 0, 0, 6, 30, 0.1)
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -319,17 +325,18 @@ func TestScrollAnimator_Animate_IgnoresAnEmptyScroll(t *testing.T) {
 	}
 }
 
-// TestScrollAnimator_Stop_EndsTheAnimation covers the reload case. Smooth
+// TestAnimator_Stop_EndsTheAnimation covers the reload case. Smooth
 // scroll is switched off, and the scroll that arrives next must not be chased
 // by chunks scheduled before it.
-func TestScrollAnimator_Stop_EndsTheAnimation(t *testing.T) {
+func TestAnimator_Stop_EndsTheAnimation(t *testing.T) {
 	session := &fakeScrollSession{}
-	animator := newScrollAnimator(
-		func(_ action.Modifiers) (scrollSession, error) { return session, nil },
+	animator := New(
+		func(_ action.Modifiers) (Session, error) { return session, nil },
+		testMaxUnits,
 	)
 
-	// Long enough that stop() lands mid-animation.
-	animator.animate(0, -1000, 0, 40, 400, 1.0)
+	// Long enough that Stop lands mid-animation.
+	animator.Animate(0, -1000, 0, 40, 400, 1.0)
 
 	waitFor(t, func() bool {
 		session.mu.Lock()
@@ -338,7 +345,7 @@ func TestScrollAnimator_Stop_EndsTheAnimation(t *testing.T) {
 		return len(session.chunks) > 0
 	})
 
-	animator.stop()
+	animator.Stop()
 
 	waitFor(t, func() bool { return session.isClosed() })
 
@@ -347,23 +354,24 @@ func TestScrollAnimator_Stop_EndsTheAnimation(t *testing.T) {
 	time.Sleep(60 * time.Millisecond)
 
 	if _, after := session.traveled(); after != before {
-		t.Errorf("the animation traveled %v more after stop(); it should have ended", after-before)
+		t.Errorf("the animation traveled %v more after Stop; it should have ended", after-before)
 	}
 }
 
-// TestScrollAnimator_Animate_AbandonsAnAnimationOnTheFirstFailedChunk keeps a
+// TestAnimator_Animate_AbandonsAnAnimationOnTheFirstFailedChunk keeps a
 // dead backend from costing the whole animation duration. The session is closed
 // on the first refusal instead of the remaining steps being played out against
 // it.
-func TestScrollAnimator_Animate_AbandonsAnAnimationOnTheFirstFailedChunk(t *testing.T) {
+func TestAnimator_Animate_AbandonsAnAnimationOnTheFirstFailedChunk(t *testing.T) {
 	session := &fakeScrollSession{injectErr: derrors.New(derrors.CodeActionFailed, "gone")}
-	animator := newScrollAnimator(
-		func(_ action.Modifiers) (scrollSession, error) { return session, nil },
+	animator := New(
+		func(_ action.Modifiers) (Session, error) { return session, nil },
+		testMaxUnits,
 	)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
-	animator.animate(0, -1000, 0, 20, 400, 1.0)
+	animator.Animate(0, -1000, 0, 20, 400, 1.0)
 
 	waitFor(t, func() bool { return session.isClosed() })
 
@@ -392,7 +400,7 @@ type scrollLog struct {
 	chunks []loggedChunk
 }
 
-func (l *scrollLog) begin(modifiers action.Modifiers) (scrollSession, error) {
+func (l *scrollLog) begin(modifiers action.Modifiers) (Session, error) {
 	return &loggingScrollSession{log: l, modifiers: modifiers}, nil
 }
 
@@ -436,9 +444,9 @@ type loggingScrollSession struct {
 	modifiers action.Modifiers
 }
 
-func (s *loggingScrollSession) granularity() float64 { return s.log.gran }
+func (s *loggingScrollSession) Granularity() float64 { return s.log.gran }
 
-func (s *loggingScrollSession) inject(deltaX, deltaY float64) error {
+func (s *loggingScrollSession) Inject(deltaX, deltaY float64) error {
 	s.log.mu.Lock()
 	defer s.log.mu.Unlock()
 
@@ -450,7 +458,7 @@ func (s *loggingScrollSession) inject(deltaX, deltaY float64) error {
 	return nil
 }
 
-func (s *loggingScrollSession) close() {}
+func (s *loggingScrollSession) Close() {}
 
 // The shipped smooth_scroll defaults, which are what makes the truncation
 // visible. The animation runs for max_duration (180ms) while held_repeat fires
@@ -464,25 +472,25 @@ const (
 	scrollTestHalfPage         = -500
 )
 
-// TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses is the
+// TestAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses is the
 // property the whole animation rests on, restated for a key held down.
 // Switching smooth scroll on changes how a held scroll key looks, never how far
 // it goes. Each repeat tick preempts the animation still in flight, and before
 // the undelivered remainder was composed into it, most of every tick's travel
 // was thrown away. darwin's animator carries the same test.
-func TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses(t *testing.T) {
+func TestAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses(t *testing.T) {
 	const ticks = 10
 
 	// A continuous backend (Wayland) has granularity 0, so the chunks carry the
 	// distance exactly and the total is the requested one rather than a whole
 	// number of wheel notches.
 	log := &scrollLog{}
-	animator := newScrollAnimator(log.begin)
+	animator := New(log.begin, testMaxUnits)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
 	for range ticks {
-		animator.animate(
+		animator.Animate(
 			0,
 			scrollTestHalfPage,
 			0,
@@ -505,26 +513,26 @@ func TestScrollAnimator_Animate_HeldRepeatTravelsAsFarAsDiscretePresses(t *testi
 	}
 }
 
-// TestScrollAnimator_Animate_HeldRepeatOnAGranularBackend is the X11 half of
+// TestAnimator_Animate_HeldRepeatOnAGranularBackend is the X11 half of
 // the same property, and the one where it cannot be exact. A wheel button is
 // one notch and there is no fraction of one to send, so each request's schedule
 // leaves a sub-notch residue behind. A discrete press drops that residue too,
 // which is what keeps the two comparable. The held run has to land within one
 // notch per tick of the same number of presses, not merely somewhere short of
 // them. Truncating each tick's remainder instead put it 40% short.
-func TestScrollAnimator_Animate_HeldRepeatOnAGranularBackend(t *testing.T) {
+func TestAnimator_Animate_HeldRepeatOnAGranularBackend(t *testing.T) {
 	const (
 		ticks = 10
-		notch = scrollPixelsPerNotch
+		notch = testNotch
 	)
 
 	log := &scrollLog{gran: notch}
-	animator := newScrollAnimator(log.begin)
+	animator := New(log.begin, testMaxUnits)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
 	for range ticks {
-		animator.animate(
+		animator.Animate(
 			0,
 			scrollTestHalfPage,
 			0,
@@ -535,9 +543,12 @@ func TestScrollAnimator_Animate_HeldRepeatOnAGranularBackend(t *testing.T) {
 		time.Sleep(scrollTestRepeatInterval)
 	}
 
-	// What ten discrete presses send. Each rounds to the nearest notch.
+	// What ten discrete presses send. Each rounds to the nearest notch, and a
+	// half page of 500 px is 17 of them.
+	const halfPageNotches = 17
+
 	var (
-		asked     = float64(ticks * scrollNotches(scrollTestHalfPage) * notch)
+		asked     = float64(ticks * halfPageNotches * notch)
 		tolerance = float64(ticks * notch)
 	)
 
@@ -554,13 +565,13 @@ func TestScrollAnimator_Animate_HeldRepeatOnAGranularBackend(t *testing.T) {
 	}
 }
 
-// TestScrollAnimator_Animate_KeepsTheBacklogBounded covers the risk composition
+// TestAnimator_Animate_KeepsTheBacklogBounded covers the risk composition
 // introduces. The animation (180ms) outlives the repeat interval (50ms), so
 // undelivered delta accumulates across ticks. It has to self-limit. Duration is
 // capped at max_duration, so a larger pending delta drains over the same window
 // and the delivery rate rises with the backlog. Without that a long hold would
 // keep scrolling long after the key came up.
-func TestScrollAnimator_Animate_KeepsTheBacklogBounded(t *testing.T) {
+func TestAnimator_Animate_KeepsTheBacklogBounded(t *testing.T) {
 	const (
 		ticks = 15
 		// Steady state is ~0.6 of one tick's delta at these settings, so four
@@ -571,12 +582,12 @@ func TestScrollAnimator_Animate_KeepsTheBacklogBounded(t *testing.T) {
 	)
 
 	log := &scrollLog{}
-	animator := newScrollAnimator(log.begin)
+	animator := New(log.begin, testMaxUnits)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
 	for tick := 1; tick <= ticks; tick++ {
-		animator.animate(
+		animator.Animate(
 			0,
 			scrollTestHalfPage,
 			0,
@@ -594,29 +605,29 @@ func TestScrollAnimator_Animate_KeepsTheBacklogBounded(t *testing.T) {
 	}
 }
 
-// TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet pins the
+// TestAnimator_Animate_DropsTheRemainderOnADifferentModifierSet pins the
 // half of the rule that must not change. A plain scroll_down arriving mid-zoom
 // cancels the zoom and finishes unmodified, which is what the second binding
 // asked for. Carrying the zoom's undelivered distance into it would emit that
 // distance as a plain scroll nobody asked for. On Linux the modifier is a
 // real key, so the two runs are two sessions.
-func TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet(t *testing.T) {
+func TestAnimator_Animate_DropsTheRemainderOnADifferentModifierSet(t *testing.T) {
 	const (
 		zoom  = -4000
 		plain = -100
 	)
 
 	log := &scrollLog{}
-	animator := newScrollAnimator(log.begin)
+	animator := New(log.begin, testMaxUnits)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
 	// Long enough that the preempting request certainly lands mid-animation.
-	animator.animate(0, zoom, action.ModCtrl, 40, 2000, 1.0)
+	animator.Animate(0, zoom, action.ModCtrl, 40, 2000, 1.0)
 
 	waitFor(t, func() bool { return log.count() > 0 })
 
-	animator.animate(0, plain, 0, scrollTestSteps, scrollTestMaxDuration, 1.0)
+	animator.Animate(0, plain, 0, scrollTestSteps, scrollTestMaxDuration, 1.0)
 
 	waitFor(t, func() bool { return math.Abs(log.traveledWith(0)-plain) < 1e-6 })
 
@@ -633,7 +644,7 @@ func TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet(t *test
 	}
 }
 
-// TestScrollAnimator_Animate_AReversalNetsTheTwoDeltas is the same rule read
+// TestAnimator_Animate_AReversalNetsTheTwoDeltas is the same rule read
 // backwards, and the case composition is most often suspected of breaking. A
 // scroll_up landing mid-scroll_down inherits a *negative* remainder, so the new
 // animation travels less than its own delta, or not at all.
@@ -644,16 +655,16 @@ func TestScrollAnimator_Animate_DropsTheRemainderOnADifferentModifierSet(t *test
 // page above where it started, which is the same truncation bug facing the
 // other way. Conserving the requested total is what makes a reversal land where
 // the two presses said. darwin's animator carries the same test.
-func TestScrollAnimator_Animate_AReversalNetsTheTwoDeltas(t *testing.T) {
+func TestAnimator_Animate_AReversalNetsTheTwoDeltas(t *testing.T) {
 	const stride = 600
 
 	log := &scrollLog{}
-	animator := newScrollAnimator(log.begin)
+	animator := New(log.begin, testMaxUnits)
 
-	t.Cleanup(animator.stop)
+	t.Cleanup(animator.Stop)
 
 	// Long enough that the reversal certainly lands mid-animation.
-	animator.animate(0, -stride, 0, 40, 2000, 1.0)
+	animator.Animate(0, -stride, 0, 40, 2000, 1.0)
 
 	waitFor(t, func() bool { return log.count() > 0 })
 
@@ -662,7 +673,7 @@ func TestScrollAnimator_Animate_AReversalNetsTheTwoDeltas(t *testing.T) {
 			got)
 	}
 
-	animator.animate(0, stride, 0, 40, 2000, 1.0)
+	animator.Animate(0, stride, 0, 40, 2000, 1.0)
 
 	waitFor(t, func() bool { return math.Abs(log.traveled()) < 1e-6 })
 
@@ -674,11 +685,11 @@ func TestScrollAnimator_Animate_AReversalNetsTheTwoDeltas(t *testing.T) {
 	}
 }
 
-// TestScrollAnimator_EnqueueLocked_ComposesAQueuedRequest covers the other seam
+// TestAnimator_EnqueueLocked_ComposesAQueuedRequest covers the other seam
 // a delta can be dropped at. A request the worker has not taken yet is replaced
 // wholesale by the next one. None of it has been injected, so all of it folds
 // into the replacement, under the same modifier rule the worker applies.
-func TestScrollAnimator_EnqueueLocked_ComposesAQueuedRequest(t *testing.T) {
+func TestAnimator_EnqueueLocked_ComposesAQueuedRequest(t *testing.T) {
 	tests := []struct {
 		name      string
 		queuedMod action.Modifiers
@@ -699,10 +710,11 @@ func TestScrollAnimator_EnqueueLocked_ComposesAQueuedRequest(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			// With no worker, nothing consumes the channel, so the test owns both
 			// requests and this never runs.
-			animator := newScrollAnimator(
-				func(_ action.Modifiers) (scrollSession, error) {
+			animator := New(
+				func(_ action.Modifiers) (Session, error) {
 					return &fakeScrollSession{}, nil
 				},
+				testMaxUnits,
 			)
 			animator.reqCh = make(chan scrollRequest, 1)
 
@@ -747,4 +759,126 @@ func waitFor(t *testing.T, condition func() bool) {
 	}
 
 	t.Fatal("the condition never held within 5s")
+}
+
+// testWheelUnit is the Windows granularity, a quarter pixel: WHEEL_DELTA is
+// 120 per notch and a notch is 30 pixels. Windows drives the animator with no
+// per-request cap.
+const testWheelUnit = 0.25
+
+// TestScrollChunks_TravelsTheRequestedDistanceInWheelUnits is the Windows half
+// of the distance property. Every chunk is a whole number of wheel units, so
+// the total is exact for any whole-pixel delta, a single pixel included.
+func TestScrollChunks_TravelsTheRequestedDistanceInWheelUnits(t *testing.T) {
+	tests := []struct {
+		name  string
+		delta float64
+		steps int
+	}{
+		{name: "one line down", delta: -50, steps: 20},
+		{name: "half a page up", delta: 500, steps: 20},
+		{name: "a single step", delta: 300, steps: 1},
+		{name: "more steps than pixels", delta: 7, steps: 64},
+		{name: "a single pixel", delta: 1, steps: 12},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			chunks := scrollChunks(test.delta, test.steps, testWheelUnit, 0)
+
+			if len(chunks) != test.steps {
+				t.Fatalf("got %d chunks, want %d", len(chunks), test.steps)
+			}
+
+			if got := sum(chunks); math.Abs(got-test.delta) > 1e-9 {
+				t.Errorf("chunks total %v, want %v", got, test.delta)
+			}
+		})
+	}
+}
+
+// TestScrollChunks_EasesOutInWholeWheelUnits pins the shape and the unit at
+// once. The early chunks are the long ones, and every chunk is a whole number
+// of wheel units, which is what lets the steps go below a notch without
+// SendInput rounding them.
+func TestScrollChunks_EasesOutInWholeWheelUnits(t *testing.T) {
+	chunks := scrollChunks(-10, 12, testWheelUnit, 0)
+
+	for index, chunk := range chunks {
+		if units := chunk / testWheelUnit; math.Abs(units-math.Round(units)) > 1e-9 {
+			t.Errorf("chunk %d = %v pixels, which is not a whole number of wheel units",
+				index, chunk)
+		}
+
+		// The last chunk carries whatever truncation left over, which can be
+		// one unit after a run of zeros. The curve is read from the rest.
+		if index > 0 && index < len(chunks)-1 &&
+			math.Abs(chunk) > math.Abs(chunks[index-1])+1e-9 {
+			t.Fatalf("chunk %d (%v) is longer than chunk %d (%v); the curve is not easing out",
+				index, chunk, index-1, chunks[index-1])
+		}
+	}
+
+	if chunks[0] >= 0 || chunks[0] <= -10 {
+		t.Errorf("first chunk = %v, want a negative fraction of the -10 pixel delta", chunks[0])
+	}
+}
+
+// TestAnimator_Stop_OpensNoSessionForARequestAlreadyTaken pins the stop check
+// around opening a session. A request the worker took just before Stop must
+// not open one, because opening presses real modifier keys that the direct
+// scroll replacing it would then have to wait out.
+func TestAnimator_Stop_OpensNoSessionForARequestAlreadyTaken(t *testing.T) {
+	var (
+		guard sync.Mutex
+		opens int
+	)
+
+	animator := New(func(_ action.Modifiers) (Session, error) {
+		guard.Lock()
+		opens++
+		guard.Unlock()
+
+		return &fakeScrollSession{}, nil
+	}, testMaxUnits)
+
+	// Hold the fence, so the worker takes the request and then waits on it
+	// before opening a session.
+	animator.injectSem <- struct{}{}
+
+	animator.Animate(0, -300, action.ModCtrl, 6, 30, 0.1)
+
+	waitFor(t, func() bool {
+		animator.mu.Lock()
+		defer animator.mu.Unlock()
+
+		return animator.reqCh != nil && len(animator.reqCh) == 0
+	})
+
+	stopped := make(chan struct{})
+
+	go func() {
+		animator.Stop()
+		close(stopped)
+	}()
+
+	waitFor(t, func() bool {
+		animator.mu.Lock()
+		defer animator.mu.Unlock()
+
+		return animator.stopCh == nil
+	})
+
+	<-animator.injectSem
+
+	<-stopped
+
+	time.Sleep(20 * time.Millisecond)
+
+	guard.Lock()
+	defer guard.Unlock()
+
+	if opens != 0 {
+		t.Errorf("a request taken before Stop opened %d sessions, want none", opens)
+	}
 }

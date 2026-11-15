@@ -16,6 +16,7 @@ import (
 	"os"
 
 	_ "github.com/y3owk1n/neru/internal/adapter/platform/linux"
+	"github.com/y3owk1n/neru/internal/adapter/platform/scrollanim"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -225,7 +226,7 @@ func x11ScrollBackendAvailable() error {
 	return nil
 }
 
-func newX11ScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+func newX11ScrollSession(modifiers action.Modifiers) (scrollanim.Session, error) {
 	display, err := x11ActionDisplay()
 	if err != nil {
 		return nil, err
@@ -236,15 +237,20 @@ func newX11ScrollSession(modifiers action.Modifiers) (scrollSession, error) {
 	return &x11ScrollSession{display: display, hold: x11HoldModifiers(display, modifiers)}, nil
 }
 
-func (s *x11ScrollSession) granularity() float64 { return scrollPixelsPerNotch }
+func (s *x11ScrollSession) Granularity() float64 { return scrollPixelsPerNotch }
 
-func (s *x11ScrollSession) inject(deltaX, deltaY float64) error {
+func (s *x11ScrollSession) Inject(deltaX, deltaY float64) error {
 	err := s.clickAxis(deltaY, x11ScrollUp, x11ScrollDown)
 	if err != nil {
 		return err
 	}
 
 	return s.clickAxis(deltaX, x11ScrollRight, x11ScrollLeft)
+}
+
+func (s *x11ScrollSession) Close() {
+	s.hold.release()
+	C.neru_ax_close_display(s.display)
 }
 
 // clickAxis emits one chunk as whole wheel clicks. The animator hands it exact
@@ -269,11 +275,6 @@ func (s *x11ScrollSession) clickAxis(delta float64, positive, negative C.uint) e
 	}
 
 	return nil
-}
-
-func (s *x11ScrollSession) close() {
-	s.hold.release()
-	C.neru_ax_close_display(s.display)
 }
 
 func x11ClickButtonAtPoint(

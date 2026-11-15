@@ -5,6 +5,7 @@ package inject
 import (
 	"image"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/scrollanim"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -91,7 +92,7 @@ func x11ScrollBackendAvailable() error {
 	)
 }
 
-func newX11ScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+func newX11ScrollSession(modifiers action.Modifiers) (scrollanim.Session, error) {
 	_ = modifiers
 
 	return nil, x11ScrollBackendAvailable()

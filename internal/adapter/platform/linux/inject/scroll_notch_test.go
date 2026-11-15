@@ -2,7 +2,63 @@
 
 package inject
 
-import "testing"
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/y3owk1n/neru/internal/adapter/platform/scrollanim"
+	"github.com/y3owk1n/neru/internal/domain/action"
+)
+
+// notchSession records what an animated scroll sends at the X11 notch
+// granularity, and closes done when the animation closes the session.
+type notchSession struct {
+	mu    sync.Mutex
+	total float64
+	done  chan struct{}
+}
+
+func (s *notchSession) Granularity() float64 { return scrollPixelsPerNotch }
+
+func (s *notchSession) Inject(_, deltaY float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.total += deltaY
+
+	return nil
+}
+
+func (s *notchSession) Close() { close(s.done) }
+
+// animatedTravel runs one animated scroll of delta pixels through the animator
+// the X11 backend uses, with its notch granularity and cap, and returns how
+// far it traveled.
+func animatedTravel(t *testing.T, delta int) float64 {
+	t.Helper()
+
+	session := &notchSession{done: make(chan struct{})}
+	animator := scrollanim.New(
+		func(action.Modifiers) (scrollanim.Session, error) { return session, nil },
+		maxScrollUnitsPerRequest,
+	)
+
+	defer animator.Stop()
+
+	animator.Animate(0, delta, 0, 20, 20, 0.01)
+
+	select {
+	case <-session.done:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("the animated scroll of %d px never finished", delta)
+	}
+
+	session.mu.Lock()
+	defer session.mu.Unlock()
+
+	return session.total
+}
 
 // TestScrollNotches_RoundsToTheNearestNotch pins the pixel-to-notch conversion
 // every Linux path shares: nearest whole notch, never fewer than one, and the
@@ -37,7 +93,7 @@ func TestScrollNotches_RoundsToTheNearestNotch(t *testing.T) {
 				want = -want
 			}
 
-			animated := sum(scrollChunks(float64(delta), 20, notch, maxScrollUnitsPerRequest))
+			animated := animatedTravel(t, delta)
 			if animated != want {
 				t.Errorf("animated %d px travels %v, want %v (the unanimated %d notches)",
 					delta, animated, want, testCase.want)

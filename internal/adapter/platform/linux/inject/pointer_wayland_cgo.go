@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	"github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/adapter/platform/mousestate"
+	"github.com/y3owk1n/neru/internal/adapter/platform/scrollanim"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
@@ -452,7 +453,7 @@ func waylandScrollBackendAvailable() error {
 	return nil
 }
 
-func newWaylandScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+func newWaylandScrollSession(modifiers action.Modifiers) (scrollanim.Session, error) {
 	err := waylandScrollBackendAvailable()
 	if err != nil {
 		return nil, err
@@ -472,11 +473,11 @@ func newWaylandScrollSession(modifiers action.Modifiers) (scrollSession, error) 
 	return &waylandScrollSession{modifiers: modifiers, restore: restore}, nil
 }
 
-// granularity is zero. A Wayland axis value is a distance, not a step count,
+// Granularity is zero. A Wayland axis value is a distance, not a step count,
 // so there is no unit to round to.
-func (s *waylandScrollSession) granularity() float64 { return 0 }
+func (s *waylandScrollSession) Granularity() float64 { return 0 }
 
-func (s *waylandScrollSession) inject(deltaX, deltaY float64) error {
+func (s *waylandScrollSession) Inject(deltaX, deltaY float64) error {
 	if deltaY != 0 {
 		// Wayland's positive axis is down and the caller's is up, the
 		// same negation wlrootsScrollAxis applies.
@@ -493,9 +494,9 @@ func (s *waylandScrollSession) inject(deltaX, deltaY float64) error {
 	return nil
 }
 
-// close releases only what this session pressed, so a modifier the user is
+// Close releases only what this session pressed, so a modifier the user is
 // physically holding survives the animation.
-func (s *waylandScrollSession) close() {
+func (s *waylandScrollSession) Close() {
 	if s.modifiers != 0 {
 		_ = wlrootsReleaseModifiers(s.modifiers)
 	}

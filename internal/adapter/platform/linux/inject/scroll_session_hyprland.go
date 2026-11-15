@@ -5,6 +5,7 @@ package inject
 import (
 	"math"
 
+	"github.com/y3owk1n/neru/internal/adapter/platform/scrollanim"
 	"github.com/y3owk1n/neru/internal/domain/action"
 )
 
@@ -22,7 +23,7 @@ type hyprlandScrollSession struct {
 
 // newHyprlandScrollSession presses the modifiers and holds them for the whole
 // animation, so twenty chunks read as one zoom rather than twenty.
-func newHyprlandScrollSession(modifiers action.Modifiers) (scrollSession, error) {
+func newHyprlandScrollSession(modifiers action.Modifiers) (scrollanim.Session, error) {
 	err := waylandScrollBackendAvailable()
 	if err != nil {
 		return nil, err
@@ -42,15 +43,29 @@ func newHyprlandScrollSession(modifiers action.Modifiers) (scrollSession, error)
 	return &hyprlandScrollSession{pressed: pressed, restore: restore}, nil
 }
 
-func (s *hyprlandScrollSession) granularity() float64 { return scrollPixelsPerNotch }
+func (s *hyprlandScrollSession) Granularity() float64 { return scrollPixelsPerNotch }
 
-func (s *hyprlandScrollSession) inject(deltaX, deltaY float64) error {
+func (s *hyprlandScrollSession) Inject(deltaX, deltaY float64) error {
 	err := s.notchAxis(uinputScrollAxisVertical, deltaY)
 	if err != nil {
 		return err
 	}
 
 	return s.notchAxis(uinputScrollAxisHorizontal, deltaX)
+}
+
+// Close lets go of only what this session pressed, so a modifier the user is
+// physically holding survives the animation.
+func (s *hyprlandScrollSession) Close() {
+	defer s.restore()
+
+	if s.pressed == 0 {
+		return
+	}
+
+	waitForScrollDelivery()
+
+	_ = releaseWaylandModifiers(s.pressed)
 }
 
 // notchAxis emits one chunk as whole wheel notches. The animator hands it
@@ -72,18 +87,4 @@ func (s *hyprlandScrollSession) notchAxis(axis int, delta float64) error {
 	}
 
 	return uinputScrollBatch(axis, batch)
-}
-
-// close lets go of only what this session pressed, so a modifier the user is
-// physically holding survives the animation.
-func (s *hyprlandScrollSession) close() {
-	defer s.restore()
-
-	if s.pressed == 0 {
-		return
-	}
-
-	waitForScrollDelivery()
-
-	_ = releaseWaylandModifiers(s.pressed)
 }

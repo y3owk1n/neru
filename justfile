@@ -304,6 +304,7 @@ test-foundation:
         ./internal/adapter/platform/fontgeneric \
         ./internal/adapter/platform/modifierstate \
         ./internal/adapter/platform/mousestate \
+        ./internal/adapter/platform/scrollanim \
         ./internal/adapter/systray/icon \
         ./internal/adapter/vision/contour \
         ./internal/adapter/vision/frame \
