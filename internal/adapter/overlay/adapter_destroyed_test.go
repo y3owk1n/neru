@@ -181,10 +181,8 @@ type portCall struct {
 	call func(ports.OverlayPort)
 }
 
-// everyPortCall is the whole of ports.OverlayPort bar two: Destroy, which is
-// the subject rather than a case, and HintSearchBounds, which answers from the
-// resolved Style and reaches no backend at all. What its guard changes is the
-// answer, which the test below asserts instead.
+// everyPortCall is the whole of ports.OverlayPort bar Destroy, which is the
+// subject rather than a case.
 //
 // Every call here has to reach the backend while the overlay is alive and none
 // of them may reach it afterwards, which is what makes the table worth having.
@@ -338,10 +336,6 @@ func TestAdapterDestroy_AnswersACallerThatRacedTheTeardown(t *testing.T) {
 
 	if port.IsVisible() {
 		t.Error("IsVisible() after Destroy = true, want false: nothing is on screen")
-	}
-
-	if bounds := port.HintSearchBounds(image.Rect(0, 0, 1920, 1080)); !bounds.Empty() {
-		t.Errorf("HintSearchBounds() after Destroy = %v, want the empty rectangle", bounds)
 	}
 }
 

@@ -59,11 +59,9 @@ type overlaySurface interface {
 	ClearFrame(ctx context.Context) error
 	SetActiveScreen(screen image.Rectangle)
 
-	// Hint search: the input drawn over a hints frame, and where it sits so
-	// the platform's IME field can be placed over it.
+	// Hint search: the input drawn over a hints frame.
 	DrawHintSearch(search ports.HintSearch) error
 	HideHintSearch()
-	HintSearchBounds(screen image.Rectangle) image.Rectangle
 
 	// VimStatusBar: the strip vim's status bar covers, which vim leaves out of
 	// what it reads.

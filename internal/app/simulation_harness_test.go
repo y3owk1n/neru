@@ -346,16 +346,6 @@ func (m *simOverlayPort) VimStatusBar(region image.Rectangle) image.Rectangle {
 	return image.Rect(region.Min.X, region.Max.Y-m.vimStatusHeight, region.Max.X, region.Max.Y)
 }
 
-// HintSearchBounds reports a search box for a platform field to sit over. A
-// refusing overlay draws no box, so it reports none.
-func (m *simOverlayPort) HintSearchBounds(_ image.Rectangle) image.Rectangle {
-	if m.refuseHintSearch {
-		return image.Rectangle{}
-	}
-
-	return image.Rect(800, 1000, 1120, 1040)
-}
-
 // UpdateGridMatches records the prefix the grid was narrowed to. This is the
 // per-keystroke path in grid mode. A journey asserts the user's typing reached
 // the overlay here, not that the whole grid was drawn again.
@@ -1258,7 +1248,6 @@ type simHarness struct {
 	overlay    *simOverlayPort
 	ax         *simAXPort
 	vision     *simVisionPort
-	textInput  *mocks.MockTextInputPort
 	cursor     *simCursor
 	hotkeys    *simHotkeyPort
 	// tap is the port the app was wired with: the shared mock, whose methods
@@ -1553,10 +1542,6 @@ func buildSimHarness(
 
 	axPort := &simAXPort{elements: elements, focusedApp: simFixtureBundleID}
 	vision := simVision(recorder)
-	// textInput is the platform's search field. It reports no field by default,
-	// so the query arrives through the key stream. A journey that sets Started
-	// gets the field and drives it through its callbacks.
-	textInput := &mocks.MockTextInputPort{}
 	appearance := &atomic.Bool{}
 	watcher := &mocks.MockAppWatcherPort{}
 	cursor := &simCursor{pos: displays[0].bounds.Min.Add(
@@ -1631,7 +1616,6 @@ func buildSimHarness(
 		app.WithConfigPath(""),
 		app.WithLogger(zap.NewNop()),
 		app.WithEventTap(tap),
-		app.WithTextInput(textInput),
 		app.WithIPCServer(&mocks.MockIPCPort{}),
 		app.WithWatcher(watcher),
 		app.WithHotkeyService(hotkeys),
@@ -1655,7 +1639,6 @@ func buildSimHarness(
 		ax:            axPort,
 		vision:        vision,
 		system:        system,
-		textInput:     textInput,
 		cursor:        cursor,
 		hotkeys:       hotkeys,
 		tap:           tap,

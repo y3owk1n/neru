@@ -201,6 +201,9 @@ Neru works with input methods such as Pinyin and Wubi. Check the method is
 installed and active in your OS, and on macOS that Neru has
 [Accessibility permission](#neru-does-nothing-on-macos).
 
+Hint search and vim mode read keys before the input method does. To find text
+in another script, type its romanization, so `nihao` finds 你好.
+
 ## Performance
 
 ### Hints are slow to appear

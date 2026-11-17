@@ -130,16 +130,6 @@ func WithAccessibility(accessibility ports.AccessibilityPort) Option {
 	}
 }
 
-// WithTextInput sets the text input port implementation.
-// Note: textInput can be nil, will be initialized during app startup if not provided.
-func WithTextInput(textInput ports.TextInputPort) Option {
-	return func(a *App) error {
-		a.textInput = textInput
-
-		return nil
-	}
-}
-
 // WithVisionPort sets the vision port the vision, contour and segment hint
 // strategies detect targets with.
 // Note: vision can be nil, will be initialized during app startup if not provided.

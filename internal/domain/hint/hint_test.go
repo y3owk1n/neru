@@ -191,6 +191,22 @@ func TestCollection_FilterBySearch_Normalizes(t *testing.T) {
 	if got := collection.FilterBySearch("你好").Count(); got != 1 { //nolint:gosmopolitan
 		t.Fatalf("FilterBySearch(%q) = %d, want 1", "你好", got) //nolint:gosmopolitan
 	}
+
+	if got := collection.FilterBySearch("nihao").Count(); got != 1 {
+		t.Fatalf(
+			"FilterBySearch(%q) = %d, want 1, since 你好 is spelled NiHao", //nolint:gosmopolitan
+			"nihao",
+			got,
+		)
+	}
+
+	if got := collection.FilterBySearch("ao").Count(); got != 0 {
+		t.Fatalf(
+			"FilterBySearch(%q) = %d, want 0, since ao starts inside the spelling of 好", //nolint:gosmopolitan
+			"ao",
+			got,
+		)
+	}
 }
 
 func TestCollection_FilterBySearch_SearchesAdditionalText(t *testing.T) {

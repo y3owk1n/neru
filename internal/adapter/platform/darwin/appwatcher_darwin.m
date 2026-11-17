@@ -19,16 +19,16 @@ extern void handleAppActivate(const char *appName, const char *bundleID);
 extern void handleAppDeactivate(const char *appName, const char *bundleID);
 extern void handleScreenParametersChanged(void);
 
-/// Neru activates itself to give hint search's text field the keyboard. That is
-/// not the user switching applications, so the watcher does not forward Neru's
-/// own activations.
+/// Neru activates itself to show an alert or a permission prompt. That is not
+/// the user switching applications, so the watcher does not forward Neru's own
+/// activations.
 static BOOL isNeruProcess(NSRunningApplication *app) { return app.processIdentifier == getpid(); }
 
 /// lastForwardedActivation is the process whose activation the watcher forwarded
-/// last. When hint search closes, the application the user was in activates
-/// again. The watcher dropped Neru's own activation in between, so this is the
-/// same application, and forwarding it would announce a focus change that did
-/// not happen. It is atomic because a notification can arrive off the main
+/// last. When Neru's alert or prompt closes, the application the user was in
+/// activates again. The watcher dropped Neru's own activation in between, so
+/// this is the same application, and forwarding it would announce a focus
+/// change that did not happen. It is atomic because a notification can arrive off the main
 /// thread.
 static _Atomic(pid_t) lastForwardedActivation = 0;
 

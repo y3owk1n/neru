@@ -81,9 +81,8 @@ func (h *handlerState) activateHintModeInternal(activation modecmd.Activation) {
 		h.cycleHintIndex = -1
 	}
 
-	// On refresh, cancel the active IME and clear the search state first.
-	// Otherwise the IME is left orphaned during screen or space transitions,
-	// where the OS moves focus to the frontmost app.
+	// On refresh, close an open search first, since its query and box belong
+	// to the hints being replaced.
 	if isRefresh && h.hints != nil && h.hints.Context != nil && h.hints.Context.SearchActive() {
 		h.cancelHintSearch()
 	}

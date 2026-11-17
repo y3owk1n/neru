@@ -182,7 +182,7 @@ func (l *physicalLift) restoreLocked() {
 
 // liftPhysicalModifiers releases the modifiers the user's hand is on for the
 // length of a pointer action, so it carries only the set it names. It is the
-// x11ClickButtonAtPoint rule for the evdev proxy's keyboard (footnote 7 of
+// x11ClickButtonAtPoint rule for the evdev proxy's keyboard (footnote 6 of
 // docs/contributing/platform-internals.md). Releases go out on uinput and the
 // action on the Wayland socket, unordered, so a lift waits the fixed
 // waitForScrollDelivery period. The returned restore presses them again once

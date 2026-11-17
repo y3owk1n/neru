@@ -458,17 +458,6 @@ type OverlayPort interface {
 	// It also runs from teardown, where no caller could act on an answer anyway.
 	HideHintSearch()
 
-	// HintSearchBounds reports where the search input sits on a screen. The
-	// platform's IME field has to be placed over it, and the overlay is the
-	// one place that decides where "over it" is. Asking beats deriving the
-	// same rectangle a second time.
-	//
-	// The rectangle is screen-local, not global. It names a place on the
-	// overlay's own drawing surface, which is the one exception the
-	// coordinate rule in AGENTS.md already carries for drawn overlay content.
-	// ports.TextInputFrame has always been fed this space.
-	HintSearchBounds(screen image.Rectangle) image.Rectangle
-
 	// VimStatusBar reports the strip vim mode's status bar covers at the
 	// bottom of region, in region's coordinates, so vim reads only the text
 	// above it. The text under the bar is hidden while vim is up, and leaving

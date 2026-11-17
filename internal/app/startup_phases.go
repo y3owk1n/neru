@@ -13,7 +13,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/mouse"
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	infrasystray "github.com/y3owk1n/neru/internal/adapter/systray"
-	textinputadapter "github.com/y3owk1n/neru/internal/adapter/textinput"
 	visionAdapter "github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/app/components"
 	"github.com/y3owk1n/neru/internal/app/components/systray"
@@ -59,10 +58,6 @@ func initializeInfrastructure(app *App) error {
 
 	if app.hotkeyManager == nil {
 		app.hotkeyManager = initializeHotkeyService(logger)
-	}
-
-	if app.textInput == nil {
-		app.textInput = textinputadapter.NewAdapter(textinputadapter.NewTextInput(logger), logger)
 	}
 
 	if app.keyFeed == nil {
@@ -382,7 +377,6 @@ func initializeModeHandler(app *App) {
 		RefreshHotkeys:         deps.callbacks.refreshHotkeys,
 		ExecuteActionSequence:  deps.callbacks.executeActionSequence,
 		Shutdown:               app.Quit,
-		TextInput:              app.textInput,
 		System:                 app.systemPort,
 		Clipboard:              app.clipboard,
 		Vision:                 app.vision,

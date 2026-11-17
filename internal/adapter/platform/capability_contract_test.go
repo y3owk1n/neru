@@ -273,7 +273,6 @@ func TestCapabilities_ProbeCoverageIsDocumented(t *testing.T) {
 			"covered by internal/adapter/eventtap",
 		ports.CapabilityAppWatcher:        "requires a focus change to observe",
 		ports.CapabilityDarkModeDetection: "IsDarkMode returns no error, so NotSupported is unobservable",
-		ports.CapabilityTextInput:         "needs a live overlay window",
 		ports.CapabilityVision:            "a probe would trigger a screen-capture permission prompt",
 		ports.CapabilityKeyFeed:           "injects real keystrokes into the focused app",
 		ports.CapabilitySystray:           "needs a live run loop and adds a tray icon",

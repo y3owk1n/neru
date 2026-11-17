@@ -16,6 +16,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/geometry"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
+	"github.com/y3owk1n/neru/internal/domain/screentext"
 	"github.com/y3owk1n/neru/internal/domain/state"
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -399,9 +400,9 @@ func (h *handlerState) handleSearchInputKey(key string) {
 	}
 
 	ctx := h.hints.Context
-	normalizedKey := keyvocab.NormalizeKeyForComparison(key)
 
-	switch normalizedKey {
+	// Shift held while typing capitals still edits, confirms and cancels.
+	switch strings.TrimPrefix(keyvocab.NormalizeKeyForComparison(key), shiftPrefix) {
 	case keyvocab.KeyNameEscape:
 		h.cancelHintSearch()
 
@@ -419,20 +420,23 @@ func (h *handlerState) handleSearchInputKey(key string) {
 		}
 
 		return
-	case keyvocab.KeyNameSpace, shiftPrefix + keyvocab.KeyNameSpace:
+	case keyvocab.KeyNameSpace:
 		ctx.SetSearchQuery(ctx.SearchQuery() + " ")
 		h.applyHintSearchFilter()
 
 		return
 	}
 
-	key = shiftedLetter(key)
+	// screentext.Key turns a shifted key into the character it types, as
+	// Shift+4 into $.
+	char, ok := screentext.Key(key)
+	r, size := utf8.DecodeRuneInString(string(char))
 
-	if utf8.RuneCountInString(key) != 1 {
+	if !ok || size != len(char) || !unicode.IsPrint(r) {
 		return
 	}
 
-	ctx.SetSearchQuery(ctx.SearchQuery() + key)
+	ctx.SetSearchQuery(ctx.SearchQuery() + string(char))
 	h.applyHintSearchFilter()
 }
 
@@ -483,8 +487,6 @@ func (h *handlerState) confirmHintSearch() {
 	if h.hints == nil || h.hints.Context == nil {
 		return
 	}
-
-	h.stopHintSearchTextInput(false)
 
 	ctx := h.hints.Context
 	ctx.SetSearchActive(false)
@@ -538,8 +540,6 @@ func (h *handlerState) cancelHintSearch() {
 	if h.hints == nil || h.hints.Context == nil {
 		return
 	}
-
-	h.stopHintSearchTextInput(false)
 
 	ctx := h.hints.Context
 	ctx.SetSearchQuery("")
@@ -597,16 +597,6 @@ func (h *handlerState) hideHintSearchInput() {
 	}
 
 	h.overlayPort.HideHintSearch()
-}
-
-// hintSearchBounds reports where the overlay places the search input on the
-// active screen, so the platform's IME field can be put over it.
-func (h *handlerState) hintSearchBounds() image.Rectangle {
-	if h.overlayPort == nil {
-		return image.Rectangle{}
-	}
-
-	return h.overlayPort.HintSearchBounds(h.screenBounds)
 }
 
 // handleGridModeKey handles key processing for grid mode.
@@ -683,21 +673,3 @@ func (h *handlerState) handleGridModeKey(key string) {
 // shiftPrefix is how the Linux and Windows taps name a key typed with Shift
 // held, after keyvocab.NormalizeKeyForComparison.
 const shiftPrefix = "shift+"
-
-// shiftedLetter turns "Shift+c", how the Linux and Windows taps name a capital,
-// into "C", the character the macOS tap sends. Any other key comes back as
-// given. A shifted symbol depends on the keyboard layout, which the key name
-// does not carry, so it stays dropped.
-func shiftedLetter(key string) string {
-	base, ok := strings.CutPrefix(strings.ToLower(key), shiftPrefix)
-	if !ok {
-		return key
-	}
-
-	letter, size := utf8.DecodeRuneInString(base)
-	if size == 0 || size != len(base) || !unicode.IsLetter(letter) {
-		return key
-	}
-
-	return string(unicode.ToUpper(letter))
-}

@@ -473,8 +473,7 @@ func (m *Manager) DrawHintsWithStyle(hintsSlice []*hints.Hint, style hints.Style
 
 // DrawHintSearchInput paints the hints search badge on the active backend.
 // It only displays. The mode handler owns the query, and keys go to the event
-// tap or, on layer-shell Wayland compositors, to the textinput adapter's
-// hint-search field.
+// tap.
 //
 // Nothing is cleared first. The badge is painted over the hints the same draw
 // cycle just put down, since erasing the labels being narrowed would defeat

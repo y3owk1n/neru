@@ -171,27 +171,27 @@ func TestSimulation_CopyText_RefusesWhatItCannotCopy(t *testing.T) {
 }
 
 // TestSimulation_CopyText_ConfirmingASearchCopiesTheMatch covers the hint
-// search path. Confirming the search field in a copy_text session copies the
-// match instead of clicking it.
+// search path. Confirming a search in a copy_text session copies the match
+// instead of clicking it.
 func TestSimulation_CopyText_ConfirmingASearchCopiesTheMatch(t *testing.T) {
 	cfg := simConfig()
 	cfg.Hotkeys.Bindings[hintsHotkey] = []string{"hints --action copy_text --search"}
 
 	elements := threeButtons(t)
 	sim := newSimHarness(t, cfg, elements)
-	sim.textInput.Started = true
 
 	sim.pressHotkey(hintsHotkey)
 	sim.waitMode(domain.ModeHints)
-	sim.waitFor("search field opened", func() bool { return sim.textInput.StartCount() == 1 })
+	sim.waitFor("search input asked for", func() bool {
+		return sim.overlay.searchInputAskCount() > 0
+	})
 
-	callbacks := sim.textInput.Callbacks()
-	callbacks.OnQueryChanged("cancel")
+	sim.press("c", "a", "n", "c", "e", "l")
 	sim.waitFor("hints narrowed to the query", func() bool {
 		return len(sim.overlay.lastHintLabels()) == 1
 	})
 
-	callbacks.OnConfirm()
+	sim.press("Return")
 
 	sim.waitFor("the match copied", func() bool {
 		return slices.Equal(sim.clipboard.Written(), []string{"Cancel"})

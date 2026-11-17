@@ -164,8 +164,6 @@ func (h *handlerState) performModeSpecificCleanup() {
 
 // cleanupHintsMode handles cleanup for hints mode.
 func (h *handlerState) cleanupHintsMode() {
-	h.stopHintSearchTextInput(false)
-
 	resetErr := h.hints.Context.Reset()
 	if resetErr != nil {
 		h.logger.Error("Failed to reset hints context", zap.Error(resetErr))

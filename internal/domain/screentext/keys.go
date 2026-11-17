@@ -24,8 +24,9 @@ var namedKeys = map[string]vim.Key{
 	"home": "<Home>", "end": "<End>", "pageup": "<PageUp>", "pagedown": "<PageDown>",
 }
 
-// shifted is what Shift makes of a digit or symbol on a US layout. The taps
-// name a shifted symbol by its unshifted key, as "Shift+4" for "$".
+// shifted is what Shift makes of a digit or symbol on a US layout. The macOS
+// and Windows taps name a shifted symbol by its unshifted key, as "Shift+4"
+// for "$". The Linux taps name it by the character itself, as "Shift+$".
 var shifted = map[string]string{
 	"1": "!", "2": "@", "3": "#", "4": "$", "5": "%", "6": "^", "7": "&", "8": "*",
 	"9": "(", "0": ")", "-": "_", "=": "+", "[": "{", "]": "}", "\\": "|",
@@ -62,9 +63,15 @@ func Key(key string) (vim.Key, bool) {
 			return vim.Key(shifted[base]), true
 		}
 
-		r, size := utf8.DecodeRuneInString(base)
-		if size == len(base) && unicode.IsLetter(r) {
-			return vim.Key(string(unicode.ToUpper(r))), true
+		char, size := utf8.DecodeRuneInString(base)
+
+		switch {
+		case size != len(base):
+			return "", false
+		case unicode.IsLetter(char):
+			return vim.Key(string(unicode.ToUpper(char))), true
+		case unicode.IsGraphic(char):
+			return vim.Key(base), true
 		}
 
 		return "", false

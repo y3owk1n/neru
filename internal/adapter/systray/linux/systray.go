@@ -116,7 +116,7 @@ func (m *MenuItem) SetTitle(title string) {
 
 // SetTooltip is empty by protocol, because com.canonical.dbusmenu defines no
 // per-item tooltip property (Linux). Nothing in Neru calls it.
-// docs/contributing/platform-internals.md owns this as footnote 8 of the
+// docs/contributing/platform-internals.md owns this as footnote 7 of the
 // implementation matrix.
 func (m *MenuItem) SetTooltip(tooltip string) {}
 

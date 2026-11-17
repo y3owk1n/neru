@@ -117,19 +117,6 @@ func (s *SystemAdapter) Capabilities() ports.PlatformCapabilities {
 		capabilities.AppWatcher = gnomeAppWatcherCapability()
 	}
 
-	// The hint-search field needs cgo, and on Wayland a layer shell, which
-	// GNOME does not have. A build without cgo, GNOME and an unknown session
-	// read the search from the key stream.
-	if !nativeBackendsCompiledIn || s.backend == backendWaylandGNOME ||
-		s.backend == backendUnknown {
-		capabilities.TextInput = ports.FeatureCapability{
-			Status: ports.FeatureStatusStub,
-			Detail: "no native hint-search field in this session: the query is read from " +
-				"the event tap's key stream, so dead keys and input-method composition " +
-				"do not reach it",
-		}
-	}
-
 	capabilities.Screen = s.probedCapability("screen enumeration", capabilities.Screen,
 		func() error {
 			_, err := s.ScreenBounds(context.Background())

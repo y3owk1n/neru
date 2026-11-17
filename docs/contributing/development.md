@@ -331,7 +331,7 @@ in numbered phases that unwind in reverse on failure. `app.New` takes
 functional options ([options.go](../../internal/app/options.go)), which tests
 use to substitute doubles: `WithSystemPort`, `WithAccessibility`,
 `WithEventTap`, `WithIPCServer`, `WithOverlayPort`, `WithHotkeyService`,
-`WithWatcher`, `WithTextInput`, `WithConfig`, `WithConfigPath`, `WithLogger`,
+`WithWatcher`, `WithConfig`, `WithConfigPath`, `WithLogger`,
 `WithWrittenConfig` and `WithConfigWarnings`. An option left out falls back to
 the real adapter.
 
