@@ -404,6 +404,10 @@ func (c *Collection) FilterBySearch(query string) *Collection {
 			}
 
 			if rank != rankNone {
+				// The whole query can match better than the words before
+				// the label, as save as matches Save As whole.
+				rank = min(rank, bestRank(texts, normalizedQuery))
+
 				if labelPrefix != "" {
 					hint = hint.WithMatchedPrefix(labelPrefix)
 				}

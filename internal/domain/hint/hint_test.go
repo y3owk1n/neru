@@ -303,6 +303,34 @@ func TestCollection_FilterBySearch_RanksTheBestMatchesFirst(t *testing.T) {
 	}
 }
 
+// TestCollection_FilterBySearch_RanksAWholeMatchAheadOfItsLabelMatch covers a
+// query that matches a title whole and also reads as text and a label. save as
+// keeps the Save As labeled AS by its label too, and ranks it as the exact
+// title it is, ahead of a Save As Copy that came first.
+func TestCollection_FilterBySearch_RanksAWholeMatchAheadOfItsLabelMatch(t *testing.T) {
+	titles := map[string]string{"AA": "Save As Copy", "AS": saveAsTitle}
+
+	hints := make([]*hint.Interface, 0, len(titles))
+	for _, label := range []string{"AA", "AS"} {
+		elem, _ := element.NewElement(
+			element.ID(label), image.Rect(10, 10, 50, 50), element.RoleButton,
+			element.WithTitle(titles[label]),
+		)
+		h, _ := hint.NewHint(label, elem, image.Point{X: 30, Y: 30})
+		hints = append(hints, h)
+	}
+
+	got := hint.NewCollection(hints).FilterBySearch("save as").All()
+	if len(got) != 2 || got[0].Label() != "AS" {
+		labels := make([]string, 0, len(got))
+		for _, h := range got {
+			labels = append(labels, h.Label())
+		}
+
+		t.Errorf("FilterBySearch(%q) = %v, want AS first", "save as", labels)
+	}
+}
+
 func TestCollection_FilterBySearch_SearchesAdditionalText(t *testing.T) {
 	rowElem, _ := element.NewElement(
 		"note-row",
