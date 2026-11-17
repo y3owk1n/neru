@@ -4816,6 +4816,54 @@ func TestSimulation_VimSubstitutes(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimSubstitutesTextInAnyScriptByItsSpelling covers :s typed
+// in ASCII on other scripts. sh takes all of 深 (Shen), and ki all of กิ (ki),
+// whose vowel sign stays with its consonant, so each is selected with one
+// Shift+Right and typed over.
+//
+//nolint:gosmopolitan // The fixture is Chinese and Thai text.
+func TestSimulation_VimSubstitutesTextInAnyScriptByItsSpelling(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		"深圳":  image.Rect(100, 100, 130, 130),
+		"กิน": image.Rect(100, 200, 130, 230),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "0")
+	vimFrameShows(sim, "cursor on 深", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 100, 115, 130)
+	})
+
+	keys := vimExKeys("s/sh/X/")
+	sim.press(keys[:len(keys)-1]...)
+	vimFrameShows(sim, "all of 深 highlighted", func(f ports.VimFrame) bool {
+		return slices.Equal(f.Matches, []image.Rectangle{image.Rect(100, 100, 115, 130)})
+	})
+
+	sim.press(vimKeyReturn)
+	sim.waitFor("深 typed over", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(), []string{vimKeyExtend, "X"})
+	})
+
+	sim.press("j")
+	vimFrameShows(sim, "cursor on กิ", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 200, 115, 230)
+	})
+
+	keys = vimExKeys("s/ki/Y/")
+	sim.press(keys[:len(keys)-1]...)
+	vimFrameShows(sim, "all of กิ highlighted", func(f ports.VimFrame) bool {
+		return slices.Equal(f.Matches, []image.Rectangle{image.Rect(100, 200, 115, 230)})
+	})
+
+	sim.press(vimKeyReturn)
+	sim.waitFor("กิ typed over", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(), []string{vimKeyExtend, "X", vimKeyExtend, "Y"})
+	})
+}
+
 // vimSubstituteHarness opens vim mode over two lines, what and whom, whose
 // screen shows whom changed to zom once landed is set.
 func vimSubstituteHarness(t *testing.T, landed *atomic.Bool) *simHarness {
@@ -5009,6 +5057,153 @@ func TestSimulation_VimJumpsPastALetterWhoseLowerCaseIsLonger(t *testing.T) {
 		return len(f.Matches) == 2 &&
 			slices.Contains(f.Matches, image.Rect(145, 100, 160, 130)) &&
 			slices.Contains(f.Matches, image.Rect(235, 100, 250, 130))
+	})
+}
+
+// TestSimulation_VimJumpsToTextInAnyScriptByItsSpelling covers a jump typed
+// in ASCII to text in another script. zh finds the 圳 of 深圳 (ShenZhen), and
+// e finds the é of café but no e inside the spelling of 深 or 圳. in finds
+// nothing in กิน (kin), since its i is a vowel sign within the character กิ.
+//
+//nolint:gosmopolitan // The fixture is Chinese text.
+func TestSimulation_VimJumpsToTextInAnyScriptByItsSpelling(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		"深圳":   image.Rect(100, 100, 130, 130),
+		"café": image.Rect(200, 100, 260, 130),
+		"กิน":  image.Rect(300, 100, 330, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("s", "z", "h", "Return")
+	vimFrameShows(sim, "cursor on the 圳", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(115, 100, 130, 130)
+	})
+
+	sim.press("s", "e")
+	vimFrameShows(sim, "only the é matched", func(f ports.VimFrame) bool {
+		return len(f.Matches) == 1 && f.Matches[0] == image.Rect(245, 100, 260, 130)
+	})
+
+	sim.press("Escape", "s", "k", "i")
+	vimFrameShows(sim, "ki matched the whole of กิ", func(f ports.VimFrame) bool {
+		return len(f.Matches) == 1 && f.Matches[0] == image.Rect(300, 100, 315, 130)
+	})
+
+	sim.press("Escape", "s", "i", "n")
+	vimFrameShows(sim, "in matched nothing", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status.Text, "sin") && len(f.Matches) == 0
+	})
+}
+
+// TestSimulation_VimSearchesTextInAnyScriptByItsSpelling covers / typed in
+// ASCII on Chinese text. zh finds each 圳 (Zhen), n goes on to the next, and
+// en finds nothing, since it starts inside the spelling of 深 or 圳.
+//
+//nolint:gosmopolitan // The fixture is Chinese text.
+func TestSimulation_VimSearchesTextInAnyScriptByItsSpelling(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		"深圳":  image.Rect(100, 100, 130, 130),
+		"深圳市": image.Rect(200, 100, 245, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "0")
+	vimFrameShows(sim, "cursor on the first 深", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 100, 115, 130)
+	})
+
+	sim.press("/", "z", "h")
+	vimFrameShows(sim, "both 圳 highlighted", func(f ports.VimFrame) bool {
+		return len(f.Matches) == 2
+	})
+
+	sim.press("Return")
+	vimFrameShows(sim, "cursor on the first 圳", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(115, 100, 130, 130)
+	})
+
+	sim.press("n")
+	vimFrameShows(sim, "cursor on the second 圳", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(215, 100, 230, 130)
+	})
+
+	sim.press("/", "e", "n")
+	vimFrameShows(sim, "en matched nothing", func(f ports.VimFrame) bool {
+		return strings.Contains(f.Status.Text, "/en") && len(f.Matches) == 0
+	})
+}
+
+// TestSimulation_VimJumpTakesTheAccurateReadWhenItLands covers a jump open
+// when the accurate read lands with 深圳, which the fast read could not read.
+// The jump matches zh again in the new read and finds 圳 too, and the label
+// already drawn on Shenzhen keeps its letter.
+//
+//nolint:gosmopolitan // The fixture is Chinese text.
+func TestSimulation_VimJumpTakesTheAccurateReadWhenItLands(t *testing.T) {
+	sim := vimHarness(t, nil)
+
+	latin := []ports.TextPiece{{Text: "Shenzhen", Bounds: image.Rect(100, 100, 220, 130)}}
+	release := make(chan struct{})
+
+	sim.vision.ReadLinesFunc = func(
+		ctx context.Context, _ image.Rectangle, level ports.TextLevel,
+	) ([][]ports.TextPiece, error) {
+		if level != ports.TextAccurate {
+			return [][]ports.TextPiece{latin}, nil
+		}
+
+		select {
+		case <-release:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+
+		return [][]ports.TextPiece{
+			latin,
+			{{Text: "深圳", Bounds: image.Rect(300, 100, 330, 130)}},
+		}, nil
+	}
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("s", "z", "h")
+	vimFrameShows(sim, "zh matched in Shenzhen alone", func(f ports.VimFrame) bool {
+		return len(f.Matches) == 1 && len(f.Labels) == 1
+	})
+
+	before, _ := sim.overlay.lastVimFrame()
+	kept := before.Labels[0]
+
+	close(release)
+
+	var other ports.VimLabel
+
+	vimFrameShows(
+		sim,
+		"zh matched in 圳 too, Shenzhen's label kept",
+		func(frame ports.VimFrame) bool {
+			if len(frame.Matches) != 2 || len(frame.Labels) != 2 ||
+				!slices.Contains(frame.Labels, kept) {
+				return false
+			}
+
+			other = frame.Labels[0]
+			if other == kept {
+				other = frame.Labels[1]
+			}
+
+			return true
+		},
+	)
+
+	sim.press(other.Text)
+	vimFrameShows(sim, "cursor on the 圳", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(315, 100, 330, 130)
 	})
 }
 

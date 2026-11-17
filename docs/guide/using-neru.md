@@ -133,7 +133,10 @@ Vim mode has no default hotkey, so bind one:
    mode and the command being typed.
 2. Move with vim's keys, such as `w`, `b`, `j`, `k`, `f`, `/` and counts. To
    jump anywhere, press `s`, type a few characters of the target, then the
-   label that appears on it.
+   label that appears on it. The jump and search find text in another
+   script by its romanization, so `shenzhen` finds 深圳 and `boris` finds
+   Борис. This works once Neru has read that script, and on Linux that
+   needs the script's tesseract data [installed](linux.md).
 3. Act on it. `Return` clicks the character under the cursor, `y` and a
    motion copy the text as read, and `i`, `c` or `d` edit the app's text in
    place.

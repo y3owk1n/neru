@@ -19,6 +19,7 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/screentext"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // vimReturn is Return in vim's notation, and vimEscape Escape.
@@ -483,7 +484,7 @@ func (h *handlerState) startVimJump() {
 	}
 
 	if session.jump.query != "" {
-		h.findVimJumpTargets()
+		h.findVimJumpTargets(nil)
 	}
 
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
@@ -729,7 +730,7 @@ func (h *handlerState) handleVimJumpKey(key vim.Key) {
 		_, last := utf8.DecodeLastRuneInString(jump.query)
 		jump.query = jump.query[:len(jump.query)-last]
 
-		h.findVimJumpTargets()
+		h.findVimJumpTargets(nil)
 	case size != len(key):
 		return
 	default:
@@ -741,7 +742,7 @@ func (h *handlerState) handleVimJumpKey(key vim.Key) {
 
 		jump.query += string(key)
 
-		h.findVimJumpTargets()
+		h.findVimJumpTargets(nil)
 	}
 
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
@@ -750,48 +751,51 @@ func (h *handlerState) handleVimJumpKey(key vim.Key) {
 // vimJumpLabelChars are the labels a jump's matches get, nearest first.
 const vimJumpLabelChars = "asdfghjklqwertyuiopzxcvbnm"
 
-// findVimJumpTargets finds where the text typed matches. Like search, it
-// ignores case unless the text has a capital. It labels the matches nearest
-// the cursor first, and never with the character after a match, so typing
-// more of the text never jumps.
-func (h *handlerState) findVimJumpTargets() {
+// findVimJumpTargets finds where the text typed matches the screen as
+// screentext.Fold spells it, ignoring case unless the text has a capital. A
+// match starts where a character's spelling does, so en finds no 深 (Shen).
+// It labels the matches nearest the cursor first, and never with the
+// character after a match, so typing more of the text never jumps. A label
+// in keep still drawn over a match's spot keeps its letter.
+func (h *handlerState) findVimJumpTargets(keep []ports.VimLabel) {
 	session := h.vim
 	jump := session.jump
 	jump.matches, jump.labels = nil, nil
 
-	if jump.query == "" {
+	query, _ := screentext.Fold(jump.query)
+	if query == "" {
 		return
 	}
 
-	query, haystack := jump.query, session.host.Screen().String()
-
-	// inText maps an offset in haystack back to the text, since lowering a
-	// rune can change its length, as İ grows a byte.
-	inText := func(offset int) int { return offset }
-
-	if strings.ToLower(query) == query {
-		var offsets []int
-
-		haystack, offsets = vimLowered(haystack)
-		inText = func(offset int) int { return offsets[offset] }
+	haystack, chars := screentext.Fold(session.host.Screen().String())
+	if strings.ToLower(jump.query) == jump.query {
+		query, haystack = strings.ToLower(query), strings.ToLower(haystack)
 	}
 
-	next := map[rune]bool{}
+	// taken holds the letters a new label cannot be: the character after
+	// each match, and each letter a label kept.
+	taken := map[rune]bool{}
 
-	for from := 0; ; {
-		found := strings.Index(haystack[from:], query)
+	for scanFrom := 0; ; {
+		found := strings.Index(haystack[scanFrom:], query)
 		if found < 0 {
 			break
 		}
 
-		start := from + found
-		jump.matches = append(jump.matches, [2]int{inText(start), inText(start + len(query))})
+		start, end := scanFrom+found, scanFrom+found+len(query)
+		scanFrom = start + 1
 
-		if r, _ := utf8.DecodeRuneInString(haystack[start+len(query):]); r != utf8.RuneError {
-			next[unicode.ToLower(r)] = true
+		if start > 0 && chars[start] == chars[start-1] {
+			continue
 		}
 
-		from = start + 1
+		// A match that ends inside a character's spelling takes the whole
+		// character, so sh takes all of 深.
+		jump.matches = append(jump.matches, [2]int{chars[start][0], chars[end-1][1]})
+
+		if end < len(haystack) {
+			taken[unicode.ToLower(rune(haystack[end]))] = true
+		}
 	}
 
 	cursor := session.host.Cursor()
@@ -800,11 +804,34 @@ func (h *handlerState) findVimJumpTargets() {
 		return cmp.Compare(distance(a), distance(b))
 	})
 
-	free := []rune(vimJumpLabelChars)
 	jump.labels = make([]string, len(jump.matches))
+	text := session.host.Screen()
+
+	for index, match := range jump.matches {
+		box, ok := vimJumpLabelBox(text, match)
+		if !ok {
+			continue
+		}
+
+		for _, label := range keep {
+			letter, _ := utf8.DecodeRuneInString(label.Text)
+			if !taken[letter] && box.Overlaps(label.Bounds) {
+				jump.labels[index] = label.Text
+				taken[letter] = true
+
+				break
+			}
+		}
+	}
+
+	free := []rune(vimJumpLabelChars)
 
 	for index := range jump.matches {
-		for len(free) > 0 && next[free[0]] {
+		if jump.labels[index] != "" {
+			continue
+		}
+
+		for len(free) > 0 && taken[free[0]] {
 			free = free[1:]
 		}
 
@@ -817,23 +844,17 @@ func (h *handlerState) findVimJumpTargets() {
 	}
 }
 
-// vimLowered returns text in lower case, and for each of its byte offsets,
-// and its end, the offset in text it came from.
-func vimLowered(text string) (string, []int) {
-	var lowered strings.Builder
+// vimJumpLabels returns each of a jump's labels with the box it is drawn in.
+func vimJumpLabels(text *screentext.Text, jump *vimJump) []ports.VimLabel {
+	var labels []ports.VimLabel
 
-	offsets := make([]int, 0, len(text)+1)
-
-	for offset, r := range text {
-		before := lowered.Len()
-		lowered.WriteRune(unicode.ToLower(r))
-
-		for range lowered.Len() - before {
-			offsets = append(offsets, offset)
+	for index, match := range jump.matches {
+		if box, ok := vimJumpLabelBox(text, match); ok && jump.labels[index] != "" {
+			labels = append(labels, ports.VimLabel{Text: jump.labels[index], Bounds: box})
 		}
 	}
 
-	return lowered.String(), append(offsets, len(text))
+	return labels
 }
 
 // vimJumpLabelBox is where a jump match's label goes: over the character

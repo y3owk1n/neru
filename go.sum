@@ -2,6 +2,8 @@ github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/Microsoft/go-winio v0.6.4 h1:kJF2pamtYCWXf0xAT8sAkwKC0pMl2HYBrRPHAqyUc+g=
 github.com/Microsoft/go-winio v0.6.4/go.mod h1:1xl5JXG4ze/m74GH6Dc4Mwxfc3VL5siRVQjIAlHH07U=
+github.com/anyascii/go v0.3.3 h1:A3BhW92hXPYPb8Y1+zLOip8xjSxNcdl1FaxzTmFxrhs=
+github.com/anyascii/go v0.3.3/go.mod h1:HDvbMmSpqJyIe+xtSkHmAYTjc8PzvO3l1Jmgx/IFUPs=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/clipperhouse/displaywidth v0.11.0 h1:lBc6kY44VFw+TDx4I8opi/EtL9m20WSEFgwIwO+UVM8=
@@ -38,6 +40,8 @@ github.com/xrash/smetrics v0.0.0-20261013231157-39c47d93efba h1:tXo8fNGjrZLpWGM8
 github.com/xrash/smetrics v0.0.0-20261013231157-39c47d93efba/go.mod h1:Ohn+xnUBiLI6FVj/9LpzZWtj1/D6lUovWYBkxHVV3aM=
 github.com/y3owk1n/fude/vim v0.4.2 h1:Wk3jN22XAr3L93pkC7EGtYedMOZWCczkVQzvYUFEh7Q=
 github.com/y3owk1n/fude/vim v0.4.2/go.mod h1:02OJIoIX1hHx3wMQUegg+YxvegEEUL/VxxbBsJ91jU0=
+github.com/y3owk1n/fude/vim v0.4.3 h1:e2rOykXwzRgPkY9xJj5s7LhU/wpfMbAXcbGGayJIfOk=
+github.com/y3owk1n/fude/vim v0.4.3/go.mod h1:02OJIoIX1hHx3wMQUegg+YxvegEEUL/VxxbBsJ91jU0=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=

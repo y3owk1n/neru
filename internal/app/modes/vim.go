@@ -497,18 +497,30 @@ func (h *Handler) applyVimRefine(
 }
 
 // swapInRefinedVimText replaces the text with the accurate read when one is
-// waiting and nothing would be cut off by it: no command half typed, no
-// typing into the app, no jump labels up. It reports whether it redrew.
+// waiting and nothing would be cut off by it: no command half typed and no
+// typing into the app. An open jump matches again in the new read, and a
+// label still drawn over the same spot keeps its letter. It reports whether
+// it redrew.
 func (h *handlerState) swapInRefinedVimText() bool {
 	session := h.vim
-	if session.refined == nil || !session.machine.Idle() || session.typing || session.jump != nil {
+	if session.refined == nil || !session.machine.Idle() || session.typing {
 		return false
 	}
 
 	text := session.refined
 	session.refined = nil
 
+	var labels []ports.VimLabel
+	if session.jump != nil {
+		labels = vimJumpLabels(session.host.Screen(), session.jump)
+	}
+
 	h.replaceVimText(text, text.Nearest(h.vimCursorPoint()))
+
+	if session.jump != nil {
+		h.findVimJumpTargets(labels)
+	}
+
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
 
 	return true
@@ -1211,18 +1223,13 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 	}
 
 	if jump := session.jump; jump != nil {
-		for index, match := range jump.matches {
+		for _, match := range jump.matches {
 			if r, ok := lineRect(text, match[0], match[1]); ok {
 				frame.Matches = append(frame.Matches, r)
 			}
-
-			if r, ok := vimJumpLabelBox(text, match); ok && jump.labels[index] != "" {
-				frame.Labels = append(
-					frame.Labels,
-					ports.VimLabel{Text: jump.labels[index], Bounds: r},
-				)
-			}
 		}
+
+		frame.Labels = vimJumpLabels(text, jump)
 	} else if machine.Substituting() {
 		// The :s being typed shows what it would change, before Return.
 		changes, _ := machine.Preview(0, text.Len())

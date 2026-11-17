@@ -11,9 +11,12 @@ var VimCmd = BuildModeCommand(ModeConfig{
 
 Motions, counts, text objects, search, registers, macros and dot repeat work
 as they do in vim. Marks do not, because every scroll and edit reads the
-screen again and a mark would point at other text. Vim mode makes each edit
-in the app under the cursor, by clicking the caret into place, selecting with
-Shift+Right and typing, then reads the screen again:
+screen again and a mark would point at other text. Search, :s and the s jump
+find text in another script by its romanization, so /bo finds Борис.
+
+Vim mode makes each edit in the app under the cursor, by clicking the caret
+into place, selecting with Shift+Right and typing, then reads the screen
+again:
 
   i a I A o O         click the caret into place, then type into the app
                       until Escape
