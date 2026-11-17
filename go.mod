@@ -7,6 +7,7 @@ toolchain go1.27.4
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/Microsoft/go-winio v0.6.4
+	github.com/anyascii/go v0.3.3
 	github.com/atotto/clipboard v0.1.4
 	github.com/clipperhouse/displaywidth v0.11.0
 	github.com/clipperhouse/uax29/v2 v2.7.0
@@ -16,7 +17,7 @@ require (
 	github.com/spf13/pflag v1.1.0
 	github.com/stretchr/testify v1.12.1
 	github.com/tc-hib/go-winres v0.3.3
-	github.com/y3owk1n/fude/vim v0.4.2
+	github.com/y3owk1n/fude/vim v0.4.3
 	go.uber.org/goleak v1.3.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.28.0

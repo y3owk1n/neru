@@ -250,12 +250,14 @@ func (h *Host) moveContainer(key string, count int) error {
 }
 
 // NewMachine returns a vim machine over host, set up for the screen. Search
-// ignores case unless the pattern has a capital, a yank goes to the
-// clipboard, and the default keymap is mapped. Of the commands it maps, the
-// caller adds all but the icon moves.
+// ignores case unless the pattern has a capital, and matches the text as Fold
+// spells it, so the letters of any script's romanization find it. A yank goes
+// to the clipboard, and the default keymap is mapped. Of the commands it
+// maps, the caller adds all but the icon moves.
 func NewMachine(host *Host) *vim.Machine {
 	machine := vim.New(host)
 	machine.IgnoreCase(true, true)
+	machine.Fold(Fold)
 	machine.UseClipboard(true)
 	machine.Object("ic", containerObject(false))
 	machine.Object("ac", containerObject(true))
