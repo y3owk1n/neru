@@ -19,11 +19,12 @@ import (
 )
 
 const (
-	copyTextTitle  = "Save"
-	stepCopyText   = "action copy_text"
-	stepIdle       = "idle"
-	hintsCopyText  = "hints --action copy_text"
-	copyTextAction = "copy_text"
+	copyTextTitle     = "Save"
+	stepCopyText      = "action copy_text"
+	stepIdle          = "idle"
+	stepSessionAction = "action session_action"
+	hintsCopyText     = "hints --action copy_text"
+	copyTextAction    = "copy_text"
 )
 
 // saveButton is the one-element fixture the copy journeys select.
@@ -94,6 +95,16 @@ func TestSimulation_CopyText_AsAStepCopiesTheSelectedHint(t *testing.T) {
 				cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsClick}
 				cfg.Hints.SelectWith = map[string]config.StringOrStringArray{
 					selectWithCtrl: {stepCopyText, stepIdle},
+				}
+			},
+			func(sim *simHarness, label string) { sim.typeLabelWith("Ctrl", label) },
+		},
+		{
+			"session_action in a select_with entry of a copy session",
+			func(cfg *config.Config) {
+				cfg.Hotkeys.Bindings[hintsHotkey] = []string{hintsCopyText}
+				cfg.Hints.SelectWith = map[string]config.StringOrStringArray{
+					selectWithCtrl: {stepSessionAction, stepIdle},
 				}
 			},
 			func(sim *simHarness, label string) { sim.typeLabelWith("Ctrl", label) },

@@ -279,14 +279,30 @@ func TestSimulation_CopyText_ASlowRereadNeverHoldsUpKeys(t *testing.T) {
 func TestSimulation_CopyText_ASelectWithEntryRereadsOnlyBeforeOtherSteps(t *testing.T) {
 	tests := []struct {
 		name      string
+		session   string
 		steps     []string
 		wantText  string
 		wantReads int
 	}{
-		{"copy first", []string{stepCopyText, stepIdle}, accurateText, 1},
+		{"copy first", stepHintsClick, []string{stepCopyText, stepIdle}, accurateText, 1},
 		{
 			"a click before the copy",
+			stepHintsClick,
 			[]string{stepLeftClick, stepCopyText, stepIdle},
+			passText,
+			0,
+		},
+		{
+			"session_action first in a copy session",
+			hintsCopyText,
+			[]string{stepSessionAction, stepIdle},
+			accurateText,
+			1,
+		},
+		{
+			"a click before session_action in a copy session",
+			hintsCopyText,
+			[]string{stepLeftClick, stepSessionAction, stepIdle},
 			passText,
 			0,
 		},
@@ -295,7 +311,7 @@ func TestSimulation_CopyText_ASelectWithEntryRereadsOnlyBeforeOtherSteps(t *test
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			cfg := simConfig()
-			cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsClick}
+			cfg.Hotkeys.Bindings[hintsHotkey] = []string{testCase.session}
 			cfg.Hints.SelectWith = map[string]config.StringOrStringArray{
 				selectWithCtrl: testCase.steps,
 			}

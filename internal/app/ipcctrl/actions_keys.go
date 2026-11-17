@@ -289,7 +289,9 @@ func (h *ActionsHandler) handleRefreshHintsAction() ipc.Response {
 	}
 }
 
-// handleSessionAction runs the open hints session's --action at the cursor.
+// handleSessionAction runs the open hints session's --action at the cursor. In
+// a copy_text session the mode handler returns the hint's text instead, and
+// this writes it to the clipboard the way copy_text does.
 func (h *ActionsHandler) handleSessionAction(ctx context.Context) ipc.Response {
 	if h.modesHandler == nil {
 		return ipc.Response{
@@ -299,7 +301,11 @@ func (h *ActionsHandler) handleSessionAction(ctx context.Context) ipc.Response {
 		}
 	}
 
-	err := h.modesHandler.SessionAction(ctx)
+	text, copyText, err := h.modesHandler.SessionAction(ctx)
+	if copyText {
+		return h.copyTextResponse(ctx, text, err)
+	}
+
 	if err != nil {
 		h.logger.Debug("Failed to run the session action", zap.Error(err))
 
@@ -330,6 +336,17 @@ func (h *ActionsHandler) handleCopyTextAction(ctx context.Context) ipc.Response 
 	}
 
 	text, err := h.modesHandler.HintTextToCopy(ctx)
+
+	return h.copyTextResponse(ctx, text, err)
+}
+
+// copyTextResponse writes text to the clipboard, or reports err from reading
+// it, for copy_text and for session_action in a copy_text session.
+func (h *ActionsHandler) copyTextResponse(
+	ctx context.Context,
+	text string,
+	err error,
+) ipc.Response {
 	if err != nil {
 		code := ipc.CodeActionFailed
 		if derrors.IsCode(err, derrors.CodeInvalidInput) {
