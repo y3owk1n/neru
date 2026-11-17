@@ -43,31 +43,30 @@ the footnotes below give the mechanism behind its limits.
 | **Keymap learns the focused app** | published by the watcher | published by the watcher | published by the watcher | published by the watcher | published by the watcher |
 | **Cursor position**           | `CGEventGetLocation`  | `XQueryPointer`     | `hyprctl` on Hyprland, else sync-surface cache | sync-surface cache | `GetCursorPos` |
 | **Cursor move**               | `CGEventPost` | XTest (`XTestFakeMotionEvent`) | `zwlr_virtual_pointer` | libei                | `SetCursorPos`, glided while a button is held |
-| **Mouse buttons / drag**      | `CGEventPost`         | XTest ⁷             | `zwlr_virtual_pointer` ⁷  | libei ⁷              | `SendInput` ⁷             |
-| **Scroll injection**          | both axes             | both axes ⁷         | both axes, virtual pointer (uinput on Hyprland ⁹) | both axes, libei wheel clicks | both axes ⁷               |
-| **Modified scroll (`--modifier`)** | `CGEventSetFlags` on every chunk | XTest key hold ⁷ | virtual keyboard + virtual pointer (uinput on Hyprland ⁹) | libei | `SendInput` key hold ⁷ |
+| **Mouse buttons / drag**      | `CGEventPost`         | XTest ⁶             | `zwlr_virtual_pointer` ⁶  | libei ⁶              | `SendInput` ⁶             |
+| **Scroll injection**          | both axes             | both axes ⁶         | both axes, virtual pointer (uinput on Hyprland ⁸) | both axes, libei wheel clicks | both axes ⁶               |
+| **Modified scroll (`--modifier`)** | `CGEventSetFlags` on every chunk | XTest key hold ⁶ | virtual keyboard + virtual pointer (uinput on Hyprland ⁸) | libei | `SendInput` key hold ⁶ |
 | **Smooth cursor animation**   | incl. relative, opt-in | incl. relative, opt-in | incl. relative, opt-in | incl. relative, opt-in | incl. relative, opt-in |
 | **Held-key glide (`held_repeat`)** | `CGEventPost` per tick | XTest per tick | virtual-pointer relative motion per tick | libei per tick | `SetCursorPos` per tick |
-| **Smooth scroll animation**   | continuous axis       | whole notches only ³ | continuous axis ³ (whole notches when modified on Hyprland ⁹) | libei scroll delta, unverified ³ | 120ths of a notch ³ |
+| **Smooth scroll animation**   | continuous axis       | whole notches only ³ | continuous axis ³ (whole notches when modified on Hyprland ⁸) | libei scroll delta, unverified ³ | 120ths of a notch ³ |
 | **Element discovery (hints)** | AXUIElement           | AT-SPI walk         | AT-SPI walk               | AT-SPI walk          | UIA, control view only    |
-| **Overlay**                   | NSPanel + CoreAnimation | X11 + Cairo       | layer-shell + Cairo       | layer-shell + Cairo  | DirectComposition + Direct2D (GDI fallback, and windows/arm64 is GDI only ¹⁰) |
+| **Overlay**                   | NSPanel + CoreAnimation | X11 + Cairo       | layer-shell + Cairo       | layer-shell + Cairo  | DirectComposition + Direct2D (GDI fallback, and windows/arm64 is GDI only ⁹) |
 | **Global hotkeys**            | one shared CGEventTap | `XGrabKey`          | evdev proxy (`input` group) | evdev proxy (`input` group) | `RegisterHotKey`          |
 | **Keyboard capture**          | CGEventTap            | `XGrabKeyboard`     | evdev proxy (uinput, wl-keyboard fallback) | evdev proxy (uinput) | `WH_KEYBOARD_LL`          |
 | **Modifier passthrough**      | CGEventTap forwards or blocks per event | none, the grab is all-or-nothing | evdev backend only        | evdev backend only   | `WH_KEYBOARD_LL` forwards or blocks per event |
 | **Dark mode detection**       | Cocoa appearance      | xdg appearance portal | xdg appearance portal   | kdeglobals + portal  | registry                  |
 | **Font resolution**           | NSFont                | fontconfig          | fontconfig                | fontconfig           | GDI `EnumFontFamiliesExW` ¹ |
 | **Text measurement**          | CoreText              | Cairo text extents ¹ | Cairo text extents ¹      | Cairo text extents ¹ | GDI `GetTextExtentPoint32W` ¹ |
-| **System tray**               | NSStatusItem ⁸        | D-Bus StatusNotifierItem ⁸ | StatusNotifierItem ⁸      | StatusNotifierItem ⁸ | Win32 notification area ⁸ |
+| **System tray**               | NSStatusItem ⁷        | D-Bus StatusNotifierItem ⁷ | StatusNotifierItem ⁷      | StatusNotifierItem ⁷ | Win32 notification area ⁷ |
 | **Clipboard (`copy_text`)**   | `pbcopy`, `LANG` forced to UTF-8 | `xclip`, else `xsel` | `wl-copy`, else `xclip`/`xsel` on Xwayland | `wl-copy`, else `xclip`/`xsel` on Xwayland | `SetClipboardData` (Unicode) |
 | **Native alerts**             | NSAlert               | D-Bus, not modal    | D-Bus, not modal          | D-Bus, not modal     | `MessageBoxW`             |
-| **Native notifications**      | UNNotification        | `org.freedesktop.Notifications` | `org.freedesktop.Notifications` | `org.freedesktop.Notifications` | Tray balloon tips ⁸ |
+| **Native notifications**      | UNNotification        | `org.freedesktop.Notifications` | `org.freedesktop.Notifications` | `org.freedesktop.Notifications` | Tray balloon tips ⁷ |
 | **Secure input detection**    | private macOS API     | always false        | always false              | always false         | always false              |
 | **System cursor hide**        | `CGDisplayHideCursor` | none                | none                      | none                 | none                      |
 | **`monitor_select` mode**     | native panels         | Cairo panels        | Cairo panels              | Cairo panels         | layered panels            |
 | **`vim` mode**                | CALayers on the shared window | Cairo on the shared overlay | Cairo on the shared overlay | Cairo on the shared overlay | the shared overlay window |
-| **Native hint-search field**  | text view in a key panel | XIM window ⁴        | layer-shell field ⁴       | layer-shell field ⁴  | `EDIT` control in a tool window ⁴ |
-| **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁵ | `BitBlt` ⁵        |
-| **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁶ | tesseract and contour ⁶ | tesseract and contour ⁶ | `Windows.Media.Ocr` and contour ⁶ |
+| **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁴ | `BitBlt` ⁴        |
+| **Vision / OCR detection**    | Vision framework      | tesseract and contour ⁵ | tesseract and contour ⁵ | tesseract and contour ⁵ | `Windows.Media.Ocr` and contour ⁵ |
 | **Key feed (`action feed`)** | `CGEventPost`         | XTest                | uinput / virtual-keyboard | uinput               | `SendInput`               |
 | **Service management (`neru services`)** | launchd user agent | systemd user unit only ² | systemd user unit only ² | systemd user unit only ² | Task Scheduler logon task |
 
@@ -91,25 +90,7 @@ wlroots and libei send fractional deltas, Windows sends 120ths of a notch, and
 X11 sends whole notches. Linux notch paths use 30 px per notch, rounded, at
 least one.
 
-⁴ **Native hint-search field.** macOS places an `NSTextView` in an invisible
-key panel over the search box, which the input method types into. On Wayland a
-transparent layer-shell surface over the box takes the keyboard, with
-`zwp_text_input_v3` for input-method text and xkb compose for dead keys. The
-event tap is off for the session, so the evdev proxy forwards keys to the
-compositor as it does when Neru is idle. Windows places a standard `EDIT`
-control in a nearly transparent tool window over the search box, which gets
-input-method text through IMM and dead keys through `TranslateMessage`. The
-keyboard hook is off for the session. Windows lets a background process take
-the foreground only in some cases, so the field joins the foreground window's
-input queue for the request and falls back to the key stream when it is still
-refused. Losing the foreground cancels the search. On X11 a one-pixel
-override-redirect window at the box takes the input focus and reads keys
-through an XIM input context, which brings the input method `XMODIFIERS` names
-and the locale's compose rules for dead keys. The keyboard grab is released for
-the session, and the window that had the focus gets it back. On GNOME, which
-has no layer shell, the query is read from the key stream.
-
-⁵ **Screen capture.** X11, wlroots and Windows capture without a prompt. KWin
+⁴ **Screen capture.** X11, wlroots and Windows capture without a prompt. KWin
 supports neither protocol, so KDE uses the `org.freedesktop.portal.ScreenCast`
 portal over PipeWire, with the grant kept under `$XDG_STATE_HOME/neru/`. A
 region that leaves the screen, spans two Wayland outputs, or lies on an
@@ -143,7 +124,7 @@ capture Neru's windows with the rest of the screen. There a hints refresh with
 a screen-reading strategy takes the old labels off before it captures, and
 snap refuses those strategies while a mode is open.
 
-⁶ **Vision.** Linux uses tesseract, which finds language data through
+⁵ **Vision.** Linux uses tesseract, which finds language data through
 `TESSDATA_PREFIX` and then the distribution paths, and a missing
 `eng.traineddata` gets `ERR_NOT_SUPPORTED` naming that file. A vim accurate
 read reads the frame a second time in the languages of other scripts the
@@ -174,7 +155,7 @@ fast one finds. Its first load on a Mac that has not used it yet also takes
 tens of seconds and holds up every fast request until it finishes. Recognized
 text is never logged or stored.
 
-⁷ **Modifiers on injected input.** On X11, Wayland and Windows, an injected
+⁶ **Modifiers on injected input.** On X11, Wayland and Windows, an injected
 pointer event carries whatever modifiers the keyboard holds, so a chord still
 held when you pick a hint would make a ctrl+click. Neru releases those
 modifiers, presses the requested ones, and restores both afterwards, across an
@@ -182,18 +163,18 @@ animated scroll and until a drag's release. On Wayland the evdev proxy does
 this. Without a forwarding proxy (no `/dev/uinput`, or the wl-keyboard
 fallback) the click stays modified.
 
-⁸ **Tray and notifications.** Linux tray menus have no item tooltips, because
+⁷ **Tray and notifications.** Linux tray menus have no item tooltips, because
 `com.canonical.dbusmenu` defines none. Windows notifications are balloon tips
 on the tray icon, so with no tray they report `ERR_NOT_SUPPORTED`. Windows
 alerts are `MessageBoxW` and need no tray.
 
-⁹ **Hyprland scroll** goes out on the uinput wheel, because Chromium and
+⁸ **Hyprland scroll** goes out on the uinput wheel, because Chromium and
 Electron there ignore a virtual-pointer scroll, and Hyprland drops one while a
 modifier is held. Everywhere else a scroll avoids the uinput wheel, because
 the compositor would apply the user's mouse settings to it, and natural
 scrolling would reverse it.
 
-¹⁰ **windows/arm64 overlay** is GDI only, because the Direct2D binding is
+⁹ **windows/arm64 overlay** is GDI only, because the Direct2D binding is
 amd64-only.
 
 ### Notes on the limited entries

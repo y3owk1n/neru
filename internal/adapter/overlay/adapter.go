@@ -292,36 +292,6 @@ func (a *Adapter) VimStatusBar(region image.Rectangle) image.Rectangle {
 	return manager.VimStatusBar(region, style)
 }
 
-// HintSearchBounds reports where the search input sits on a screen.
-//
-// It answers a rectangle and has no way to report, so an anchor the placement
-// refuses answers the empty one. That is the honest answer rather than a
-// degradation of its own, because the draw refused too, so there is no box on screen
-// for the platform's IME field to be put over, and the empty rectangle is
-// already what the handler falls back to when it has no overlay at all. The
-// draw path logs the reason, which is why this one does not repeat it on every
-// search that opens.
-func (a *Adapter) HintSearchBounds(screen image.Rectangle) image.Rectangle {
-	// A destroyed overlay answers the empty rectangle for the same reason a
-	// refused anchor does. There is no box on screen for the platform's IME
-	// field to be put over.
-	if a.released() {
-		return image.Rectangle{}
-	}
-
-	layout := ResolvedStyle(a.styles).HintSearchLayout
-
-	placed, placeErr := searchInputFrame(layout, screen)
-	if placeErr != nil {
-		return image.Rectangle{}
-	}
-
-	return image.Rectangle{
-		Min: placed.Position(),
-		Max: placed.Position().Add(image.Pt(placed.Width(), layout.Height)),
-	}
-}
-
 // UpdateGridMatches narrows the grid on screen to a prefix.
 func (a *Adapter) UpdateGridMatches(prefix string) {
 	if a.released() {

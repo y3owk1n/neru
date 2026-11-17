@@ -4,12 +4,9 @@ import (
 	"context"
 	"image"
 
-	"go.uber.org/zap"
-
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/bisect"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // ResetCurrentMode clears the active mode's accumulated input without exiting
@@ -323,12 +320,9 @@ func (h *handlerState) startHintSearch(confirmOnLabel bool) error {
 		return derrors.New(derrors.CodeActionFailed, "hints not available")
 	}
 
-	h.stopHintSearchTextInput(true)
 	h.hints.Context.SetSearchQuery("")
 	h.hints.Context.SetSearchActive(true)
 	h.hints.Context.SetSearchConfirmOnLabel(confirmOnLabel)
-
-	session := h.hintSearchSession
 
 	if h.hints.Context.HideOnEmptySearch() {
 		// When hide-on-empty-search is active, hide all hints initially.
@@ -349,118 +343,5 @@ func (h *handlerState) startHintSearch(confirmOnLabel bool) error {
 	h.cycleHintIndex = -1
 	h.drawHintSearchInput()
 
-	if h.textInput == nil {
-		return nil
-	}
-
-	// The IME field sits over the drawn search input, so its placement is
-	// asked for rather than derived a second time here.
-	bounds := h.hintSearchBounds()
-	if bounds.Empty() {
-		// The overlay put no box on screen, because it draws none or could not
-		// place the anchor it was configured with. Handing the platform's field
-		// the keyboard anyway would put an invisible input somewhere the user
-		// is not looking. The query keeps arriving through the event tap's key
-		// stream instead, which is what every overlay without a search box
-		// already relies on.
-		//
-		// That promise only holds if the tap is on, and this method opened by
-		// stopping any live session *without* re-enabling it, on the
-		// assumption that the session about to start would want it off. There
-		// is no session now, so give the keyboard back or the search has no way
-		// left to receive a key.
-		h.stopHintSearchTextInput(false)
-		h.logger.Debug("Hint search text input skipped: no search input on screen")
-
-		return nil
-	}
-
-	textInputFrame := ports.TextInputFrame{
-		X:      bounds.Min.X,
-		Y:      bounds.Min.Y,
-		Width:  bounds.Dx(),
-		Height: bounds.Dy(),
-		Screen: h.screenBounds,
-	}
-
-	started, _ := h.textInput.StartHintSearchSession(
-		h.ctx,
-		ports.TextInputCallbacks{
-			OnQueryChanged: func(query string) {
-				h.outer.mu.Lock()
-				defer h.outer.mu.Unlock()
-
-				if h.hintSearchSession != session || h.appState.CurrentMode() != domain.ModeHints ||
-					h.hints == nil || h.hints.Context == nil {
-					return
-				}
-
-				if !h.hints.Context.SearchActive() {
-					return
-				}
-
-				h.hints.Context.SetSearchQuery(query)
-				h.applyHintSearchFilter()
-			},
-			OnConfirm: func() {
-				h.outer.mu.Lock()
-				defer h.outer.mu.Unlock()
-
-				if h.hintSearchSession != session || h.appState.CurrentMode() != domain.ModeHints {
-					return
-				}
-
-				h.confirmHintSearch()
-			},
-			OnCancel: func() {
-				h.outer.mu.Lock()
-				defer h.outer.mu.Unlock()
-
-				if h.hintSearchSession != session || h.appState.CurrentMode() != domain.ModeHints {
-					return
-				}
-
-				h.cancelHintSearch()
-			},
-		},
-		textInputFrame,
-	)
-
-	if !started {
-		// A session this one replaced left the tap off for it, and no field
-		// took its place, so the key stream is all that is left.
-		h.stopHintSearchTextInput(false)
-
-		return nil
-	}
-
-	h.hintSearchTextInputActive = true
-
-	if h.hasEventTap() {
-		h.disableEventTap()
-		h.hintSearchEventTapDisabled = true
-	}
-
 	return nil
-}
-
-func (h *handlerState) stopHintSearchTextInput(keepEventTapDisabled bool) {
-	if h.hintSearchTextInputActive && h.textInput != nil {
-		// Use Background context since this may be called during cleanup,
-		// after h.ctx has already been canceled.
-		err := h.textInput.StopHintSearchSession(context.Background())
-		if err != nil {
-			h.logger.Warn("Failed to stop hint search text input", zap.Error(err))
-		}
-	}
-
-	// Callbacks the stopped session already queued see a new count and stop.
-	h.hintSearchSession++
-	h.hintSearchTextInputActive = false
-
-	if h.hintSearchEventTapDisabled && h.hasEventTap() &&
-		h.appState.CurrentMode() == domain.ModeHints && !keepEventTapDisabled {
-		h.enableEventTap()
-		h.hintSearchEventTapDisabled = false
-	}
 }

@@ -6,15 +6,10 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"unicode"
-
-	"golang.org/x/text/cases"
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
 
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
+	"github.com/y3owk1n/neru/internal/domain/screentext"
 )
 
 // Interface is a labeled UI element for keyboard-driven navigation.
@@ -232,12 +227,43 @@ type Collection struct {
 	byLabel map[string]*Interface
 	trie    *Trie
 
-	// searchTexts holds each hint's element texts normalized for search. The
+	// searchTexts holds each hint's element texts folded for search. The
 	// first search builds it and later ones reuse it. A search runs on every
-	// keystroke, normalizing is most of its cost, and the hints do not change
+	// keystroke, folding is most of its cost, and the hints do not change
 	// while the user types.
 	searchOnce  sync.Once
-	searchTexts [][]string
+	searchTexts [][]searchText
+}
+
+// searchText is an element text as search matches it: spelled in lowercase
+// ASCII by screentext.Fold, with the character each byte came from.
+type searchText struct {
+	text  string
+	spans [][2]int
+}
+
+func foldForSearch(text string) searchText {
+	folded, spans := screentext.Fold(text)
+
+	return searchText{text: strings.ToLower(folded), spans: spans}
+}
+
+// contains reports whether query occurs in t where a character's spelling
+// starts, so en finds no 深 (Shen).
+func (t searchText) contains(query string) bool {
+	for scanFrom := 0; ; {
+		found := strings.Index(t.text[scanFrom:], query)
+		if found < 0 {
+			return false
+		}
+
+		start := scanFrom + found
+		if start == 0 || t.spans[start] != t.spans[start-1] {
+			return true
+		}
+
+		scanFrom = start + 1
+	}
 }
 
 // NewCollection creates a new hint collection with indexed lookups.
@@ -277,7 +303,9 @@ func (c *Collection) FilterByPrefix(prefix string) []*Interface {
 	return c.trie.FindByPrefix(prefix)
 }
 
-// FilterBySearch returns the hints whose element text contains query. When
+// FilterBySearch returns the hints whose element text contains query, both
+// as screentext.Fold spells them in lowercase, so cafe finds Café and nihao
+// finds 你好. When
 // query has a space, it also returns the hints whose text contains the words
 // before the last space and whose label starts with the word after it, so
 // "save a" keeps the "save" matches labeled A. A label match never hides a
@@ -288,7 +316,7 @@ func (c *Collection) FilterBySearch(query string) *Collection {
 		return c
 	}
 
-	normalizedQuery := normalizeForSearch(query)
+	normalizedQuery := foldForSearch(query).text
 
 	space := strings.LastIndex(query, " ")
 	readsLabel := space >= 0
@@ -296,7 +324,7 @@ func (c *Collection) FilterBySearch(query string) *Collection {
 	labelPrefix := ""
 
 	if readsLabel {
-		normalizedHead = normalizeForSearch(strings.TrimRight(query[:space], " "))
+		normalizedHead = foldForSearch(strings.TrimRight(query[:space], " ")).text
 		labelPrefix = strings.ToUpper(query[space+1:])
 	}
 
@@ -345,32 +373,14 @@ func (c *Collection) WithoutMatchedPrefixes() *Collection {
 	return NewCollection(cleared)
 }
 
-func containsAny(texts []string, query string) bool {
+func containsAny(texts []searchText, query string) bool {
 	for _, text := range texts {
-		if strings.Contains(text, query) {
+		if text.contains(query) {
 			return true
 		}
 	}
 
 	return false
-}
-
-func normalizeForSearch(text string) string {
-	if text == "" {
-		return ""
-	}
-
-	searchCaser := cases.Fold()
-	folded := searchCaser.String(text)
-
-	searchTransformer := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-
-	normalized, _, err := transform.String(searchTransformer, folded)
-	if err != nil {
-		return folded
-	}
-
-	return normalized
 }
 
 // Count returns the number of hints in the collection.
@@ -385,9 +395,9 @@ func (c *Collection) Empty() bool {
 
 // normalizedSearchTexts returns the texts FilterBySearch matches against, one
 // entry per hint, nil for a hint without an element.
-func (c *Collection) normalizedSearchTexts() [][]string {
+func (c *Collection) normalizedSearchTexts() [][]searchText {
 	c.searchOnce.Do(func() {
-		c.searchTexts = make([][]string, len(c.hints))
+		c.searchTexts = make([][]searchText, len(c.hints))
 
 		for index, hint := range c.hints {
 			elem := hint.Element()
@@ -395,11 +405,11 @@ func (c *Collection) normalizedSearchTexts() [][]string {
 				continue
 			}
 
-			c.searchTexts[index] = []string{
-				normalizeForSearch(elem.Title()),
-				normalizeForSearch(elem.Description()),
-				normalizeForSearch(elem.Value()),
-				normalizeForSearch(elem.SearchText()),
+			c.searchTexts[index] = []searchText{
+				foldForSearch(elem.Title()),
+				foldForSearch(elem.Description()),
+				foldForSearch(elem.Value()),
+				foldForSearch(elem.SearchText()),
 			}
 		}
 	})

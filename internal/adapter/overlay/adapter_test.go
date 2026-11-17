@@ -974,14 +974,24 @@ func wantSearchInputBounds() map[string]image.Rectangle {
 	}
 }
 
-// TestAdapterHintSearchBounds_PlacesTheInputFromConfiguration pins where the
+// drawnSearchBounds is the rectangle the last search input draw covered.
+func drawnSearchBounds(manager *screenManager, height int) image.Rectangle {
+	position := manager.searchFrame.Position()
+
+	return image.Rectangle{
+		Min: position,
+		Max: position.Add(image.Pt(manager.searchFrame.Width(), height)),
+	}
+}
+
+// TestAdapterDrawHintSearch_PlacesTheInputFromConfiguration pins where the
 // search input lands for each accepted anchor. The maths moved out of the mode
 // layer with #1210. A caller says which screen, and the overlay says where on
-// it, because the IME field has to be put over the same rectangle.
+// it.
 //
 // It walks config.SearchInputPositions() rather than a list of its own, so an
 // anchor the validator accepts and the overlay does not place fails here.
-func TestAdapterHintSearchBounds_PlacesTheInputFromConfiguration(t *testing.T) {
+func TestAdapterDrawHintSearch_PlacesTheInputFromConfiguration(t *testing.T) {
 	t.Parallel()
 
 	screen := image.Rect(0, 0, 1000, 800)
@@ -1016,19 +1026,25 @@ func TestAdapterHintSearchBounds_PlacesTheInputFromConfiguration(t *testing.T) {
 			styles := searchStyles{layout: layout}
 			styles.layout.Position = position
 
-			adapter := overlay.NewAdapter(newScreenManager(), styles, zap.NewNop())
+			manager := newScreenManager()
+			adapter := overlay.NewAdapter(manager, styles, zap.NewNop())
 
-			if got := adapter.HintSearchBounds(screen); got != want {
-				t.Errorf("HintSearchBounds() = %v, want %v", got, want)
+			err := adapter.DrawHintSearch(ports.HintSearch{Screen: screen})
+			if err != nil {
+				t.Fatalf("DrawHintSearch() error = %v", err)
+			}
+
+			if got := drawnSearchBounds(manager, layout.Height); got != want {
+				t.Errorf("search input drawn over %v, want %v", got, want)
 			}
 		})
 	}
 }
 
-// TestAdapterHintSearchBounds_KeepsTheInputOnScreen pins the clamp. An offset
+// TestAdapterDrawHintSearch_KeepsTheInputOnScreen pins the clamp. An offset
 // larger than the display cannot push the input off it, because a search box
 // the user cannot see is a search they cannot cancel.
-func TestAdapterHintSearchBounds_KeepsTheInputOnScreen(t *testing.T) {
+func TestAdapterDrawHintSearch_KeepsTheInputOnScreen(t *testing.T) {
 	t.Parallel()
 
 	styles := searchStyles{layout: overlay.SearchInputLayout{
@@ -1039,13 +1055,19 @@ func TestAdapterHintSearchBounds_KeepsTheInputOnScreen(t *testing.T) {
 		YOffset:  5000,
 	}}
 
-	adapter := overlay.NewAdapter(newScreenManager(), styles, zap.NewNop())
+	manager := newScreenManager()
+	adapter := overlay.NewAdapter(manager, styles, zap.NewNop())
 
-	screen := image.Rect(0, 0, 1000, 800)
+	err := adapter.DrawHintSearch(
+		ports.HintSearch{Screen: image.Rect(0, 0, 1000, 800)},
+	)
+	if err != nil {
+		t.Fatalf("DrawHintSearch() error = %v", err)
+	}
 
-	got := adapter.HintSearchBounds(screen)
+	got := drawnSearchBounds(manager, styles.layout.Height)
 	if want := image.Rect(800, 760, 1000, 800); got != want {
-		t.Errorf("HintSearchBounds() = %v, want %v", got, want)
+		t.Errorf("search input drawn over %v, want %v", got, want)
 	}
 }
 
@@ -1165,28 +1187,6 @@ func TestAdapterDrawHintSearch_UnknownAnchorIsRefusedNotDrawn(t *testing.T) {
 	}
 }
 
-// TestAdapterHintSearchBounds_UnknownAnchorHasNoBounds pins how the bounds half
-// degrades. It answers a rectangle and cannot report, so an anchor the
-// placement refuses answers the empty one. That is the same nothing a handler with no
-// overlay at all already returns, and honest, because the draw refused too and
-// there is no box on screen for the IME field to be put over.
-func TestAdapterHintSearchBounds_UnknownAnchorHasNoBounds(t *testing.T) {
-	t.Parallel()
-
-	adapter := overlay.NewAdapter(
-		newScreenManager(),
-		anchoredSearchStyles(unknownSearchAnchor),
-		zap.NewNop(),
-	)
-
-	if got := adapter.HintSearchBounds(image.Rect(0, 0, 1000, 800)); !got.Empty() {
-		t.Errorf(
-			"HintSearchBounds() with an unrecognized anchor = %v, want the empty rectangle",
-			got,
-		)
-	}
-}
-
 // TestAdapterSearchInput_UnsetAnchorIsRefusedWithTheRest pins the empty string
 // as unrecognized rather than as a default, and deliberately so. Unlike
 // `hints.ui.placement`, an unset `hints.search_input_ui.position` is not settled
@@ -1211,10 +1211,6 @@ func TestAdapterSearchInput_UnsetAnchorIsRefusedWithTheRest(t *testing.T) {
 
 	if manager.searchDraws != 0 {
 		t.Errorf("search input drawn %d times for an unset anchor, want 0", manager.searchDraws)
-	}
-
-	if got := adapter.HintSearchBounds(screen); !got.Empty() {
-		t.Errorf("HintSearchBounds() with an unset anchor = %v, want the empty rectangle", got)
 	}
 }
 

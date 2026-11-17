@@ -41,9 +41,6 @@ func DarwinCapabilities() PlatformCapabilities {
 		DarkModeDetection: supportedCapability(
 			"system dark mode detection available via Cocoa appearance APIs",
 		),
-		TextInput: supportedCapability(
-			"native hint-search field available via a text view in a key panel",
-		),
 		Vision: supportedCapability(
 			"OCR element detection available via the Vision framework and ScreenCaptureKit",
 		),
@@ -124,15 +121,6 @@ func LinuxCapabilities() PlatformCapabilities {
 		// Capabilities() call. See linux.SystemAdapter.Capabilities.
 		DarkModeDetection: supportedCapability(
 			"dark mode detection via freedesktop appearance portal (Settings.Read), with kdeglobals fallback",
-		),
-		// The field is a layer-shell surface, so it exists only where the
-		// compositor offers one. Elsewhere the characters come from the event
-		// tap and an input method never sees them.
-		TextInput: supportedCapability(
-			"native hint-search field on X11, taking input-method and dead-key " +
-				"text through XIM, and on Wayland compositors with a layer shell, " +
-				"taking it through text-input-v3 and xkb compose; on GNOME the " +
-				"query is read from the event tap's key stream",
 		),
 		// Both halves are implemented on every backend: capture through
 		// wlr-screencopy, XGetImage or the portal's ScreenCast session,
@@ -217,12 +205,6 @@ func WindowsCapabilities() PlatformCapabilities {
 		DarkModeDetection: supportedCapability(
 			"dark mode detection available via the Windows personalization registry " +
 				"(Themes\\Personalize AppsUseLightTheme)",
-		),
-		TextInput: supportedCapability(
-			"native hint-search field via an EDIT control in a tool window, taking " +
-				"input-method text through IMM and dead keys through TranslateMessage; " +
-				"when Windows does not give it the foreground, hint search reads the " +
-				"event tap's key stream",
 		),
 		Vision: supportedCapability(
 			"vision element detection via Windows.Media.Ocr over a BitBlt screen " +

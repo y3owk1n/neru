@@ -1,6 +1,5 @@
 #include "ocr.h"
 
-#include "locale_guard.h"
 #include "screencapture.h"
 
 #include <errno.h>
@@ -29,10 +28,6 @@ typedef struct {
 	TessBaseAPI *api;
 	char *datapath;
 	char *language;
-	// locale_busy is set when the last engine creation gave up waiting for the
-	// locale guard (locale_guard.h), so the caller reports busy rather than
-	// unusable language data. Guarded by mutex.
-	int locale_busy;
 } NeruOCREngine;
 
 // Each slot (NeruOCRConfig.engine) caches its own engine under its own lock,
@@ -48,10 +43,6 @@ static NeruOCREngine *neru_ocr_engine_for(const NeruOCRConfig *config) {
 
 	return &neru_ocr_engines[slot];
 }
-
-// NERU_OCR_LOCALE_WAIT_MS bounds the wait for the locale guard, which the X11
-// hint-search field holds while an input-method server answers.
-#define NERU_OCR_LOCALE_WAIT_MS 1000
 
 // How long a caller with no budget of its own waits for the engine. Long enough
 // to queue behind a normal recognition (tens of milliseconds), short enough
@@ -142,26 +133,14 @@ static TessBaseAPI *neru_ocr_acquire_locked(NeruOCREngine *engine, const NeruOCR
 
 	neru_ocr_release_locked(engine);
 
-	// Tesseract asserts the C locale while it builds the engine, and the X11
-	// hint-search field leaves it briefly (locale_guard.h).
-	engine->locale_busy = 0;
-	if (neru_locale_guard_timedlock(NERU_OCR_LOCALE_WAIT_MS) != 0) {
-		engine->locale_busy = 1;
-
-		return NULL;
-	}
-
 	TessBaseAPI *api = TessBaseAPICreate();
 	if (api == NULL) {
-		neru_locale_guard_unlock();
-
 		return NULL;
 	}
 
 	// LSTM only, because the legacy engine is slower, needs its own data files,
 	// and is what tesseract 5 defaults away from.
 	int initialized = TessBaseAPIInit2(api, config->datapath, config->language, OEM_LSTM_ONLY) == 0;
-	neru_locale_guard_unlock();
 
 	if (!initialized) {
 		TessBaseAPIDelete(api);
@@ -219,11 +198,10 @@ int neru_ocr_probe(const NeruOCRConfig *config) {
 	}
 
 	TessBaseAPI *api = neru_ocr_acquire_locked(engine, config);
-	int busy = engine->locale_busy;
 	pthread_mutex_unlock(&engine->mutex);
 
 	if (api == NULL) {
-		return busy ? NERU_OCR_ERR_BUSY : NERU_OCR_ERR_INIT;
+		return NERU_OCR_ERR_INIT;
 	}
 
 	return NERU_OCR_OK;
@@ -343,10 +321,9 @@ static int neru_ocr_run_locked(
 
 	TessBaseAPI *api = neru_ocr_acquire_locked(engine, config);
 	if (api == NULL) {
-		int busy = engine->locale_busy;
 		pthread_mutex_unlock(&engine->mutex);
 
-		return busy ? NERU_OCR_ERR_BUSY : NERU_OCR_ERR_INIT;
+		return NERU_OCR_ERR_INIT;
 	}
 
 	TessBaseAPISetImage(api, pixels, width, height, NERU_OCR_BYTES_PER_PIXEL, stride);

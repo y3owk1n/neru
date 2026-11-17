@@ -152,6 +152,8 @@ or open hints with search showing:
 ```
 
 - Typing filters by element title, description or value. `Space` is allowed.
+  Type text in another script by its romanization, so `shenzhen` finds 深圳
+  and `boris` finds Борис.
 - A label typed after a space narrows the matches to that label. `save a`
   keeps the `save` matches whose label starts with `A`, along with any text
   still matching `save a`. Once one is left, `Return` acts on it.

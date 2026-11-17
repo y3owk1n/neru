@@ -84,7 +84,6 @@ type App struct {
 	hotkeyManager HotkeyService
 	hotkeys       *keybinding.Binder
 	eventTap      ports.EventTapPort
-	textInput     ports.TextInputPort
 	keyFeed       ports.KeyFeedPort
 	mouse         ports.MousePort
 	clipboard     ports.ClipboardPort

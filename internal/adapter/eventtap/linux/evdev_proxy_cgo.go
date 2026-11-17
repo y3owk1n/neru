@@ -699,7 +699,7 @@ func (p *evdevProxy) forwardWithheld(code uint16) {
 // physically holds that the compositor has down, and reports whether it
 // released any. A Wayland pointer event carries the seat's held modifiers, so
 // a hotkey chord still held during an injected click makes it a modified
-// click (footnote 7 of docs/contributing/platform-internals.md). Only the
+// click (footnote 6 of docs/contributing/platform-internals.md). Only the
 // proxy can fix that on Wayland. Runs on the run goroutine.
 func (p *evdevProxy) liftHeldModifiers() bool {
 	held := make([]uint16, 0, len(p.global.pressed))

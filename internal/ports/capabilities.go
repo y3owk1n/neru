@@ -58,8 +58,6 @@ const (
 	CapabilityAppWatcher CapabilityKey = "app_watcher"
 	// CapabilityDarkModeDetection covers system dark-mode detection.
 	CapabilityDarkModeDetection CapabilityKey = "dark_mode_detection"
-	// CapabilityTextInput covers the native hint-search text field.
-	CapabilityTextInput CapabilityKey = "text_input"
 	// CapabilityVision covers OCR/vision-based element detection.
 	CapabilityVision CapabilityKey = "vision"
 	// CapabilityKeyFeed covers synthetic key injection into the focused app.
@@ -90,7 +88,6 @@ type PlatformCapabilities struct {
 	KeyboardEventTap  FeatureCapability
 	AppWatcher        FeatureCapability
 	DarkModeDetection FeatureCapability
-	TextInput         FeatureCapability
 	Vision            FeatureCapability
 	KeyFeed           FeatureCapability
 	Systray           FeatureCapability
@@ -152,7 +149,6 @@ func (c PlatformCapabilities) Entries() []CapabilityEntry {
 			Field:             "DarkModeDetection",
 			FeatureCapability: c.DarkModeDetection,
 		},
-		{Key: CapabilityTextInput, Field: "TextInput", FeatureCapability: c.TextInput},
 		{Key: CapabilityVision, Field: "Vision", FeatureCapability: c.Vision},
 		{Key: CapabilityKeyFeed, Field: "KeyFeed", FeatureCapability: c.KeyFeed},
 		{Key: CapabilitySystray, Field: "Systray", FeatureCapability: c.Systray},

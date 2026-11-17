@@ -886,12 +886,10 @@ func TestSimulation_HintsSearchJourney(t *testing.T) {
 	}
 }
 
-// TestSimulation_HintSearchFieldConfirmSelectsTheMatch covers Return in a
-// platform search field, which confirms through its callback rather than the
-// key stream. With --action, --repeat and --search, the selection clicks and
-// reopens hints with a new field from inside the old field's callback. The
-// click has to have happened by the time that callback returns.
-func TestSimulation_HintSearchFieldConfirmSelectsTheMatch(t *testing.T) {
+// TestSimulation_HintSearchConfirmWithRepeatSelectsAndReopens covers Return
+// in a search with --action, --repeat and --search. The selection clicks the
+// match, and the repeat opens hints again with every label and a new search.
+func TestSimulation_HintSearchConfirmWithRepeatSelectsAndReopens(t *testing.T) {
 	const searchClickHotkey = "Primary+Shift+S"
 
 	cfg := simConfig()
@@ -901,45 +899,71 @@ func TestSimulation_HintSearchFieldConfirmSelectsTheMatch(t *testing.T) {
 
 	elements := threeButtons(t)
 	sim := newSimHarness(t, cfg, elements)
-	sim.textInput.Started = true
 
 	sim.pressHotkey(searchClickHotkey)
 	sim.waitMode(domain.ModeHints)
-	sim.waitFor("search field opened", func() bool { return sim.textInput.StartCount() == 1 })
+	sim.waitFor("search input asked for", func() bool {
+		return sim.overlay.searchInputAskCount() > 0
+	})
 
-	callbacks := sim.textInput.Callbacks()
-	callbacks.OnQueryChanged("cancel")
+	sim.press("c", "a", "n", "c", "e", "l")
 	sim.waitFor("hints narrowed to the query", func() bool {
 		return len(sim.overlay.lastHintLabels()) == 1
 	})
 
-	confirmed := make(chan struct{})
+	sim.press("Return")
+	sim.waitFor("the match clicked", func() bool { return len(sim.ax.recordedClicks()) == 1 })
 
-	go func() {
-		callbacks.OnConfirm()
-		close(confirmed)
-	}()
-
-	select {
-	case <-confirmed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("confirming the search field did not return")
+	if got, want := sim.ax.recordedClicks()[0].point, elements[1].Center(); got != want {
+		t.Fatalf("click landed at %v, want the searched element at %v", got, want)
 	}
 
-	target := elements[1].Center()
+	sim.waitFor("hints reopened with every label", func() bool {
+		return len(sim.overlay.lastHintLabels()) == len(elements)
+	})
+}
 
-	clicks := sim.ax.recordedClicks()
-	if len(clicks) != 1 || clicks[0].point != target {
-		t.Fatalf(
-			"clicks after confirming = %+v, want one at the searched element %v",
-			clicks,
-			target,
-		)
-	}
+// TestSimulation_HintSearchFindsATitleInAnyScriptByItsSpelling covers a
+// search typed in ASCII for a title in another script. shenzhen finds 深圳,
+// and en finds nothing, since it starts inside the spelling of 深 and 圳.
+//
+//nolint:gosmopolitan // The fixture is Chinese text.
+func TestSimulation_HintSearchFindsATitleInAnyScriptByItsSpelling(t *testing.T) {
+	const searchHotkey = "Primary+Shift+S"
 
-	if got := sim.textInput.StartCount(); got != 2 {
-		t.Errorf("search fields opened = %d, want 2, since the repeat reopens one", got)
+	cfg := simConfig()
+	cfg.Hotkeys.Bindings[searchHotkey] = []string{"hints --search"}
+
+	elements := []*element.Element{
+		simElement(t, "city", image.Rect(100, 100, 220, 140), "深圳"),
+		simElement(t, "save", image.Rect(300, 100, 420, 140), "Save"),
 	}
+	sim := newSimHarness(t, cfg, elements)
+
+	sim.pressHotkey(searchHotkey)
+	sim.waitMode(domain.ModeHints)
+	sim.waitFor("search input asked for", func() bool {
+		return sim.overlay.searchInputAskCount() > 0
+	})
+
+	sim.press("s", "h", "e", "n", "z", "h", "e", "n")
+	sim.waitFor("hints narrowed to 深圳", func() bool {
+		return len(sim.overlay.lastHintLabels()) == 1
+	})
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeHints)
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+
+	sim.pressHotkey(searchHotkey)
+	sim.waitMode(domain.ModeHints)
+
+	sim.press("e", "n")
+	sim.waitFor("en matched nothing", func() bool {
+		return len(sim.overlay.lastHintLabels()) == 0
+	})
 }
 
 // TestSimulation_HintSearchNarrowsByTrailingLabel covers typing a label after
@@ -1137,55 +1161,6 @@ func TestSimulation_SearchHintsActionConfirmOnLabel(t *testing.T) {
 	sim.waitFor("label clicked without Return", func() bool {
 		return len(sim.ax.recordedClicks()) == 1
 	})
-}
-
-// TestSimulation_HintSearchFieldConfirmOnLabel covers --confirm-on-label in a
-// platform search field, where the query arrives through its callback. With
-// --repeat, confirming clicks and reopens hints with a new field from inside
-// the old field's callback, which has to return.
-func TestSimulation_HintSearchFieldConfirmOnLabel(t *testing.T) {
-	const confirmHotkey = "Primary+Shift+L"
-
-	cfg := simConfig()
-	cfg.Hotkeys.Bindings[confirmHotkey] = []string{
-		"hints --action left_click --repeat --search --confirm-on-label",
-	}
-
-	elements := threeButtons(t)
-	sim := newSimHarness(t, cfg, elements)
-	sim.textInput.Started = true
-
-	sim.pressHotkey(confirmHotkey)
-	sim.waitMode(domain.ModeHints)
-	sim.waitFor("search field opened", func() bool { return sim.textInput.StartCount() == 1 })
-
-	callbacks := sim.textInput.Callbacks()
-	callbacks.OnQueryChanged("s ")
-	sim.waitFor("both s matches kept after the space", func() bool {
-		return len(sim.overlay.lastHintLabels()) == 2
-	})
-
-	query := "s " + strings.ToLower(sim.overlay.lastHintLabels()[0])
-	changed := make(chan struct{})
-
-	go func() {
-		callbacks.OnQueryChanged(query)
-		close(changed)
-	}()
-
-	select {
-	case <-changed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("typing the label into the search field did not return")
-	}
-
-	if clicks := sim.ax.recordedClicks(); len(clicks) != 1 {
-		t.Fatalf("clicks after the label = %+v, want one without confirming", clicks)
-	}
-
-	if got := sim.textInput.StartCount(); got != 2 {
-		t.Errorf("search fields opened = %d, want 2, since the repeat reopens one", got)
-	}
 }
 
 // TestSimulation_HintsTwoCharLabels covers label generation past the

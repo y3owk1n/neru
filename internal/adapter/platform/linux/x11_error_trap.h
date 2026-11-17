@@ -26,13 +26,4 @@ void neru_x11_error_trap_begin(Display *display);
 // a protocol error arrived from display while the trap was installed.
 int neru_x11_error_trap_end(Display *display);
 
-// neru_x11_error_tolerate drops every protocol error from display, not just
-// those inside a trapped section, until neru_x11_error_untolerate. It is for a
-// display whose traffic can fail through no fault of its own, such as the
-// hint-search field's input-method exchange. The handler stays installed for
-// the process and forwards other displays' errors, so there is still one
-// handler chain. Returns 0 when every slot is taken.
-int neru_x11_error_tolerate(Display *display);
-void neru_x11_error_untolerate(Display *display);
-
 #endif /* X11_ERROR_TRAP_H */

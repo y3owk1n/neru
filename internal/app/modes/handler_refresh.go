@@ -34,10 +34,8 @@ func (h *handlerState) refreshHintsForScreenChange(ctx context.Context) bool {
 		}
 	}
 
-	// Escape any active IME search session before refreshing hints on the new
-	// screen. The old IME session is bound to the previous screen and loses
-	// focus during the space transition, causing subsequent keystrokes to be
-	// forwarded to the frontmost app instead.
+	// Close an open search before refreshing hints on the new screen, since
+	// its query and box belong to the screen that is gone.
 	if h.hints.Context.SearchActive() {
 		h.cancelHintSearch()
 	}

@@ -219,14 +219,6 @@ type handlerState struct {
 	hotkeyLastKey         string
 	hotkeyLastKeyTime     int64
 
-	textInput                  ports.TextInputPort
-	hintSearchTextInputActive  bool
-	hintSearchEventTapDisabled bool
-	// hintSearchSession counts text-input sessions. A callback a session
-	// queued before it stopped compares it under h.mu and does nothing, so it
-	// cannot reach the next session.
-	hintSearchSession uint64
-
 	// Pending modifier taps waiting to be committed after a short "no follow-up"
 	// window. A regular key press cancels all pending taps.
 	pendingModifierKeys   map[action.Modifiers]time.Time
@@ -324,8 +316,7 @@ type HandlerDeps struct {
 	// Shutdown quits the daemon.
 	Shutdown func()
 
-	TextInput ports.TextInputPort
-	System    ports.SystemPort
+	System ports.SystemPort
 	// Clipboard takes the text a copy_text session copies.
 	Clipboard ports.ClipboardPort
 	// Vision reads the screen's text for vim mode.
@@ -393,7 +384,6 @@ func NewHandler(deps HandlerDeps) *Handler {
 		vision:                 deps.Vision,
 		keyFeed:                deps.KeyFeed,
 		shutdown:               deps.Shutdown,
-		textInput:              deps.TextInput,
 		motion:                 deps.Motion,
 		system:                 deps.System,
 		events:                 deps.Events,
