@@ -136,7 +136,9 @@ Vim mode has no default hotkey, so bind one:
    label that appears on it. The jump and search find text in another
    script by its romanization, so `shenzhen` finds 深圳 and `boris` finds
    Борис. This works once Neru has read that script, and on Linux that
-   needs the script's tesseract data [installed](linux.md).
+   needs the script's tesseract data [installed](linux.md). Labels appear
+   once Neru has finished reading the screen, and until then every key adds
+   to the text.
 3. Act on it. `Return` clicks the character under the cursor, `y` and a
    motion copy the text as read, and `i`, `c` or `d` edit the app's text in
    place.

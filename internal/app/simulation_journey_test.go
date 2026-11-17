@@ -5114,8 +5114,8 @@ func TestSimulation_VimSearchesTextInAnyScriptByItsSpelling(t *testing.T) {
 
 // TestSimulation_VimJumpTakesTheAccurateReadWhenItLands covers a jump open
 // when the accurate read lands with 深圳, which the fast read could not read.
-// The jump matches zh again in the new read and finds 圳 too, and the label
-// already drawn on Shenzhen keeps its letter.
+// Until then no label is drawn, so a label's letter, a, adds to the text. The
+// jump matches zh again in the new read, finds 圳 too, and labels both.
 //
 //nolint:gosmopolitan // The fixture is Chinese text.
 func TestSimulation_VimJumpTakesTheAccurateReadWhenItLands(t *testing.T) {
@@ -5147,36 +5147,35 @@ func TestSimulation_VimJumpTakesTheAccurateReadWhenItLands(t *testing.T) {
 	sim.waitMode(domain.ModeVim)
 
 	sim.press("s", "z", "h")
-	vimFrameShows(sim, "zh matched in Shenzhen alone", func(f ports.VimFrame) bool {
-		return len(f.Matches) == 1 && len(f.Labels) == 1
+	vimFrameShows(sim, "zh matched in Shenzhen alone, no labels yet", func(f ports.VimFrame) bool {
+		return len(f.Matches) == 1 && len(f.Labels) == 0
 	})
 
-	before, _ := sim.overlay.lastVimFrame()
-	kept := before.Labels[0]
+	sim.press("a")
+	vimFrameShows(sim, "a typed into the jump", func(f ports.VimFrame) bool {
+		return f.Status.Text == "szha" && len(f.Matches) == 0
+	})
 
+	sim.press("Backspace")
 	close(release)
 
-	var other ports.VimLabel
+	var city ports.VimLabel
 
-	vimFrameShows(
-		sim,
-		"zh matched in 圳 too, Shenzhen's label kept",
-		func(frame ports.VimFrame) bool {
-			if len(frame.Matches) != 2 || len(frame.Labels) != 2 ||
-				!slices.Contains(frame.Labels, kept) {
-				return false
+	vimFrameShows(sim, "zh matched in 圳 too, both labeled", func(f ports.VimFrame) bool {
+		if len(f.Matches) != 2 || len(f.Labels) != 2 {
+			return false
+		}
+
+		for _, label := range f.Labels {
+			if label.Bounds.Min.X >= 300 {
+				city = label
 			}
+		}
 
-			other = frame.Labels[0]
-			if other == kept {
-				other = frame.Labels[1]
-			}
+		return city.Text != ""
+	})
 
-			return true
-		},
-	)
-
-	sim.press(other.Text)
+	sim.press(city.Text)
 	vimFrameShows(sim, "cursor on the 圳", func(f ports.VimFrame) bool {
 		return f.Cursor == image.Rect(315, 100, 330, 130)
 	})

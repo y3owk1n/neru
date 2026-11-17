@@ -19,7 +19,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/keyvocab"
 	"github.com/y3owk1n/neru/internal/domain/screentext"
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // vimReturn is Return in vim's notation, and vimEscape Escape.
@@ -484,7 +483,7 @@ func (h *handlerState) startVimJump() {
 	}
 
 	if session.jump.query != "" {
-		h.findVimJumpTargets(nil)
+		h.findVimJumpTargets()
 	}
 
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
@@ -704,7 +703,9 @@ type vimJump struct {
 
 // handleVimJumpKey reads an s jump's keys. A label jumps to its match,
 // Return to the nearest, Backspace drops the last character typed and
-// Escape gives up. Any other character adds to the text to find.
+// Escape gives up. Any other character adds to the text to find, and so does
+// a label's letter until the accurate read lands, since the text may not yet
+// hold what is being typed, such as Chinese the fast read cannot read.
 func (h *handlerState) handleVimJumpKey(key vim.Key) {
 	session := h.vim
 	jump := session.jump
@@ -730,11 +731,11 @@ func (h *handlerState) handleVimJumpKey(key vim.Key) {
 		_, last := utf8.DecodeLastRuneInString(jump.query)
 		jump.query = jump.query[:len(jump.query)-last]
 
-		h.findVimJumpTargets(nil)
+		h.findVimJumpTargets()
 	case size != len(key):
 		return
 	default:
-		if index := slices.Index(jump.labels, string(key)); index >= 0 {
+		if index := slices.Index(jump.labels, string(key)); index >= 0 && !session.reading {
 			h.vimJumpTo(jump.matches[index][0])
 
 			return
@@ -742,7 +743,7 @@ func (h *handlerState) handleVimJumpKey(key vim.Key) {
 
 		jump.query += string(key)
 
-		h.findVimJumpTargets(nil)
+		h.findVimJumpTargets()
 	}
 
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
@@ -755,9 +756,8 @@ const vimJumpLabelChars = "asdfghjklqwertyuiopzxcvbnm"
 // screentext.Fold spells it, ignoring case unless the text has a capital. A
 // match starts where a character's spelling does, so en finds no 深 (Shen).
 // It labels the matches nearest the cursor first, and never with the
-// character after a match, so typing more of the text never jumps. A label
-// in keep still drawn over a match's spot keeps its letter.
-func (h *handlerState) findVimJumpTargets(keep []ports.VimLabel) {
+// character after a match, so typing more of the text never jumps.
+func (h *handlerState) findVimJumpTargets() {
 	session := h.vim
 	jump := session.jump
 	jump.matches, jump.labels = nil, nil
@@ -772,8 +772,8 @@ func (h *handlerState) findVimJumpTargets(keep []ports.VimLabel) {
 		query, haystack = strings.ToLower(query), strings.ToLower(haystack)
 	}
 
-	// taken holds the letters a new label cannot be: the character after
-	// each match, and each letter a label kept.
+	// taken holds the letters no label may be: the character after each
+	// match.
 	taken := map[rune]bool{}
 
 	for scanFrom := 0; ; {
@@ -805,32 +805,9 @@ func (h *handlerState) findVimJumpTargets(keep []ports.VimLabel) {
 	})
 
 	jump.labels = make([]string, len(jump.matches))
-	text := session.host.Screen()
-
-	for index, match := range jump.matches {
-		box, ok := vimJumpLabelBox(text, match)
-		if !ok {
-			continue
-		}
-
-		for _, label := range keep {
-			letter, _ := utf8.DecodeRuneInString(label.Text)
-			if !taken[letter] && box.Overlaps(label.Bounds) {
-				jump.labels[index] = label.Text
-				taken[letter] = true
-
-				break
-			}
-		}
-	}
-
 	free := []rune(vimJumpLabelChars)
 
 	for index := range jump.matches {
-		if jump.labels[index] != "" {
-			continue
-		}
-
 		for len(free) > 0 && taken[free[0]] {
 			free = free[1:]
 		}
@@ -842,19 +819,6 @@ func (h *handlerState) findVimJumpTargets(keep []ports.VimLabel) {
 		jump.labels[index] = string(free[0])
 		free = free[1:]
 	}
-}
-
-// vimJumpLabels returns each of a jump's labels with the box it is drawn in.
-func vimJumpLabels(text *screentext.Text, jump *vimJump) []ports.VimLabel {
-	var labels []ports.VimLabel
-
-	for index, match := range jump.matches {
-		if box, ok := vimJumpLabelBox(text, match); ok && jump.labels[index] != "" {
-			labels = append(labels, ports.VimLabel{Text: jump.labels[index], Bounds: box})
-		}
-	}
-
-	return labels
 }
 
 // vimJumpLabelBox is where a jump match's label goes: over the character
