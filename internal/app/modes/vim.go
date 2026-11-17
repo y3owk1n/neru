@@ -498,9 +498,8 @@ func (h *Handler) applyVimRefine(
 
 // swapInRefinedVimText replaces the text with the accurate read when one is
 // waiting and nothing would be cut off by it: no command half typed and no
-// typing into the app. An open jump matches again in the new read, and a
-// label still drawn over the same spot keeps its letter. It reports whether
-// it redrew.
+// typing into the app. An open jump matches again in the new read, whose
+// labels it then draws. It reports whether it redrew.
 func (h *handlerState) swapInRefinedVimText() bool {
 	session := h.vim
 	if session.refined == nil || !session.machine.Idle() || session.typing {
@@ -510,15 +509,10 @@ func (h *handlerState) swapInRefinedVimText() bool {
 	text := session.refined
 	session.refined = nil
 
-	var labels []ports.VimLabel
-	if session.jump != nil {
-		labels = vimJumpLabels(session.host.Screen(), session.jump)
-	}
-
 	h.replaceVimText(text, text.Nearest(h.vimCursorPoint()))
 
 	if session.jump != nil {
-		h.findVimJumpTargets(labels)
+		h.findVimJumpTargets()
 	}
 
 	h.redrawFrame(h.vimFrame(), "update vim overlay")
@@ -1223,13 +1217,23 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 	}
 
 	if jump := session.jump; jump != nil {
-		for _, match := range jump.matches {
-			if r, ok := lineRect(text, match[0], match[1]); ok {
-				frame.Matches = append(frame.Matches, r)
+		// Labels wait for the accurate read, since a letter adds to the text
+		// until it lands.
+		labeled := !session.reading
+
+		for index, match := range jump.matches {
+			if box, ok := lineRect(text, match[0], match[1]); ok {
+				frame.Matches = append(frame.Matches, box)
+			}
+
+			box, ok := vimJumpLabelBox(text, match)
+			if ok && labeled && jump.labels[index] != "" {
+				frame.Labels = append(
+					frame.Labels,
+					ports.VimLabel{Text: jump.labels[index], Bounds: box},
+				)
 			}
 		}
-
-		frame.Labels = vimJumpLabels(text, jump)
 	} else if machine.Substituting() {
 		// The :s being typed shows what it would change, before Return.
 		changes, _ := machine.Preview(0, text.Len())
