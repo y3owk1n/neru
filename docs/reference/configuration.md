@@ -85,6 +85,7 @@ see [Getting started](../guide/getting-started.md#bind-your-first-hotkey).
 | Named      | `Space`, `Return`, `Enter`, `Escape`, `Tab`, `Delete`, `Backspace`                                    |
 | Navigation | `Up`, `Down`, `Left`, `Right`, `Home`, `End`, `PageUp`, `PageDown`, `Insert` (Linux and Windows only) |
 | Function   | `F1` to `F24` (`F21` to `F24` on Linux and Windows only)                                              |
+| Mouse      | `MouseLeft`, `MouseRight`, `MouseMiddle` (macOS only, mode tables only)                               |
 
 - **Shift with a symbol** is written as the character Shift produces. On
   Linux, `Shift` plus the `;` key is `"Shift+:"`, not `"Shift+;"`. Letters are
@@ -93,6 +94,34 @@ see [Getting started](../guide/getting-started.md#bind-your-first-hotkey).
   forward-delete key has no hotkey name.
 - The full key list with platform behavior is under
   [`neru action feed`](cli.md#neru-action-feed).
+
+#### Mouse buttons
+
+A mouse button is reported only while a mode is active, so it belongs in a
+`[<mode>.hotkeys]` table. The main use is dismissing an overlay when you click
+with a real mouse:
+
+```toml
+[recursive_grid.hotkeys]
+"MouseLeft" = "idle"   # clicking anywhere closes the grid
+```
+
+It is a key you can bind, not a keystroke, and four things follow from that:
+
+- **The click is never swallowed.** The binding runs *in addition to* the click
+  reaching the application underneath.
+- **A modifier cannot be combined with one.** A click reports the button alone
+  however it was modified, so `"Cmd+MouseLeft"` is refused rather than accepted
+  and never fired. So is a button in the global `[hotkeys]` table, which is
+  resolved to a key code no button has.
+- **It is a press, not a hold.** No release is reported, so `held_repeat` never
+  applies: a button bound to `action scroll_down` fires once per click.
+- **Neru's own clicks do not trigger it.** `action left_click` and
+  `--action left_click` are marked as Neru's, so a binding cannot recurse.
+
+Like every other binding, they are ignored while the hint search input is open
+(`/` in hints mode), which takes the whole key stream until `Enter` or
+`Escape`.
 
 ### Merging behavior
 

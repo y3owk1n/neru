@@ -29,7 +29,45 @@ const (
 	// reaches a binding only on Linux and Windows. It stays in the shared set
 	// for the same reason F21-F24 do.
 	KeyInsert = "Insert"
+	// KeyMouseLeft, KeyMouseRight and KeyMouseMiddle are the physical mouse
+	// buttons. They are named keys because a mode binds them the way it binds a
+	// key, but they are not keystrokes: no virtual keycode names them, and only
+	// the macOS tap reports them today. Two consequences callers rely on — a
+	// mode observes a button without consuming it, so the click still reaches
+	// the application underneath, and a button carries no modifier prefix, so a
+	// modified click reports the button alone.
+	KeyMouseLeft   = "MouseLeft"
+	KeyMouseRight  = "MouseRight"
+	KeyMouseMiddle = "MouseMiddle"
 )
+
+// mouseButtons is the subset of the vocabulary that names a mouse button
+// rather than a keystroke. The validators read it to refuse the two shapes a
+// button cannot take: a global hotkey, which is resolved to a virtual keycode
+// that no button has, and a modifier combo, which no tap ever emits.
+var mouseButtons = []string{KeyMouseLeft, KeyMouseRight, KeyMouseMiddle}
+
+// mouseButtonIndex indexes the buttons by lowercase spelling, the way
+// namedKeyDisplay indexes the vocabulary, so the set is derived from the
+// declaration above rather than lowercased at every lookup.
+var mouseButtonIndex = lowercaseIndex(mouseButtons)
+
+// IsMouseButton reports whether name is one of the mouse buttons,
+// case-insensitively.
+func IsMouseButton(name string) bool {
+	_, ok := mouseButtonIndex[strings.ToLower(name)]
+
+	return ok
+}
+
+// MouseButtons returns every mouse button in display form, in declaration
+// order, so a caller listing them in a diagnostic reads the declaration rather
+// than restating it. Declaration order is left, right, middle — the order the
+// buttons are usually spoken in, and the one a reader of the diagnostic is
+// least surprised by.
+func MouseButtons() []string {
+	return slices.Clone(mouseButtons)
+}
 
 // shorthandEscape is the one spelling that resolves to a named key without
 // being one. It is deliberately absent from namedKeys. A keystroke arriving as
@@ -83,6 +121,9 @@ func buildNamedKeys() []string {
 		KeyPageUp,
 		KeyPageDown,
 		KeyInsert,
+		KeyMouseLeft,
+		KeyMouseRight,
+		KeyMouseMiddle,
 	}
 
 	for index := 1; index <= functionKeyCount; index++ {
