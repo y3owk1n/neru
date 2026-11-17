@@ -400,9 +400,9 @@ func (h *handlerState) handleSearchInputKey(key string) {
 	}
 
 	ctx := h.hints.Context
-	normalizedKey := keyvocab.NormalizeKeyForComparison(key)
 
-	switch normalizedKey {
+	// Shift held while typing capitals still edits, confirms and cancels.
+	switch strings.TrimPrefix(keyvocab.NormalizeKeyForComparison(key), shiftPrefix) {
 	case keyvocab.KeyNameEscape:
 		h.cancelHintSearch()
 
@@ -420,7 +420,7 @@ func (h *handlerState) handleSearchInputKey(key string) {
 		}
 
 		return
-	case keyvocab.KeyNameSpace, shiftPrefix + keyvocab.KeyNameSpace:
+	case keyvocab.KeyNameSpace:
 		ctx.SetSearchQuery(ctx.SearchQuery() + " ")
 		h.applyHintSearchFilter()
 

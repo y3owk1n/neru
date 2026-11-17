@@ -102,12 +102,13 @@ func TestHintsModeRefreshForThemeChange_RedrawsAnOpenSearchBox(t *testing.T) {
 	}
 }
 
-// TestHandleSearchInputKey_KeepsShiftedKeysAndSpaces pins the query text
+// TestHandleSearchInputKey_TakesKeysTypedWithShiftHeld pins the query text
 // itself, which matching cannot. Search ignores case, so a capital typed as
 // "Shift+c" and kept as "c" would still find the same elements. The taps name
 // a key typed with Shift held this way, and a shifted digit or symbol is the
-// character it types on a US layout.
-func TestHandleSearchInputKey_KeepsShiftedKeysAndSpaces(t *testing.T) {
+// character it types on a US layout. Backspace and Escape still edit and
+// cancel with Shift held.
+func TestHandleSearchInputKey_TakesKeysTypedWithShiftHeld(t *testing.T) {
 	t.Parallel()
 
 	overlayPort := &portmocks.MockOverlayPort{}
@@ -122,11 +123,17 @@ func TestHandleSearchInputKey_KeepsShiftedKeysAndSpaces(t *testing.T) {
 		t.Fatalf("startHintSearch() error = %v", err)
 	}
 
-	for _, key := range []string{"Shift+c", "a", "Shift+Space", "shift+b", "Shift+1"} {
+	for _, key := range []string{"Shift+c", "a", "Shift+Space", "shift+b", "Shift+1", "Shift+1", "Shift+Delete"} {
 		handler.handleSearchInputKey(key)
 	}
 
 	if got := handler.hints.Context.SearchQuery(); got != "Ca B!" {
 		t.Errorf("query = %q, want %q", got, "Ca B!")
+	}
+
+	handler.handleSearchInputKey("Shift+Escape")
+
+	if handler.hints.Context.SearchActive() {
+		t.Error("Shift+Escape left the search open")
 	}
 }
