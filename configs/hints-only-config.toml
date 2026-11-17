@@ -17,6 +17,7 @@ detect_mission_control = false             # Skip frontmost window hints when Mi
 additional_menubar_hints_targets = [
     "com.apple.TextInputMenuAgent",
     "com.apple.controlcenter",
+    "com.apple.MenuBarAgent",
     "com.apple.systemuiserver",
     "com.y3owk1n.neru",
 ]

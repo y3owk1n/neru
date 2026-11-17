@@ -6,6 +6,7 @@ func applyPlatformDefaults(cfg *Config) {
 	cfg.Hints.AdditionalMenubarHintsTargets = append(cfg.Hints.AdditionalMenubarHintsTargets,
 		"com.apple.TextInputMenuAgent",
 		"com.apple.controlcenter",
+		"com.apple.MenuBarAgent",
 		"com.apple.systemuiserver",
 		"com.y3owk1n.neru",
 	)

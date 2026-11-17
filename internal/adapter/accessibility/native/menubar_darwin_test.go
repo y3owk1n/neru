@@ -40,6 +40,21 @@ func TestIsAdditionalMenuBarElement(t *testing.T) {
 			info: elementInfo(string(element.RoleMenuItem), ""),
 			want: true,
 		},
+		{
+			name: "allows window hosting menu extras",
+			info: elementInfo(string(element.RoleWindow), "AXDialog"),
+			want: true,
+		},
+		{
+			name: "allows group hosting menu extras",
+			info: elementInfo(string(element.RoleGroup), "AXHostingView"),
+			want: true,
+		},
+		{
+			name: "rejects buttons",
+			info: elementInfo(string(element.RoleButton), ""),
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {

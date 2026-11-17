@@ -144,6 +144,7 @@ and add yours:
 additional_menubar_hints_targets = [
     "com.apple.TextInputMenuAgent",
     "com.apple.controlcenter",
+    "com.apple.MenuBarAgent",
     "com.apple.systemuiserver",
     "com.y3owk1n.neru",
     "com.example.MenuBarApp",   # your app

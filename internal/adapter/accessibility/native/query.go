@@ -155,10 +155,15 @@ func ClickableElementsFromBundleID(
 	return elements, nil
 }
 
+// isAdditionalMenuBarElement reports whether the tree walk keeps an element of
+// an additional menu bar target. It keeps windows and groups because macOS 27
+// MenuBarAgent puts each menu extra inside an AXWindow and two AXGroups, with
+// no AXMenuBar above it.
 func isAdditionalMenuBarElement(info *ElementInfo) bool {
 	//nolint:exhaustive
 	switch element.Role(info.Role()) {
-	case element.RoleMenuBar, element.RoleMenu, element.RoleMenuItem:
+	case element.RoleMenuBar, element.RoleMenu, element.RoleMenuItem,
+		element.RoleWindow, element.RoleGroup:
 		return true
 	case element.RoleMenuBarItem:
 		return info.Subrole() == string(element.SubroleMenuExtra)
