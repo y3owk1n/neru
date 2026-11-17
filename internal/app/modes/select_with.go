@@ -89,7 +89,7 @@ func (h *handlerState) selectWithEntry(point image.Point, entry configpkg.Bindin
 		zap.String("entry", entry.Key),
 		zap.Int("step_count", len(entry.Steps)))
 
-	if !copiesBeforeOtherSteps(entry.Steps) {
+	if !copiesBeforeOtherSteps(entry.Steps, isCopyTextAction(h.hints.Context.PendingAction())) {
 		h.selectedHintRereadable = false
 	}
 
@@ -327,14 +327,16 @@ func (h *handlerState) rememberSelectedHint(elem *element.Element) {
 
 // copiesBeforeOtherSteps reports whether every copy_text step in steps comes
 // before any other step, so no click or key a step sends can have changed
-// the screen by the time the hint is read again.
-func copiesBeforeOtherSteps(steps []string) bool {
+// the screen by the time the hint is read again. In a copy_text session,
+// session_action is a copy_text step too.
+func copiesBeforeOtherSteps(steps []string, sessionCopies bool) bool {
 	otherRan := false
 
 	for _, step := range steps {
 		fields := strings.Fields(step)
 		copies := len(fields) == 2 && fields[0] == domain.CommandAction &&
-			action.IsCopyTextAction(fields[1])
+			(action.IsCopyTextAction(fields[1]) ||
+				sessionCopies && action.IsSessionActionAction(fields[1]))
 
 		if copies && otherRan {
 			return false
