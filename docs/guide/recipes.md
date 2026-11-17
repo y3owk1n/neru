@@ -154,6 +154,12 @@ or open hints with search showing:
 - Typing filters by element title, description or value. `Space` is allowed.
   Type text in another script by its romanization, so `shenzhen` finds 深圳
   and `boris` finds Борис.
+- The initials of words match too. Each letter lands on the start of the next
+  word or right after the letter before it, so `sas` finds "Save As", `orf`
+  finds "openRecentFile" and `sz` finds 深圳.
+- `Return` and `Tab` take the best match first. That is the whole title, then
+  a title that starts with the text, then a word that does, then initials,
+  and last a match inside a word.
 - A label typed after a space narrows the matches to that label. `save a`
   keeps the `save` matches whose label starts with `A`, along with any text
   still matching `save a`. Once one is left, `Return` acts on it.
@@ -170,7 +176,7 @@ or open hints with search showing:
 | ------- | ------------------------------------------------- | --------------------------------------- |
 | None    | Every hint comes back                             | Every hint comes back                   |
 | One     | Moves the cursor to it and runs the action        | Moves the cursor to it                  |
-| Several | The matches keep their labels, so type one        | Moves the cursor to the first match     |
+| Several | The matches keep their labels, so type one        | Moves the cursor to the best match      |
 
 Search needs element text, so it does not work with the `contour` or `segment`
 strategy.

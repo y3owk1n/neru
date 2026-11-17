@@ -1,8 +1,10 @@
 package hint
 
 import (
+	"cmp"
 	"context"
 	"image"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -236,34 +238,90 @@ type Collection struct {
 }
 
 // searchText is an element text as search matches it: spelled in lowercase
-// ASCII by screentext.Fold, with the character each byte came from.
+// ASCII by screentext.Fold, with the character each byte came from and the
+// bytes that start a word.
 type searchText struct {
-	text  string
-	spans [][2]int
+	text   string
+	spans  [][2]int
+	starts []bool
 }
 
 func foldForSearch(text string) searchText {
 	folded, spans := screentext.Fold(text)
 
-	return searchText{text: strings.ToLower(folded), spans: spans}
+	return searchText{
+		text:   strings.ToLower(folded),
+		spans:  spans,
+		starts: screentext.WordStarts(folded),
+	}
 }
 
-// contains reports whether query occurs in t where a character's spelling
-// starts, so en finds no 深 (Shen).
-func (t searchText) contains(query string) bool {
+// matchRank is how well a query matches a text, best first.
+type matchRank int
+
+const (
+	// rankExact is the whole text.
+	rankExact matchRank = iota
+	// rankPrefix is the start of the text.
+	rankPrefix
+	// rankWordStart is the start of a word in it.
+	rankWordStart
+	// rankInitials is the initials of its words (screentext.Initials).
+	rankInitials
+	// rankInWord is inside a word, starting where a character does, so en
+	// finds no 深 (Shen).
+	rankInWord
+	// rankNone is no match.
+	rankNone
+)
+
+// rank is how well query matches t.
+func (t searchText) rank(query string) matchRank {
+	switch {
+	case t.text == query:
+		return rankExact
+	case strings.HasPrefix(t.text, query):
+		return rankPrefix
+	}
+
+	inWord := false
+
 	for scanFrom := 0; ; {
 		found := strings.Index(t.text[scanFrom:], query)
 		if found < 0 {
-			return false
+			break
 		}
 
 		start := scanFrom + found
-		if start == 0 || t.spans[start] != t.spans[start-1] {
-			return true
+		if t.starts[start] {
+			return rankWordStart
 		}
 
+		inWord = inWord || start == 0 || t.spans[start] != t.spans[start-1]
 		scanFrom = start + 1
 	}
+
+	for at := range len(t.text) {
+		if len(screentext.Initials(t.text, t.starts, query, at)) > 0 {
+			return rankInitials
+		}
+	}
+
+	if inWord {
+		return rankInWord
+	}
+
+	return rankNone
+}
+
+// bestRank is how well query matches the best of texts.
+func bestRank(texts []searchText, query string) matchRank {
+	best := rankNone
+	for _, text := range texts {
+		best = min(best, text.rank(query))
+	}
+
+	return best
 }
 
 // NewCollection creates a new hint collection with indexed lookups.
@@ -303,14 +361,15 @@ func (c *Collection) FilterByPrefix(prefix string) []*Interface {
 	return c.trie.FindByPrefix(prefix)
 }
 
-// FilterBySearch returns the hints whose element text contains query, both
-// as screentext.Fold spells them in lowercase, so cafe finds Café and nihao
-// finds 你好. When
-// query has a space, it also returns the hints whose text contains the words
-// before the last space and whose label starts with the word after it, so
-// "save a" keeps the "save" matches labeled A. A label match never hides a
-// text match. Hints kept by label carry the typed label as their matched
-// prefix.
+// FilterBySearch returns the hints whose element text contains query, or
+// matches it by its words' initials, both as screentext.Fold spells them in
+// lowercase, so cafe finds Café, nihao and nh find 你好, and sas finds Save
+// As. The best matches come first: the whole text, then its start, the start
+// of a word, the initials and last a match inside a word. When query has a
+// space, it also returns the hints whose text matches the words before the
+// last space and whose label starts with the word after it, so "save a" keeps
+// the "save" matches labeled A. A label match never hides a text match. Hints
+// kept by label carry the typed label as their matched prefix.
 func (c *Collection) FilterBySearch(query string) *Collection {
 	if query == "" {
 		return c
@@ -328,25 +387,47 @@ func (c *Collection) FilterBySearch(query string) *Collection {
 		labelPrefix = strings.ToUpper(query[space+1:])
 	}
 
-	filtered := make([]*Interface, 0, len(c.hints))
+	type rankedHint struct {
+		hint *Interface
+		rank matchRank
+	}
+
+	ranked := make([]rankedHint, 0, len(c.hints))
 
 	for i, texts := range c.normalizedSearchTexts() {
 		hint := c.hints[i]
 
-		if readsLabel && strings.HasPrefix(hint.labelUpper, labelPrefix) &&
-			(normalizedHead == "" || containsAny(texts, normalizedHead)) {
-			if labelPrefix != "" {
-				hint = hint.WithMatchedPrefix(labelPrefix)
+		if readsLabel && strings.HasPrefix(hint.labelUpper, labelPrefix) {
+			rank := rankExact
+			if normalizedHead != "" {
+				rank = bestRank(texts, normalizedHead)
 			}
 
-			filtered = append(filtered, hint)
+			if rank != rankNone {
+				// The whole query can match better than the words before
+				// the label, as save as matches Save As whole.
+				rank = min(rank, bestRank(texts, normalizedQuery))
 
-			continue
+				if labelPrefix != "" {
+					hint = hint.WithMatchedPrefix(labelPrefix)
+				}
+
+				ranked = append(ranked, rankedHint{hint: hint, rank: rank})
+
+				continue
+			}
 		}
 
-		if containsAny(texts, normalizedQuery) {
-			filtered = append(filtered, hint)
+		if rank := bestRank(texts, normalizedQuery); rank != rankNone {
+			ranked = append(ranked, rankedHint{hint: hint, rank: rank})
 		}
+	}
+
+	slices.SortStableFunc(ranked, func(a, b rankedHint) int { return cmp.Compare(a.rank, b.rank) })
+
+	filtered := make([]*Interface, len(ranked))
+	for i, entry := range ranked {
+		filtered[i] = entry.hint
 	}
 
 	return NewCollection(filtered)
@@ -371,16 +452,6 @@ func (c *Collection) WithoutMatchedPrefixes() *Collection {
 	}
 
 	return NewCollection(cleared)
-}
-
-func containsAny(texts []searchText, query string) bool {
-	for _, text := range texts {
-		if text.contains(query) {
-			return true
-		}
-	}
-
-	return false
 }
 
 // Count returns the number of hints in the collection.
