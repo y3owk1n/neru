@@ -4816,6 +4816,54 @@ func TestSimulation_VimSubstitutes(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimSubstitutesTextInAnyScriptByItsSpelling covers :s typed
+// in ASCII on other scripts. sh takes all of 深 (Shen), and ki all of กิ (ki),
+// whose vowel sign stays with its consonant, so each is selected with one
+// Shift+Right and typed over.
+//
+//nolint:gosmopolitan // The fixture is Chinese and Thai text.
+func TestSimulation_VimSubstitutesTextInAnyScriptByItsSpelling(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		"深圳":  image.Rect(100, 100, 130, 130),
+		"กิน": image.Rect(100, 200, 130, 230),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "0")
+	vimFrameShows(sim, "cursor on 深", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 100, 115, 130)
+	})
+
+	keys := vimExKeys("s/sh/X/")
+	sim.press(keys[:len(keys)-1]...)
+	vimFrameShows(sim, "all of 深 highlighted", func(f ports.VimFrame) bool {
+		return slices.Equal(f.Matches, []image.Rectangle{image.Rect(100, 100, 115, 130)})
+	})
+
+	sim.press(vimKeyReturn)
+	sim.waitFor("深 typed over", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(), []string{vimKeyExtend, "X"})
+	})
+
+	sim.press("j")
+	vimFrameShows(sim, "cursor on กิ", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(100, 200, 115, 230)
+	})
+
+	keys = vimExKeys("s/ki/Y/")
+	sim.press(keys[:len(keys)-1]...)
+	vimFrameShows(sim, "all of กิ highlighted", func(f ports.VimFrame) bool {
+		return slices.Equal(f.Matches, []image.Rectangle{image.Rect(100, 200, 115, 230)})
+	})
+
+	sim.press(vimKeyReturn)
+	sim.waitFor("กิ typed over", func() bool {
+		return slices.Equal(sim.keyFeed.FedKeys(), []string{vimKeyExtend, "X", vimKeyExtend, "Y"})
+	})
+}
+
 // vimSubstituteHarness opens vim mode over two lines, what and whom, whose
 // screen shows whom changed to zom once landed is set.
 func vimSubstituteHarness(t *testing.T, landed *atomic.Bool) *simHarness {
