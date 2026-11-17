@@ -203,7 +203,7 @@ else
 
     # scripts/update-nix-hashes.sh writes this, and the four zip hashes above.
     # The nix-hashes workflow runs it after every push to main.
-    vendorHash = "sha256-Q97SA2eousYJayB4Up+F0nhKdgMyvKqUdj5plHXYfZI=";
+    vendorHash = "sha256-delgfAczPcV7WZU2/kJx9csUft92EAyrY6A/oJbUj8o=";
 
     ldflags = [
       "-s"
