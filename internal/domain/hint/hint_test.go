@@ -4,6 +4,7 @@ import (
 	"context"
 	"image"
 	"maps"
+	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -11,6 +12,7 @@ import (
 )
 
 const (
+	saveAsTitle   = "Save As"
 	dirNormalStr  = "normal"
 	dirReverseStr = "reverse"
 )
@@ -206,6 +208,98 @@ func TestCollection_FilterBySearch_Normalizes(t *testing.T) {
 			"ao",
 			got,
 		)
+	}
+}
+
+// TestCollection_FilterBySearch_MatchesInitials covers a query whose letters
+// land on word starts in order: after a space, on a camelCase hump or on a
+// syllable of Chinese, which Fold spells with a capital. A letter can also
+// continue the word. One that lands inside a word, or skips a word, matches
+// nothing.
+//
+//nolint:gosmopolitan // The fixtures are Chinese text.
+func TestCollection_FilterBySearch_MatchesInitials(t *testing.T) {
+	titles := map[string]string{
+		"AA": saveAsTitle, "AB": "openRecentFile", "AC": "深圳", "AD": "Search",
+		"AE": "XMLParser", "AF": "File2",
+	}
+
+	hints := make([]*hint.Interface, 0, len(titles))
+	for label, title := range titles {
+		elem, _ := element.NewElement(
+			element.ID(
+				label,
+			),
+			image.Rect(10, 10, 50, 50),
+			element.RoleButton,
+			element.WithTitle(title),
+		)
+		h, _ := hint.NewHint(label, elem, image.Point{X: 30, Y: 30})
+		hints = append(hints, h)
+	}
+
+	collection := hint.NewCollection(hints)
+
+	tests := []struct {
+		query string
+		want  []string
+	}{
+		{query: "sas", want: []string{"AA"}},
+		{query: "sava", want: []string{"AA"}},
+		{query: "orf", want: []string{"AB"}},
+		{query: "sz", want: []string{"AC"}},
+		{query: "sea", want: []string{"AD"}},
+		{query: "xp", want: []string{"AE"}},
+		{query: "f2", want: []string{"AF"}},
+		{query: "ae", want: nil},
+		{query: "of", want: nil},
+	}
+
+	for _, test := range tests {
+		var got []string
+		for _, h := range collection.FilterBySearch(test.query).All() {
+			got = append(got, h.Label())
+		}
+
+		slices.Sort(got)
+
+		if !slices.Equal(got, test.want) {
+			t.Errorf("FilterBySearch(%q) = %v, want %v", test.query, got, test.want)
+		}
+	}
+}
+
+// TestCollection_FilterBySearch_RanksTheBestMatchesFirst covers the order of
+// the matches, which Return and Tab follow: the whole title, then its start,
+// the start of a word, the initials and last a match inside a word. The order
+// the hints came in, the reverse of that, keeps no match ahead of a better
+// one.
+func TestCollection_FilterBySearch_RanksTheBestMatchesFirst(t *testing.T) {
+	titles := []string{"Unsaved", "Sa Ve", "Auto Save", saveAsTitle, "Save"}
+
+	hints := make([]*hint.Interface, 0, len(titles))
+	for index, title := range titles {
+		label := string(rune('A' + index))
+		elem, _ := element.NewElement(
+			element.ID(
+				title,
+			),
+			image.Rect(10, 10, 50, 50),
+			element.RoleButton,
+			element.WithTitle(title),
+		)
+		h, _ := hint.NewHint(label, elem, image.Point{X: 30, Y: 30})
+		hints = append(hints, h)
+	}
+
+	got := make([]string, 0, len(titles))
+	for _, h := range hint.NewCollection(hints).FilterBySearch("save").All() {
+		got = append(got, h.Element().Title())
+	}
+
+	want := []string{"Save", saveAsTitle, "Auto Save", "Sa Ve", "Unsaved"}
+	if !slices.Equal(got, want) {
+		t.Errorf("FilterBySearch(%q) order = %v, want %v", "save", got, want)
 	}
 }
 

@@ -753,10 +753,11 @@ func (h *handlerState) handleVimJumpKey(key vim.Key) {
 const vimJumpLabelChars = "asdfghjklqwertyuiopzxcvbnm"
 
 // findVimJumpTargets finds where the text typed matches the screen as
-// screentext.Fold spells it, ignoring case unless the text has a capital. A
-// match starts where a character's spelling does, so en finds no 深 (Shen).
-// It labels the matches nearest the cursor first, and never with the
-// character after a match, so typing more of the text never jumps.
+// screentext.Fold spells it, ignoring case unless the text has a capital, as a
+// substring or by the initials of its words (screentext.Initials). A match
+// starts where a character's spelling does, so en finds no 深 (Shen).
+// It labels the matches nearest the cursor first, and never with a letter
+// that would continue a match, so typing more of the text never jumps.
 func (h *handlerState) findVimJumpTargets() {
 	session := h.vim
 	jump := session.jump
@@ -768,13 +769,28 @@ func (h *handlerState) findVimJumpTargets() {
 	}
 
 	haystack, chars := screentext.Fold(session.host.Screen().String())
+	starts := screentext.WordStarts(haystack)
+
 	if strings.ToLower(jump.query) == jump.query {
 		query, haystack = strings.ToLower(query), strings.ToLower(haystack)
 	}
 
-	// taken holds the letters no label may be: the character after each
-	// match.
+	// taken holds the letters that would continue a match, the one after it
+	// or the start of the next word, which no label may be.
 	taken := map[rune]bool{}
+	continues := func(last int) {
+		if last+1 < len(haystack) {
+			taken[unicode.ToLower(rune(haystack[last+1]))] = true
+		}
+
+		if next := screentext.NextWordStart(haystack, starts, last); next >= 0 {
+			taken[unicode.ToLower(rune(haystack[next]))] = true
+		}
+	}
+
+	// matched holds where each match starts, so the initials of the words do
+	// not match there a second time.
+	matched := map[int]bool{}
 
 	for scanFrom := 0; ; {
 		found := strings.Index(haystack[scanFrom:], query)
@@ -792,10 +808,26 @@ func (h *handlerState) findVimJumpTargets() {
 		// A match that ends inside a character's spelling takes the whole
 		// character, so sh takes all of 深.
 		jump.matches = append(jump.matches, [2]int{chars[start][0], chars[end-1][1]})
+		matched[start] = true
 
-		if end < len(haystack) {
-			taken[unicode.ToLower(rune(haystack[end]))] = true
+		continues(end - 1)
+	}
+
+	// The initials of words match too, so sas finds Save As and sz 深圳. A
+	// match ends where its last letter lands first, and every place it can
+	// land holds back the letters that would continue it, since sa matches
+	// the Sa of Save and continues to sas through the A of As.
+	for wordStart := range len(haystack) {
+		landed := screentext.Initials(haystack, starts, query, wordStart)
+		for _, last := range landed {
+			continues(last)
 		}
+
+		if len(landed) == 0 || matched[wordStart] {
+			continue
+		}
+
+		jump.matches = append(jump.matches, [2]int{chars[wordStart][0], chars[landed[0]][1]})
 	}
 
 	cursor := session.host.Cursor()

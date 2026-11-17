@@ -33,7 +33,8 @@ again:
                       session that holds it still
   gs{motion}          drag across the text, so the app selects it, then leave
   s{chars}{label}     jump to a match of any number of characters by its
-                      label, or to the nearest with Return
+                      label, or to the nearest with Return. The initials of
+                      words match too, so sas finds Save As
   ]i [i               move to the next or the previous icon
   Ctrl+W h j k l      move to the container left, below, above or right,
                       within the block the cursor is in until it ends

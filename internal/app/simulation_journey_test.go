@@ -5112,6 +5112,32 @@ func TestSimulation_VimSearchesTextInAnyScriptByItsSpelling(t *testing.T) {
 	})
 }
 
+// TestSimulation_VimJumpMatchesTheInitialsOfWords covers a jump to the
+// initials of words: sz finds 深圳 (ShenZhen), and sas finds Save As, from the
+// S of Save to the s of As.
+//
+//nolint:gosmopolitan // The fixture is Chinese text.
+func TestSimulation_VimJumpMatchesTheInitialsOfWords(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		copyTextTitle: image.Rect(100, 100, 160, 130),
+		"As":          image.Rect(175, 100, 205, 130),
+		"深圳":          image.Rect(300, 100, 330, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("s", "s", "z", "Return")
+	vimFrameShows(sim, "cursor on the 深", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(300, 100, 315, 130)
+	})
+
+	sim.press("s", "s", "a", "s")
+	vimFrameShows(sim, "one match from Save to As", func(f ports.VimFrame) bool {
+		return len(f.Matches) == 1 && f.Matches[0].Min.X == 100 && f.Matches[0].Max.X == 205
+	})
+}
+
 // TestSimulation_VimJumpTakesTheAccurateReadWhenItLands covers a jump open
 // when the accurate read lands with 深圳, which the fast read could not read.
 // Until then no label is drawn, so a label's letter, a, adds to the text. The
