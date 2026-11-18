@@ -112,8 +112,19 @@ func TestReadFrameLines_ReadsChineseInTheAccountsLanguage(t *testing.T) {
 		return lineBounds(a).Min.Y - lineBounds(b).Min.Y
 	})
 
-	if len(accurate) == 0 || !lineInOtherScript(accurate[0]) {
-		t.Fatalf("the accurate read's top line is not in Chinese: %v", accurate)
+	if len(accurate) == 0 {
+		t.Fatal("the accurate read read no lines")
+	}
+
+	var top strings.Builder
+	for _, piece := range accurate[0] {
+		top.WriteString(piece.Text)
+	}
+
+	// The line opens with 今天, written the same in Simplified and
+	// Traditional Chinese and in Japanese, so any of those engines reads it.
+	if !strings.Contains(top.String(), "今天") {
+		t.Fatalf("the accurate read's top line reads %q, want it to hold 今天", top.String())
 	}
 }
 
