@@ -139,7 +139,14 @@ cut into cells of even pitch at blank columns where it can be. The second read
 scales the frame to two pixels a point, because at one tesseract keeps eng's
 reading of small Chinese.
 Windows uses
-`Windows.Media.Ocr`, which reports no per-word confidence. On both, the
+`Windows.Media.Ocr`, which reports no per-word confidence. Its engine reads in
+the first account language with an OCR pack. A vim accurate read also reads
+the frame with an engine for the first Chinese, Japanese or Korean language in
+`GlobalizationPreferences.Languages`, built with `TryCreateFromLanguage`, and
+merges its lines as Linux does. With no such language, or with the first
+engine already reading it, vim keeps the fast read. Each engine runs on a
+worker thread of its own, and the accurate read has its own copy of the first
+engine, so a fast read never queues behind it. On both, the
 contour detector finds rectangles in the same frame, with its shipped
 thresholds. macOS places hints with Vision's fast recognizer over the whole
 frame, and at that size it misreads small text. `copy_text` reads a

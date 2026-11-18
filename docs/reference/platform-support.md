@@ -176,9 +176,15 @@ while a mode is open, where a key it typed would come back to it. So there,
 while a mode is open, vim mode refuses each edit and says why in its status
 line, and `action feed` is refused too.
 
-¹⁷ **Windows vim mode reads one language**, the first in the account's
-language list that has an OCR pack, since Windows.Media.Ocr builds its engine
-from that list. A pack for a language further down goes unused. The engine
+¹⁷ **Windows vim mode reads two languages at most.** The fast read uses the
+first language in the account's list that has an OCR pack, since
+Windows.Media.Ocr builds its engine from that list. The accurate read also
+reads with the first Chinese, Japanese or Korean language in the list when
+its OCR pack is installed. That language can stay below English, so apps keep
+their English menus. Until the accurate read finishes, a line in that
+language shows as noise or is missing. The Chinese engine reads small text
+less reliably at 100% scaling than at 200%. Other packs further down, such as
+Russian below English, go unused. The engine
 gives a box for each word only, so vim mode places each character by its own
 ink. In a word whose letters touch, the cursor can sit a little off a
 character.
@@ -255,8 +261,9 @@ These are boundaries, not gaps:
 
 **Windows**: one gap.
 
-- **Vim mode reads one language**, the first in the account's language list
-  that has an OCR pack. macOS reads every script it knows.
+- **Vim mode reads two languages at most**, the first in the account's
+  language list that has an OCR pack and the first Chinese, Japanese or Korean
+  one. macOS reads every script it knows.
 
 These are boundaries, not gaps:
 

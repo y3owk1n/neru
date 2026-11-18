@@ -6,6 +6,7 @@ import (
 	"context"
 	"image"
 	"math"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -157,9 +158,30 @@ func toRecognizedWords(words []platformwindows.OCRWord) []recognizedWord {
 	return converted
 }
 
-// AccurateReadDiffers is false. Windows.Media.Ocr has one level, so an
-// accurate read is the fast read again.
-func (a *Adapter) AccurateReadDiffers() bool { return false }
+// AccurateReadDiffers is true when the account lists a Chinese, Japanese or
+// Korean language the profile engine does not read in, the one thing an
+// accurate read adds here, since Windows.Media.Ocr has one level. It asks
+// what ReadLines asks, so the two never disagree.
+func (a *Adapter) AccurateReadDiffers() bool {
+	return a.wideRead()
+}
+
+// wideOCRWarned keeps a missing OCR pack to one warning.
+var wideOCRWarned sync.Once
+
+// wideRead reports whether an accurate read also reads with the engine for
+// the account's Chinese, Japanese or Korean language. An account listing one
+// that no OCR pack reads warns once and reads without it.
+func (a *Adapter) wideRead() bool {
+	ready, err := platformwindows.WideOCRReady()
+	if err != nil {
+		wideOCRWarned.Do(func() {
+			a.logger.Warn("Vim mode cannot read every language the account lists", zap.Error(err))
+		})
+	}
+
+	return ready
+}
 
 // CaptureExcludesOwnWindows is true from Windows 10 version 2004, where each
 // capture leaves Neru's own windows out through their display affinity. On an
@@ -372,8 +394,11 @@ func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error)
 
 // ReadLines captures region and has Windows.Media.Ocr read it a word at a
 // time, in the user's profile languages, and splits each word into its
-// characters by their ink (wordSymbols). The engine has one level, so a fast
-// and an accurate read are the same read.
+// characters by their ink (wordSymbols). An accurate read also reads it with
+// the account's Chinese, Japanese or Korean engine, as macOS reads in the
+// preferred one, since the profile engine drops a Chinese word or reads it as
+// Latin noise. The fast read, which a keystroke waits on, stays the profile
+// engine alone.
 func (a *Adapter) ReadLines(
 	ctx context.Context,
 	region image.Rectangle,
@@ -416,10 +441,37 @@ func (a *Adapter) readFrameLines(
 		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
 	}
 
-	words, stats, err := platformwindows.RecognizeText(ctx, img, platformwindows.OCRParams{
+	params := platformwindows.OCRParams{
 		WordLevel: true,
 		TimeoutMS: timeoutMS,
-	})
+		Accurate:  level == ports.TextAccurate,
+	}
+
+	// The wide engine lives on a thread of its own, so its read runs beside
+	// the profile one. Canceling on return stops it when the profile read fails.
+	readCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	type wideResult struct {
+		words []platformwindows.OCRWord
+		stats platformwindows.OCRStats
+		err   error
+	}
+
+	var wideDone chan wideResult
+
+	if level == ports.TextAccurate && a.wideRead() {
+		wideDone = make(chan wideResult, 1)
+		wideParams := params
+		wideParams.Wide = true
+
+		go func() {
+			words, stats, err := platformwindows.RecognizeText(readCtx, img, wideParams)
+			wideDone <- wideResult{words: words, stats: stats, err: err}
+		}()
+	}
+
+	words, stats, err := platformwindows.RecognizeText(readCtx, img, params)
 	if err != nil {
 		if derrors.IsNotSupported(err) {
 			return nil, err
@@ -437,10 +489,26 @@ func (a *Adapter) readFrameLines(
 
 	lines := linesFromWords(words, img, region)
 
+	var wideRecognition time.Duration
+
+	if wideDone != nil {
+		wide := <-wideDone
+		wideRecognition = wide.stats.Recognition
+
+		if wide.err != nil {
+			a.logger.Debug("Wide-language read failed, keeping the profile read",
+				zap.Duration("recognition", wideRecognition), zap.Error(wide.err))
+		} else {
+			lines = mergeSecondLines(lines, linesFromWords(wide.words, img, region))
+		}
+	}
+
 	a.logger.Debug("Read lines",
 		zap.Bool("accurate", level == ports.TextAccurate),
+		zap.Bool("wide_language", wideDone != nil),
 		zap.Int("line_count", len(lines)),
-		zap.Duration("recognition", stats.Recognition))
+		zap.Duration("recognition", stats.Recognition),
+		zap.Duration("wide_recognition", wideRecognition))
 
 	return lines, nil
 }
