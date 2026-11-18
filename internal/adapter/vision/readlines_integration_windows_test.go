@@ -9,10 +9,15 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	"go.uber.org/zap"
+
 	platformwindows "github.com/y3owk1n/neru/internal/adapter/platform/windows"
+	"github.com/y3owk1n/neru/internal/derrors"
+	"github.com/y3owk1n/neru/internal/ports"
 )
 
 // TestLinesFromWords_ReadsALineACharacterAtATime pins Windows vim mode's
@@ -61,6 +66,71 @@ func TestLinesFromWords_ReadsALineACharacterAtATime(t *testing.T) {
 
 	if !strings.Contains(text.String(), "Variousversions") {
 		t.Fatalf("line 0 reads %q, want it to start with Various versions", text.String())
+	}
+}
+
+// fixtureOpening opens cjk-16pt-2x.png's top line. It is written the same in
+// Simplified and Traditional Chinese and in Japanese, so any of those engines
+// reads it.
+//
+//nolint:gosmopolitan
+const fixtureOpening = "今天"
+
+// TestReadFrameLines_ReadsChineseInTheAccountsLanguage pins the wide read an
+// accurate read makes on Windows. With a language above Chinese in the
+// account's list, the profile engine drops the Chinese line of
+// cjk-16pt-2x.png, and the accurate read, which also reads with the engine
+// for the account's Chinese, Japanese or Korean language, gives it back.
+func TestReadFrameLines_ReadsChineseInTheAccountsLanguage(t *testing.T) {
+	ready, err := platformwindows.WideOCRReady()
+	if err != nil && !derrors.IsNotSupported(err) {
+		t.Fatalf("WideOCRReady: %v", err)
+	}
+
+	if !ready {
+		t.Skipf(
+			"skipping: no Chinese, Japanese or Korean OCR engine below the profile one (%v)",
+			err,
+		)
+	}
+
+	img := loadWindowsFixture(
+		t,
+		filepath.Join("..", "platform", "testdata", "scripts", "cjk-16pt-2x.png"),
+	)
+	region := image.Rect(0, 0, img.Rect.Dx()/2, img.Rect.Dy()/2)
+	adapter := &Adapter{logger: zap.NewNop()}
+
+	fast, err := adapter.readFrameLines(context.Background(), region, img, ports.TextFast)
+	if err != nil {
+		t.Fatalf("fast read: %v", err)
+	}
+
+	if slices.ContainsFunc(fast, lineInOtherScript) {
+		t.Fatal("the profile engine already reads the Chinese, so the fixture pins nothing here")
+	}
+
+	accurate, err := adapter.readFrameLines(context.Background(), region, img, ports.TextAccurate)
+	if err != nil {
+		t.Fatalf("accurate read: %v", err)
+	}
+
+	slices.SortFunc(accurate, func(a, b []ports.TextPiece) int {
+		return lineBounds(a).Min.Y - lineBounds(b).Min.Y
+	})
+
+	if len(accurate) == 0 {
+		t.Fatal("the accurate read found no lines")
+	}
+
+	var top strings.Builder
+	for _, piece := range accurate[0] {
+		top.WriteString(piece.Text)
+	}
+
+	if !strings.Contains(top.String(), fixtureOpening) {
+		t.Fatalf("the accurate read's top line reads %q, want it to hold %q",
+			top.String(), fixtureOpening)
 	}
 }
 
