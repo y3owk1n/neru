@@ -69,6 +69,13 @@ func TestLinesFromWords_ReadsALineACharacterAtATime(t *testing.T) {
 	}
 }
 
+// fixtureOpening opens cjk-16pt-2x.png's top line. It is written the same in
+// Simplified and Traditional Chinese and in Japanese, so any of those engines
+// reads it.
+//
+//nolint:gosmopolitan
+const fixtureOpening = "今天"
+
 // TestReadFrameLines_ReadsChineseInTheAccountsLanguage pins the wide read an
 // accurate read makes on Windows. With a language above Chinese in the
 // account's list, the profile engine drops the Chinese line of
@@ -113,7 +120,7 @@ func TestReadFrameLines_ReadsChineseInTheAccountsLanguage(t *testing.T) {
 	})
 
 	if len(accurate) == 0 {
-		t.Fatal("the accurate read read no lines")
+		t.Fatal("the accurate read found no lines")
 	}
 
 	var top strings.Builder
@@ -121,10 +128,9 @@ func TestReadFrameLines_ReadsChineseInTheAccountsLanguage(t *testing.T) {
 		top.WriteString(piece.Text)
 	}
 
-	// The line opens with 今天, written the same in Simplified and
-	// Traditional Chinese and in Japanese, so any of those engines reads it.
-	if !strings.Contains(top.String(), "今天") {
-		t.Fatalf("the accurate read's top line reads %q, want it to hold 今天", top.String())
+	if !strings.Contains(top.String(), fixtureOpening) {
+		t.Fatalf("the accurate read's top line reads %q, want it to hold %q",
+			top.String(), fixtureOpening)
 	}
 }
 
