@@ -842,9 +842,12 @@ func TestValidate_PinsTheActionVocabulary(t *testing.T) {
 		want string
 	}{
 		{
-			name: "unknown action",
+			name: "unknown action names what a mode accepts",
 			args: []string{"--action=nonsense"},
-			want: "invalid action: nonsense. ",
+			want: "invalid action: nonsense. Supported actions: left_click, right_click, " +
+				"middle_click, left_mouse_down, left_mouse_up, right_mouse_down, " +
+				"right_mouse_up, middle_mouse_down, middle_mouse_up, left_mouse_toggle, " +
+				"right_mouse_toggle, middle_mouse_toggle, move_mouse, and copy_text in hints mode",
 		},
 		{
 			name: "empty entry in a chain",

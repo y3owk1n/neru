@@ -251,9 +251,9 @@ func validateAction(activation Activation) error {
 		if !action.IsKnownName(action.Name(name)) {
 			return derrors.Newf(
 				derrors.CodeInvalidInput,
-				"invalid action: %s. Supported actions: %s",
+				"invalid action: %s. Supported actions: %s, and copy_text in hints mode",
 				name,
-				action.SupportedNamesString(),
+				action.ModeActionNamesString(),
 			)
 		}
 
