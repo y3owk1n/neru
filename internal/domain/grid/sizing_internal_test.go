@@ -149,19 +149,6 @@ func TestPlanGridDimensions_ScaledScreenPlansLikeItsLogicalTwin(t *testing.T) {
 	}
 }
 
-// TestCalculateOptimalCellSizes_ScaleGrowsTheRangeWithThePixels pins the
-// other half. The range comes back in the pixels the cells are laid out in,
-// so a cell that is 50 apparent units wide is 75 physical pixels at 150%.
-func TestCalculateOptimalCellSizes_ScaleGrowsTheRangeWithThePixels(t *testing.T) {
-	minLogical, maxLogical := calculateOptimalCellSizes(2560, 1440, 1)
-	minScaled, maxScaled := calculateOptimalCellSizes(3840, 2160, 1.5)
-
-	if minScaled != minLogical*3/2 || maxScaled != maxLogical*3/2 {
-		t.Errorf("range at 150%% = %d..%d, want %d..%d (the logical %d..%d scaled up)",
-			minScaled, maxScaled, minLogical*3/2, maxLogical*3/2, minLogical, maxLogical)
-	}
-}
-
 // TestPlanGridDimensions_ScoreTieAlwaysPicksTheSameShape pins determinism. On
 // these screens two shapes score exactly the same, 13x11 and 16x13 on 500x418,
 // so the winner depends on the order candidates are collected in. Columns are

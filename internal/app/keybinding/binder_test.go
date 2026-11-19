@@ -222,39 +222,6 @@ func TestHotkeyActionsRepeatWhileHeld(t *testing.T) {
 	}
 }
 
-func TestHotkeyActionsRepeatWhileHeldDisabled(t *testing.T) {
-	app := &Binder{}
-
-	cfg := config.DefaultConfig()
-
-	tests := []struct {
-		name    string
-		actions []string
-	}{
-		{
-			name:    "scroll down does not repeat when disabled",
-			actions: []string{actionScrollDown},
-		},
-		{
-			name:    "relative mouse movement does not repeat when disabled",
-			actions: []string{"action move_mouse_relative --dx=0 --dy=10"},
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := app.hotkeyActionsRepeatWhileHeld(testCase.actions, cfg)
-			if got {
-				t.Fatalf(
-					"hotkeyActionsRepeatWhileHeld(%v) with Enabled=false = %v, want false",
-					testCase.actions,
-					got,
-				)
-			}
-		})
-	}
-}
-
 // A binding may name a mode directly or carry it inside a "run" sequence.
 // Both spellings have to be visible to the callers that inspect a binding
 // before dispatching it, or a mode switch written as a sequence would skip

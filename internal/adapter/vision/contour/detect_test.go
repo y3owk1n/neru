@@ -45,57 +45,6 @@ func TestDetect_NilOrEmpty(t *testing.T) {
 	}
 }
 
-func TestDetect_ButtonDetection(t *testing.T) {
-	t.Parallel()
-
-	w, h := 300, 200
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-
-	// Fill white background
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{}, draw.Src)
-
-	// Draw button with black border: rect at (30, 40) with size 80x30
-	btnRect := image.Rect(30, 40, 110, 70)
-	black := color.Black
-
-	for x := btnRect.Min.X; x < btnRect.Max.X; x++ {
-		img.Set(x, btnRect.Min.Y, black)
-		img.Set(x, btnRect.Max.Y-1, black)
-	}
-
-	for y := btnRect.Min.Y; y < btnRect.Max.Y; y++ {
-		img.Set(btnRect.Min.X, y, black)
-		img.Set(btnRect.Max.X-1, y, black)
-	}
-
-	targets, err := contour.Detect(context.Background(), img, 1.0, testParams())
-	if err != nil {
-		t.Fatalf("Detect() error = %v", err)
-	}
-
-	if len(targets) == 0 {
-		t.Fatalf("expected at least 1 detected button target, got 0")
-	}
-
-	// Verify that the detected target covers the button area
-	found := false
-	for _, target := range targets {
-		// Target should be close to (30, 40, 110, 70) with dilation padding
-		if target.Min.X >= 25 && target.Max.X <= 115 && target.Min.Y >= 35 && target.Max.Y <= 75 {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		t.Errorf(
-			"did not find target matching button rect %v in detected targets: %v",
-			btnRect,
-			targets,
-		)
-	}
-}
-
 func TestDetect_FiltersNoiseAndOversized(t *testing.T) {
 	t.Parallel()
 
@@ -123,9 +72,28 @@ func TestDetect_FiltersNoiseAndOversized(t *testing.T) {
 		img.Set(349, y, black)
 	}
 
+	// 3. A button-sized outline at (200, 20), which the filters must keep.
+	for x := 200; x < 280; x++ {
+		img.Set(x, 20, black)
+		img.Set(x, 49, black)
+	}
+
+	for y := 20; y < 50; y++ {
+		img.Set(200, y, black)
+		img.Set(279, y, black)
+	}
+
 	targets, err := contour.Detect(context.Background(), img, 1.0, testParams())
 	if err != nil {
 		t.Fatalf("Detect() error = %v", err)
+	}
+
+	if want := image.Rect(197, 17, 284, 53); !slices.Contains(targets, want) {
+		t.Errorf(
+			"the button outline was filtered with the noise: got %v, want %v among them",
+			targets,
+			want,
+		)
 	}
 
 	for _, target := range targets {

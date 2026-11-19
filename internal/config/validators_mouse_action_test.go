@@ -19,22 +19,36 @@ func TestValidateMouseAction(t *testing.T) {
 	}
 }
 
-func TestValidateMouseActionRejectsNonMouseButtonAction(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.MouseAction.Enabled = true
-	cfg.MouseAction.Actions = []string{"scroll"}
-
-	err := cfg.ValidateMouseAction()
-	if err == nil {
-		t.Fatal("expected invalid mouse action indicator action to fail")
-	}
-}
-
-func TestValidateMouseAction_RejectsInvalidFieldsWhenDisabled(t *testing.T) {
+// TestValidateMouseAction_RejectsInvalidFields pins the refusals, and that they
+// hold while the indicator is disabled too. The validator has no early return
+// on Enabled, so an invalid value cannot sit dormant until someone turns the
+// indicator on.
+func TestValidateMouseAction_RejectsInvalidFields(t *testing.T) {
 	tests := []struct {
 		name  string
 		setup func(*config.Config)
 	}{
+		{
+			name: "action that is not a mouse button",
+			setup: func(c *config.Config) {
+				c.MouseAction.Enabled = true
+				c.MouseAction.Actions = []string{"scroll"}
+			},
+		},
+		{
+			name: "empty actions while enabled",
+			setup: func(c *config.Config) {
+				c.MouseAction.Enabled = true
+				c.MouseAction.Actions = []string{}
+			},
+		},
+		{
+			name: "empty actions while disabled",
+			setup: func(c *config.Config) {
+				c.MouseAction.Enabled = false
+				c.MouseAction.Actions = []string{}
+			},
+		},
 		{
 			name: "size too small",
 			setup: func(c *config.Config) {
@@ -92,30 +106,8 @@ func TestValidateMouseAction_RejectsInvalidFieldsWhenDisabled(t *testing.T) {
 
 			err := cfg.ValidateMouseAction()
 			if err == nil {
-				t.Fatal("expected validation to fail for disabled mouse action with invalid config")
+				t.Fatal("ValidateMouseAction() accepted an invalid mouse_action config")
 			}
 		})
-	}
-}
-
-func TestValidateMouseAction_RejectsEmptyActions(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.MouseAction.Enabled = true
-	cfg.MouseAction.Actions = []string{}
-
-	err := cfg.ValidateMouseAction()
-	if err == nil {
-		t.Fatal("expected validation to fail for empty actions")
-	}
-}
-
-func TestValidateMouseAction_RejectsEmptyActionsWhenDisabled(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.MouseAction.Enabled = false
-	cfg.MouseAction.Actions = []string{}
-
-	err := cfg.ValidateMouseAction()
-	if err == nil {
-		t.Fatal("expected validation to fail for empty actions even when disabled")
 	}
 }

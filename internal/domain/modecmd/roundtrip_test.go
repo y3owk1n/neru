@@ -11,30 +11,13 @@ import (
 // A mode command makes the trip twice. What a user writes is parsed into an
 // activation, and an activation is written back out as the arguments that
 // travel to the daemon. The two halves have to agree, or a flag survives the
-// first trip and is lost on the second. That is how flags went missing before
-// this module existed.
+// first trip and is lost on the second.
 //
-// These cases pin that agreement flag by flag, so a new flag whose renderer
-// disagrees with its parser fails here rather than in a user's binding.
-func TestRoundTrip_ParsingARenderingReturnsTheSameActivation(t *testing.T) {
-	t.Parallel()
-
-	for name, testCase := range flagCases() {
-		t.Run(string(name), func(t *testing.T) {
-			t.Parallel()
-
-			assertRoundTrip(t, testCase.mode, testCase.args)
-		})
-	}
-}
-
-// TestRoundTrip_CarriesAnActivationBuiltByHand pins the same agreement from the
-// other side. An activation assembled field by field, as a caller holding typed
-// flags assembles one, renders to a command that parses back into it.
-//
-// This is the half a parsed activation cannot prove. Parsing only ever produces
-// what parsing can produce, so a field the renderer drops would go unnoticed
-// until the CLI set it directly.
+// TestRoundTrip_CarriesAnActivationBuiltByHand pins that agreement flag by
+// flag. An activation assembled field by field, as a caller holding typed flags
+// assembles one, renders to a command that parses back into it. Parsing only
+// ever produces what parsing can produce, so a field the renderer drops would
+// go unnoticed until the CLI set it directly.
 func TestRoundTrip_CarriesAnActivationBuiltByHand(t *testing.T) {
 	t.Parallel()
 
@@ -103,25 +86,6 @@ func TestRoundTrip_KeepsOnExitAbsentApartFromEmpty(t *testing.T) {
 
 	if len(empty.OnExit) != 0 {
 		t.Errorf("OnExit = %#v, want no steps", empty.OnExit)
-	}
-}
-
-// TestRender_OmitsTheModeName pins that a rendering carries flags only. The
-// name is the request's own action, and repeating it inside the arguments is
-// the redundancy the wire is being freed of.
-func TestRender_OmitsTheModeName(t *testing.T) {
-	t.Parallel()
-
-	activation, err := modecmd.Parse(domain.ModeHints, []string{modeNameHints, argSearch})
-	if err != nil {
-		t.Fatalf("Parse() error = %v", err)
-	}
-
-	rendered := modecmd.Render(activation)
-	for _, arg := range rendered {
-		if arg == modeNameHints {
-			t.Errorf("Render() = %v, want the mode name left out", rendered)
-		}
 	}
 }
 

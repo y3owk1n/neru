@@ -112,30 +112,6 @@ func TestHandleCommand_MacroReachesTheRunner(t *testing.T) {
 	}
 }
 
-func TestHandleCommand_ToggleStateConvergesThroughTheController(t *testing.T) {
-	appState := state.NewAppState()
-	appState.SetScrollInverted(true)
-
-	controller := newToggleTestController(appState, nil)
-
-	// Asking twice for the same state must land there both times, because that is what
-	// a script relies on and what a bare toggle cannot give it.
-	for range 2 {
-		resp := controller.HandleCommand(context.Background(), ipc.Command{
-			Action: "toggle-scroll-invert",
-			Args:   []string{"--state=off"},
-		})
-
-		if !resp.Success {
-			t.Fatalf("HandleCommand(toggle-scroll-invert) = %+v, want success", resp)
-		}
-
-		if appState.IsScrollInverted() {
-			t.Fatal("scroll inverted = true, want --state=off to converge on off")
-		}
-	}
-}
-
 func TestHandleCommand_StatusReportsTheToggles(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetScrollInverted(true)

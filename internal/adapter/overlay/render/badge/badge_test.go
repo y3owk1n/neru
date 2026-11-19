@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/adapter/overlay/render/badge"
-	"github.com/y3owk1n/neru/internal/config"
 )
 
 const opaqueWhite = 0xFFFFFFFF
@@ -31,16 +30,6 @@ func TestParseHexARGB_Notations(t *testing.T) {
 		{name: "bad digits fall back to white", in: "#10203G", want: opaqueWhite},
 		{name: "unparseable RRGGBB falls back to white", in: "GGGGGG", want: opaqueWhite},
 		{name: "empty falls back to white", in: "", want: opaqueWhite},
-		{
-			name: "hints light background default",
-			in:   config.HintsBackgroundColorLight,
-			want: 0xF2EEF2FF,
-		},
-		{
-			name: "hints dark background default",
-			in:   config.HintsBackgroundColorDark,
-			want: 0xF20A1338,
-		},
 	}
 
 	for _, testCase := range tests {
@@ -167,20 +156,18 @@ func TestEstimateTextHeight_LineHeightHeuristic(t *testing.T) {
 func TestBounds_AnchorsAndFallbackFontSize(t *testing.T) {
 	t.Parallel()
 
+	// With no text layer installed, "ab" at 10pt is 14 wide and 14 tall.
 	got := badge.Bounds(100, 200, 10, 20, "ab", badge.TextFont{Size: 10}, 0, 0)
 
-	wantW := badge.EstimateTextWidth("ab", 10)
-	wantH := badge.EstimateTextHeight(10)
-	want := image.Rect(110, 220, 110+wantW, 220+wantH)
-
-	if got != want {
+	if want := image.Rect(110, 220, 124, 234); got != want {
 		t.Errorf("Bounds = %v, want %v", got, want)
 	}
 
-	// Non-positive font size must not produce a zero-size badge.
+	// A non-positive font size draws at the 14pt fallback.
 	fallback := badge.Bounds(0, 0, 0, 0, "ab", badge.TextFont{}, -1, -1)
-	if fallback.Dx() == 0 || fallback.Dy() == 0 {
-		t.Errorf("Bounds with zero font size = %v, want non-empty", fallback)
+
+	if want := badge.Bounds(0, 0, 0, 0, "ab", badge.TextFont{Size: 14}, -1, -1); fallback != want {
+		t.Errorf("Bounds with zero font size = %v, want the 14pt %v", fallback, want)
 	}
 }
 

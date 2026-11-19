@@ -79,21 +79,13 @@ func TestRecordSyntheticModifier_AnnouncesEachInjectionToTheWiredSink(t *testing
 			t.Fatalf("sink saw %v, want %v", got, want)
 		}
 	}
-}
 
-// TestRecordSyntheticModifier_AnnouncesNothingWithNoSinkWired covers the daemon
-// before the tap exists, and every build with no daemon at all. Announcing to
-// nobody is what the injection path did before this seam existed, so it stays a
-// working injection rather than a refusal. Unwiring has to actually release
-// the sink, or a torn-down tap keeps being told about injections.
-func TestRecordSyntheticModifier_AnnouncesNothingWithNoSinkWired(t *testing.T) {
-	sink := &fakeSink{}
-	wireSink(t, sink)
-
+	// Unwiring has to release the sink, or a torn-down tap keeps being told
+	// about injections. Injecting with no sink stays a working injection.
 	SetSyntheticModifierSink(nil)
 	recordSyntheticModifier(action.ModShift, true)
 
-	if got := sink.events(); len(got) != 0 {
-		t.Fatalf("the unwired sink was still told about %v", got)
+	if got := sink.events(); len(got) != len(want) {
+		t.Fatalf("the unwired sink was still told about %v", got[len(want):])
 	}
 }

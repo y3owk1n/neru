@@ -95,7 +95,10 @@ func grantWithToken(token string) openerAnswer {
 
 // TestEstablishPortalGrant_RestoresTheStoredGrantWithoutPrompting is what the
 // restore token is for. A restart presents the token it stored last time and the
-// portal restores the session, so the user sees no consent dialog.
+// portal restores the session, so the user sees no consent dialog. The token the
+// grant returns is stored in its place, because a restore token is invalidated
+// by the use that consumes it, and keeping the presented one would restore
+// exactly once and prompt forever after.
 func TestEstablishPortalGrant_RestoresTheStoredGrantWithoutPrompting(t *testing.T) {
 	store := &fakeTokenStore{token: storedToken}
 	opener := &recordingOpener{t: t, answers: []openerAnswer{grantWithToken(nextToken)}}
@@ -116,20 +119,6 @@ func TestEstablishPortalGrant_RestoresTheStoredGrantWithoutPrompting(t *testing.
 
 	if store.cleared != 0 {
 		t.Errorf("stored token cleared %d times, want 0", store.cleared)
-	}
-}
-
-// TestEstablishPortalGrant_StoresTheTokenTheGrantReturned pins the half that
-// makes the restore repeatable. A restore token is invalidated by the use that
-// consumes it, so a session that keeps the token it presented would restore
-// exactly once and prompt forever after.
-func TestEstablishPortalGrant_StoresTheTokenTheGrantReturned(t *testing.T) {
-	store := &fakeTokenStore{token: storedToken}
-	opener := &recordingOpener{t: t, answers: []openerAnswer{grantWithToken(nextToken)}}
-
-	_, err := establishPortalGrant(context.Background(), store, opener.open)
-	if err != nil {
-		t.Fatalf("establishPortalGrant() error = %v", err)
 	}
 
 	if len(store.saved) != 1 || store.saved[0] != nextToken {

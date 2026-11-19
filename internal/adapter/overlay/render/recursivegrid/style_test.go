@@ -89,6 +89,78 @@ func TestBuildStyle_CarriesTheToggles(t *testing.T) {
 	}
 }
 
+// TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors pins that the label
+// plate options reach the style with the user's values in both themes, and
+// that turning the plate on leaves a custom highlight color alone.
+func TestBuildStyle_UsesUserSpecifiedLabelBackgroundColors(t *testing.T) {
+	cfg := config.DefaultConfig().RecursiveGrid
+	cfg.UI.LabelBackground = true
+	cfg.UI.LabelBackgroundColor = config.Color{Light: "#11223344", Dark: "#55667788"}
+	cfg.UI.TextColor = config.Color{Light: "#FF111111", Dark: "#FFEEEEEE"}
+	cfg.UI.HighlightColor = config.Color{Light: "#99ABCDEF", Dark: "#66FEDCBA"}
+	cfg.UI.LabelBackgroundPaddingX = 9
+	cfg.UI.LabelBackgroundPaddingY = 5
+	cfg.UI.LabelBackgroundBorderRadius = 3
+	cfg.UI.LabelBackgroundBorderWidth = 2
+
+	tests := []struct {
+		name            string
+		dark            bool
+		labelBackground string
+		text            string
+		highlight       string
+	}{
+		{
+			name:            "light theme",
+			dark:            false,
+			labelBackground: "#11223344",
+			text:            "#FF111111",
+			highlight:       "#99ABCDEF",
+		},
+		{
+			name:            "dark theme",
+			dark:            true,
+			labelBackground: "#55667788",
+			text:            "#FFEEEEEE",
+			highlight:       "#66FEDCBA",
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			style := BuildStyle(cfg, &mockThemeProvider{darkMode: testCase.dark})
+
+			if got := style.LabelBackgroundColor(); got != testCase.labelBackground {
+				t.Errorf("LabelBackgroundColor() = %q, want %q", got, testCase.labelBackground)
+			}
+
+			if got := style.TextColor(); got != testCase.text {
+				t.Errorf("TextColor() = %q, want %q", got, testCase.text)
+			}
+
+			if got := style.HighlightColor(); got != testCase.highlight {
+				t.Errorf("HighlightColor() = %q, want %q", got, testCase.highlight)
+			}
+
+			if got := style.LabelBackgroundPaddingX(); got != 9 {
+				t.Errorf("LabelBackgroundPaddingX() = %d, want 9", got)
+			}
+
+			if got := style.LabelBackgroundPaddingY(); got != 5 {
+				t.Errorf("LabelBackgroundPaddingY() = %d, want 5", got)
+			}
+
+			if got := style.LabelBackgroundBorderRadius(); got != 3 {
+				t.Errorf("LabelBackgroundBorderRadius() = %d, want 3", got)
+			}
+
+			if got := style.LabelBackgroundBorderWidth(); got != 2 {
+				t.Errorf("LabelBackgroundBorderWidth() = %d, want 2", got)
+			}
+		})
+	}
+}
+
 // TestStyle_LabelFontSizeIn_NeverShrinkAnswersAsTheOldAutohideRule pins what
 // min_font_size = font_size promises. The label is drawn at the configured
 // size or not at all, and it hides exactly where the old autohide rule hid it.

@@ -7,73 +7,61 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services/indicator"
-	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
-// TestBase_GetCursorPositionWithoutSystemPort pins the degraded path. The
-// service is constructed during startup and can outlive a failed system-port
-// init, so a nil port must produce an error rather than a panic.
-func TestBase_GetCursorPositionWithoutSystemPort(t *testing.T) {
-	t.Parallel()
-
-	base := indicator.NewBase(ports.ModeIndicator, nil, nil)
-
-	_, _, err := base.GetCursorPosition(t.Context())
-	if err == nil {
-		t.Fatal("GetCursorPosition() error = nil, want an error for a nil system port")
-	}
-
-	if !derrors.IsCode(err, derrors.CodeActionFailed) {
-		t.Errorf("GetCursorPosition() code = %v, want CodeActionFailed", err)
-	}
-}
-
-func TestBase_GetCursorPositionReturnsPortCoordinates(t *testing.T) {
-	t.Parallel()
-
-	system := &portmocks.MockSystemPort{
-		CursorPositionFunc: func(context.Context) (image.Point, error) {
-			return image.Point{X: 42, Y: 99}, nil
-		},
-	}
-
-	base := indicator.NewBase(ports.ModeIndicator, system, nil)
-
-	posX, posY, err := base.GetCursorPosition(t.Context())
-	if err != nil {
-		t.Fatalf("GetCursorPosition() error = %v, want nil", err)
-	}
-
-	if posX != 42 || posY != 99 {
-		t.Errorf("GetCursorPosition() = (%d,%d), want (42,99)", posX, posY)
-	}
-}
-
 // errCursorUnavailable stands in for a backend failure.
 var errCursorUnavailable = errors.New("cursor unavailable")
 
-// TestBase_GetCursorPositionWrapsPortFailure pins that a backend error is
-// wrapped rather than returned raw, so callers see a domain error code.
-func TestBase_GetCursorPositionWrapsPortFailure(t *testing.T) {
+// TestBase_GetCursorPositionReturnsPortCoordinates pins the cursor read every
+// position update begins with. A nil port (the service can outlive a failed
+// system-port init) and a failing port both answer an error, never a panic.
+func TestBase_GetCursorPositionReturnsPortCoordinates(t *testing.T) {
 	t.Parallel()
 
-	system := &portmocks.MockSystemPort{
-		CursorPositionFunc: func(context.Context) (image.Point, error) {
-			return image.Point{}, errCursorUnavailable
+	tests := []struct {
+		name    string
+		system  ports.SystemPort
+		want    image.Point
+		wantErr bool
+	}{
+		{
+			name: "port coordinates",
+			system: &portmocks.MockSystemPort{
+				CursorPositionFunc: func(context.Context) (image.Point, error) {
+					return image.Point{X: 42, Y: 99}, nil
+				},
+			},
+			want: image.Point{X: 42, Y: 99},
+		},
+		{name: "no system port", wantErr: true},
+		{
+			name: "port failure",
+			system: &portmocks.MockSystemPort{
+				CursorPositionFunc: func(context.Context) (image.Point, error) {
+					return image.Point{}, errCursorUnavailable
+				},
+			},
+			wantErr: true,
 		},
 	}
 
-	base := indicator.NewBase(ports.ModeIndicator, system, nil)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
-	_, _, err := base.GetCursorPosition(t.Context())
-	if err == nil {
-		t.Fatal("GetCursorPosition() error = nil, want the wrapped port failure")
-	}
+			base := indicator.NewBase(ports.ModeIndicator, test.system, nil)
 
-	if !errors.Is(err, errCursorUnavailable) {
-		t.Errorf("GetCursorPosition() error = %v, want it to wrap %v", err, errCursorUnavailable)
+			posX, posY, err := base.GetCursorPosition(t.Context())
+			if (err != nil) != test.wantErr {
+				t.Fatalf("GetCursorPosition() error = %v, wantErr %v", err, test.wantErr)
+			}
+
+			if got := (image.Point{X: posX, Y: posY}); got != test.want {
+				t.Errorf("GetCursorPosition() = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 
@@ -134,23 +122,5 @@ func TestBase_VisibilityTargetsItsOwnIndicator(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// TestBase_WithoutOverlayIsSilent pins the "this indicator was never
-// constructed" case, a disabled indicator or a backend with no surface.
-// Mode logic drives an indicator without checking, so the guard has to be
-// here.
-func TestBase_WithoutOverlayIsSilent(t *testing.T) {
-	t.Parallel()
-
-	base := indicator.NewBase(ports.ModeIndicator, nil, nil)
-
-	base.Show()
-	base.Hide()
-	base.ResizeToActiveScreen()
-
-	if base.Overlay() != nil {
-		t.Error("Overlay() must report the missing overlay rather than a stand-in")
 	}
 }

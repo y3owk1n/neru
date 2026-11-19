@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/action"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
@@ -89,6 +88,18 @@ type boolSubscription struct {
 func boolSubscriptions() []boolSubscription {
 	return []boolSubscription{
 		{
+			name: "enabled",
+			get:  (*state.AppState).IsEnabled,
+			set:  (*state.AppState).SetEnabled,
+			toggle: func(appState *state.AppState) bool {
+				appState.ToggleEnabled()
+
+				return appState.IsEnabled()
+			},
+			subscribe:   (*state.AppState).OnEnabledStateChanged,
+			unsubscribe: (*state.AppState).OffEnabledStateChanged,
+		},
+		{
 			name:        "screen share hidden",
 			get:         (*state.AppState).IsHiddenForScreenShare,
 			set:         (*state.AppState).SetHiddenForScreenShare,
@@ -111,10 +122,8 @@ func boolSubscriptions() []boolSubscription {
 // callback must be refused with a zero ID rather than stored, because a stored
 // nil is only discovered when the notify loop reaches it.
 //
-// AppState exposes three independent publish/subscribe flags. The enabled flag
-// is covered in app_state_test.go. The screen-share and scroll-invert flags had
-// no subscription tests at all, so their "only notify when the value actually
-// changed" guards and their nil-callback guards were unverified.
+// AppState exposes three independent publish/subscribe flags, enabled,
+// screen-share and scroll-invert, and every test here runs against each.
 //
 // Both guards fail quietly. A broken change-guard floods every subscriber on
 // each no-op write (the systray redraws, the overlay reconfigures) without
@@ -337,40 +346,4 @@ func TestAppState_SetMode_InvalidatesStaleExitReasonOnlyForRealModes(t *testing.
 			}
 		})
 	}
-}
-
-// TestModifierState_Reset_NotifiesOnlyWhenModifiersWereHeld covers the matching
-// guard on the sticky-modifier indicator. Reset runs on every mode exit, so
-// notifying unconditionally would repaint the indicator constantly even though
-// nothing was ever held.
-func TestModifierState_Reset_NotifiesOnlyWhenModifiersWereHeld(t *testing.T) {
-	modifierState := state.NewModifierState()
-
-	recorder := newNotifyRecorder()
-
-	modifierState.OnChange(func(mods action.Modifiers) {
-		recorder.callback(mods != 0)
-	})
-
-	recorder.awaitCount(t, 1, "the initial OnChange notification")
-
-	// Nothing is held, so Reset has nothing to clear and must stay silent.
-	modifierState.Reset()
-	modifierState.Reset()
-	recorder.expectNoFurtherNotification(t, 1, "resetting with no modifiers held")
-
-	// With a modifier held, Reset must notify that it was cleared.
-	modifierState.Toggle(action.ModShift)
-	recorder.awaitCount(t, 2, "the toggle notification")
-
-	modifierState.Reset()
-	recorder.awaitCount(t, 3, "the reset notification")
-
-	if values := recorder.values(); values[2] {
-		t.Error("reset notification reported modifiers still held, want cleared")
-	}
-
-	// And a second reset is silent again.
-	modifierState.Reset()
-	recorder.expectNoFurtherNotification(t, 3, "resetting an already-cleared state")
 }

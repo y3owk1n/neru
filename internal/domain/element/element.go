@@ -266,18 +266,3 @@ func (e *Element) Center() image.Point {
 		Y: e.bounds.Min.Y + e.bounds.Dy()/2,
 	}
 }
-
-// Contains checks if a point is within the element bounds.
-func (e *Element) Contains(pt image.Point) bool {
-	return pt.In(e.bounds)
-}
-
-// Overlaps checks if this element overlaps with another.
-func (e *Element) Overlaps(other *Element) bool {
-	return e.bounds.Overlaps(other.bounds)
-}
-
-// IsVisible checks if the element is visible within the given screen bounds.
-func (e *Element) IsVisible(screenBounds image.Rectangle) bool {
-	return e.bounds.Overlaps(screenBounds) && !e.bounds.Empty()
-}

@@ -168,31 +168,3 @@ func TestProcessClickableNodesConcurrent_HappyPath(t *testing.T) {
 		t.Fatalf("expected %d elements, got %d", nodeCount, len(result))
 	}
 }
-
-func TestProcessClickableNodesConcurrent_BelowThreshold(t *testing.T) {
-	logger := zap.NewNop()
-	adapter := NewAdapter(logger, &MockAXClient{}, false)
-
-	// Below the concurrent processing threshold, so this tests the sequential path.
-	nodeCount := ConcurrentProcessingThreshold - 10
-
-	nodes := make([]ax.Node, nodeCount)
-	for i := range nodeCount {
-		nodes[i] = &MockNode{
-			MockID:     testID,
-			MockBounds: image.Rect(0, 0, 100, 100),
-			MockRole:   axButtonRole,
-		}
-	}
-
-	ctx := context.Background()
-
-	result, err := adapter.processClickableNodes(ctx, nodes, ports.ElementFilter{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(result) != nodeCount {
-		t.Fatalf("expected %d elements, got %d", nodeCount, len(result))
-	}
-}

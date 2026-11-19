@@ -316,42 +316,6 @@ func TestHandleMacro_ReportsMissingRunner(t *testing.T) {
 	}
 }
 
-func TestHandleMacro_PassesArgumentsThroughUnsplit(t *testing.T) {
-	t.Parallel()
-
-	var (
-		gotName string
-		gotArgs []string
-	)
-
-	handler := NewSequenceHandler(
-		nil,
-		func(_ context.Context, name string, args []string) error {
-			gotName, gotArgs = name, slices.Clone(args)
-
-			return nil
-		},
-		zap.NewNop(),
-	)
-
-	// An argument containing spaces and both kinds of quote is exactly what a
-	// call written as one step string could not carry intact.
-	args := []string{"say_it", `hello "there" it's me`, "tail"}
-
-	resp := handler.handleMacro(context.Background(), ipc.Command{Args: args})
-	if !resp.Success {
-		t.Fatalf("handleMacro() = %+v, want success", resp)
-	}
-
-	if gotName != "say_it" {
-		t.Fatalf("macro name = %q, want %q", gotName, "say_it")
-	}
-
-	if !slices.Equal(gotArgs, args[1:]) {
-		t.Fatalf("macro args = %q, want %q", gotArgs, args[1:])
-	}
-}
-
 func TestHandleMacro_MapsFailureOntoTheCodeThatDescribesIt(t *testing.T) {
 	t.Parallel()
 
@@ -410,30 +374,54 @@ func TestHandleMacro_MapsFailureOntoTheCodeThatDescribesIt(t *testing.T) {
 
 // Macro arguments are data, not steps. Trimming them or dropping the blank ones
 // would rewrite an argument whose padding matters and shift every later
-// argument onto the wrong placeholder.
+// argument onto the wrong placeholder. Only the name is trimmed.
 func TestHandleMacro_PassesArgumentsThroughVerbatim(t *testing.T) {
 	t.Parallel()
 
-	var gotArgs []string
-
-	handler := NewSequenceHandler(
-		nil,
-		func(_ context.Context, _ string, args []string) error {
-			gotArgs = slices.Clone(args)
-
-			return nil
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "padding and blanks", args: []string{"  say_it  ", " padded ", "", "third"}},
+		{
+			// An argument containing spaces and both kinds of quote is exactly
+			// what a call written as one step string could not carry intact.
+			name: "spaces and quotes",
+			args: []string{"say_it", `hello "there" it's me`, "tail"},
 		},
-		zap.NewNop(),
-	)
-
-	args := []string{"  say_it  ", " padded ", "", "third"}
-
-	resp := handler.handleMacro(context.Background(), ipc.Command{Args: args})
-	if !resp.Success {
-		t.Fatalf("handleMacro() = %+v, want success", resp)
 	}
 
-	if !slices.Equal(gotArgs, args[1:]) {
-		t.Fatalf("macro args = %q, want %q", gotArgs, args[1:])
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var (
+				gotName string
+				gotArgs []string
+			)
+
+			handler := NewSequenceHandler(
+				nil,
+				func(_ context.Context, name string, args []string) error {
+					gotName, gotArgs = name, slices.Clone(args)
+
+					return nil
+				},
+				zap.NewNop(),
+			)
+
+			resp := handler.handleMacro(context.Background(), ipc.Command{Args: testCase.args})
+			if !resp.Success {
+				t.Fatalf("handleMacro() = %+v, want success", resp)
+			}
+
+			if gotName != "say_it" {
+				t.Fatalf("macro name = %q, want %q", gotName, "say_it")
+			}
+
+			if !slices.Equal(gotArgs, testCase.args[1:]) {
+				t.Fatalf("macro args = %q, want %q", gotArgs, testCase.args[1:])
+			}
+		})
 	}
 }

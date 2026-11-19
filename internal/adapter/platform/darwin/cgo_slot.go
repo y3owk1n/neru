@@ -60,14 +60,6 @@ func (s *cgoSlot[T]) Set(target T) {
 	s.mu.Unlock()
 }
 
-// Get returns the current target without generation checking.
-func (s *cgoSlot[T]) Get() T {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.target
-}
-
 func (s *cgoSlot[T]) snapshot() (T, uint64, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

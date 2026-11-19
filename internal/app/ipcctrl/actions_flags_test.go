@@ -256,10 +256,31 @@ func TestHandleAction_RejectsFlagsThatUsedToBeIgnored(t *testing.T) {
 		{name: "hide_cursor with steps", args: []string{"hide_cursor", stepsThree}},
 		{name: "save_cursor_pos with toggle", args: []string{"save_cursor_pos", flagToggle}},
 		{name: "page_up with steps", args: []string{"page_up", stepsThree}},
-		{name: "move_mouse with dx", args: []string{moveMouse, "--dx=10", "--dy=10"}},
+		{
+			name:        "move_mouse with dx",
+			args:        []string{moveMouse, "--dx=10", "--dy=10"},
+			wantMessage: "--dx is only supported with move_mouse_relative",
+		},
 		{name: "move_mouse with count", args: []string{moveMouse, "--x=1", "--y=1", "--count=2"}},
 		{name: "left_click with bail", args: []string{leftClick, flagBail}},
+		{name: "left_click with slot", args: []string{leftClick, "--slot=here"}},
+		{
+			name: "move_cell with coordinates",
+			args: []string{moveCell, directionLeft, "--x=10", "--y=10"},
+		},
+		{
+			name: "move_cell with modifier",
+			args: []string{moveCell, directionLeft, "--modifier=shift"},
+		},
+		{name: "move_cell with selection", args: []string{moveCell, directionLeft, flagSelection}},
+		{name: "move_cell with steps", args: []string{moveCell, directionLeft, stepsThree}},
+		{name: "move_cell with toggle", args: []string{moveCell, directionLeft, flagToggle}},
 		{name: "left_click with direction", args: []string{leftClick, directionLeft}},
+		{
+			name:        "left_click with state and toggle",
+			args:        []string{leftClick, flagStateDown, flagToggle},
+			wantMessage: "--state and --toggle cannot be used together",
+		},
 		{
 			name:        "move_monitor with x",
 			args:        []string{moveMonitor, "--x=100"},

@@ -33,7 +33,7 @@ a one-line option into a ten-file one, and that no guide used to name.
    Update the mode-specific examples (`grid-only-config.toml`,
    `hints-only-config.toml`, `recursive-grid-only-config.toml`) only if they
    show the affected section. They are deliberately partial, and only their
-   *keys* are checked, by `TestShippedExamplesWriteOnlySchemaKeys`. Those four
+   *keys* are checked, by `TestRender_AcceptsEveryShippedExample`. Those four
    are the whole shipped set. `configs/embed.go` lists them, and anything else
    in `configs/` is a working file rather than a project artifact. Only
    `default-config.toml` is embedded, and the rest are read from disk by the tests

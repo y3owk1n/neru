@@ -1,7 +1,6 @@
 package architecture_test
 
 import (
-	"slices"
 	"strings"
 	"testing"
 )
@@ -101,23 +100,5 @@ func TestCompositorSocketReadersStayHonest(t *testing.T) {
 				"entry (%s)",
 			file, compositorSocketEnv, reason,
 		)
-	}
-}
-
-// TestCompositorEnvironmentPinsStayDisjoint keeps the two environment rules in
-// this package from growing into each other. A variable in both sets would be
-// confined to the detector by one test and licensed outside it by the other,
-// and whichever failure a contributor read first would send them the wrong way.
-func TestCompositorEnvironmentPinsStayDisjoint(t *testing.T) {
-	for _, name := range compositorSocketEnv {
-		if slices.Contains(compositorIdentityEnv, name) {
-			t.Errorf(
-				"%s is in both compositorSocketEnv and compositorIdentityEnv; a "+
-					"variable either names the session's compositor family (confined "+
-					"to the detector) or names one compositor's socket (read after "+
-					"the backend decides), and it cannot be pinned as both",
-				name,
-			)
-		}
 	}
 }

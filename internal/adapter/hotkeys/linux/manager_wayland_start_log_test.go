@@ -51,16 +51,21 @@ func warnMessages(logs *observer.ObservedLogs) []string {
 func TestManager_LogWaylandStartFailure_NotSupportedDropsInputGroupAdvice(t *testing.T) {
 	mgr, logs := newObservedManager(t)
 
-	mgr.logWaylandStartFailure(
-		derrors.New(
-			derrors.CodeNotSupported,
-			"Wayland global hotkeys require CGO-enabled Linux builds",
-		),
+	err := derrors.New(
+		derrors.CodeNotSupported,
+		"Wayland global hotkeys require CGO-enabled Linux builds",
 	)
+	for range 12 {
+		mgr.logWaylandStartFailure(err)
+	}
 
 	warns := warnMessages(logs)
 	if len(warns) != 1 {
-		t.Fatalf("got %d warnings, want exactly 1: %v", len(warns), warns)
+		t.Fatalf(
+			"got %d warnings for a compile-time answer, want exactly 1; the reload and "+
+				"sleep recovery loops call this on every attempt: %v",
+			len(warns), warns,
+		)
 	}
 
 	if strings.Contains(warns[0], inputGroupAdvice) || strings.Contains(warns[0], "/dev/input") {
@@ -73,23 +78,6 @@ func TestManager_LogWaylandStartFailure_NotSupportedDropsInputGroupAdvice(t *tes
 
 	if !strings.Contains(warns[0], "cgo") {
 		t.Errorf("the no-cgo warning does not name the build as the cause: %q", warns[0])
-	}
-}
-
-func TestManager_LogWaylandStartFailure_NotSupportedWarnsOnce(t *testing.T) {
-	mgr, logs := newObservedManager(t)
-
-	err := derrors.New(derrors.CodeNotSupported, "no evdev without cgo")
-	for range 12 {
-		mgr.logWaylandStartFailure(err)
-	}
-
-	if warns := warnMessages(logs); len(warns) != 1 {
-		t.Errorf(
-			"got %d warnings for a compile-time answer, want 1; the reload and sleep "+
-				"recovery loops call this on every attempt",
-			len(warns),
-		)
 	}
 }
 

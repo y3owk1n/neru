@@ -53,7 +53,12 @@ func TestOverlayWindowLifecycleIntegration(t *testing.T) {
 	overlay.Clear()
 	overlay.FillRect(bounds, 0x8000FF00)
 	overlay.DrawTextCentered("FF", bounds, "Segoe UI", 48, 0xFFFFFFFF, true)
-	_ = overlay.Flush()
+
+	err = overlay.Flush()
+	if err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
 	overlay.Show()
 	overlay.Hide()
 
@@ -61,26 +66,6 @@ func TestOverlayWindowLifecycleIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResizeToActiveScreen: %v", err)
 	}
-}
-
-func TestOverlayRectDrawingIntegration(t *testing.T) {
-	t.Parallel()
-
-	overlay, err := winplatform.NewOverlayWindow()
-	skipIfOverlayUnavailable(t, err)
-
-	if err != nil {
-		t.Fatalf("NewOverlayWindow: %v", err)
-	}
-
-	defer overlay.Destroy()
-
-	cell := image.Rect(10, 10, 110, 60)
-
-	overlay.Clear()
-	overlay.FillRect(cell, 0xCC3366FF)
-	overlay.StrokeRect(cell, 0xFFFFFFFF, 2)
-	_ = overlay.Flush()
 }
 
 // TestOverlayWindow_Show_RecreateDoesNotRaceCallerBoundsAccess recreates the

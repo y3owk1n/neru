@@ -140,28 +140,6 @@ func TestClampInt(t *testing.T) {
 	}
 }
 
-func TestMultiMonitor_CoordinateConversion(t *testing.T) {
-	// The second monitor of an extended desktop.
-	screenBounds := image.Rect(1920, 0, 3840, 1080)
-
-	screenHintPos := image.Point{X: 2880, Y: 540} // center of second monitor
-
-	localHintPos := geometry.ConvertToLocalCoordinates(screenHintPos, screenBounds)
-
-	expectedLocalPos := image.Point{X: 960, Y: 540} // 2880-1920=960, 540-0=540
-
-	if localHintPos != expectedLocalPos {
-		t.Errorf("Local coordinate conversion failed: got %v, expected %v",
-			localHintPos, expectedLocalPos)
-	}
-
-	absolutePos := geometry.ConvertToAbsoluteCoordinates(localHintPos, screenBounds)
-	if absolutePos != screenHintPos {
-		t.Errorf("Round-trip conversion failed: got %v, expected %v",
-			absolutePos, screenHintPos)
-	}
-}
-
 func TestConvertToLocalCoordinates(t *testing.T) {
 	tests := []struct {
 		name         string

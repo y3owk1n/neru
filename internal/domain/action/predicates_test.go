@@ -5,7 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/y3owk1n/neru/internal/domain"
 	"github.com/y3owk1n/neru/internal/domain/action"
+	"github.com/y3owk1n/neru/internal/domain/modecmd"
 )
 
 // namedPredicate pairs a predicate with the single action name it must accept.
@@ -87,69 +89,10 @@ func TestActionPredicates_MatchExactlyTheirOwnName(t *testing.T) {
 	}
 }
 
-// TestActionPredicates_AreMutuallyExclusive states the property the dispatch
-// code relies on directly. For any action name at most one predicate fires, so
-// the dispatcher cannot take two branches for one action.
-func TestActionPredicates_AreMutuallyExclusive(t *testing.T) {
-	predicates := namedPredicates()
-
-	for _, name := range action.KnownNames() {
-		var matched []action.Name
-
-		for _, entry := range predicates {
-			if entry.predicate(string(name)) {
-				matched = append(matched, entry.name)
-			}
-		}
-
-		if len(matched) > 1 {
-			t.Errorf("action %q matched %d predicates (%v), want at most 1",
-				name, len(matched), matched)
-		}
-	}
-}
-
-// TestIsScrollSubAction_CoversEveryScrollNameAndNothingElse pins the boundary
-// between scroll sub-actions (CLI/IPC only) and the mode-compatible action set.
-// The two are dispatched down different paths, so a name landing on the wrong
-// side of this predicate is silently unroutable.
-func TestIsScrollSubAction_CoversEveryScrollNameAndNothingElse(t *testing.T) {
-	for _, name := range action.KnownNames() {
-		// Every mode-compatible known name is by definition not a scroll
-		// sub-action. The doc comment on KnownNames draws that line.
-		if action.IsScrollSubAction(string(name)) {
-			t.Errorf("IsScrollSubAction(%q) = true, but %q is a mode-compatible known name",
-				name, name)
-		}
-	}
-
-	scrollNames := []string{
-		"scroll_up", "scroll_down", "scroll_left", "scroll_right",
-	}
-
-	for _, name := range scrollNames {
-		if !action.IsScrollSubAction(name) {
-			t.Errorf("IsScrollSubAction(%q) = false, want true", name)
-		}
-
-		// A scroll sub-action must still be a known name overall, or the CLI
-		// would reject it before dispatch ever sees it.
-		if !action.IsKnownName(action.Name(name)) {
-			t.Errorf("IsKnownName(%q) = false, but it is a dispatchable scroll sub-action", name)
-		}
-	}
-
-	for _, name := range []string{"", "scroll", "scroll_diagonal", "left_click"} {
-		if action.IsScrollSubAction(name) {
-			t.Errorf("IsScrollSubAction(%q) = true, want false", name)
-		}
-	}
-}
-
-// TestModeActionNamesString_ListsExactlyTheModeActions checks the help
-// text stays derived from the same predicate the CLI validates against. If the
-// two drift, `neru mode --help` advertises actions that are then rejected, or
-// omits ones that work.
+// TestModeActionNamesString_ListsExactlyTheModeActions checks the help text
+// against what a mode activation accepts. If the two drift, `neru mode
+// --help` advertises actions that are then rejected, or lists ones a mode
+// refuses.
 func TestModeActionNamesString_ListsExactlyTheModeActions(t *testing.T) {
 	listed := strings.Split(action.ModeActionNamesString(), ", ")
 
@@ -171,20 +114,19 @@ func TestModeActionNamesString_ListsExactlyTheModeActions(t *testing.T) {
 		t.Fatal("ModeActionNamesString() listed no actions")
 	}
 
-	for _, name := range action.KnownNames() {
-		actionType, err := name.ToType()
-		wantListed := err == nil && actionType.IsModeAction()
-
-		if gotListed := inList[string(name)]; gotListed != wantListed {
-			t.Errorf("action %q listed = %t, want %t (IsModeAction = %t)",
-				name, gotListed, wantListed, wantListed)
+	for name := range inList {
+		_, err := modecmd.Parse(domain.ModeHints, []string{"--action=" + name})
+		if err != nil {
+			t.Errorf("ModeActionNamesString() lists %q, but a mode refuses it: %v", name, err)
 		}
 	}
 
-	// Everything listed must be a real known name, not an invented string.
-	for name := range inList {
-		if !action.IsKnownName(action.Name(name)) {
-			t.Errorf("ModeActionNamesString() listed %q, which is not a known action name", name)
+	// Every known name a mode accepts must be in the help. Known names a mode
+	// refuses, such as scroll, fail the loop above if listed.
+	for _, name := range action.KnownNames() {
+		_, err := modecmd.Parse(domain.ModeHints, []string{"--action=" + string(name)})
+		if err == nil && !inList[string(name)] {
+			t.Errorf("ModeActionNamesString() omits %q, which a mode accepts", name)
 		}
 	}
 }

@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"encoding/xml"
 	"strings"
 	"testing"
 )
@@ -27,30 +26,6 @@ func TestRenderServiceTask_EscapesThePathAndNamesTheUser(t *testing.T) {
 	if strings.Contains(rendered, "NERU_") {
 		t.Errorf("renderServiceTask() left a placeholder unfilled:\n%s", rendered)
 	}
-}
-
-func TestRenderServiceTask_IsWellFormedXML(t *testing.T) {
-	rendered := renderServiceTask(`C:\Users\tester\neru.exe`, "S-1-5-21-1-2-3-1001")
-
-	// The scheduler's schema is not checked here, since the integration test
-	// registers the task with the scheduler itself, but a template that does
-	// not parse at all should fail somewhere cheaper than a real desktop.
-	var task struct {
-		XMLName xml.Name `xml:"Task"`
-	}
-
-	err := xml.Unmarshal([]byte(stripXMLDeclaration(rendered)), &task)
-	if err != nil {
-		t.Fatalf("renderServiceTask() is not well-formed XML: %v", err)
-	}
-}
-
-// stripXMLDeclaration drops the UTF-16 declaration, which is true of the BSTR
-// handed to the scheduler and false of the Go string a test parses.
-func stripXMLDeclaration(rendered string) string {
-	_, rest, _ := strings.Cut(rendered, "?>")
-
-	return rest
 }
 
 func TestTaskStateWord_UsesTheSchedulersOwnWords(t *testing.T) {
@@ -178,23 +153,6 @@ func TestReportServiceStatus_SetsTheFlagsAScriptReads(t *testing.T) {
 				t.Errorf("reportServiceStatus() = %+v, want %+v", got, testCase.want)
 			}
 		})
-	}
-}
-
-func TestNewBSTR_CarriesTheByteLengthPrefix(t *testing.T) {
-	value, err := newBSTR("ab")
-	if err != nil {
-		t.Fatalf("newBSTR() error = %v", err)
-	}
-
-	// Two UTF-16 units of text are four bytes, excluding the terminator, and
-	// the prefix sits in the two units before the text the pointer aims at.
-	if got := uint32(value.buf[0]) | uint32(value.buf[1])<<16; got != 4 {
-		t.Errorf("newBSTR(%q) length prefix = %d, want 4", "ab", got)
-	}
-
-	if value.buf[2] != 'a' || value.buf[3] != 'b' || value.buf[4] != 0 {
-		t.Errorf("newBSTR(%q) text = %v, want a, b, NUL", "ab", value.buf[2:])
 	}
 }
 

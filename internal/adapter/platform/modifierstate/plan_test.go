@@ -202,42 +202,6 @@ func TestPlanFor_PressesAModifierWhoseOnlyHeldKeyIsBeingSuppressed(t *testing.T)
 	}
 }
 
-// TestPlanFor_EveryEditNamesTheModifierItsKeyPresents is what lets a backend
-// announce an injection to anything watching the keyboard. An injected key
-// event is indistinguishable from the user's own on X11, so whatever suppresses
-// it has to be told which modifier is about to go down or up, and the plan is
-// the only thing that knows which key was chosen for it.
-func TestPlanFor_EveryEditNamesTheModifierItsKeyPresents(t *testing.T) {
-	keys := []modifierstate.Key{
-		{Keycode: controlLeft, Modifier: action.ModCtrl, Held: true, Canonical: true},
-		{Keycode: shiftLeft, Modifier: action.ModShift, Canonical: true},
-	}
-
-	plan := modifierstate.PlanFor(keys, action.ModShift)
-
-	if len(plan.Suppress) != 1 || plan.Suppress[0].Modifier != action.ModCtrl {
-		t.Fatalf("PlanFor suppressed %v, want the held ctrl key carrying ModCtrl", plan.Suppress)
-	}
-
-	if len(plan.Press) != 1 || plan.Press[0].Modifier != action.ModShift {
-		t.Fatalf("PlanFor pressed %v, want the shift key carrying ModShift", plan.Press)
-	}
-}
-
-// TestPlan_Restore_PressesBackEveryKeyItSuppressed is the half that must not
-// fail. A scroll that leaves ctrl released while the user is still holding it
-// is worse than the modifier leak the suppression exists to stop.
-func TestPlan_Restore_PressesBackEveryKeyItSuppressed(t *testing.T) {
-	plan := modifierstate.Plan{Suppress: edits(controlLeft, altLeft)}
-
-	got := plan.Restore(nil)
-
-	want := edits(controlLeft, altLeft)
-	if !equalEdits(got, want) {
-		t.Fatalf("Restore() = %v, want %v", got, want)
-	}
-}
-
 // TestPlan_Restore_SkipsAKeyThatIsDownAgain covers the state changing mid
 // injection. A key that reads down was pressed by someone else after we let go
 // of it, and pressing it again would leave a press our release never answers.

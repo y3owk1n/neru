@@ -1,5 +1,3 @@
-//go:build windows
-
 package hints
 
 import (
@@ -16,10 +14,24 @@ func (m *mockThemeProvider) IsDarkMode() bool {
 	return m.darkMode
 }
 
+// TestBuildStyle_UsesThemeAwareConfigValues pins BuildStyle, which is shared by
+// every platform, so this file carries no build tag.
 func TestBuildStyle_UsesThemeAwareConfigValues(t *testing.T) {
 	cfg := config.DefaultConfig().Hints
 
 	lightStyle := BuildStyle(cfg, &mockThemeProvider{darkMode: false})
+
+	if lightStyle.FontSize() != cfg.UI.FontSize {
+		t.Fatalf("expected font size %d, got %d", cfg.UI.FontSize, lightStyle.FontSize())
+	}
+
+	if lightStyle.FontFamily() != cfg.UI.FontFamily {
+		t.Fatalf("expected font family %q, got %q", cfg.UI.FontFamily, lightStyle.FontFamily())
+	}
+
+	if lightStyle.Placement() != cfg.UI.Placement {
+		t.Fatalf("expected placement %q, got %q", cfg.UI.Placement, lightStyle.Placement())
+	}
 
 	if lightStyle.BackgroundColor() != config.HintsBackgroundColorLight {
 		t.Fatalf(
@@ -34,6 +46,14 @@ func TestBuildStyle_UsesThemeAwareConfigValues(t *testing.T) {
 			"expected light text %q, got %q",
 			config.HintsTextColorLight,
 			lightStyle.TextColor(),
+		)
+	}
+
+	if lightStyle.MatchedTextColor() != config.HintsMatchedTextColorLight {
+		t.Fatalf(
+			"expected light matched text %q, got %q",
+			config.HintsMatchedTextColorLight,
+			lightStyle.MatchedTextColor(),
 		)
 	}
 
@@ -56,10 +76,22 @@ func TestBuildStyle_UsesThemeAwareConfigValues(t *testing.T) {
 	}
 
 	if darkStyle.TextColor() != config.HintsTextColorDark {
+		t.Fatalf("expected dark text %q, got %q", config.HintsTextColorDark, darkStyle.TextColor())
+	}
+
+	if darkStyle.MatchedTextColor() != config.HintsMatchedTextColorDark {
 		t.Fatalf(
-			"expected dark text %q, got %q",
-			config.HintsTextColorDark,
-			darkStyle.TextColor(),
+			"expected dark matched text %q, got %q",
+			config.HintsMatchedTextColorDark,
+			darkStyle.MatchedTextColor(),
+		)
+	}
+
+	if darkStyle.BorderColor() != config.HintsBorderColorDark {
+		t.Fatalf(
+			"expected dark border %q, got %q",
+			config.HintsBorderColorDark,
+			darkStyle.BorderColor(),
 		)
 	}
 }

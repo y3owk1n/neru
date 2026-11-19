@@ -27,38 +27,3 @@ func TestNSFontResolver_GenericAliases(t *testing.T) {
 		})
 	}
 }
-
-func TestNSFontResolver_NonGenericPassesThroughTrimmed(t *testing.T) {
-	// Non-generic names are passed through to the C layer so NSFontManager
-	// can verify and weight-resolve them, with only the surrounding
-	// whitespace removed.
-	cases := map[string]string{
-		"JetBrains Mono": "JetBrains Mono",
-		"SF Mono":        "SF Mono",
-		"  Helvetica  ":  "Helvetica",
-	}
-
-	for input, want := range cases {
-		t.Run(input, func(t *testing.T) {
-			fontResolver := NewFontResolver()
-
-			if got := fontResolver.Resolve(input); got != want {
-				t.Fatalf("Resolve(%q) = %q, want %q", input, got, want)
-			}
-		})
-	}
-}
-
-func TestNSFontResolver_AnswersEachSpellingFromItsOwnName(t *testing.T) {
-	// Caching must not rewrite a caller's spelling. The shared rule is pinned
-	// on every CI leg in platform/fontcache, and this pins that macOS uses it.
-	fontResolver := NewFontResolver()
-
-	if got := fontResolver.Resolve("Arial"); got != "Arial" {
-		t.Fatalf("Resolve(%q) = %q, want %q", "Arial", got, "Arial")
-	}
-
-	if got := fontResolver.Resolve("ARIAL"); got != "ARIAL" {
-		t.Fatalf("Resolve(%q) = %q, want %q", "ARIAL", got, "ARIAL")
-	}
-}

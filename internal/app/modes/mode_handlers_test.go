@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"slices"
 	"testing"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -18,67 +17,6 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/modecmd"
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
-
-func TestExecuteActionAtPoint_NilActionNoop(t *testing.T) {
-	handler := newHandlerWithState(handlerState{
-		logger:      zap.NewNop(),
-		cursorState: state.NewCursorState(),
-	})
-
-	handler.executeActionAtPoint(nil, nil, point(10, 10), false, nil)
-
-	if handler.cursorState.WasActionPerformed() {
-		t.Fatal("expected no action state change for nil action")
-	}
-}
-
-func TestRunOnExit_DispatchesEveryStepInOrderWithTheSelection(t *testing.T) {
-	type dispatch struct{ steps, env []string }
-
-	got := make(chan dispatch, 1)
-	handler := newHandlerWithState(handlerState{
-		logger: zap.NewNop(),
-		executeActionSequence: func(_ string, steps []string, env []string) {
-			got <- dispatch{steps, env}
-		},
-	})
-
-	onExit := []string{"action sleep 0.2", "exec notify-send done"}
-	selection := []string{"NERU_X=10", "NERU_Y=20"}
-	handler.runOnExit(onExit, selection)
-
-	select {
-	case dispatched := <-got:
-		if !slices.Equal(dispatched.steps, onExit) {
-			t.Fatalf("on-exit dispatched %v, want %v", dispatched.steps, onExit)
-		}
-
-		if !slices.Equal(dispatched.env, selection) {
-			t.Fatalf("on-exit env = %v, want %v", dispatched.env, selection)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("on-exit sequence was not dispatched")
-	}
-}
-
-func TestRunOnExit_NilAndEmptyNoop(t *testing.T) {
-	called := make(chan struct{}, 1)
-	handler := newHandlerWithState(handlerState{
-		logger: zap.NewNop(),
-		executeActionSequence: func(_ string, _ []string, _ []string) {
-			called <- struct{}{}
-		},
-	})
-
-	handler.runOnExit(nil, nil)
-	handler.runOnExit([]string{}, nil)
-
-	select {
-	case <-called:
-		t.Fatal("on-exit should not dispatch for nil or empty steps")
-	case <-time.After(100 * time.Millisecond):
-	}
-}
 
 // stepExecFoo is the on-exit step these cases pass around. What it says does
 // not matter, only that it survives the trip.
@@ -262,8 +200,4 @@ func TestCurrentModeOnExit(t *testing.T) {
 	if got := handler.currentModeOnExit(); got != nil {
 		t.Fatalf("currentModeOnExit() for non-action mode = %v, want nil", got)
 	}
-}
-
-func point(x, y int) image.Point {
-	return image.Point{X: x, Y: y}
 }

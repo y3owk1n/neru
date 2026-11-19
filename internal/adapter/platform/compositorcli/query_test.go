@@ -117,21 +117,36 @@ func TestQueryContext_DecodesWhatTheCLIAnswers(t *testing.T) {
 //
 // Each reason has to name the CLI that failed and say what went wrong, because
 // the person reading it is looking at a log line and deciding whether their
-// compositor, their PATH or Neru is broken.
+// compositor, their PATH or Neru is broken. A CLI that could not be run also
+// keeps the wrapped cause reachable, for when the sentence is not enough.
+//
+// The deadline keeps a wedged CLI off the activation path. These queries run
+// under the mode handler's lock, where a native call that waits is a keyboard
+// that has stopped responding. The deadline has to end the query itself and
+// not merely the process. A CLI killed with its stdout still open would
+// otherwise leave the read waiting for the pipe.
 func TestQueryContext_ReportsEveryWayAQueryCanFail(t *testing.T) {
+	// Spawning a process is the bulk of what the deadline case measures, and on
+	// a loaded runner that is not fast. The slack is wide enough that the
+	// assertion is about the deadline having ended the query at all, rather
+	// than about how quickly a machine can fork.
+	const spawnSlack = 5 * time.Second
+
 	cases := []struct {
-		name       string
-		mode       string
-		cli        string
-		timeout    time.Duration
-		wantReason string
-		wantCode   derrors.Code
+		name         string
+		mode         string
+		cli          string
+		timeout      time.Duration
+		wantReason   string
+		wantCode     derrors.Code
+		wantNotFound bool
 	}{
 		{
-			name:       "a CLI that is not installed",
-			cli:        "neru-no-such-compositor-cli",
-			wantReason: "could not be run",
-			wantCode:   derrors.CodeBridgeFailed,
+			name:         "a CLI that is not installed",
+			cli:          "neru-no-such-compositor-cli",
+			wantReason:   "could not be run",
+			wantCode:     derrors.CodeBridgeFailed,
+			wantNotFound: true,
 		},
 		{
 			name:       "a compositor that refused",
@@ -174,10 +189,24 @@ func TestQueryContext_ReportsEveryWayAQueryCanFail(t *testing.T) {
 
 			var answer answerPayload
 
+			start := time.Now()
 			err := compositorcli.QueryContext(ctx, &answer, cli, "-j", "activewindow")
+			elapsed := time.Since(start)
+
 			if err == nil {
 				t.Fatal("QueryContext() reported success; a failed query must not " +
 					"read as a compositor with nothing to report")
+			}
+
+			if testCase.timeout > 0 && elapsed > testCase.timeout+spawnSlack {
+				t.Errorf("QueryContext() took %v to give up on a %v deadline; a wedged "+
+					"compositor CLI must not outlive it", elapsed, testCase.timeout)
+			}
+
+			if testCase.wantNotFound &&
+				!errors.Is(err, exec.ErrNotFound) && !errors.Is(err, os.ErrNotExist) {
+				t.Errorf("QueryContext() error = %v, want it to carry why the CLI "+
+					"could not be run", err)
 			}
 
 			if !derrors.IsCode(err, testCase.wantCode) {
@@ -195,41 +224,6 @@ func TestQueryContext_ReportsEveryWayAQueryCanFail(t *testing.T) {
 					message, testCase.wantReason)
 			}
 		})
-	}
-}
-
-// TestQueryContext_EndsWithTheCallersDeadline keeps a wedged CLI off the
-// activation path.
-//
-// These queries run under the mode handler's lock, where a native call that
-// waits is a keyboard that has stopped responding. The deadline has to end the
-// query itself and not merely the process. A CLI killed with its stdout still
-// open would otherwise leave the read waiting for the pipe.
-func TestQueryContext_EndsWithTheCallersDeadline(t *testing.T) {
-	const deadline = 50 * time.Millisecond
-
-	// Spawning a process is the bulk of what this case measures, and on a
-	// loaded runner that is not fast. The slack is wide enough that the
-	// assertion is about the deadline having ended the query at all, rather
-	// than about how quickly a machine can fork.
-	const spawnSlack = 5 * time.Second
-
-	ctx, cancel := context.WithTimeout(context.Background(), deadline)
-	defer cancel()
-
-	var answer answerPayload
-
-	start := time.Now()
-	err := compositorcli.QueryContext(ctx, &answer, fakeCLI(t, modeHangs), "-j", "activewindow")
-	elapsed := time.Since(start)
-
-	if err == nil {
-		t.Fatal("QueryContext() reported success from a CLI that never answered")
-	}
-
-	if elapsed > deadline+spawnSlack {
-		t.Errorf("QueryContext() took %v to give up on a %v deadline; a wedged "+
-			"compositor CLI must not outlive it", elapsed, deadline)
 	}
 }
 
@@ -290,20 +284,5 @@ func TestQueryContext_QuotesNothingTheCompositorSaid(t *testing.T) {
 	if strings.Contains(err.Error(), "MyPrivateDocument") {
 		t.Errorf("error %q repeats what the CLI printed; the reason must be "+
 			"classified, not quoted", err.Error())
-	}
-}
-
-// TestQueryContext_CarriesTheUnderlyingFailure keeps the wrapped cause
-// reachable, so a reader is not left with the sentence alone when the sentence
-// is not enough.
-func TestQueryContext_CarriesTheUnderlyingFailure(t *testing.T) {
-	var answer answerPayload
-
-	err := compositorcli.QueryContext(
-		context.Background(), &answer, "neru-no-such-compositor-cli",
-	)
-
-	if !errors.Is(err, exec.ErrNotFound) && !errors.Is(err, os.ErrNotExist) {
-		t.Errorf("Query() error = %v, want it to carry why the CLI could not be run", err)
 	}
 }

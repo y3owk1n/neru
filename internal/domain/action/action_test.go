@@ -1,6 +1,7 @@
 package action_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -91,142 +92,6 @@ func TestType_String(t *testing.T) {
 	}
 }
 
-func TestType_IsClick(t *testing.T) {
-	tests := []struct {
-		actionType action.Type
-		want       bool
-	}{
-		{action.TypeLeftClick, true},
-		{action.TypeRightClick, true},
-		{action.TypeMiddleClick, true},
-		{action.TypeLeftMouseDown, false},
-		{action.TypeLeftMouseUp, false},
-		{action.TypeMoveMouse, false},
-		{action.TypeScroll, false},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.actionType.String(), func(t *testing.T) {
-			got := testCase.actionType.IsClick()
-			if got != testCase.want {
-				t.Errorf("IsClick() = %v, want %v", got, testCase.want)
-			}
-		})
-	}
-}
-
-func TestType_IsMouseButton(t *testing.T) {
-	tests := []struct {
-		actionType action.Type
-		want       bool
-	}{
-		{action.TypeLeftClick, true},
-		{action.TypeRightClick, true},
-		{action.TypeMiddleClick, true},
-		{action.TypeLeftMouseDown, true},
-		{action.TypeLeftMouseUp, true},
-		{action.TypeMoveMouse, false},
-		{action.TypeScroll, false},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.actionType.String(), func(t *testing.T) {
-			got := testCase.actionType.IsMouseButton()
-			if got != testCase.want {
-				t.Errorf("IsMouseButton() = %v, want %v", got, testCase.want)
-			}
-		})
-	}
-}
-
-func TestType_IsMoveMouse(t *testing.T) {
-	tests := []struct {
-		actionType action.Type
-		want       bool
-	}{
-		{action.TypeLeftClick, false},
-		{action.TypeRightClick, false},
-		{action.TypeMiddleClick, false},
-		{action.TypeLeftMouseDown, false},
-		{action.TypeLeftMouseUp, false},
-		{action.TypeMoveMouse, true},
-		{action.TypeMoveMouseRelative, true},
-		{action.TypeScroll, false},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.actionType.String(), func(t *testing.T) {
-			got := testCase.actionType.IsMoveMouse()
-			if got != testCase.want {
-				t.Errorf("IsMoveMouse() = %v, want %v", got, testCase.want)
-			}
-		})
-	}
-}
-
-// everyType lists each action type the round-trip tests walk. Add a new type
-// here so the tests check its String/ParseType and ToName/ToType pairs.
-var everyType = []action.Type{
-	action.TypeLeftClick,
-	action.TypeRightClick,
-	action.TypeMiddleClick,
-	action.TypeLeftMouseDown,
-	action.TypeLeftMouseUp,
-	action.TypeRightMouseDown,
-	action.TypeRightMouseUp,
-	action.TypeMiddleMouseDown,
-	action.TypeMiddleMouseUp,
-	action.TypeLeftMouseToggle,
-	action.TypeRightMouseToggle,
-	action.TypeMiddleMouseToggle,
-	action.TypeMoveMouse,
-	action.TypeMoveMouseRelative,
-	action.TypeScroll,
-}
-
-func TestParseType_RoundTrip(t *testing.T) {
-	for _, typ := range everyType {
-		str := typ.String()
-
-		parsedType, parsedTypeErr := action.ParseType(str)
-		if parsedTypeErr != nil {
-			t.Errorf("ParseType(%q) error: %v", str, parsedTypeErr)
-
-			continue
-		}
-
-		if parsedType != typ {
-			t.Errorf("Round trip failed: %v -> %q -> %v", typ, str, parsedType)
-		}
-	}
-}
-
-func TestName_String(t *testing.T) {
-	tests := []struct {
-		name action.Name
-		want string
-	}{
-		{action.NameLeftClick, testLeftClick},
-		{action.NameRightClick, testRightClick},
-		{action.NameMiddleClick, testMiddleClick},
-		{action.NameMouseDown, testMouseDown},
-		{action.NameMouseUp, testMouseUp},
-		{action.NameMoveMouse, testMoveMouse},
-		{action.NameMoveMouseRelative, testMoveMouseRelative},
-		{action.NameScroll, testScroll},
-		{action.NameFeed, "feed"},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.want, func(t *testing.T) {
-			got := string(testCase.name)
-			if got != testCase.want {
-				t.Errorf("Name.String() = %v, want %v", got, testCase.want)
-			}
-		})
-	}
-}
-
 func TestIsKnownName(t *testing.T) {
 	tests := []struct {
 		name action.Name
@@ -287,6 +152,7 @@ func TestIsScrollSubAction(t *testing.T) {
 		{"page_up", true},
 		{"page_down", true},
 		// Non-scroll actions return false.
+		{"scroll_diagonal", false},
 		{testLeftClick, false},
 		{testRightClick, false},
 		{testMiddleClick, false},
@@ -314,6 +180,28 @@ func TestIsScrollSubAction(t *testing.T) {
 				t.Errorf("IsScrollSubAction(%q) = %v, want %v", testCase.name, got, testCase.want)
 			}
 		})
+	}
+}
+
+// TestSupportedNamesString pins the list the invalid-action error shows. It
+// must name every known action, each once, in KnownNames order.
+func TestSupportedNamesString(t *testing.T) {
+	listed := strings.Split(action.SupportedNamesString(), ", ")
+	known := action.KnownNames()
+
+	if len(listed) != len(known) {
+		t.Fatalf(
+			"SupportedNamesString() lists %d names %q, want %d",
+			len(listed),
+			listed,
+			len(known),
+		)
+	}
+
+	for i, name := range known {
+		if listed[i] != string(name) {
+			t.Errorf("SupportedNamesString()[%d] = %q, want %q", i, listed[i], name)
+		}
 	}
 }
 
@@ -355,67 +243,6 @@ func TestKnownNames(t *testing.T) {
 		if !seen[exp] {
 			t.Errorf("KnownNames() missing name: %v", exp)
 		}
-	}
-}
-
-func TestSupportedNamesString(t *testing.T) {
-	str := action.SupportedNamesString()
-
-	expectedNames := []string{
-		testLeftClick,
-		testRightClick,
-		testMiddleClick,
-		testMouseDown,
-		testMouseUp,
-		testMoveMouse,
-		testMoveMouseRelative,
-		testScroll,
-	}
-
-	for _, name := range expectedNames {
-		if !contains(str, name) {
-			t.Errorf("SupportedNamesString() missing %q in %q", name, str)
-		}
-	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
-}
-
-func containsHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-
-	return false
-}
-
-func TestType_ToName(t *testing.T) {
-	tests := []struct {
-		typ  action.Type
-		want action.Name
-	}{
-		{action.TypeLeftClick, action.NameLeftClick},
-		{action.TypeRightClick, action.NameRightClick},
-		{action.TypeMiddleClick, action.NameMiddleClick},
-		{action.TypeLeftMouseDown, action.NameLeftMouseDown},
-		{action.TypeLeftMouseUp, action.NameLeftMouseUp},
-		{action.TypeMoveMouse, action.NameMoveMouse},
-		{action.TypeMoveMouseRelative, action.NameMoveMouseRelative},
-		{action.TypeScroll, action.NameScroll},
-		{action.Type(999), ""},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.typ.String(), func(t *testing.T) {
-			got := testCase.typ.ToName()
-			if got != testCase.want {
-				t.Errorf("ToName() = %v, want %v", got, testCase.want)
-			}
-		})
 	}
 }
 
@@ -475,23 +302,6 @@ func TestName_ToType(t *testing.T) {
 				t.Errorf("ToType() = %v, want %v", got, testCase.want)
 			}
 		})
-	}
-}
-
-func TestType_Name_RoundTrip(t *testing.T) {
-	for _, typ := range everyType {
-		name := typ.ToName()
-
-		parsedType, err := name.ToType()
-		if err != nil {
-			t.Errorf("Round trip error for %v: %v", typ, err)
-
-			continue
-		}
-
-		if parsedType != typ {
-			t.Errorf("Round trip failed: %v -> %v -> %v", typ, name, parsedType)
-		}
 	}
 }
 

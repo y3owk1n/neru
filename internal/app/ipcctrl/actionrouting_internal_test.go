@@ -200,6 +200,18 @@ func routeCases() []routeCase {
 			message: "move_cell requires --direction (left, right, up, or down)",
 		},
 		{
+			args:    []string{"feed", "--mode", "o"},
+			success: false,
+			code:    ipc.CodeActionFailed,
+			message: msgModesHandlerNotAvailable,
+		},
+		{
+			args:    []string{"bisect", "--direction=up_left"},
+			success: false,
+			code:    ipc.CodeActionFailed,
+			message: msgModesHandlerNotAvailable,
+		},
+		{
 			args:    []string{"wait_for_mode_exit"},
 			success: false,
 			code:    ipc.CodeActionFailed,

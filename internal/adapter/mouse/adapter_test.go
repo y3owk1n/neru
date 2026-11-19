@@ -246,7 +246,8 @@ func TestAdapter_Scroll_ReportsFailures(t *testing.T) {
 }
 
 // TestAdapter_ReleaseHeldButtons_IsIdempotent pins that the release runs on
-// every mode-exit path, so it must be safe when nothing is held.
+// every mode-exit path, so it must be safe when nothing is held, and each call
+// must still reach the backend.
 func TestAdapter_ReleaseHeldButtons_IsIdempotent(t *testing.T) {
 	t.Parallel()
 
@@ -258,6 +259,10 @@ func TestAdapter_ReleaseHeldButtons_IsIdempotent(t *testing.T) {
 		if err != nil {
 			t.Fatalf("ReleaseHeldButtons() attempt %d error = %v, want nil", attempt+1, err)
 		}
+	}
+
+	if want := []string{releaseHeld, releaseHeld, releaseHeld}; !slices.Equal(rec.calls, want) {
+		t.Errorf("calls = %q, want %q", rec.calls, want)
 	}
 }
 

@@ -2,7 +2,6 @@ package accessibility_test
 
 import (
 	"context"
-	"image"
 	"slices"
 	"testing"
 
@@ -41,86 +40,6 @@ func TestAdapter_UpdateClickableRoles(t *testing.T) {
 			len(newRoles),
 			len(mockClient.MockClickableRoles),
 		)
-	}
-}
-
-func TestAdapter_Health(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{MockPermissions: true}
-	adapter := accessibility.NewAdapter(logger, mockClient, false)
-	ctx := context.Background()
-
-	healthErr := adapter.Health(ctx)
-	if healthErr != nil {
-		t.Errorf("Health() error = %v", healthErr)
-	}
-}
-
-func TestAdapter_MatchesFilter(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{}
-	adapter := accessibility.NewAdapter(logger, mockClient, false)
-
-	elem, _ := element.NewElement(
-		element.ID("test-id"),
-		image.Rect(0, 0, 100, 100),
-		element.RoleButton,
-	)
-
-	elemWithSearchText, _ := element.NewElement(
-		element.ID("test-id-with-search-text"),
-		image.Rect(0, 0, 100, 100),
-		element.RoleButton,
-		element.WithSearchText("Apple Notes row"),
-	)
-
-	tests := []struct {
-		name   string
-		elem   *element.Element
-		filter ports.ElementFilter
-		want   bool
-	}{
-		{
-			name: "match by role",
-			elem: elem,
-			filter: ports.ElementFilter{
-				Roles: []element.Role{element.RoleButton},
-			},
-			want: true,
-		},
-		{
-			name: "no match by role",
-			elem: elem,
-			filter: ports.ElementFilter{
-				Roles: []element.Role{element.RoleLink},
-			},
-			want: false,
-		},
-		{
-			name: "match by min size",
-			elem: elem,
-			filter: ports.ElementFilter{
-				MinSize: image.Point{X: 50, Y: 50},
-			},
-			want: true,
-		},
-		{
-			name: "match by extra search text",
-			elem: elemWithSearchText,
-			filter: ports.ElementFilter{
-				ValueContains: "notes",
-			},
-			want: true,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := adapter.MatchesFilter(testCase.elem, testCase.filter)
-			if got != testCase.want {
-				t.Errorf("matchesFilter() = %v, want %v", got, testCase.want)
-			}
-		})
 	}
 }
 
@@ -188,15 +107,26 @@ func TestAdapter_FocusedAppBundleID(t *testing.T) {
 	}
 }
 
-func TestAdapter_Health_PermissionsDenied(t *testing.T) {
-	logger := zap.NewNop()
-	mockClient := &accessibility.MockAXClient{MockPermissions: false}
-	adapter := accessibility.NewAdapter(logger, mockClient, false)
-	ctx := context.Background()
+func TestAdapter_Health(t *testing.T) {
+	tests := []struct {
+		name        string
+		permissions bool
+		wantErr     bool
+	}{
+		{name: "permissions granted", permissions: true, wantErr: false},
+		{name: "permissions denied", permissions: false, wantErr: true},
+	}
 
-	healthErr := adapter.Health(ctx)
-	if healthErr == nil {
-		t.Error("Health() expected error when permissions denied, got nil")
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			mockClient := &accessibility.MockAXClient{MockPermissions: testCase.permissions}
+			adapter := accessibility.NewAdapter(zap.NewNop(), mockClient, false)
+
+			healthErr := adapter.Health(context.Background())
+			if (healthErr != nil) != testCase.wantErr {
+				t.Errorf("Health() error = %v, wantErr %v", healthErr, testCase.wantErr)
+			}
+		})
 	}
 }
 

@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-	"unsafe"
 
 	"go.uber.org/zap"
 
@@ -60,60 +59,6 @@ func (m *MockAppWatcher) HandleMissionControlDeactivated() {
 	m.mcDeactivatedCalls.Add(1)
 }
 
-func TestInitializeLogger(t *testing.T) {
-	tests := []struct {
-		name   string
-		logger *zap.Logger
-	}{
-		{
-			name:   "initialize with development logger",
-			logger: zap.NewNop(),
-		},
-		{
-			name:   "initialize with nil logger",
-			logger: nil,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			darwin.InitializeLogger(testCase.logger)
-
-			if testCase.logger != nil && darwin.Logger() == nil {
-				t.Error("Expected logger to be set")
-			}
-		})
-	}
-}
-
-func TestSetAppWatcher(t *testing.T) {
-	tests := []struct {
-		name    string
-		watcher darwin.AppWatcherInterface
-	}{
-		{
-			name:    "set mock watcher",
-			watcher: &MockAppWatcher{},
-		},
-		{
-			name:    "set nil watcher",
-			watcher: nil,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			darwin.InitializeLogger(zap.NewNop())
-
-			darwin.SetAppWatcher(testCase.watcher)
-
-			if testCase.watcher != nil && darwin.AppWatcher() == nil {
-				t.Error("Expected watcher to be set")
-			}
-		})
-	}
-}
-
 func TestAppWatcherDispatchDroppedAfterClear(t *testing.T) {
 	darwin.InitializeLogger(zap.NewNop())
 
@@ -128,6 +73,15 @@ func TestAppWatcherDispatchDroppedAfterClear(t *testing.T) {
 			"expected no dispatch after SetAppWatcher(nil), got %d calls",
 			len(mock.launchCalls),
 		)
+	}
+
+	// Screen changes take the async path, which must drop the event too.
+	darwin.HandleScreenParametersChanged()
+
+	time.Sleep(20 * time.Millisecond)
+
+	if got := mock.screenChangeCalls.Load(); got != 0 {
+		t.Fatalf("expected no async dispatch after SetAppWatcher(nil), got %d calls", got)
 	}
 }
 
@@ -218,31 +172,6 @@ func TestCallbacks(t *testing.T) {
 			t.Errorf("Expected 1 mission control deactivated call, got %d", got)
 		}
 	})
-}
-
-func TestHasClickAction(t *testing.T) {
-	tests := []struct {
-		name    string
-		element unsafe.Pointer
-		want    bool
-	}{
-		{
-			name:    "nil element returns false",
-			element: nil,
-			want:    false,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			darwin.InitializeLogger(zap.NewNop())
-
-			got := darwin.HasClickAction(testCase.element)
-			if got != testCase.want {
-				t.Errorf("HasClickAction() = %v, want %v", got, testCase.want)
-			}
-		})
-	}
 }
 
 func TestActiveScreenBounds(t *testing.T) {

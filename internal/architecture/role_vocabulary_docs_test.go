@@ -27,19 +27,52 @@ func TestConfigurationDocsCoverTheRoleVocabulary(t *testing.T) {
 		t.Fatalf("failed to read %s: %v", docPath, err)
 	}
 
-	doc := string(contents)
+	rows := semanticRoleRows(t, string(contents))
 
 	for _, mapping := range element.RoleVocabulary {
-		// The table renders each semantic role as an inline code span, which is
-		// specific enough not to match prose mentioning the same word.
-		if !strings.Contains(doc, "`"+string(mapping.Semantic)+"`") {
+		// Only a row of the table counts. Common roles such as `button` or
+		// `link` turn up in prose all over the page, so a match anywhere would
+		// pass with the row gone.
+		if !rows["`"+string(mapping.Semantic)+"`"] {
 			t.Errorf(
-				"semantic role %q is missing from docs/reference/configuration.md; "+
-					"add it to the Clickable roles table",
-				mapping.Semantic,
+				"semantic role %q has no row in the %s table of "+
+					"docs/reference/configuration.md; add one",
+				mapping.Semantic, semanticRolesHeading,
 			)
 		}
 	}
+}
+
+// semanticRolesHeading opens the table TestConfigurationDocsCoverTheRoleVocabulary
+// reads, which runs until the next heading.
+const semanticRolesHeading = "#### Semantic roles"
+
+// semanticRoleRows returns the first cell of every row in the semantic roles
+// table, backticks included.
+func semanticRoleRows(t *testing.T, doc string) map[string]bool {
+	t.Helper()
+
+	_, section, found := strings.Cut(doc, "\n"+semanticRolesHeading+"\n")
+	if !found {
+		t.Fatalf("docs/reference/configuration.md has no %q heading", semanticRolesHeading)
+	}
+
+	rows := map[string]bool{}
+
+	for line := range strings.SplitSeq(section, "\n") {
+		if strings.HasPrefix(line, "#") {
+			break
+		}
+
+		cells := strings.Split(line, "|")
+		if len(cells) < 3 {
+			continue
+		}
+
+		rows[strings.TrimSpace(cells[1])] = true
+	}
+
+	return rows
 }
 
 // TestConfigurationDocsMarkTheAXSubroleNames keeps the documented role table
@@ -149,24 +182,22 @@ func TestConfigurationDocsUseTheCurrentRoleVocabulary(t *testing.T) {
 	}
 }
 
-// TestModeFlagVocabularyUsesTheCurrentRoleVocabulary keeps the grammar's own
-// words current. A flag's usage sentence and its missing-value message are
-// what the command line, an IPC response and binding advice all say, so a
-// stale role spelling there is repeated everywhere at once.
-func TestModeFlagVocabularyUsesTheCurrentRoleVocabulary(t *testing.T) {
-	for _, descriptor := range modecmd.All() {
-		reportBareAXNames(t,
-			"the usage for "+descriptor.Name().Long(), descriptor.Usage(), false)
-		reportBareAXNames(t,
-			"the value message for "+descriptor.Name().Long(), descriptor.ValueMessage(), false)
-	}
-}
-
 // TestCLIHelpUsesTheCurrentRoleVocabulary walks every command's compiled-in
 // help for the same stale spelling: short and long descriptions, examples, and
 // flag usages. Help is where a user copies a role example from, so a
 // bare AX name here directs them straight to a fatal config error.
+//
+// The mode grammar's missing-value messages are walked too. They never reach
+// cobra's help, but an IPC response and binding advice repeat them, so a stale
+// role spelling there is said everywhere at once. Its usage sentences need no
+// separate walk, since TestModeCommands_RegisterExactlyWhatTheGrammarDeclares
+// pins each one to the flag usage this test reads.
 func TestCLIHelpUsesTheCurrentRoleVocabulary(t *testing.T) {
+	for _, descriptor := range modecmd.All() {
+		reportBareAXNames(t,
+			"the value message for "+descriptor.Name().Long(), descriptor.ValueMessage(), false)
+	}
+
 	var walk func(*cobra.Command)
 
 	walk = func(command *cobra.Command) {

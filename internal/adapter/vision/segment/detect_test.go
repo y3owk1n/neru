@@ -120,14 +120,6 @@ func TestDetect_RefusesEmptyFrame(t *testing.T) {
 	}
 }
 
-func TestDetect_BlankFrameFindsNothing(t *testing.T) {
-	t.Parallel()
-
-	if rects := detect(t, canvas(200, 100, white), 1); len(rects) != 0 {
-		t.Errorf("Detect(blank) = %v, want none", rects)
-	}
-}
-
 func TestDetect_CanceledContext(t *testing.T) {
 	t.Parallel()
 

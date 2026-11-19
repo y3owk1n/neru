@@ -121,10 +121,3 @@ func TestGenuineSyncFailure_KeepsUnexpectedErrnoOnStream(t *testing.T) {
 		t.Errorf("genuineSyncFailureFor() = %v, want it to keep %v", got, failure)
 	}
 }
-
-func TestGenuineSyncFailure_NilForNil(t *testing.T) {
-	got := genuineSyncFailure(nil)
-	if got != nil {
-		t.Errorf("genuineSyncFailure(nil) = %v, want nil", got)
-	}
-}

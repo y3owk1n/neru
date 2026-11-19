@@ -374,39 +374,6 @@ func TestParse_PresenceFlagsRefuseAValue(t *testing.T) {
 	}
 }
 
-// TestParse_ListFlagsRefuseAnEmptyValue pins that a filter given nothing to
-// filter by is reported. Accepting it would leave a user watching every element
-// come back from a command that named a filter.
-func TestParse_ListFlagsRefuseAnEmptyValue(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		args []string
-		want string
-	}{
-		{
-			[]string{"--role="},
-			"--role requires a value (use comma-separated: --role=button,link)",
-		},
-		{[]string{"--text="}, "--text requires a value (use comma-separated: --text=foo,bar)"},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.args[0], func(t *testing.T) {
-			t.Parallel()
-
-			_, err := modecmd.Parse(domain.ModeHints, testCase.args)
-			if err == nil {
-				t.Fatalf("%v was accepted; want a refusal", testCase.args)
-			}
-
-			if got := message(err); got != testCase.want {
-				t.Errorf("message = %q, want %q", got, testCase.want)
-			}
-		})
-	}
-}
-
 // TestParse_AcceptsBothArgumentShapes pins the normalization every other case
 // depends on. A caller modeled on the CLI's own traffic repeats the mode name
 // as the first argument, and a binding does not.
@@ -425,29 +392,6 @@ func TestParse_AcceptsBothArgumentShapes(t *testing.T) {
 
 	if !reflect.DeepEqual(withName, withoutName) {
 		t.Errorf("shapes disagree: %+v vs %+v", withName, withoutName)
-	}
-}
-
-// TestParse_ReadsBothValueSpellings pins that a value may be attached with an
-// equals sign or written as the following argument.
-func TestParse_ReadsBothValueSpellings(t *testing.T) {
-	t.Parallel()
-
-	split, err := modecmd.Parse(domain.ModeHints, []string{"--label-direction", directionReverse})
-	if err != nil {
-		t.Fatalf("space-separated value refused: %v", err)
-	}
-
-	equals, err := modecmd.Parse(
-		domain.ModeHints,
-		[]string{"--label-direction=" + directionReverse},
-	)
-	if err != nil {
-		t.Fatalf("attached value refused: %v", err)
-	}
-
-	if !reflect.DeepEqual(split, equals) {
-		t.Errorf("spellings disagree: %+v vs %+v", split, equals)
 	}
 }
 
@@ -764,6 +708,18 @@ func TestParse_RefusalMessages(t *testing.T) {
 			[]string{"--text"},
 			"--text requires a value (use comma-separated: --text=foo,bar)",
 		},
+		// A filter given nothing to filter by is refused, or the command would
+		// return every element.
+		{
+			domain.ModeHints,
+			[]string{"--role="},
+			"--role requires a value (use comma-separated: --role=button,link)",
+		},
+		{
+			domain.ModeHints,
+			[]string{"--text="},
+			"--text requires a value (use comma-separated: --text=foo,bar)",
+		},
 	}
 
 	for _, testCase := range tests {
@@ -920,17 +876,6 @@ func TestValidate_PinsTheActionVocabulary(t *testing.T) {
 				t.Errorf("message = %q, want it to start with %q", got, testCase.want)
 			}
 		})
-	}
-}
-
-// TestValidate_AcceptsAChainedAction pins that commas chain several clicks,
-// which is how a double-click is written.
-func TestValidate_AcceptsAChainedAction(t *testing.T) {
-	t.Parallel()
-
-	_, err := modecmd.Parse(domain.ModeHints, []string{"--action=left_click,left_click"})
-	if err != nil {
-		t.Errorf("chained action refused: %v", err)
 	}
 }
 

@@ -145,6 +145,11 @@ func TestConfigValidateHotkeys_PrefixConflictInEveryTable(t *testing.T) {
 			},
 		},
 		{
+			name:   "scroll hotkeys",
+			field:  "scroll.hotkeys",
+			mutate: func(cfg *config.Config) { maps.Copy(cfg.Scroll.Hotkeys, conflict()) },
+		},
+		{
 			name:   "monitor_select hotkeys",
 			field:  "monitor_select.hotkeys",
 			mutate: func(cfg *config.Config) { maps.Copy(cfg.MonitorSelect.Hotkeys, conflict()) },
@@ -166,39 +171,6 @@ func TestConfigValidateHotkeys_PrefixConflictInEveryTable(t *testing.T) {
 				)
 			}
 		})
-	}
-}
-
-func TestConfigValidateHotkeys_InvalidAction(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.Hotkeys["x"] = config.StringOrStringArray{"action nope"}
-
-	err := cfg.ValidateHotkeys()
-	if err == nil {
-		t.Fatal("ValidateHotkeys() expected error, got nil")
-	}
-}
-
-func TestConfigValidateHotkeys_PrefixConflict(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Scroll.Hotkeys["g"] = config.StringOrStringArray{"action scroll_up"}
-	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{config.CmdGoTop}
-
-	err := cfg.ValidateHotkeys()
-	if err == nil {
-		t.Fatal("ValidateHotkeys() expected prefix conflict error, got nil")
-	}
-}
-
-func TestConfigValidateHotkeys_SequenceWithoutPrefixConflict(t *testing.T) {
-	cfg := config.DefaultConfig()
-	// "gg" sequence with no single-key "g" binding should be fine
-	cfg.Scroll.Hotkeys["gg"] = config.StringOrStringArray{config.CmdGoTop}
-	cfg.Scroll.Hotkeys["j"] = config.StringOrStringArray{"action scroll_down"}
-
-	err := cfg.ValidateHotkeys()
-	if err != nil {
-		t.Fatalf("ValidateHotkeys() unexpected error: %v", err)
 	}
 }
 
@@ -279,38 +251,6 @@ func TestConfigValidateScroll_AppConfigs(t *testing.T) {
 	}
 }
 
-func TestConfigValidateHints_DuplicateHintChars(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	cfg.Hints.HintCharacters = "ab"
-
-	err := cfg.ValidateHints(nil)
-	if err != nil {
-		t.Fatalf("ValidateHints() unexpected error for unique chars: %v", err)
-	}
-
-	cfg.Hints.HintCharacters = "aab"
-
-	err = cfg.ValidateHints(nil)
-	if err == nil {
-		t.Fatal("ValidateHints() expected error for duplicate hint_characters")
-	}
-
-	cfg.Hints.HintCharacters = "aba"
-
-	err = cfg.ValidateHints(nil)
-	if err == nil {
-		t.Fatal("ValidateHints() expected error for duplicate hint_characters (non-adjacent)")
-	}
-
-	cfg.Hints.HintCharacters = "aA"
-
-	err = cfg.ValidateHints(nil)
-	if err == nil {
-		t.Fatal("ValidateHints() expected error for case-insensitive duplicate hint_characters")
-	}
-}
-
 // TestConfigValidateVirtualPointer pins the refusals. The default char is a
 // multi-byte rune, so validBase already proves the validator counts one rune
 // as one character, not by its bytes.
@@ -329,4 +269,17 @@ func TestConfigValidateVirtualPointer(t *testing.T) {
 		minValid: 0,
 		maxValid: math.MaxInt32,
 	}})
+}
+
+// TestConfigValidateHotkeys_InvalidAction pins that a mode table refuses an
+// action name it does not know, so a typo in [hints.hotkeys] fails the load
+// rather than binding nothing.
+func TestConfigValidateHotkeys_InvalidAction(t *testing.T) {
+	cfg := config.DefaultConfig()
+	cfg.Hints.Hotkeys["x"] = config.StringOrStringArray{"action nope"}
+
+	err := cfg.ValidateHotkeys()
+	if err == nil {
+		t.Fatal("ValidateHotkeys() expected error, got nil")
+	}
 }

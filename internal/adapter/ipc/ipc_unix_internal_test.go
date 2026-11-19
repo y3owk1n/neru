@@ -77,50 +77,9 @@ func TestServer_HandleConnection_RefusesAnOversizedCommand(t *testing.T) {
 	server.wg.Wait()
 }
 
-// A command comfortably inside the limit is unaffected by the cap.
-func TestServer_HandleConnection_AcceptsACommandInsideTheLimit(t *testing.T) {
-	t.Parallel()
-
-	accepted, dialed := connectedUnixPair(t)
-
-	server := &Server{
-		logger: zap.NewNop(),
-		handler: func(_ context.Context, cmd Command) Response {
-			return Response{Success: true, Message: cmd.Action, Code: CodeOK}
-		},
-	}
-
-	server.wg.Add(1)
-
-	go server.handleConnection(accepted)
-
-	deadlineErr := dialed.SetDeadline(time.Now().Add(5 * time.Second))
-	if deadlineErr != nil {
-		t.Fatalf("SetDeadline() error = %v", deadlineErr)
-	}
-
-	encodeErr := json.NewEncoder(dialed).Encode(Command{Action: "status", Version: BuildVersion()})
-	if encodeErr != nil {
-		t.Fatalf("Encode() error = %v", encodeErr)
-	}
-
-	var response Response
-
-	decodeErr := json.NewDecoder(dialed).Decode(&response)
-	if decodeErr != nil {
-		t.Fatalf("Decode() error = %v", decodeErr)
-	}
-
-	if !response.Success || response.Message != "status" {
-		t.Fatalf("response = %+v, want the handler's own answer", response)
-	}
-
-	server.wg.Wait()
-}
-
 // Every reply names the protocol the daemon speaks. The daemon refuses a command
 // that asks for a newer one or carries a field outside the contract, and never
-// runs it.
+// runs it. A command it accepts gets the handler's own answer.
 func TestServer_HandleConnection_ChecksTheProtocol(t *testing.T) {
 	t.Parallel()
 
@@ -132,6 +91,12 @@ func TestServer_HandleConnection_ChecksTheProtocol(t *testing.T) {
 	}{
 		{"no protocol runs", `{"action":"ping"}`, CodeOK, true},
 		{"current protocol runs", `{"action":"ping","protocol":1}`, CodeOK, true},
+		{
+			"this build's version runs",
+			`{"action":"ping","version":"` + BuildVersion() + `"}`,
+			CodeOK,
+			true,
+		},
 		{"protocol 2 is refused", `{"action":"ping","protocol":2}`, CodeVersionMismatch, false},
 		{"protocol -1 is refused", `{"action":"ping","protocol":-1}`, CodeInvalidInput, false},
 		{"unknown field is refused", `{"action":"ping","params":{}}`, CodeInvalidInput, false},
@@ -146,10 +111,10 @@ func TestServer_HandleConnection_ChecksTheProtocol(t *testing.T) {
 			ran := false
 			server := &Server{
 				logger: zap.NewNop(),
-				handler: func(_ context.Context, _ Command) Response {
+				handler: func(_ context.Context, cmd Command) Response {
 					ran = true
 
-					return Response{Success: true, Code: CodeOK}
+					return Response{Success: true, Message: cmd.Action, Code: CodeOK}
 				},
 			}
 
@@ -191,6 +156,10 @@ func TestServer_HandleConnection_ChecksTheProtocol(t *testing.T) {
 
 			if ran != testCase.wantRun {
 				t.Errorf("handler ran = %v, want %v", ran, testCase.wantRun)
+			}
+
+			if testCase.wantRun && response.Message != "ping" {
+				t.Errorf("message = %q, want the handler's own answer", response.Message)
 			}
 		})
 	}

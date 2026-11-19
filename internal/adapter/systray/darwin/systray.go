@@ -31,26 +31,7 @@ type MenuItem struct {
 	ClickedCh chan struct{}
 	id        int
 	mu        sync.RWMutex
-	title     string
-	disabled  bool
 	checked   bool
-	hidden    bool
-}
-
-// Title returns the menu item title.
-func (m *MenuItem) Title() string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.title
-}
-
-// Disabled returns whether the menu item is disabled.
-func (m *MenuItem) Disabled() bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.disabled
 }
 
 // Checked returns whether the menu item is checked.
@@ -59,14 +40,6 @@ func (m *MenuItem) Checked() bool {
 	defer m.mu.RUnlock()
 
 	return m.checked
-}
-
-// Hidden returns whether the menu item is hidden.
-func (m *MenuItem) Hidden() bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.hidden
 }
 
 // Run starts the system tray loop. It must be called from the main thread.
@@ -119,7 +92,6 @@ func (m *MenuItem) AddSeparator() {
 func AddMenuItem(title string) *MenuItem {
 	item := &MenuItem{
 		ClickedCh: make(chan struct{}, 1),
-		title:     title,
 	}
 	item.id = registerMenuItem(item)
 
@@ -135,7 +107,6 @@ func AddMenuItem(title string) *MenuItem {
 func (m *MenuItem) AddSubMenuItem(title string) *MenuItem {
 	item := &MenuItem{
 		ClickedCh: make(chan struct{}, 1),
-		title:     title,
 	}
 	item.id = registerMenuItem(item)
 
@@ -149,9 +120,6 @@ func (m *MenuItem) AddSubMenuItem(title string) *MenuItem {
 
 // SetTitle sets the title of the menu item.
 func (m *MenuItem) SetTitle(title string) {
-	m.mu.Lock()
-	m.title = title
-	m.mu.Unlock()
 	cTitle := C.CString(title)
 	defer C.free(unsafe.Pointer(cTitle))
 	C.NeruSetItemTitle(C.int(m.id), cTitle)
@@ -159,17 +127,11 @@ func (m *MenuItem) SetTitle(title string) {
 
 // Enable enables the menu item.
 func (m *MenuItem) Enable() {
-	m.mu.Lock()
-	m.disabled = false
-	m.mu.Unlock()
 	C.NeruSetItemDisabled(C.int(m.id), C.short(0))
 }
 
 // Disable disables the menu item.
 func (m *MenuItem) Disable() {
-	m.mu.Lock()
-	m.disabled = true
-	m.mu.Unlock()
 	C.NeruSetItemDisabled(C.int(m.id), C.short(1))
 }
 
@@ -191,17 +153,11 @@ func (m *MenuItem) Uncheck() {
 
 // Hide hides the menu item.
 func (m *MenuItem) Hide() {
-	m.mu.Lock()
-	m.hidden = true
-	m.mu.Unlock()
 	C.NeruHideMenuItem(C.int(m.id))
 }
 
 // Show shows the menu item.
 func (m *MenuItem) Show() {
-	m.mu.Lock()
-	m.hidden = false
-	m.mu.Unlock()
 	C.NeruShowMenuItem(C.int(m.id))
 }
 

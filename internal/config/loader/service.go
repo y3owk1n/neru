@@ -518,11 +518,6 @@ func (s *Service) Watch(ctx context.Context) <-chan *config.Config {
 	return channel
 }
 
-// Validate validates the given configuration.
-func (s *Service) Validate(cfg *config.Config) error {
-	return cfg.Validate()
-}
-
 // Update updates the configuration (for testing/internal use).
 //
 // written is the configuration cfg was derived from, kept for the next field
@@ -530,7 +525,7 @@ func (s *Service) Validate(cfg *config.Config) error {
 // previous written one would have that next change deriving from values nobody
 // wrote. A caller with no separate written form passes cfg for both.
 func (s *Service) Update(cfg, written *config.Config) error {
-	validateErr := s.Validate(cfg)
+	validateErr := cfg.Validate()
 	if validateErr != nil {
 		return validateErr
 	}

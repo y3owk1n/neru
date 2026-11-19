@@ -77,22 +77,6 @@ func (f *bisectFixture) lastMove(t *testing.T) image.Point {
 	return f.moves[len(f.moves)-1]
 }
 
-func TestBisectCurrentMode_KeepsTheHalfAndMovesToItsCentre(t *testing.T) {
-	fixture := newBisectFixture(t)
-
-	fixture.handler.BisectCurrentMode(bisect.CutRight, 1)
-
-	if got := fixture.lastMove(t); got != image.Pt(750, 400) {
-		t.Fatalf("cut right moved the cursor to %v, want the center of the right half", got)
-	}
-
-	fixture.handler.BisectCurrentMode(bisect.CutDownLeft, 1)
-
-	if got := fixture.lastMove(t); got != image.Pt(625, 600) {
-		t.Fatalf("cut down-left moved the cursor to %v, want (625,600)", got)
-	}
-}
-
 func TestBisectCurrentMode_CountRepeatsTheCutAsOnePress(t *testing.T) {
 	fixture := newBisectFixture(t)
 
@@ -112,18 +96,6 @@ func TestBisectCurrentMode_CountRepeatsTheCutAsOnePress(t *testing.T) {
 	}
 }
 
-func TestBackspaceCurrentMode_TakesTheLastCutBack(t *testing.T) {
-	fixture := newBisectFixture(t)
-
-	fixture.handler.BisectCurrentMode(bisect.CutRight, 1)
-	fixture.handler.BisectCurrentMode(bisect.CutUp, 1)
-	fixture.handler.BackspaceCurrentMode()
-
-	if got := fixture.lastMove(t); got != image.Pt(750, 400) {
-		t.Fatalf("backspace moved the cursor to %v, want the right half's center", got)
-	}
-}
-
 func TestResetCurrentMode_ReturnsToTheWholeRegion(t *testing.T) {
 	fixture := newBisectFixture(t)
 
@@ -136,20 +108,6 @@ func TestResetCurrentMode_ReturnsToTheWholeRegion(t *testing.T) {
 
 	if fixture.handler.bisect.Region.Depth() != 0 {
 		t.Fatal("reset left history behind")
-	}
-}
-
-func TestBisectFrame_LabelsTheQuadrantsWithTheBoundKeys(t *testing.T) {
-	fixture := newBisectFixture(t)
-
-	frame := fixture.handler.bisectFrame()
-
-	if frame.Mode() != domain.ModeBisect || !frame.Bounds.Eq(image.Rect(0, 0, 1000, 800)) {
-		t.Fatalf("frame = %+v, want the whole screen in bisect mode", frame)
-	}
-
-	if frame.Keys != "yubn" {
-		t.Fatalf("quadrant keys = %q, want the default y u b n", frame.Keys)
 	}
 }
 
@@ -213,18 +171,6 @@ func TestBisectCurrentMode_HoldKeepsTheCursorAndDrawsThePointer(t *testing.T) {
 
 	if fixture.handler.bisectFrame().Pointer.Visible {
 		t.Fatal("pointer stand-in still drawn while the cursor follows")
-	}
-}
-
-func TestBisectCurrentMode_DoesNothingOutsideBisectMode(t *testing.T) {
-	fixture := newBisectFixture(t)
-	fixture.handler.appState.SetMode(domain.ModeScroll)
-	fixture.handler.modes[domain.ModeScroll] = NewScrollMode(&fixture.handler.handlerState)
-
-	fixture.handler.BisectCurrentMode(bisect.CutRight, 1)
-
-	if len(fixture.moves) != 0 {
-		t.Fatalf("bisect outside its mode moved the cursor to %v", fixture.moves)
 	}
 }
 

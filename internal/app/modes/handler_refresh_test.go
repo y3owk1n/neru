@@ -150,48 +150,6 @@ func TestRefreshActiveModeForThemeChange_LeavesTheOverlayAloneWhileIdle(t *testi
 	}
 }
 
-// TestRefreshActiveModeForThemeChange_ScrollDeclinesAndSaysSo pins the other
-// mode that carries this axis by not implementing it. Scroll draws nothing of
-// its own, so a theme change leaves the screen alone. Because the axis is
-// an effect rather than a getter, "the overlay stayed as it was" is answerable
-// from the debug log instead of by reading the dispatch.
-func TestRefreshActiveModeForThemeChange_ScrollDeclinesAndSaysSo(t *testing.T) {
-	core, logs := observer.New(zap.DebugLevel)
-
-	overlay := &portmocks.MockOverlayPort{}
-
-	handler := newHandlerWithState(handlerState{
-		ctx:         context.Background(),
-		logger:      zap.New(core),
-		appState:    state.NewAppState(),
-		overlayPort: overlay,
-	})
-
-	handler.appState.SetMode(domain.ModeScroll)
-
-	if handler.RefreshActiveModeForThemeChange() {
-		t.Error("scroll mode reported a theme redraw")
-	}
-
-	if got := overlay.Frames(); len(got) != 0 {
-		t.Fatalf("a theme change in scroll mode put %d frame(s) on screen, want none", len(got))
-	}
-
-	declined := logs.FilterLevelExact(zap.DebugLevel).All()
-	if len(declined) != 1 {
-		t.Fatalf("a theme change in scroll mode logged %d debug entries, want 1", len(declined))
-	}
-
-	fields := declined[0].ContextMap()
-	if got := fields["extension"]; got != string(extensionThemeRefresh) {
-		t.Errorf("declined effect named extension %v, want %q", got, extensionThemeRefresh)
-	}
-
-	if got, want := fields["mode"], domain.ModeString(domain.ModeScroll); got != want {
-		t.Errorf("declined effect named mode %v, want %q", got, want)
-	}
-}
-
 // The fixture values a screen-change refresh is driven with. They are named
 // rather than repeated so that what a test is varying (the mode, the
 // configuration gate) is the only thing that reads as significant.
@@ -340,32 +298,6 @@ func TestRefreshActiveModeForScreenChange_ReadsTheModeSessionUnderTheHandlerLock
 	}
 }
 
-// TestRefreshActiveModeForScreenChange_LeavesTheOverlayAloneWhileIdle pins the
-// arm the dispatch answers before it looks at any mode. A display change with
-// nothing open must leave the overlay alone.
-//
-// The caller resizes the overlay itself when this reports the resize is still
-// owed, and resizing is what brings the overlay up, so reporting it here would
-// flash an overlay at a user who only plugged a monitor in.
-func TestRefreshActiveModeForScreenChange_LeavesTheOverlayAloneWhileIdle(t *testing.T) {
-	overlay := &portmocks.MockOverlayPort{}
-
-	handler := newHandlerWithState(handlerState{
-		ctx:         context.Background(),
-		logger:      zap.NewNop(),
-		appState:    state.NewAppState(),
-		overlayPort: overlay,
-	})
-
-	if handler.RefreshActiveModeForScreenChange(context.Background()) {
-		t.Error("an idle screen change asked for the overlay to be resized")
-	}
-
-	if got := overlay.Frames(); len(got) != 0 {
-		t.Fatalf("an idle screen change put %d frame(s) on screen, want none", len(got))
-	}
-}
-
 // TestRefreshActiveModeForScreenChange_ScrollDeclinesAndSaysSo pins the mode
 // that carries this axis by not implementing it. Scroll holds no drawing built
 // for the bounds that changed, so there is nothing to rebuild. But it is on
@@ -470,5 +402,47 @@ func TestRefreshActiveModeForScreenChange_GridDisabledInConfigIsNotRefreshed(t *
 				)
 			}
 		})
+	}
+}
+
+// TestRefreshActiveModeForThemeChange_ScrollDeclinesAndSaysSo pins the other
+// mode that carries this axis by not implementing it. Scroll draws nothing of
+// its own, so a theme change leaves the screen alone. Because the axis is
+// an effect rather than a getter, "the overlay stayed as it was" is answerable
+// from the debug log instead of by reading the dispatch.
+func TestRefreshActiveModeForThemeChange_ScrollDeclinesAndSaysSo(t *testing.T) {
+	core, logs := observer.New(zap.DebugLevel)
+
+	overlay := &portmocks.MockOverlayPort{}
+
+	handler := newHandlerWithState(handlerState{
+		ctx:         context.Background(),
+		logger:      zap.New(core),
+		appState:    state.NewAppState(),
+		overlayPort: overlay,
+	})
+
+	handler.appState.SetMode(domain.ModeScroll)
+
+	if handler.RefreshActiveModeForThemeChange() {
+		t.Error("scroll mode reported a theme redraw")
+	}
+
+	if got := overlay.Frames(); len(got) != 0 {
+		t.Fatalf("a theme change in scroll mode put %d frame(s) on screen, want none", len(got))
+	}
+
+	declined := logs.FilterLevelExact(zap.DebugLevel).All()
+	if len(declined) != 1 {
+		t.Fatalf("a theme change in scroll mode logged %d debug entries, want 1", len(declined))
+	}
+
+	fields := declined[0].ContextMap()
+	if got := fields["extension"]; got != string(extensionThemeRefresh) {
+		t.Errorf("declined effect named extension %v, want %q", got, extensionThemeRefresh)
+	}
+
+	if got, want := fields["mode"], domain.ModeString(domain.ModeScroll); got != want {
+		t.Errorf("declined effect named mode %v, want %q", got, want)
 	}
 }

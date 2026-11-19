@@ -221,26 +221,6 @@ func TestForThemeWithOverride_NoOverridesNoUI(t *testing.T) {
 	}
 }
 
-func TestForTheme_ThemeAwareDefaults(t *testing.T) {
-	// When both light and dark colors are empty, use provided defaults.
-	_config := config.Color{}
-
-	darkTheme := &mockThemeProvider{darkMode: true}
-	lightTheme := &mockThemeProvider{darkMode: false}
-
-	// Dark mode picks default dark
-	result := _config.ForTheme(darkTheme, testDefaultLight, testDefaultDark)
-	if result != testDefaultDark {
-		t.Errorf("Expected default dark %q, got %q", testDefaultDark, result)
-	}
-
-	// Light mode picks default light
-	result = _config.ForTheme(lightTheme, testDefaultLight, testDefaultDark)
-	if result != testDefaultLight {
-		t.Errorf("Expected default light %q, got %q", testDefaultLight, result)
-	}
-}
-
 func TestLoadWithValidation_ThemePaletteDrivesDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.toml")

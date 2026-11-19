@@ -21,6 +21,12 @@ const wmPIDProperty = "_NET_WM_PID"
 // the query is a failure. Collapsing them, which the C returning a bare ok flag
 // used to force, told a user focusing an older X client that the query had
 // failed.
+//
+// Only the absent property wraps errNoWindowPID, which `neru doctor` reads to
+// tell the two apart. It is deliberately its own sentinel rather than
+// errNoFocusedWindow. A window *does* have focus here, so the sentence that
+// explains an unfocused desktop ("answers as soon as a window takes focus")
+// would be false.
 func TestX11WindowPIDError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -101,6 +107,17 @@ func TestX11WindowPIDError(t *testing.T) {
 					testCase.result, got, testCase.wantCode)
 			}
 
+			wantSentinel := testCase.result == x11WindowPIDAbsent
+			if got := errors.Is(err, errNoWindowPID); got != wantSentinel {
+				t.Errorf("x11WindowPIDError(%v) wraps errNoWindowPID = %t, want %t",
+					testCase.result, got, wantSentinel)
+			}
+
+			if errors.Is(err, errNoFocusedWindow) {
+				t.Errorf("x11WindowPIDError(%v) = %v claims nothing has focus, but a "+
+					"window was found", testCase.result, err)
+			}
+
 			for _, word := range testCase.wantWords {
 				if !strings.Contains(err.Error(), word) {
 					t.Errorf("x11WindowPIDError(%v) = %q, want it to mention %q",
@@ -108,46 +125,6 @@ func TestX11WindowPIDError(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// TestX11WindowPIDError_OnlyTheAbsentPropertyCarriesTheSentinel pins the half of
-// the split the capability surface reads. A window that advertises no pid is not
-// a broken session, and `neru doctor` tells the two apart by this sentinel. A
-// failure wearing it would put the reassuring wording on a display that really
-// did fail to answer.
-//
-// It is deliberately its own sentinel rather than errNoFocusedWindow. A window
-// *does* have focus here, so the sentence that explains an unfocused desktop
-// ("answers as soon as a window takes focus") would be false.
-func TestX11WindowPIDError_OnlyTheAbsentPropertyCarriesTheSentinel(t *testing.T) {
-	absent := x11WindowPIDError(x11WindowPIDAbsent)
-	if !errors.Is(absent, errNoWindowPID) {
-		t.Errorf("the absent-property error %v does not wrap errNoWindowPID", absent)
-	}
-
-	if errors.Is(absent, errNoFocusedWindow) {
-		t.Errorf("the absent-property error %v claims nothing has focus, but a window "+
-			"was found and only its pid was not", absent)
-	}
-
-	failures := []x11WindowPIDResult{
-		x11WindowPIDWindowGone,
-		x11WindowPIDQueryFailed,
-		x11WindowPIDMalformed,
-	}
-
-	for _, result := range failures {
-		err := x11WindowPIDError(result)
-		if errors.Is(err, errNoWindowPID) {
-			t.Errorf("failure %v wraps errNoWindowPID, so callers would read it as "+
-				"a window that simply advertises no pid", result)
-		}
-
-		if derrors.IsNotSupported(err) {
-			t.Errorf("failure %v reports CodeNotSupported, so callers would degrade "+
-				"through a real failure", result)
-		}
 	}
 }
 

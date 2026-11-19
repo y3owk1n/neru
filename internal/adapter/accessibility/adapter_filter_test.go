@@ -42,11 +42,12 @@ func filterTestNodes() []ax.Node {
 			MockClickable: true,
 		},
 		&accessibility.MockNode{
-			MockID:        idBigLink,
-			MockBounds:    image.Rect(0, 0, 200, 30),
-			MockRole:      axLinkRole,
-			MockTitle:     "Documentation",
-			MockClickable: true,
+			MockID:         idBigLink,
+			MockBounds:     image.Rect(0, 0, 200, 30),
+			MockRole:       axLinkRole,
+			MockTitle:      "Documentation",
+			MockSearchText: "Apple Notes row",
+			MockClickable:  true,
 		},
 		&accessibility.MockNode{
 			MockID:        idWideFlatLink,
@@ -148,6 +149,13 @@ func TestAdapter_ClickableElements_FilterContract(t *testing.T) {
 				MinSize: image.Point{X: 10, Y: 10},
 			},
 			wantIDs: []string{idBigButton},
+		},
+		{
+			name: "ValueContains matches a node's search text, ignoring case",
+			filter: ports.ElementFilter{
+				ValueContains: "NOTES",
+			},
+			wantIDs: []string{idBigLink},
 		},
 		{
 			name: "a role that matches nothing yields no elements",

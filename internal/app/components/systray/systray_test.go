@@ -79,17 +79,6 @@ func (m *mockApp) OnScrollInvertStateChanged(callback func(bool)) uint64 { retur
 func (m *mockApp) OffScrollInvertStateChanged(id uint64)                 {}
 func (m *mockApp) Quit()                                                 {}
 
-func TestNewComponent(t *testing.T) {
-	logger := zaptest.NewLogger(t)
-	mockApp := &mockApp{}
-
-	component := systray.NewComponent(mockApp, &portmocks.MockSystrayPort{}, nil, logger)
-
-	if component == nil {
-		t.Fatal("NewComponent returned nil")
-	}
-}
-
 func TestComponent_OnReady(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockApp := &mockApp{

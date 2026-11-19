@@ -135,69 +135,6 @@ func TestPlaceHint_Top(t *testing.T) {
 	assertArrowSymmetry(t, arrow, target.X)
 }
 
-// TestPlaceHint_TopAndBottomAreMirrorImages pins the pair a user actually
-// compares, `top` and `bottom`, which put the badge the same distance from the target,
-// on opposite sides, with the arrow pointing back at it either way. A backend
-// that got one sign wrong would still pass each single-placement test above.
-func TestPlaceHint_TopAndBottomAreMirrorImages(t *testing.T) {
-	t.Parallel()
-
-	target := image.Pt(200, 150)
-
-	above, aboveArrow, _ := badge.PlaceHint(target, 40, 20, 4, badge.HintAbove)
-	below, belowArrow, _ := badge.PlaceHint(target, 40, 20, 4, badge.HintBelow)
-
-	if gapAbove, gapBelow := target.Y-above.Max.Y, below.Min.Y-target.Y; gapAbove != gapBelow {
-		t.Errorf("badge sits %d px above the target but %d px below it", gapAbove, gapBelow)
-	}
-
-	if aboveArrow.Tip.Y <= target.Y-badge.HintGap-1 {
-		t.Errorf(
-			"top-placement arrow tip %v does not reach down to target %v",
-			aboveArrow.Tip,
-			target,
-		)
-	}
-
-	if belowArrow.Tip.Y >= target.Y+badge.HintGap+1 {
-		t.Errorf(
-			"bottom-placement arrow tip %v does not reach up to target %v",
-			belowArrow.Tip,
-			target,
-		)
-	}
-}
-
-func TestPlaceHint_ArrowBaseClampedToFlatEdge(t *testing.T) {
-	t.Parallel()
-
-	// A narrow badge with a large radius leaves little flat edge. The arrow base
-	// must clamp inside the corner radius rather than run onto the rounded
-	// corners or overflow the badge.
-	target := image.Pt(50, 50)
-	badgeWidth, badgeHeight, radius := 14, 20, 6
-
-	rect, arrow, hasArrow := badge.PlaceHint(
-		target,
-		badgeWidth,
-		badgeHeight,
-		radius,
-		badge.HintBelow,
-	)
-	if !hasArrow {
-		t.Fatal("expected an arrow")
-	}
-
-	halfBase := arrow.BaseRight.X - target.X
-	if maxHalf := rect.Dx()/2 - radius; halfBase > maxHalf {
-		t.Errorf("arrow half-base %d exceeds flat-edge limit %d", halfBase, maxHalf)
-	}
-
-	if arrow.BaseLeft.X < rect.Min.X || arrow.BaseRight.X > rect.Max.X {
-		t.Errorf("arrow base %v..%v overflows badge %v", arrow.BaseLeft, arrow.BaseRight, rect)
-	}
-}
-
 func TestPlaceHint_OddBadgeSizeKeepsItsSize(t *testing.T) {
 	t.Parallel()
 

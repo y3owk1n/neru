@@ -17,7 +17,6 @@ type MockHotkeyPort struct {
 	mu             sync.Mutex
 	nextID         ports.HotkeyID
 	callbacks      map[ports.HotkeyID]ports.HotkeyCallback
-	keys           map[ports.HotkeyID]string
 	unregisterAllN int
 }
 
@@ -35,12 +34,10 @@ func (m *MockHotkeyPort) Register(
 
 	if m.callbacks == nil {
 		m.callbacks = make(map[ports.HotkeyID]ports.HotkeyCallback)
-		m.keys = make(map[ports.HotkeyID]string)
 	}
 
 	m.nextID++
 	m.callbacks[m.nextID] = callback
-	m.keys[m.nextID] = keyString
 
 	return m.nextID, nil
 }
@@ -51,7 +48,6 @@ func (m *MockHotkeyPort) Unregister(hotkeyID ports.HotkeyID) {
 	defer m.mu.Unlock()
 
 	delete(m.callbacks, hotkeyID)
-	delete(m.keys, hotkeyID)
 }
 
 // UnregisterAll implements ports.HotkeyPort.
@@ -61,20 +57,6 @@ func (m *MockHotkeyPort) UnregisterAll() {
 
 	m.unregisterAllN++
 	m.callbacks = nil
-	m.keys = nil
-}
-
-// RegisteredKeys returns the key strings currently registered.
-func (m *MockHotkeyPort) RegisteredKeys() []string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	keys := make([]string, 0, len(m.keys))
-	for _, key := range m.keys {
-		keys = append(keys, key)
-	}
-
-	return keys
 }
 
 // UnregisterAllCallCount returns how many times UnregisterAll was called.

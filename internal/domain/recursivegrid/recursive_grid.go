@@ -74,22 +74,6 @@ type RecursiveGrid struct {
 	hasFinalCell bool
 }
 
-// NewRecursiveGrid creates a new recursive-grid starting with the given screen bounds
-// using the default 3x3 grid dimensions and no per-depth overrides.
-func NewRecursiveGrid(
-	screenBounds image.Rectangle,
-	minSizeWidth,
-	minSizeHeight,
-	maxDepth int,
-) *RecursiveGrid {
-	return NewRecursiveGridWithLayers(
-		screenBounds,
-		minSizeWidth, minSizeHeight, maxDepth,
-		DefaultDimensions(),
-		nil,
-	)
-}
-
 // NewRecursiveGridWithLayers creates a new recursive-grid with a specific shape
 // and optional per-depth layout overrides. Pass nil for depthLayouts to use default dimensions at all depths.
 //
@@ -233,18 +217,6 @@ func clampToRect(point image.Point, rect image.Rectangle) image.Point {
 		X: min(max(point.X, rect.Min.X), rect.Max.X-1),
 		Y: min(max(point.Y, rect.Min.Y), rect.Max.Y-1),
 	}
-}
-
-// CellCenter returns the center point of the specified cell, rounded to nearest pixel.
-func (qg *RecursiveGrid) CellCenter(cell Cell) image.Point {
-	cells := qg.Divide()
-	idx := int(cell)
-
-	if idx < 0 || idx >= len(cells) {
-		return qg.CurrentCenter()
-	}
-
-	return rectCenter(cells[idx])
 }
 
 // SelectCell narrows the active area to the selected cell.
@@ -436,11 +408,6 @@ func divRound(numerator, denominator int) int {
 	}
 
 	return (numerator + denominator/2) / denominator
-}
-
-// IsComplete returns true if the grid cannot be divided further (min size or max depth).
-func (qg *RecursiveGrid) IsComplete() bool {
-	return !qg.CanDivide()
 }
 
 // CellBounds returns the bounds for a specific cell without selecting it.

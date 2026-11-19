@@ -28,7 +28,9 @@ func cellsOf(side int) []image.Rectangle {
 
 // TestStyle_FitDraw_ShrinksTheLabelWithTheCells is #1691, where font_size 20 drew at
 // the first depth and nothing by the third. It now shrinks with the cells and
-// hides only under min_font_size.
+// hides only under min_font_size. The 2x row fits in font units. The rule
+// this replaces compared a logical font size with a device-pixel cell, so at
+// 2x it kept labels the drawn font had outgrown.
 func TestStyle_FitDraw_ShrinksTheLabelWithTheCells(t *testing.T) {
 	style := NewStyle(StyleOptions{
 		FontSize:                20,
@@ -38,30 +40,46 @@ func TestStyle_FitDraw_ShrinksTheLabelWithTheCells(t *testing.T) {
 
 	tests := []struct {
 		name     string
+		scale    float64
 		cellSide int
 		wantSize float64
 		wantShow bool
 	}{
 		{
 			name:     "first depth keeps the configured size",
+			scale:    1,
 			cellSide: 480,
 			wantSize: 20,
 			wantShow: true,
 		},
 		{
 			name:     "a cell at the old threshold keeps it too",
+			scale:    1,
 			cellSide: 30,
 			wantSize: 20,
 			wantShow: true,
 		},
-		{name: "third depth shrinks instead of hiding", cellSide: 18, wantSize: 12, wantShow: true},
-		{name: "the floor itself still shows", cellSide: 9, wantSize: 6, wantShow: true},
-		{name: "under the floor hides", cellSide: 8, wantShow: false},
+		{
+			name:     "third depth shrinks instead of hiding",
+			scale:    1,
+			cellSide: 18,
+			wantSize: 12,
+			wantShow: true,
+		},
+		{
+			name:     "a dense display fits the 18 unit cell",
+			scale:    2,
+			cellSide: 36,
+			wantSize: 12,
+			wantShow: true,
+		},
+		{name: "the floor itself still shows", scale: 1, cellSide: 9, wantSize: 6, wantShow: true},
+		{name: "under the floor hides", scale: 1, cellSide: 8, wantShow: false},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			fitted := style.FitDraw(1, cellsOf(test.cellSide), domain.GridDimensions{})
+			fitted := style.FitDraw(test.scale, cellsOf(test.cellSide), domain.GridDimensions{})
 
 			if fitted.ShowLabel != test.wantShow {
 				t.Fatalf(
@@ -86,27 +104,13 @@ func TestStyle_FitDraw_EveryLabelSharesTheSizeTheSmallestCellFits(t *testing.T) 
 		LabelAutohideMultiplier: 1.5,
 	})
 
-	// Remainder pixels make the leading cells of a draw one pixel larger.
-	cells := []image.Rectangle{image.Rect(0, 0, 19, 19), image.Rect(19, 0, 37, 18)}
+	// The first cell alone would fit the configured 20, so only a fit across
+	// every cell lands on the smallest one's 12.
+	cells := []image.Rectangle{image.Rect(0, 0, 480, 480), image.Rect(480, 0, 498, 18)}
 
 	fitted := style.FitDraw(1, cells, domain.GridDimensions{})
 	if !fitted.ShowLabel || fitted.LabelSize != 12 {
 		t.Fatalf("FitDraw() = %+v, want every label at 12", fitted)
-	}
-}
-
-func TestStyle_FitDraw_DenseDisplayFitsInFontUnits(t *testing.T) {
-	// The rule this replaces compared a logical font size with a device-pixel
-	// cell, so at 2x it kept labels the drawn font had outgrown.
-	style := NewStyle(StyleOptions{
-		FontSize:                20,
-		MinFontSize:             6,
-		LabelAutohideMultiplier: 1.5,
-	})
-
-	fitted := style.FitDraw(2, cellsOf(36), domain.GridDimensions{})
-	if !fitted.ShowLabel || fitted.LabelSize != 12 {
-		t.Fatalf("FitDraw() at 2x = %+v, want the 18 unit cell's 12", fitted)
 	}
 }
 

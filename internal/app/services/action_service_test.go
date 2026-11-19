@@ -31,208 +31,114 @@ func newTestActionService(
 	)
 }
 
-func TestPerformActionAtPoint_ParsesAndDispatches(t *testing.T) {
-	ctx := context.Background()
+func TestPerformActionAtPoint_DrawsMouseActionIndicatorOnlyForAListedAction(t *testing.T) {
+	tests := []struct {
+		name     string
+		enabled  bool
+		actions  []string
+		act      string
+		wantDraw bool
+	}{
+		{
+			name:     "enabled and listed",
+			enabled:  true,
+			actions:  []string{leftClickAction},
+			act:      leftClickAction,
+			wantDraw: true,
+		},
+		{
+			name:    "disabled",
+			enabled: false,
+			actions: []string{leftClickAction},
+			act:     leftClickAction,
+		},
+		{
+			name:    "unlisted action",
+			enabled: true,
+			actions: []string{leftClickAction},
+			act:     "right_click",
+		},
+		{
+			name:     "deprecated config name",
+			enabled:  true,
+			actions:  []string{"mouse_down"},
+			act:      "left_mouse_down",
+			wantDraw: true,
+		},
+		// A typo in the config list matches nothing and does not panic.
+		{
+			name:    "unparseable entry",
+			enabled: true,
+			actions: []string{"not_an_action"},
+			act:     "right_mouse_toggle",
+		},
+	}
 
-	called := false
-	mouse := &portmocks.MockMousePort{
-		PerformActionAtPointFunc: func(
-			_ context.Context,
-			actionType action.Type,
-			point image.Point,
-			_ action.Modifiers,
-		) error {
-			called = true
-
-			if actionType != action.TypeLeftClick {
-				t.Fatalf("unexpected action type: %v", actionType)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mouse := &portmocks.MockMousePort{
+				PerformActionAtPointFunc: func(
+					context.Context,
+					action.Type,
+					image.Point,
+					action.Modifiers,
+				) error {
+					return nil
+				},
 			}
 
-			if point != (image.Point{X: 10, Y: 20}) {
-				t.Fatalf("unexpected point: %v", point)
+			var (
+				drawn    bool
+				gotPoint image.Point
+				gotStyle ports.MouseActionIndicatorStyle
+			)
+
+			overlay := &portmocks.MockOverlayPort{
+				DrawMouseActionIndicatorFunc: func(
+					point image.Point,
+					style ports.MouseActionIndicatorStyle,
+				) {
+					drawn = true
+					gotPoint = point
+					gotStyle = style
+				},
 			}
 
-			return nil
-		},
-	}
-	service := newTestActionService(mouse, &portmocks.MockSystemPort{})
+			service := services.NewActionService(
+				&portmocks.MockAccessibilityPort{},
+				mouse,
+				overlay,
+				&portmocks.MockSystemPort{},
+				zap.NewNop(),
+			)
+			cfg := config.DefaultConfig().MouseAction
+			cfg.Enabled = test.enabled
+			cfg.Actions = test.actions
+			service.UpdateConfig(cfg)
 
-	err := service.PerformActionAtPoint(
-		ctx,
-		leftClickAction,
-		image.Point{X: 10, Y: 20},
-		0,
-	)
-	if err != nil {
-		t.Fatalf("PerformActionAtPoint() error = %v", err)
-	}
+			point := image.Point{X: 10, Y: 20}
 
-	if !called {
-		t.Fatal("expected PerformActionAtPoint to be called")
-	}
-}
+			err := service.PerformActionAtPoint(context.Background(), test.act, point, 0)
+			if err != nil {
+				t.Fatalf("PerformActionAtPoint() error = %v", err)
+			}
 
-func TestPerformActionAtPoint_DrawsMouseActionIndicatorWhenEnabled(t *testing.T) {
-	ctx := context.Background()
+			if drawn != test.wantDraw {
+				t.Fatalf("indicator drawn = %v, want %v", drawn, test.wantDraw)
+			}
 
-	mouse := &portmocks.MockMousePort{
-		PerformActionAtPointFunc: func(
-			context.Context,
-			action.Type,
-			image.Point,
-			action.Modifiers,
-		) error {
-			return nil
-		},
-	}
+			if !test.wantDraw {
+				return
+			}
 
-	var (
-		gotPoint image.Point
-		gotStyle ports.MouseActionIndicatorStyle
-	)
+			if gotPoint != point {
+				t.Fatalf("unexpected indicator point: %v", gotPoint)
+			}
 
-	drawn := false
-	overlay := &portmocks.MockOverlayPort{
-		DrawMouseActionIndicatorFunc: func(
-			point image.Point,
-			style ports.MouseActionIndicatorStyle,
-		) {
-			drawn = true
-			gotPoint = point
-			gotStyle = style
-		},
-	}
-
-	service := services.NewActionService(
-		&portmocks.MockAccessibilityPort{},
-		mouse,
-		overlay,
-		&portmocks.MockSystemPort{},
-		zap.NewNop(),
-	)
-	cfg := config.DefaultConfig().MouseAction
-	cfg.Enabled = true
-	cfg.Actions = []string{leftClickAction}
-	service.UpdateConfig(cfg)
-
-	point := image.Point{X: 10, Y: 20}
-
-	err := service.PerformActionAtPoint(ctx, leftClickAction, point, 0)
-	if err != nil {
-		t.Fatalf("PerformActionAtPoint() error = %v", err)
-	}
-
-	if !drawn {
-		t.Fatal("expected mouse action indicator to be drawn")
-	}
-
-	if gotPoint != point {
-		t.Fatalf("unexpected indicator point: %v", gotPoint)
-	}
-
-	if gotStyle.Size != cfg.UI.Size || gotStyle.DurationMS != cfg.Animation.DurationMS {
-		t.Fatalf("unexpected indicator style: %+v", gotStyle)
-	}
-}
-
-func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorWhenDisabled(t *testing.T) {
-	ctx := context.Background()
-
-	mouse := &portmocks.MockMousePort{
-		PerformActionAtPointFunc: func(
-			context.Context,
-			action.Type,
-			image.Point,
-			action.Modifiers,
-		) error {
-			return nil
-		},
-	}
-
-	drawn := false
-	overlay := &portmocks.MockOverlayPort{
-		DrawMouseActionIndicatorFunc: func(
-			image.Point,
-			ports.MouseActionIndicatorStyle,
-		) {
-			drawn = true
-		},
-	}
-
-	service := services.NewActionService(
-		&portmocks.MockAccessibilityPort{},
-		mouse,
-		overlay,
-		&portmocks.MockSystemPort{},
-		zap.NewNop(),
-	)
-	cfg := config.DefaultConfig().MouseAction
-	cfg.Enabled = false
-	cfg.Actions = []string{leftClickAction}
-	service.UpdateConfig(cfg)
-
-	err := service.PerformActionAtPoint(ctx, leftClickAction, image.Point{X: 10, Y: 20}, 0)
-	if err != nil {
-		t.Fatalf("PerformActionAtPoint() error = %v", err)
-	}
-
-	if drawn {
-		t.Fatal("expected mouse action indicator NOT to be drawn when disabled")
-	}
-}
-
-func TestPerformActionAtPoint_DoesNotDrawMouseActionIndicatorForUnlistedAction(t *testing.T) {
-	ctx := context.Background()
-
-	mouse := &portmocks.MockMousePort{
-		PerformActionAtPointFunc: func(
-			context.Context,
-			action.Type,
-			image.Point,
-			action.Modifiers,
-		) error {
-			return nil
-		},
-	}
-
-	drawn := false
-	overlay := &portmocks.MockOverlayPort{
-		DrawMouseActionIndicatorFunc: func(
-			image.Point,
-			ports.MouseActionIndicatorStyle,
-		) {
-			drawn = true
-		},
-	}
-
-	service := services.NewActionService(
-		&portmocks.MockAccessibilityPort{},
-		mouse,
-		overlay,
-		&portmocks.MockSystemPort{},
-		zap.NewNop(),
-	)
-	cfg := config.DefaultConfig().MouseAction
-	cfg.Enabled = true
-	cfg.Actions = []string{leftClickAction}
-	service.UpdateConfig(cfg)
-
-	err := service.PerformActionAtPoint(ctx, "right_click", image.Point{X: 10, Y: 20}, 0)
-	if err != nil {
-		t.Fatalf("PerformActionAtPoint() error = %v", err)
-	}
-
-	if drawn {
-		t.Fatal("expected mouse action indicator NOT to be drawn for unlisted action")
-	}
-}
-
-func TestPerformActionAtPoint_InvalidAction(t *testing.T) {
-	service := newTestActionService(&portmocks.MockMousePort{}, &portmocks.MockSystemPort{})
-
-	err := service.PerformActionAtPoint(context.Background(), "not_real", image.Point{}, 0)
-	if err == nil {
-		t.Fatal("expected error for invalid action string")
+			if gotStyle.Size != cfg.UI.Size || gotStyle.DurationMS != cfg.Animation.DurationMS {
+				t.Fatalf("unexpected indicator style: %+v", gotStyle)
+			}
+		})
 	}
 }
 
@@ -271,36 +177,6 @@ func TestMoveMouseTo_ClampsToScreenBounds(t *testing.T) {
 
 	if !waitCalled {
 		t.Fatal("MoveMouseTo() expected WaitForCursorIdle to be called")
-	}
-}
-
-func TestMoveMouseRelative_UsesCurrentCursorPosition(t *testing.T) {
-	ctx := context.Background()
-
-	var moved image.Point
-
-	sys := &portmocks.MockSystemPort{
-		CursorPositionFunc: func(context.Context) (image.Point, error) {
-			return image.Point{X: 40, Y: 40}, nil
-		},
-		ScreenBoundsFunc: func(context.Context) (image.Rectangle, error) {
-			return image.Rect(0, 0, 100, 100), nil
-		},
-		MoveCursorToPointFunc: func(_ context.Context, p image.Point, _ bool) error {
-			moved = p
-
-			return nil
-		},
-	}
-	service := newTestActionService(&portmocks.MockMousePort{}, sys)
-
-	err := service.MoveMouseRelative(ctx, 10, -5)
-	if err != nil {
-		t.Fatalf("MoveMouseRelative() error = %v", err)
-	}
-
-	if moved != (image.Point{X: 50, Y: 35}) {
-		t.Fatalf("MoveMouseRelative() moved to %v, want (50,35)", moved)
 	}
 }
 
@@ -384,97 +260,6 @@ func TestMoveCursorToPointAndWait_WaitsForCursorIdle(t *testing.T) {
 
 	if !waitCalled {
 		t.Fatal("MoveCursorToPointAndWait() expected WaitForCursorIdle to be called")
-	}
-}
-
-// TestPerformActionAtPoint_MouseActionIndicatorMatchesDeprecatedName pins that a
-// config written before the buttons were spelled out ("mouse_down") still
-// matches the left press action, which now reports itself as left_mouse_down.
-func TestPerformActionAtPoint_MouseActionIndicatorMatchesDeprecatedName(t *testing.T) {
-	ctx := context.Background()
-
-	mouse := &portmocks.MockMousePort{
-		PerformActionAtPointFunc: func(
-			context.Context,
-			action.Type,
-			image.Point,
-			action.Modifiers,
-		) error {
-			return nil
-		},
-	}
-
-	drawn := false
-	overlay := &portmocks.MockOverlayPort{
-		DrawMouseActionIndicatorFunc: func(image.Point, ports.MouseActionIndicatorStyle) {
-			drawn = true
-		},
-	}
-
-	service := services.NewActionService(
-		&portmocks.MockAccessibilityPort{},
-		mouse,
-		overlay,
-		&portmocks.MockSystemPort{},
-		zap.NewNop(),
-	)
-	cfg := config.DefaultConfig().MouseAction
-	cfg.Enabled = true
-	cfg.Actions = []string{"mouse_down"}
-	service.UpdateConfig(cfg)
-
-	err := service.PerformActionAtPoint(ctx, "left_mouse_down", image.Point{X: 5, Y: 6}, 0)
-	if err != nil {
-		t.Fatalf("PerformActionAtPoint() error = %v", err)
-	}
-
-	if !drawn {
-		t.Fatal("expected mouse action indicator to be drawn for the deprecated config name")
-	}
-}
-
-// TestPerformActionAtPoint_MouseActionIndicatorIgnoresUnparseableEntry pins that
-// a typo in the config list does not match anything (and does not panic).
-func TestPerformActionAtPoint_MouseActionIndicatorIgnoresUnparseableEntry(t *testing.T) {
-	ctx := context.Background()
-
-	mouse := &portmocks.MockMousePort{
-		PerformActionAtPointFunc: func(
-			context.Context,
-			action.Type,
-			image.Point,
-			action.Modifiers,
-		) error {
-			return nil
-		},
-	}
-
-	drawn := false
-	overlay := &portmocks.MockOverlayPort{
-		DrawMouseActionIndicatorFunc: func(image.Point, ports.MouseActionIndicatorStyle) {
-			drawn = true
-		},
-	}
-
-	service := services.NewActionService(
-		&portmocks.MockAccessibilityPort{},
-		mouse,
-		overlay,
-		&portmocks.MockSystemPort{},
-		zap.NewNop(),
-	)
-	cfg := config.DefaultConfig().MouseAction
-	cfg.Enabled = true
-	cfg.Actions = []string{"not_an_action"}
-	service.UpdateConfig(cfg)
-
-	err := service.PerformActionAtPoint(ctx, "right_mouse_toggle", image.Point{X: 5, Y: 6}, 0)
-	if err != nil {
-		t.Fatalf("PerformActionAtPoint() error = %v", err)
-	}
-
-	if drawn {
-		t.Fatal("expected no indicator for an unrecognized config entry")
 	}
 }
 
@@ -630,5 +415,14 @@ func TestActionService_ReleaseHeldButtons_SettlesCursorBeforeRelease(t *testing.
 
 	if settledAtReleaseTime != 1 {
 		t.Fatalf("settle calls at release time = %d, want 1", settledAtReleaseTime)
+	}
+}
+
+func TestPerformActionAtPoint_InvalidAction(t *testing.T) {
+	service := newTestActionService(&portmocks.MockMousePort{}, &portmocks.MockSystemPort{})
+
+	err := service.PerformActionAtPoint(context.Background(), "not_real", image.Point{}, 0)
+	if err == nil {
+		t.Fatal("expected error for invalid action string")
 	}
 }

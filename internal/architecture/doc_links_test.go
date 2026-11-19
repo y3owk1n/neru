@@ -37,37 +37,10 @@ func TestDocLinks_DoNotPointAtMissingPaths(t *testing.T) {
 			continue
 		}
 
-		content, readErr := os.ReadFile(doc.absPath)
-		if readErr != nil {
-			t.Fatalf("ReadFile(%s) error = %v", doc.relPath, readErr)
-		}
-
-		for _, match := range repoPathPattern.FindAllStringSubmatch(string(content), -1) {
-			reference := match[1]
-
-			// Links are written relative to the doc. Inline code is written
-			// from the repo root. Resolving from the doc's directory covers
-			// both, since a root-relative path resolves the same way from a
-			// doc at the root and needs the ../ prefix from docs/.
-			resolved := filepath.Join(
-				repoRoot,
-				filepath.Dir(doc.relPath),
-				filepath.FromSlash(reference),
-			)
-
-			_, relErr := os.Stat(resolved)
-			if relErr == nil {
-				continue
-			}
-
-			_, rootErr := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(reference)))
-			if rootErr == nil {
-				continue
-			}
-
+		for _, reference := range missingRepoPaths(t, repoRoot, doc) {
 			t.Errorf(
 				"%s references %q, which does not exist; update the link or the "+
-					"path (each fact has one home — docs/contributing/porting.md, "+
+					"path (each fact has one home, see docs/contributing/porting.md, "+
 					"Documentation Checklist)",
 				doc.relPath,
 				reference,
@@ -76,17 +49,71 @@ func TestDocLinks_DoNotPointAtMissingPaths(t *testing.T) {
 	}
 }
 
+// missingRepoPaths returns the repo paths a doc names that resolve to nothing.
+func missingRepoPaths(t *testing.T, repoRoot string, doc markdownFile) []string {
+	t.Helper()
+
+	content, readErr := os.ReadFile(doc.absPath)
+	if readErr != nil {
+		t.Fatalf("ReadFile(%s) error = %v", doc.relPath, readErr)
+	}
+
+	var missing []string
+
+	for _, match := range repoPathPattern.FindAllStringSubmatch(string(content), -1) {
+		reference := match[1]
+
+		// Links are written relative to the doc. Inline code is written
+		// from the repo root. Resolving from the doc's directory covers
+		// both, since a root-relative path resolves the same way from a
+		// doc at the root and needs the ../ prefix from docs/.
+		resolved := filepath.Join(
+			repoRoot,
+			filepath.Dir(doc.relPath),
+			filepath.FromSlash(reference),
+		)
+
+		_, relErr := os.Stat(resolved)
+		if relErr == nil {
+			continue
+		}
+
+		_, rootErr := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(reference)))
+		if rootErr == nil {
+			continue
+		}
+
+		missing = append(missing, reference)
+	}
+
+	return missing
+}
+
 // TestDocLinks_ExemptionsAreStillReal keeps the exemption list honest, the same
 // way knownLayeringExceptions is kept honest. An entry for a file that no
-// longer exists is dead weight that makes the next exemption easier to add.
+// longer exists, or that no longer names a missing path, is dead weight that
+// makes the next exemption easier to add.
 func TestDocLinks_ExemptionsAreStillReal(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 
 	for relPath, reason := range docsExemptFromLinkChecking {
-		_, statErr := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(relPath)))
+		absPath := filepath.Join(repoRoot, filepath.FromSlash(relPath))
+
+		_, statErr := os.Stat(absPath)
 		if statErr != nil {
 			t.Errorf(
 				"exempt doc %s no longer exists (%q); delete its entry",
+				relPath,
+				reason,
+			)
+
+			continue
+		}
+
+		doc := markdownFile{relPath: relPath, absPath: absPath}
+		if len(missingRepoPaths(t, repoRoot, doc)) == 0 {
+			t.Errorf(
+				"exempt doc %s no longer names a missing path (%q); delete its entry",
 				relPath,
 				reason,
 			)

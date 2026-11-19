@@ -272,7 +272,7 @@ test-unit:
 test-foundation:
     @echo "Running cross-platform foundation tests..."
     go test ./internal/config ./internal/config/loader \
-        ./internal/app/components ./internal/app/components/scroll \
+        ./internal/app/components \
         ./internal/app/heldmotion ./internal/app/heldrepeat \
         ./internal/app/ipcctrl \
         ./internal/app/keybinding \
@@ -282,7 +282,7 @@ test-foundation:
         ./internal/app/services/modeindicator \
         ./internal/app/services/stickyindicator \
         ./internal/app/services/virtualpointer \
-        ./internal/architecture ./internal/cli/cliutil \
+        ./internal/architecture ./internal/buildinfo ./internal/cli/cliutil \
         ./internal/domain ./internal/domain/action \
         ./internal/domain/element ./internal/domain/event \
         ./internal/domain/grid \

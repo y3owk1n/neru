@@ -137,21 +137,6 @@ func TestEventTap_RememberSyntheticModifier_RegistersOneNamePerKeyEvent(t *testi
 	}
 }
 
-func TestSyntheticModifierSuppressionConsumesOnce(t *testing.T) {
-	t.Parallel()
-
-	eventTap := NewEventTap(nil, nil)
-	eventTap.rememberSyntheticModifierEvent("shift", true)
-
-	if !eventTap.consumeSyntheticModifierEvent("shift", true) {
-		t.Fatal("expected first matching synthetic event to be consumed")
-	}
-
-	if eventTap.consumeSyntheticModifierEvent("shift", true) {
-		t.Fatal("expected synthetic event to be consumed only once")
-	}
-}
-
 func TestShouldPassthroughChord(t *testing.T) {
 	t.Parallel()
 
@@ -164,6 +149,14 @@ func TestShouldPassthroughChord(t *testing.T) {
 		want        bool
 	}{
 		{name: "disabled", enabled: false, chord: chordCtrlC, want: false},
+		{
+			// The enabled flag gates before the blacklist is consulted.
+			name:      "disabled with a blacklist",
+			enabled:   false,
+			blacklist: []string{"Ctrl+x"},
+			chord:     "Ctrl+y",
+			want:      false,
+		},
 		{name: "unbound ctrl passes", enabled: true, chord: chordCtrlC, want: true},
 		{name: "unbound alt passes", enabled: true, chord: "Alt+Left", want: true},
 		{name: "shift only excluded", enabled: true, chord: "Shift+a", want: false},
@@ -215,19 +208,6 @@ func TestShouldPassthroughChord(t *testing.T) {
 				)
 			}
 		})
-	}
-}
-
-func TestSetModifierPassthroughDisabledStillMatchesBlacklist(t *testing.T) {
-	t.Parallel()
-
-	// Even with the blacklist populated, a disabled passthrough never passes
-	// anything through. The enabled flag gates first.
-	eventTap := NewEventTap(nil, nil)
-	eventTap.SetModifierPassthrough(false, []string{"Ctrl+x"})
-
-	if eventTap.shouldPassthroughChord("Ctrl+y") {
-		t.Fatal("expected no passthrough while disabled")
 	}
 }
 

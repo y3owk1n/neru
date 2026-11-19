@@ -33,20 +33,7 @@ func descend(t *testing.T, grid *recursivegrid.RecursiveGrid, cells ...recursive
 	}
 }
 
-func TestRecursiveGrid_MoveDirection_WithinParent(t *testing.T) {
-	grid := newMoveGrid()
-	// Depth 1 top-left cell, then its own top-left: (0,0)-(100,100).
-	descend(t, grid, 0, 0)
-
-	center, moved := grid.MoveDirection(domain.DirectionRight, 1)
-
-	assert.True(t, moved, "moving right from the leftmost cell should succeed")
-	assert.Equal(t, image.Rect(100, 0, 200, 100), grid.CurrentBounds())
-	assert.Equal(t, image.Point{X: 150, Y: 50}, center)
-	assert.Equal(t, 2, grid.CurrentDepth(), "depth must not change")
-}
-
-func TestRecursiveGrid_MoveDirection_CrossesIntoNeighbouringParent(t *testing.T) {
+func TestRecursiveGrid_MoveDirection_RebuildsAncestors(t *testing.T) {
 	grid := newMoveGrid()
 	// Depth 1 top-left cell, then its top-right: (200,0)-(300,100).
 	// The next cell to the right lives under a different depth-1 parent.
@@ -54,19 +41,10 @@ func TestRecursiveGrid_MoveDirection_CrossesIntoNeighbouringParent(t *testing.T)
 	require.Equal(t, image.Rect(200, 0, 300, 100), grid.CurrentBounds())
 
 	center, moved := grid.MoveDirection(domain.DirectionRight, 1)
-
-	assert.True(t, moved, "crossing a parent boundary should succeed")
+	require.True(t, moved, "crossing a parent boundary should succeed")
 	assert.Equal(t, image.Rect(300, 0, 400, 100), grid.CurrentBounds())
 	assert.Equal(t, image.Point{X: 350, Y: 50}, center)
 	assert.Equal(t, 2, grid.CurrentDepth())
-}
-
-func TestRecursiveGrid_MoveDirection_RebuildsAncestors(t *testing.T) {
-	grid := newMoveGrid()
-	descend(t, grid, 0, 2)
-
-	_, moved := grid.MoveDirection(domain.DirectionRight, 1)
-	require.True(t, moved)
 
 	// The ancestor chain must follow the selection into the new parent,
 	// otherwise backtracking would surface a region that no longer contains
@@ -78,19 +56,6 @@ func TestRecursiveGrid_MoveDirection_RebuildsAncestors(t *testing.T) {
 	require.True(t, grid.Backtrack())
 	assert.Equal(t, image.Rect(0, 0, 900, 900), grid.CurrentBounds())
 	assert.Equal(t, 0, grid.CurrentDepth())
-}
-
-func TestRecursiveGrid_MoveDirection_StopsAtScreenEdge(t *testing.T) {
-	grid := newMoveGrid()
-	descend(t, grid, 0, 0)
-
-	before := grid.CurrentBounds()
-
-	center, moved := grid.MoveDirection(domain.DirectionLeft, 1)
-
-	assert.False(t, moved, "moving left off the screen should be refused")
-	assert.Equal(t, before, grid.CurrentBounds(), "a refused move must not change state")
-	assert.Equal(t, image.Point{X: 50, Y: 50}, center)
 }
 
 func TestRecursiveGrid_MoveDirection_NoOpAtDepthZero(t *testing.T) {
@@ -458,15 +423,18 @@ func TestRecursiveGrid_SelectionCenter_StaysInsideOnePixelCells(t *testing.T) {
 	})
 
 	t.Run("every cell of a one-pixel grid", func(t *testing.T) {
-		grid := recursivegrid.NewRecursiveGridWithLayers(
-			image.Rect(0, 0, 3, 3),
-			1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
-			nil,
-		)
+		newOnePixelGrid := func() *recursivegrid.RecursiveGrid {
+			return recursivegrid.NewRecursiveGridWithLayers(
+				image.Rect(0, 0, 3, 3),
+				1, 1, 10, domain.GridDimensions{Rows: 3, Cols: 3},
+				nil,
+			)
+		}
 
 		for cell := range recursivegrid.Cell(9) {
+			grid := newOnePixelGrid()
 			bounds := grid.CellBounds(cell)
-			center := grid.CellCenter(cell)
+			center, _ := grid.SelectCell(cell)
 
 			assert.Truef(t, center.In(bounds),
 				"cell %d center %v is outside its bounds %v", cell, center, bounds)

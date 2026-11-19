@@ -2,6 +2,9 @@ package cli_test
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
+	"os"
 	"runtime"
 	"strings"
 	"testing"
@@ -176,75 +179,99 @@ func TestCommandInitialization(t *testing.T) {
 	}
 }
 
+// isolateEndpoint points the IPC endpoint at a directory no daemon listens in,
+// so a test that runs a command never reaches the user's own daemon. Windows
+// names its pipe after the user instead, so there the test skips when a
+// daemon is up.
+func isolateEndpoint(t *testing.T) {
+	t.Helper()
+
+	//nolint:usetesting // t.TempDir names are too long for a Unix socket path,
+	// and a dial on one fails with EINVAL rather than with the missing endpoint.
+	dir, err := os.MkdirTemp("", "neru")
+	if err != nil {
+		t.Fatalf("MkdirTemp: %v", err)
+	}
+
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+
+	t.Setenv("XDG_RUNTIME_DIR", dir)
+	t.Setenv("TMPDIR", dir)
+
+	if ipc.IsServerRunning() {
+		t.Skip("a Neru daemon is running for this user")
+	}
+}
+
+// TestCommandExecutionWithoutDaemon pins what each RunE path says when no
+// daemon is listening. Most send and have to fail on the missing endpoint, not
+// on a flag parse error or a refusal. Mode commands check for the daemon
+// first, and a bare action refuses before it would send anything.
 func TestCommandExecutionWithoutDaemon(t *testing.T) {
-	// Commands that require IPC should return errors, while utility commands should work.
+	isolateEndpoint(t)
+
 	tests := []struct {
-		name      string
-		cmd       *cobra.Command
-		expectErr bool
+		name string
+		cmd  *cobra.Command
+		// wantCode is the refusal a path answers before it dials. Empty means
+		// the path dials and must fail on the missing endpoint.
+		wantCode derrors.Code
 	}{
-		{cliTestStart, getCmd(cliTestStart), true},
-		{cliTestStop, getCmd(cliTestStop), true},
-		{cliTestIdle, getCmd(cliTestIdle), true},
-		{cliTestHints, getCmd(cliTestHints), true},
-		{cliTestGrid, getCmd(cliTestGrid), true},
-		{"scroll", getCmd("scroll"), true},
-		{cliTestAction, getCmd(cliTestAction), true},
-		{"action_left_click", getActionCmd(cliTestLeftClick), true},
-		{"action_right_click", getActionCmd("right_click"), true},
-		{"action_mouse_up", getActionCmd("mouse_up"), true},
-		{"action_mouse_down", getActionCmd("mouse_down"), true},
-		{"action_middle_click", getActionCmd("middle_click"), true},
-		{"action_move_mouse", getActionCmd("move_mouse"), true},
-		{"action_move_mouse_relative", getActionCmd("move_mouse_relative"), true},
-		{"action_feed", getActionCmd("feed <key> [key...]"), true},
-		{"action_reset", getActionCmd("reset"), true},
-		{"action_backspace", getActionCmd("backspace"), true},
-		{"action_wait_for_mode_exit", getActionCmd("wait_for_mode_exit"), true},
-		{"action_save_cursor_pos", getActionCmd("save_cursor_pos"), true},
-		{"action_restore_cursor_pos", getActionCmd("restore_cursor_pos"), true},
-		{"action_scroll_up", getActionCmd("scroll_up"), true},
-		{"action_scroll_down", getActionCmd("scroll_down"), true},
-		{"action_scroll_left", getActionCmd("scroll_left"), true},
-		{"action_scroll_right", getActionCmd("scroll_right"), true},
-		{"action_go_top", getActionCmd("go_top"), true},
-		{"action_go_bottom", getActionCmd("go_bottom"), true},
-		{"action_page_up", getActionCmd("page_up"), true},
-		{"action_page_down", getActionCmd("page_down"), true},
-		{"action_move_monitor", getActionCmd("move_monitor"), true},
-		{"action_hide_cursor", getActionCmd("hide_cursor"), true},
-		{"action_show_cursor", getActionCmd("show_cursor"), true},
-		{cliTestStatus, getCmd(cliTestStatus), true},
-		{
-			"doctor",
-			getCmd("doctor"),
-			runtime.GOOS != goosWindows,
-		}, // Windows runs client-side doctor when daemon is down
-		{"toggle-screen-share", getCmd("toggle-screen-share"), true},
-		{"toggle-cursor-follow-selection", getCmd("toggle-cursor-follow-selection"), true},
-		{"recursive_grid", getCmd("recursive_grid"), true},
-		{"config_dump", getSubCmd(cliTestConfig, "dump"), true},
-		{"config_reload", getSubCmd(cliTestConfig, "reload"), true},
+		{"simple command", getCmd(cliTestStart), ""},
+		{"mode command", getCmd(cliTestHints), derrors.CodeIPCServerNotRunning},
+		{"action without a subcommand", getCmd(cliTestAction), derrors.CodeInvalidInput},
+		{"click action", getActionCmd(cliTestLeftClick), ""},
+		{"plain action", getActionCmd("reset"), ""},
+		{"move_mouse", getActionCmd("move_mouse"), ""},
+		{"move_mouse_relative", getActionCmd("move_mouse_relative"), ""},
+		{"feed", getActionCmd("feed <key> [key...]"), ""},
+		{"wait_for_mode_exit", getActionCmd("wait_for_mode_exit"), ""},
+		{"cursor slot action", getActionCmd("save_cursor_pos"), ""},
+		{"scroll action", getActionCmd("scroll_up"), ""},
+		{"move_monitor", getActionCmd("move_monitor"), ""},
+		{cliTestStatus, getCmd(cliTestStatus), ""},
+		{"toggle command", getCmd("toggle-screen-share"), ""},
+		{"config dump", getSubCmd(cliTestConfig, "dump"), ""},
+		{"config reload", getSubCmd(cliTestConfig, "reload"), ""},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			defer func() {
-				if r := recover(); r != nil {
-					t.Errorf("%s panicked: %v", testCase.name, r)
-				}
-			}()
-
 			err := testCase.cmd.RunE(testCase.cmd, []string{})
-			if testCase.expectErr && err == nil {
-				t.Errorf("expected error for %s when no daemon is running, got nil", testCase.name)
+
+			if testCase.wantCode != "" {
+				if !derrors.IsCode(err, testCase.wantCode) {
+					t.Errorf("RunE() error = %v, want %s", err, testCase.wantCode)
+				}
+
+				return
 			}
 
-			if !testCase.expectErr && err != nil {
-				t.Errorf("unexpected error for %s: %v", testCase.name, err)
+			if !derrors.IsCode(err, derrors.CodeIPCFailed) || !errors.Is(err, fs.ErrNotExist) {
+				t.Errorf("RunE() error = %v, want a failed connection to a missing endpoint", err)
 			}
 		})
 	}
+
+	// Windows runs client-side doctor when the daemon is down, so only the
+	// other platforms fail it.
+	t.Run("doctor", func(t *testing.T) {
+		doctor := getCmd("doctor")
+
+		var output bytes.Buffer
+
+		doctor.SetOut(&output)
+		defer doctor.SetOut(nil)
+
+		err := doctor.RunE(doctor, []string{})
+		if (err != nil) != (runtime.GOOS != goosWindows) {
+			t.Errorf("doctor RunE() error = %v on %s", err, runtime.GOOS)
+		}
+
+		if !strings.Contains(output.String(), "not reachable") {
+			t.Errorf("doctor did not report the unreachable endpoint:\n%s", output.String())
+		}
+	})
 
 	// NOTE: services subcommands (install, uninstall, start, stop,
 	// restart, status) are intentionally excluded from this test.
@@ -255,31 +282,39 @@ func TestCommandExecutionWithoutDaemon(t *testing.T) {
 	// TestCommandInitialization.
 }
 
+// TestLaunchCommandExecution pins that launch with no daemon running hands
+// the --config path to the launch function, once.
 func TestLaunchCommandExecution(t *testing.T) {
-	// Note: This test modifies global LaunchFunc and is not parallel-safe
-	// Save original LaunchFunc
+	isolateEndpoint(t)
+
 	originalLaunchFunc := cli.LaunchFunc
 
-	// Set a mock LaunchFunc for testing
+	var launched []string
+
 	cli.LaunchFunc = func(configPath string) {
-		// Mock launch - do nothing
+		launched = append(launched, configPath)
 	}
 
-	defer func() {
-		// Restore original
-		cli.LaunchFunc = originalLaunchFunc
+	defer func() { cli.LaunchFunc = originalLaunchFunc }()
 
-		if r := recover(); r != nil {
-			t.Errorf("launchCmd.RunE panicked: %v", r)
-		}
-	}()
+	const wantPath = "/nonexistent/neru-test-config.toml"
 
-	// Launch command should work with mock LaunchFunc
+	setErr := cli.RootCmd.PersistentFlags().Set("config", wantPath)
+	if setErr != nil {
+		t.Fatalf("set --config: %v", setErr)
+	}
+
+	defer func() { _ = cli.RootCmd.PersistentFlags().Set("config", "") }()
+
 	launchCmd := getCmd("launch")
 
 	err := launchCmd.RunE(launchCmd, []string{})
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Fatalf("launch RunE() error = %v", err)
+	}
+
+	if len(launched) != 1 || launched[0] != wantPath {
+		t.Errorf("launch function calls = %q, want one with %q", launched, wantPath)
 	}
 }
 
@@ -287,14 +322,7 @@ func TestLaunchCommandExecution(t *testing.T) {
 // a daemon. It says so once on stderr and fails, instead of reporting success
 // with nothing running.
 func TestLaunchCommand_FailsWithoutALaunchFunction(t *testing.T) {
-	// Point the endpoint at directories no daemon listens in. Windows names its
-	// pipe after the user instead, so there the test skips when a daemon is up.
-	t.Setenv("XDG_RUNTIME_DIR", t.TempDir())
-	t.Setenv("TMPDIR", t.TempDir())
-
-	if ipc.IsServerRunning() {
-		t.Skip("a Neru daemon is running for this user")
-	}
+	isolateEndpoint(t)
 
 	originalLaunchFunc := cli.LaunchFunc
 	cli.LaunchFunc = nil
@@ -315,16 +343,6 @@ func TestLaunchCommand_FailsWithoutALaunchFunction(t *testing.T) {
 
 	if got := strings.Count(stderr.String(), "Launch function not initialized"); got != 1 {
 		t.Errorf("stderr reported the failure %d times, want once: %q", got, stderr.String())
-	}
-}
-
-func TestBuildClickActionCommand_HasButtonPhaseFlags(t *testing.T) {
-	cmd := cli.BuildClickActionCommand("test", "short desc", "long desc", []string{"left_click"})
-
-	for _, flagName := range []string{"state", "toggle", "modifier", "selection", "bare"} {
-		if cmd.Flags().Lookup(flagName) == nil {
-			t.Errorf("BuildClickActionCommand() missing --%s flag", flagName)
-		}
 	}
 }
 
@@ -349,16 +367,6 @@ func TestBuildScrollActionCommand_HasModifierFlag(t *testing.T) {
 	}
 }
 
-func TestBuildActionCommand_HasNoButtonPhaseFlags(t *testing.T) {
-	cmd := cli.BuildActionCommand("test", "short desc", "long desc", []string{"arg1"}, true)
-
-	for _, flagName := range []string{"state", "toggle"} {
-		if cmd.Flags().Lookup(flagName) != nil {
-			t.Errorf("BuildActionCommand() should not define --%s", flagName)
-		}
-	}
-}
-
 func TestClickActionCommands_HaveButtonPhaseFlags(t *testing.T) {
 	clickCommands := map[string]bool{
 		"left_click":   false,
@@ -373,18 +381,27 @@ func TestClickActionCommands_HaveButtonPhaseFlags(t *testing.T) {
 
 		clickCommands[cmd.Use] = true
 
-		if cmd.Flags().Lookup("state") == nil {
-			t.Errorf("action %s is missing the --state flag", cmd.Use)
-		}
-
-		if cmd.Flags().Lookup("toggle") == nil {
-			t.Errorf("action %s is missing the --toggle flag", cmd.Use)
+		for _, flagName := range []string{"state", "toggle", "modifier", "selection", "bare"} {
+			if cmd.Flags().Lookup(flagName) == nil {
+				t.Errorf("action %s is missing the --%s flag", cmd.Use, flagName)
+			}
 		}
 	}
 
 	for name, found := range clickCommands {
 		if !found {
 			t.Errorf("click action %s not registered on ActionCmd", name)
+		}
+	}
+
+	reset := getActionCmd("reset")
+	if reset == nil {
+		t.Fatal("action reset not registered on ActionCmd")
+	}
+
+	for _, flagName := range []string{"state", "toggle"} {
+		if reset.Flags().Lookup(flagName) != nil {
+			t.Errorf("action reset should not define --%s, only click actions take it", flagName)
 		}
 	}
 }

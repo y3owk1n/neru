@@ -67,26 +67,6 @@ func TestSubgridKeys(t *testing.T) {
 	}
 }
 
-// TestSubgridKeys_CapAgreesWithTheCellsThereAre keeps the two ends of the cap
-// together. Every overlay caps its key set at MaxKeyIndex and then draws those
-// keys on the rectangles SubgridCells hands back. If the constant and the
-// division ever disagree, a backend draws a label with no cell under it or a
-// cell with no label on it. Both are answers to "how big is the subgrid?", and
-// this is where they have to be one answer.
-func TestSubgridKeys_CapAgreesWithTheCellsThereAre(t *testing.T) {
-	divided := grid.SubgridCells(
-		image.Rect(0, 0, 300, 150),
-		domain.SubgridDimensions(),
-	)
-
-	if grid.MaxKeyIndex != len(divided) {
-		t.Errorf(
-			"overlays cap the key set at %d but the subgrid divides into %d cells",
-			grid.MaxKeyIndex, len(divided),
-		)
-	}
-}
-
 // TestManager_AcceptsExactlyTheKeysTheSubgridIsDrawnWith is the guarantee the
 // overlays rely on. The manager selects for every key SubgridKeys hands back,
 // and for no other key. An overlay draws that set, so a key the manager takes

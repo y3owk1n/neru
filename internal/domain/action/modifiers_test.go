@@ -1,7 +1,6 @@
 package action_test
 
 import (
-	"runtime"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/domain/action"
@@ -68,37 +67,5 @@ func TestModifiers_Has(t *testing.T) {
 
 	if mods.Has(action.ModAlt) {
 		t.Error("Expected Has(ModAlt) to be false")
-	}
-}
-
-func TestModifiers_String(t *testing.T) {
-	// The display name for ModCmd is platform-dependent:
-	// "Cmd" on macOS, "Super" on Linux.
-	cmdName := "Super"
-	if runtime.GOOS == "darwin" {
-		cmdName = "Cmd"
-	}
-
-	tests := []struct {
-		name string
-		mods action.Modifiers
-		want string
-	}{
-		{"zero", 0, ""},
-		{"cmd only", action.ModCmd, cmdName},
-		{"cmd+shift", action.ModCmd | action.ModShift, cmdName + "+Shift"},
-		{
-			"all",
-			action.ModCmd | action.ModShift | action.ModAlt | action.ModCtrl,
-			cmdName + "+Shift+Alt+Ctrl",
-		},
-	}
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := testCase.mods.String()
-			if got != testCase.want {
-				t.Errorf("Modifiers.String() = %q, want %q", got, testCase.want)
-			}
-		})
 	}
 }

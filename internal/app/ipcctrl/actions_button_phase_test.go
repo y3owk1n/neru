@@ -1,13 +1,9 @@
 package ipcctrl
 
 import (
-	"context"
 	"testing"
 
-	"go.uber.org/zap"
-
 	"github.com/y3owk1n/neru/internal/adapter/ipc"
-	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
 func TestParseActionArgs_StateAndToggleFlags(t *testing.T) {
@@ -176,6 +172,12 @@ func TestResolveMouseButtonPhase_Rejections(t *testing.T) {
 			parsed:      parsedActionArgs{hasState: true, stateStr: stateDown},
 			wantMessage: msgStateOnlyOnClicks,
 		},
+		{
+			// The phase grammar words this one, so only the code is pinned.
+			name:       "unknown state",
+			actionName: leftClick,
+			parsed:     parsedActionArgs{hasState: true, stateStr: "sideways"},
+		},
 	}
 
 	for _, testCase := range tests {
@@ -185,7 +187,7 @@ func TestResolveMouseButtonPhase_Rejections(t *testing.T) {
 				t.Fatal("resolveMouseButtonPhase() expected rejection, got none")
 			}
 
-			if errResp.Message != testCase.wantMessage {
+			if testCase.wantMessage != "" && errResp.Message != testCase.wantMessage {
 				t.Errorf("message = %q, want %q", errResp.Message, testCase.wantMessage)
 			}
 
@@ -193,39 +195,5 @@ func TestResolveMouseButtonPhase_Rejections(t *testing.T) {
 				t.Errorf("code = %q, want %q", errResp.Code, ipc.CodeInvalidInput)
 			}
 		})
-	}
-}
-
-func TestResolveMouseButtonPhase_RejectsUnknownState(t *testing.T) {
-	_, errResp := resolveMouseButtonPhase(
-		leftClick,
-		parsedActionArgs{hasState: true, stateStr: "sideways"},
-	)
-	if errResp == nil {
-		t.Fatal("resolveMouseButtonPhase(--state sideways) expected rejection, got none")
-	}
-
-	if errResp.Code != ipc.CodeInvalidInput {
-		t.Errorf("code = %q, want %q", errResp.Code, ipc.CodeInvalidInput)
-	}
-}
-
-func TestHandleAction_RejectsStateAndToggleTogether(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{leftClick, flagStateDown, flagToggle},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(left_click --state down --toggle) expected rejection, got success")
-	}
-
-	if resp.Code != ipc.CodeInvalidInput {
-		t.Fatalf("code = %q, want %q", resp.Code, ipc.CodeInvalidInput)
 	}
 }

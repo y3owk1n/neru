@@ -58,25 +58,6 @@ func TestResolver_AnswerNeverDependsOnWhatWasAskedBefore(t *testing.T) {
 	}
 }
 
-func TestResolver_SecondSpellingIsResolvedOnItsOwn(t *testing.T) {
-	// The documented price of remembering a name as written is that a second
-	// spelling of the same family is a second name, resolved rather than
-	// answered from the first one's entry.
-	calls := 0
-	resolver := fontcache.New(func(family string) string {
-		calls++
-
-		return strings.TrimSpace(family)
-	})
-
-	resolver.Resolve("Arial")
-	resolver.Resolve("ARIAL")
-
-	if calls != 2 {
-		t.Fatalf("resolved %d times for two spellings, want 2", calls)
-	}
-}
-
 func TestResolver_ConcurrentResolveIsSafe(t *testing.T) {
 	var mu sync.Mutex
 

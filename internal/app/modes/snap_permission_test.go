@@ -52,20 +52,6 @@ func TestHandler_Snap_CaptureStrategyWithoutPermissionAsksOnceAndFails(t *testin
 	}
 }
 
-func TestHandler_Snap_StrategyOverrideThatReadsTheScreenAsksForPermission(t *testing.T) {
-	modal := newPermissionModal()
-	handler := newCaptureHintsHandler(domain.StrategyAXTree, modal.system, zap.NewNop(), func() {})
-
-	_, err := handler.Snap(context.Background(), SnapOptions{Strategy: domain.StrategySegment})
-	if !derrors.IsCode(err, derrors.CodeActionFailed) {
-		t.Fatalf("Snap() error = %v, want an action failure for missing permission", err)
-	}
-
-	modal.awaitOpen(t)
-
-	modal.consent <- ports.ScreenCaptureCanceled
-}
-
 func TestHandler_Snap_AXTreeNeverAsksForScreenCapturePermission(t *testing.T) {
 	var requests atomic.Int32
 

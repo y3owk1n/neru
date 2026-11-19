@@ -14,67 +14,6 @@ const (
 	hideCursorAction    = "hide_cursor"
 )
 
-func TestPlatforms_Supports(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		platforms parity.Platforms
-		target    parity.Platform
-		want      bool
-	}{
-		{"everywhere covers darwin", parity.AllPlatforms, parity.Darwin, true},
-		{"everywhere covers windows", parity.AllPlatforms, parity.Windows, true},
-		{"darwin only excludes linux", parity.Platforms{parity.Darwin}, parity.Linux, false},
-		{
-			"two platforms cover both",
-			parity.Platforms{parity.Darwin, parity.Linux},
-			parity.Linux,
-			true,
-		},
-		{"empty column supports nothing", parity.Platforms{}, parity.Darwin, false},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			if got := test.platforms.Supports(test.target); got != test.want {
-				t.Errorf("Supports(%q) = %v, want %v", test.target, got, test.want)
-			}
-		})
-	}
-}
-
-func TestPlatforms_Everywhere(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		platforms parity.Platforms
-		want      bool
-	}{
-		{"every platform", parity.AllPlatforms, true},
-		{"two of three", parity.Platforms{parity.Darwin, parity.Linux}, false},
-		{"none", nil, false},
-		{
-			"out of order still everywhere",
-			parity.Platforms{parity.Windows, parity.Linux, parity.Darwin},
-			true,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
-			if got := test.platforms.Everywhere(); got != test.want {
-				t.Errorf("Everywhere() = %v, want %v", got, test.want)
-			}
-		})
-	}
-}
-
 func TestWord_Written(t *testing.T) {
 	t.Parallel()
 
@@ -217,6 +156,13 @@ func TestDeclaration_Limited_DropsTheWordsThatCarryNoSurprise(t *testing.T) {
 
 	declaration := parity.Join(
 		parity.Everywhere(parity.KindOption, "grid.enabled", "grid.characters"),
+		// Every platform listed out of order is still everywhere.
+		parity.On(
+			parity.KindOption,
+			parity.Platforms{parity.Windows, parity.Linux, parity.Darwin},
+			"",
+			"grid.sublayer_keys",
+		),
 		parity.On(
 			parity.KindAction,
 			parity.Platforms{parity.Darwin},

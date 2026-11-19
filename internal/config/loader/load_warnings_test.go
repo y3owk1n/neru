@@ -33,8 +33,10 @@ accel_enabled = true
 		t.Fatalf("an inert setting was refused: %v", result.ValidationError)
 	}
 
-	if !slices.Contains(result.Warnings, accelInertWarning) {
-		t.Errorf("result.Warnings = %q, want it to contain %q", result.Warnings, accelInertWarning)
+	// Exactly the one warning. A rule that also fired elsewhere in the ladder,
+	// or fired twice, would say more than the user needs to hear.
+	if want := []string{accelInertWarning}; !slices.Equal(result.Warnings, want) {
+		t.Errorf("result.Warnings = %q, want %q", result.Warnings, want)
 	}
 
 	// The setting the user wrote survives. A warning reports, it does not undo.
@@ -145,11 +147,25 @@ row_labels = "AB C"
 	}
 
 	for _, field := range []string{"grid.characters", "grid.row_labels"} {
-		if !slices.ContainsFunc(result.Warnings, func(w string) bool {
-			return strings.Contains(w, field) && strings.Contains(w, "cannot be typed")
-		}) {
-			t.Errorf("result.Warnings = %q, want the space reported against %s",
+		reported := 0
+
+		for _, warning := range result.Warnings {
+			if strings.Contains(warning, field) && strings.Contains(warning, "cannot be typed") {
+				reported++
+			}
+		}
+
+		if reported != 1 {
+			t.Errorf("result.Warnings = %q, want the space reported once against %s",
 				result.Warnings, field)
+		}
+	}
+
+	// The column labels were left empty, so they are the inference and stay
+	// their source's business. The fix for this file is two lines, not three.
+	for _, warning := range result.Warnings {
+		if strings.Contains(warning, "grid.col_labels") {
+			t.Errorf("result.Warnings = %q, want none naming grid.col_labels", result.Warnings)
 		}
 	}
 }

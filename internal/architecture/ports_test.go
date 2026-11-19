@@ -63,10 +63,14 @@ func TestEveryPortHasAMock(t *testing.T) {
 }
 
 // TestMockExemptionsAreStillReal keeps the exemption list from outliving the
-// interfaces it names.
+// reason it gives. An entry stays only while the port exists, is still embedded
+// in a larger port, and still has no mock of its own.
 func TestMockExemptionsAreStillReal(t *testing.T) {
 	repoRoot := findRepoRoot(t)
-	portNames := interfaceNamesIn(t, filepath.Join(repoRoot, "internal", "ports"))
+	portsDir := filepath.Join(repoRoot, "internal", "ports")
+	portNames := interfaceNamesIn(t, portsDir)
+	mockNames := typeNamesIn(t, filepath.Join(portsDir, "mocks"))
+	embedded := embeddedInterfaceNamesIn(t, portsDir)
 
 	declared := make(map[string]bool, len(portNames))
 	for _, name := range portNames {
@@ -74,15 +78,57 @@ func TestMockExemptionsAreStillReal(t *testing.T) {
 	}
 
 	for name, reason := range portsWithoutOwnMock {
-		if !declared[name] {
+		_, hasMock := mockNames["Mock"+name]
+
+		switch {
+		case !declared[name]:
 			t.Errorf(
 				"ports.%s is in the mock-exemption list (%q) but no longer exists; "+
 					"remove the entry",
 				name,
 				reason,
 			)
+		case !embedded[name]:
+			t.Errorf(
+				"ports.%s is in the mock-exemption list (%q) but no port embeds it "+
+					"any more, so it is injected on its own and needs a mock; "+
+					"remove the entry",
+				name,
+				reason,
+			)
+		case hasMock:
+			t.Errorf(
+				"ports.%s is in the mock-exemption list (%q) but Mock%s exists; "+
+					"remove the entry",
+				name,
+				reason,
+				name,
+			)
 		}
 	}
+}
+
+// embeddedInterfaceNamesIn returns the names of the interfaces another
+// interface in the package embeds.
+func embeddedInterfaceNamesIn(t *testing.T, dir string) map[string]bool {
+	t.Helper()
+
+	embedded := map[string]bool{}
+
+	for _, decl := range typeDeclsIn(t, dir) {
+		iface, isInterface := decl.Type.(*ast.InterfaceType)
+		if !isInterface {
+			continue
+		}
+
+		for _, field := range iface.Methods.List {
+			if ident, isIdent := field.Type.(*ast.Ident); isIdent && len(field.Names) == 0 {
+				embedded[ident.Name] = true
+			}
+		}
+	}
+
+	return embedded
 }
 
 // interfaceNamesIn returns the exported interface type names declared in a

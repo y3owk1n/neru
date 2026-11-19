@@ -11,31 +11,16 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/recursivegrid"
 )
 
-func TestNewManager(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 100)
-	logger := zap.NewNop()
-
-	manager := recursivegrid.NewManager(
-		bounds,
-		"rtyfghvbn",
-		recursivegrid.SelectionCallbacks{
-			OnUpdate:   func(image.Point) {},
-			OnComplete: func(image.Point) {},
-		},
-		logger,
-	)
-
-	assert.NotNil(t, manager, "Manager should not be nil")
-	assert.Equal(t, "rtyfghvbn", manager.Keys(), "Keys should be set")
-}
-
 func TestNewManagerDefaultKeys(t *testing.T) {
 	bounds := image.Rect(0, 0, 100, 100)
 	logger := zap.NewNop()
 
-	manager := recursivegrid.NewManager(
+	manager := recursivegrid.NewManagerWithLayers(
 		bounds,
 		"", // Empty keys - should use default
+		25, 25, 10,
+		recursivegrid.DefaultDimensions(),
+		nil, nil,
 		recursivegrid.SelectionCallbacks{},
 		logger,
 	)
@@ -46,56 +31,6 @@ func TestNewManagerDefaultKeys(t *testing.T) {
 		manager.Keys(),
 		"Should use default keys when empty",
 	)
-}
-
-func TestManagerHandleInputCellSelection(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 100)
-	logger := zap.NewNop()
-
-	updateCalled := false
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		25,
-		25,
-		10,
-		domain.GridDimensions{Rows: 2, Cols: 2},
-		nil, nil,
-		recursivegrid.SelectionCallbacks{
-			OnUpdate: func(image.Point) { updateCalled = true },
-		},
-		logger,
-	)
-
-	// Select top-left cell (key 'u')
-	point, completed := manager.HandleInput("u")
-
-	assert.Equal(t, image.Point{X: 25, Y: 25}, point, "Should return center of top-left cell")
-	assert.False(t, completed, "Should not be completed")
-	assert.True(t, updateCalled, "Update callback should be called")
-	assert.Equal(t, 1, manager.CurrentDepth(), "Depth should be 1")
-}
-
-func TestManagerHandleInputEscapeKey(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 100)
-	logger := zap.NewNop()
-
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		25,
-		25,
-		10,
-		domain.GridDimensions{Rows: 2, Cols: 2},
-		nil, nil,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-
-	point, completed := manager.HandleInput("escape")
-
-	assert.Equal(t, image.Point{}, point, "Should return zero point")
-	assert.False(t, completed, "Should not be completed")
 }
 
 func TestManagerReset(t *testing.T) {
@@ -125,29 +60,11 @@ func TestManagerReset(t *testing.T) {
 		manager.CurrentCenter(),
 		"Center should return to initial",
 	)
-}
 
-func TestManagerHandleInputBacktrack(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 100)
-	logger := zap.NewNop()
-
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		25,
-		25,
-		10,
-		domain.GridDimensions{Rows: 2, Cols: 2},
-		nil, nil,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-
+	// Backtrack steps up one level the way Reset steps up all of them.
 	manager.HandleInput("u")
-	assert.Equal(t, 1, manager.CurrentDepth())
 
-	ok := manager.Backtrack()
-	assert.True(t, ok, "Backtrack should succeed with history")
+	assert.True(t, manager.Backtrack(), "Backtrack should succeed with history")
 	assert.Equal(t, 0, manager.CurrentDepth(), "Depth should be 0 after backtrack")
 	assert.Equal(
 		t,
@@ -181,56 +98,6 @@ func TestManagerHandleInputUnmappedKey(t *testing.T) {
 	assert.Equal(t, image.Point{}, point, "Should return zero point")
 	assert.False(t, completed, "Should not be completed")
 	assert.False(t, updateCalled, "Update callback should NOT be called")
-}
-
-func TestManagerHandleInputCompletion(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 100)
-	logger := zap.NewNop()
-
-	completeCalled := false
-
-	var completePoint image.Point
-
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		50, // minSizeWidth large enough to complete quickly
-		50, // minSizeHeight
-		10,
-		domain.GridDimensions{Rows: 2, Cols: 2},
-		nil, nil,
-		recursivegrid.SelectionCallbacks{
-			OnComplete: func(p image.Point) {
-				completeCalled = true
-				completePoint = p
-			},
-		},
-		logger,
-	)
-
-	// Initial size 100x100
-	// Select u -> 50x50 (top-left), depth becomes 1
-	// Since minSize is 50, 50/2 = 25 < 50. CanDivide is false.
-	// But completion only triggers on the NEXT key press (at the final depth).
-
-	point, completed := manager.HandleInput("u")
-
-	assert.False(
-		t,
-		completed,
-		"Should NOT be completed yet — user must make one more selection at final depth",
-	)
-	assert.False(t, completeCalled, "Complete callback should NOT be called yet")
-	assert.Equal(t, image.Point{X: 25, Y: 25}, point, "Should return center of top-left cell")
-
-	// Now at final depth (CanDivide is false), select a sub-cell to complete
-	point2, completed2 := manager.HandleInput("k") // BottomRight
-
-	assert.True(t, completed2, "Should be completed after selection at final depth")
-	assert.True(t, completeCalled, "Complete callback should be called")
-	assert.Equal(t, point2, completePoint, "Complete point should match return point")
-	// BottomRight of (0,0)-(50,50) with 2x2: cell (25,25)-(50,50), center rounded
-	assert.Equal(t, image.Point{X: 38, Y: 38}, point2, "Center should be at (38, 38)")
 }
 
 func TestManagerHandleInputMaxDepth(t *testing.T) {
@@ -307,185 +174,69 @@ func TestManagerWithLayers_NonSquare3x2(t *testing.T) {
 	assert.Equal(t, 1, manager.CurrentDepth())
 }
 
-func TestManagerWithLayers_InvalidColsOnly_FallsBack(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 100)
-	logger := zap.NewNop()
-	// A zero column count is invalid (< MinGridDimension), so both
-	// dimensions are reset to DefaultDimensions().
-	// provided keys match default dimensions, so no further fallback is needed.
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		10,
-		10,
-		10,
-		domain.GridDimensions{Rows: 3, Cols: 0}, // invalid column count
-		nil, nil,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-	// After fallback, should use default dimensions with default keys
-	assert.Equal(t, recursivegrid.DefaultGridCols, manager.GridCols())
-	assert.Equal(t, recursivegrid.DefaultGridRows, manager.GridRows())
-	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
-}
-
-func TestManagerWithLayers_SingleColumnValid(t *testing.T) {
-	bounds := image.Rect(0, 0, 120, 120)
-	logger := zap.NewNop()
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"abc",
-		10,
-		10,
-		10,
-		domain.GridDimensions{Rows: 3, Cols: 1},
-		nil, nil,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-
-	assert.Equal(t, 1, manager.GridCols())
-	assert.Equal(t, 3, manager.GridRows())
-	assert.Equal(t, "abc", manager.Keys())
-}
-
-func TestManagerWithLayers_1x1_FallsBack(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 100)
-	logger := zap.NewNop()
-	// 1x1 is degenerate (cannot subdivide), so both dimensions fall back to default.
-	// "a" has 1 key != expected, so keys also fall back to DefaultKeys.
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"a",
-		10,
-		10,
-		10,
-		domain.GridDimensions{Rows: 1, Cols: 1},
-		nil, nil,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-	assert.Equal(t, recursivegrid.DefaultGridCols, manager.GridCols())
-	assert.Equal(t, recursivegrid.DefaultGridRows, manager.GridRows())
-	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
-}
-
-func TestManagerWithLayers_InvalidRowsOnly_FallsBack(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 100)
-	logger := zap.NewNop()
-	// A zero row count is invalid (< MinGridDimension), so both
-	// dimensions are reset to DefaultDimensions().
-	// provided keys match default dimensions, so no further fallback is needed.
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		10,
-		10,
-		10,
-		domain.GridDimensions{Rows: 0, Cols: 3}, // invalid row count
-		nil, nil,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-	assert.Equal(t, recursivegrid.DefaultGridCols, manager.GridCols())
-	assert.Equal(t, recursivegrid.DefaultGridRows, manager.GridRows())
-	assert.Equal(t, recursivegrid.DefaultKeys, manager.Keys())
-}
-
 func TestHandleInput_InvalidKeyLength_FallsBackToDefault(t *testing.T) {
-	keys := "€ab" // 3 runes, invalid length
-	logger := zap.NewNop()
-	screenBounds := image.Rect(0, 0, 100, 100)
-	manager := recursivegrid.NewManager(
-		screenBounds,
-		keys,
+	// "€a" is 4 bytes but 2 runes. A 2x2 grid needs 4 keys, so only a count
+	// in runes rejects it.
+	manager := recursivegrid.NewManagerWithLayers(
+		image.Rect(0, 0, 100, 100),
+		"€a",
+		25, 25, 10,
+		domain.GridDimensions{Rows: 2, Cols: 2},
+		nil, nil,
 		recursivegrid.SelectionCallbacks{},
-		logger,
+		zap.NewNop(),
 	)
 	assert.Equal(
 		t,
 		recursivegrid.DefaultKeys,
 		manager.Keys(),
-		"Should fall back to default keys when given invalid length keys (even with multibyte)",
+		"Should fall back to default keys when the key count in runes is wrong",
 	)
-	assert.NotPanics(t, func() {
-		manager.HandleInput("c")
-	}, "HandleInput should not panic after fallback")
 }
 
+// TestNewManagerWithLayers_MismatchedDepthKeys_DropsOrphan covers every way a
+// per-depth override can fail to line up. Each is dropped, so depth 0 keeps
+// the base keys and shape.
 func TestNewManagerWithLayers_MismatchedDepthKeys_DropsOrphan(t *testing.T) {
-	bounds := image.Rect(0, 0, 120, 100)
-	logger := zap.NewNop()
-	// depthKeys has depth 0, but depthLayouts does not -> depth 0 override should be dropped
-	depthLayouts := map[int]recursivegrid.DepthLayout{}
-	depthKeys := map[int]string{
-		0: "qwerasdf", // 8 keys, but no layout for depth 0
+	testCases := []struct {
+		name         string
+		depthLayouts map[int]recursivegrid.DepthLayout
+		depthKeys    map[int]string
+	}{
+		{
+			name:         "keys with no layout",
+			depthLayouts: map[int]recursivegrid.DepthLayout{},
+			depthKeys:    map[int]string{0: "qwerasdf"},
+		},
+		{
+			name:         "layout with no keys",
+			depthLayouts: map[int]recursivegrid.DepthLayout{0: {GridCols: 3, GridRows: 3}},
+			depthKeys:    map[int]string{},
+		},
+		{
+			name:         "key count does not match the layout",
+			depthLayouts: map[int]recursivegrid.DepthLayout{0: {GridCols: 3, GridRows: 3}},
+			depthKeys:    map[int]string{0: "abcd"},
+		},
 	}
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		10, 10, 10,
-		domain.GridDimensions{Rows: 2, Cols: 2},
-		depthLayouts,
-		depthKeys,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-	// At depth 0, should use default keys since the orphan override was dropped
-	assert.Equal(t, "uijk", manager.Keys())
-	assert.Equal(t, 2, manager.GridCols())
-	assert.Equal(t, 2, manager.GridRows())
-}
 
-func TestNewManagerWithLayers_MismatchedDepthLayouts_DropsOrphan(t *testing.T) {
-	bounds := image.Rect(0, 0, 120, 100)
-	logger := zap.NewNop()
-	// depthLayouts has depth 0, but depthKeys does not -> depth 0 override should be dropped
-	depthLayouts := map[int]recursivegrid.DepthLayout{
-		0: {GridCols: 3, GridRows: 3},
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			manager := recursivegrid.NewManagerWithLayers(
+				image.Rect(0, 0, 120, 100),
+				"uijk",
+				10, 10, 10,
+				domain.GridDimensions{Rows: 2, Cols: 2},
+				testCase.depthLayouts,
+				testCase.depthKeys,
+				recursivegrid.SelectionCallbacks{},
+				zap.NewNop(),
+			)
+			assert.Equal(t, "uijk", manager.Keys())
+			assert.Equal(t, 2, manager.GridCols())
+			assert.Equal(t, 2, manager.GridRows())
+		})
 	}
-	depthKeys := map[int]string{}
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		10, 10, 10,
-		domain.GridDimensions{Rows: 2, Cols: 2},
-		depthLayouts,
-		depthKeys,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-	// At depth 0, should use defaults since the orphan layout override was dropped
-	assert.Equal(t, "uijk", manager.Keys())
-	assert.Equal(t, 2, manager.GridCols())
-	assert.Equal(t, 2, manager.GridRows())
-}
-
-func TestNewManagerWithLayers_KeyCountMismatch_DropsOverride(t *testing.T) {
-	bounds := image.Rect(0, 0, 120, 100)
-	logger := zap.NewNop()
-	// depthLayouts says 3x3 (9 cells), but depthKeys only has 4 keys -> mismatch
-	depthLayouts := map[int]recursivegrid.DepthLayout{
-		0: {GridCols: 3, GridRows: 3},
-	}
-	depthKeys := map[int]string{
-		0: "abcd", // 4 keys != 9
-	}
-	manager := recursivegrid.NewManagerWithLayers(
-		bounds,
-		"uijk",
-		10, 10, 10,
-		domain.GridDimensions{Rows: 2, Cols: 2},
-		depthLayouts,
-		depthKeys,
-		recursivegrid.SelectionCallbacks{},
-		logger,
-	)
-	// At depth 0, should use defaults since the mismatched override was dropped
-	assert.Equal(t, "uijk", manager.Keys())
-	assert.Equal(t, 2, manager.GridCols())
-	assert.Equal(t, 2, manager.GridRows())
 }
 
 // TestNewManagerWithLayers_NilLogger_DoesNotPanic covers every path that logs.

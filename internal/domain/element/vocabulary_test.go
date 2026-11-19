@@ -90,47 +90,6 @@ func TestRoleVocabulary_EverySemanticRoleHasAtLeastOneNativeName(t *testing.T) {
 	}
 }
 
-func TestVocabularyForGOOS(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		goos  string
-		want  element.NativeVocabulary
-		found bool
-	}{
-		{name: "darwin", goos: testGOOSDarwin, want: element.VocabularyAX, found: true},
-		{name: "linux", goos: testGOOSLinux, want: element.VocabularyATSPI, found: true},
-		{name: "windows", goos: testGOOSWindows, want: element.VocabularyUIA, found: true},
-		{name: "unsupported", goos: "freebsd", want: "", found: false},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			got, ok := element.VocabularyForGOOS(testCase.goos)
-			if ok != testCase.found {
-				t.Fatalf(
-					"element.VocabularyForGOOS(%q) found = %v, want %v",
-					testCase.goos,
-					ok,
-					testCase.found,
-				)
-			}
-
-			if got != testCase.want {
-				t.Errorf(
-					"element.VocabularyForGOOS(%q) = %q, want %q",
-					testCase.goos,
-					got,
-					testCase.want,
-				)
-			}
-		})
-	}
-}
-
 func TestResolveRoles_SemanticExpansionPerPlatform(t *testing.T) {
 	t.Parallel()
 

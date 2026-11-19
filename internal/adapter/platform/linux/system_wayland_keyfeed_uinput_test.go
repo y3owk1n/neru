@@ -15,6 +15,7 @@ func TestUinputModifierCodes(t *testing.T) {
 		name      string
 		modifiers []string
 		want      []int
+		wantErr   bool
 	}{
 		{name: "none", modifiers: nil, want: []int{}},
 		{name: "ctrl", modifiers: []string{modNameCtrl}, want: []int{keycodeLeftCtrl}},
@@ -28,6 +29,7 @@ func TestUinputModifierCodes(t *testing.T) {
 			modifiers: []string{modNameShift, modNameCtrl, modNameAlt, modNameCmd},
 			want:      []int{keycodeLeftShift, keycodeLeftCtrl, keycodeLeftAlt, keycodeLeftMeta},
 		},
+		{name: "unknown modifier is not supported", modifiers: []string{"hyper"}, wantErr: true},
 	}
 
 	for _, testCase := range tests {
@@ -35,6 +37,15 @@ func TestUinputModifierCodes(t *testing.T) {
 			t.Parallel()
 
 			got, err := uinputModifierCodes(testCase.modifiers)
+			if testCase.wantErr {
+				if !derrors.IsCode(err, derrors.CodeNotSupported) {
+					t.Fatalf("uinputModifierCodes(%v) error = %v, want CodeNotSupported",
+						testCase.modifiers, err)
+				}
+
+				return
+			}
+
 			if err != nil {
 				t.Fatalf("uinputModifierCodes(%v) returned error: %v", testCase.modifiers, err)
 			}
@@ -49,18 +60,5 @@ func TestUinputModifierCodes(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestUinputModifierCodesUnknown(t *testing.T) {
-	t.Parallel()
-
-	_, err := uinputModifierCodes([]string{"hyper"})
-	if err == nil {
-		t.Fatal("expected error for unknown modifier, got nil")
-	}
-
-	if !derrors.IsCode(err, derrors.CodeNotSupported) {
-		t.Fatalf("error code = %v, want CodeNotSupported", err)
 	}
 }

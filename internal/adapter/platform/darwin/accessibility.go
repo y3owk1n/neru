@@ -86,29 +86,6 @@ func ApplicationBundleIDByPID(pid int) (string, error) {
 	return C.GoString(cBundleID), nil
 }
 
-// HasClickAction checks if the accessibility element has a click action.
-// Uses default assumptions for pre-fetched attributes (not hidden, visible, enabled).
-func HasClickAction(element unsafe.Pointer) bool {
-	if element == nil {
-		return false
-	}
-
-	clickable := C.NeruHasClickAction(
-		element,
-		true,  // skipVisCheck: no pre-computed center available in this simplified wrapper
-		false, // preHidden
-		true,  // preVisible
-		true,  // preEnabled
-		true,  // hasEnabledAttr
-		nil,   // preRole
-		false, // preIsWidget
-		0,     // centerX
-		0,     // centerY
-	) != 0
-
-	return clickable
-}
-
 // SetApplicationAttribute sets an attribute on an application by its PID.
 func SetApplicationAttribute(pid int, attribute string, value bool) bool {
 	cAttr := C.CString(attribute)

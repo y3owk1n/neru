@@ -45,7 +45,9 @@ func TestRegion_ReadsBackWhatWasWritten(t *testing.T) {
 
 // TestRewrite_ReplacesOnlyTheRegion pins what a generator may touch. The page
 // around the markers is somebody's prose, and rewriting it would make running
-// the generator a change nobody asked for.
+// the generator a change nobody asked for. Applying to an up-to-date page has
+// to be a no-op too, or the guardrail that compares rather than regenerates
+// would read every page as out of date.
 func TestRewrite_ReplacesOnlyTheRegion(t *testing.T) {
 	t.Parallel()
 
@@ -67,25 +69,13 @@ func TestRewrite_ReplacesOnlyTheRegion(t *testing.T) {
 	if !strings.Contains(updated, flagref.Table()) {
 		t.Error("Rewrite() did not write the table into the region")
 	}
-}
 
-// TestRewrite_IsIdempotent is what lets the guardrail compare rather than
-// regenerate. Applying to an up-to-date page has to be a no-op, or every page
-// would read as out of date.
-func TestRewrite_IsIdempotent(t *testing.T) {
-	t.Parallel()
-
-	once, err := flagref.Rewrite(page)
-	if err != nil {
-		t.Fatalf("Rewrite() error = %v", err)
-	}
-
-	twice, err := flagref.Rewrite(once)
+	twice, err := flagref.Rewrite(updated)
 	if err != nil {
 		t.Fatalf("Rewrite() error on the second pass = %v", err)
 	}
 
-	if twice != once {
+	if twice != updated {
 		t.Error("Rewrite() changed an already-current page")
 	}
 }
@@ -114,6 +104,11 @@ func TestRewrite_RefusesAPageWithNoRegion(t *testing.T) {
 
 			if !derrors.IsCode(err, derrors.CodeInvalidInput) {
 				t.Errorf("Rewrite() error = %v, want invalid input", err)
+			}
+
+			_, regionErr := flagref.Region(document)
+			if regionErr == nil {
+				t.Error("Region() read a region out of a page that has none")
 			}
 		})
 	}

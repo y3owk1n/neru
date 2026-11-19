@@ -1,6 +1,7 @@
 package loader_test
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -11,77 +12,88 @@ import (
 const (
 	testHintChars = "qwerty"
 	testColorHex  = "#FF0000AA"
+
+	// The leaves the per-type tables below write, refuse and name.
+	pathFontSize        = "hints.ui.font_size"
+	pathPassthrough     = "general.passthrough_unbounded_keys"
+	pathBackgroundColor = "hints.ui.background_color"
+	valueTrue           = "true"
 )
 
-func TestSetField_String(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "hints.hint_characters", testHintChars)
-	if err != nil {
-		t.Fatalf("SetField() unexpected error: %v", err)
+// TestSetField_WritesEachLeafType pins that `neru config set` writes each kind
+// of leaf it can name, parsed the way the config file would carry it.
+func TestSetField_WritesEachLeafType(t *testing.T) {
+	tests := []struct {
+		name  string
+		path  string
+		value string
+		got   func(*config.Config) any
+		want  any
+	}{
+		{
+			name:  "string",
+			path:  "hints.hint_characters",
+			value: testHintChars,
+			got:   func(cfg *config.Config) any { return cfg.Hints.HintCharacters },
+			want:  testHintChars,
+		},
+		{
+			name:  "integer",
+			path:  pathFontSize,
+			value: "14",
+			got:   func(cfg *config.Config) any { return cfg.Hints.UI.FontSize },
+			want:  14,
+		},
+		{
+			name:  "bool",
+			path:  pathPassthrough,
+			value: valueTrue,
+			got:   func(cfg *config.Config) any { return cfg.General.PassthroughUnboundedKeys },
+			want:  true,
+		},
+		{
+			name:  "float",
+			path:  "hints.vision.minimum_confidence",
+			value: "0.5",
+			got:   func(cfg *config.Config) any { return cfg.Hints.Vision.MinimumConfidence },
+			want:  0.5,
+		},
+		{
+			name:  "string slice",
+			path:  "hints.clickable_roles",
+			value: "AXButton,AXLink",
+			got:   func(cfg *config.Config) any { return cfg.Hints.ClickableRoles },
+			want:  []string{"AXButton", "AXLink"},
+		},
+		{
+			name:  "color as one hex value",
+			path:  pathBackgroundColor,
+			value: testColorHex,
+			got:   func(cfg *config.Config) any { return cfg.Hints.UI.BackgroundColor },
+			want:  config.Color{Light: testColorHex, Dark: testColorHex},
+		},
+		{
+			name:  "color as a JSON object",
+			path:  pathBackgroundColor,
+			value: `{"light":"#000","dark":"#FFF"}`,
+			got:   func(cfg *config.Config) any { return cfg.Hints.UI.BackgroundColor },
+			want:  config.Color{Light: "#000", Dark: "#FFF"},
+		},
 	}
 
-	if cfg.Hints.HintCharacters != testHintChars {
-		t.Fatalf("Expected hint_characters=%q, got %q", testHintChars, cfg.Hints.HintCharacters)
-	}
-}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			cfg := config.DefaultConfig()
 
-func TestSetField_Integer(t *testing.T) {
-	cfg := config.DefaultConfig()
+			err := loader.SetField(cfg, testCase.path, testCase.value)
+			if err != nil {
+				t.Fatalf("SetField(%s) error = %v", testCase.path, err)
+			}
 
-	err := loader.SetField(cfg, "hints.ui.font_size", "14")
-	if err != nil {
-		t.Fatalf("SetField() unexpected error: %v", err)
-	}
-
-	if cfg.Hints.UI.FontSize != 14 {
-		t.Fatalf("Expected font_size=14, got %d", cfg.Hints.UI.FontSize)
-	}
-}
-
-func TestSetField_Bool(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "general.passthrough_unbounded_keys", "true")
-	if err != nil {
-		t.Fatalf("SetField() unexpected error: %v", err)
-	}
-
-	if !cfg.General.PassthroughUnboundedKeys {
-		t.Fatal("Expected passthrough_unbounded_keys=true")
-	}
-}
-
-func TestSetField_Float(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "hints.vision.minimum_confidence", "0.5")
-	if err != nil {
-		t.Fatalf("SetField() unexpected error: %v", err)
-	}
-
-	if cfg.Hints.Vision.MinimumConfidence != 0.5 {
-		t.Fatalf("Expected minimum_confidence=0.5, got %f", cfg.Hints.Vision.MinimumConfidence)
-	}
-}
-
-func TestSetField_StringSlice(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "hints.clickable_roles", "AXButton,AXLink")
-	if err != nil {
-		t.Fatalf("SetField() unexpected error: %v", err)
-	}
-
-	expected := []string{"AXButton", "AXLink"}
-	if len(cfg.Hints.ClickableRoles) != len(expected) {
-		t.Fatalf("Expected %d roles, got %d", len(expected), len(cfg.Hints.ClickableRoles))
-	}
-
-	for i, role := range expected {
-		if cfg.Hints.ClickableRoles[i] != role {
-			t.Fatalf("Expected role[%d]=%q, got %q", i, role, cfg.Hints.ClickableRoles[i])
-		}
+			if got := testCase.got(cfg); !reflect.DeepEqual(got, testCase.want) {
+				t.Errorf("%s = %#v, want %#v", testCase.path, got, testCase.want)
+			}
+		})
 	}
 }
 
@@ -140,131 +152,32 @@ func TestSetField_StepsKeepTheirCommas(t *testing.T) {
 	}
 }
 
-func TestSetField_StepsRejectAMalformedArray(t *testing.T) {
-	err := loader.SetField(config.DefaultConfig(), "hooks.on_mode_enter", `["exec echo a`)
-	if err == nil {
-		t.Fatal("SetField() accepted an unterminated array")
-	}
-}
-
-func TestSetField_Color(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "hints.ui.background_color", testColorHex)
-	if err != nil {
-		t.Fatalf("SetField() unexpected error: %v", err)
-	}
-
-	if cfg.Hints.UI.BackgroundColor.Light != testColorHex {
-		t.Fatalf(
-			"Expected background_color light=%q, got %q",
-			testColorHex,
-			cfg.Hints.UI.BackgroundColor.Light,
-		)
+// TestSetField_RefusesAValueItCannotWrite pins that `neru config set` refuses a
+// path or value it cannot write rather than leaving the field alone in silence.
+func TestSetField_RefusesAValueItCannotWrite(t *testing.T) {
+	tests := []struct {
+		name  string
+		path  string
+		value string
+	}{
+		{name: "unknown path", path: "hints.nonexistent_field", value: "value"},
+		{name: "empty path", path: "", value: "value"},
+		{name: "integer that is not a number", path: pathFontSize, value: "not-a-number"},
+		{
+			name:  "bool that is not a bool",
+			path:  pathPassthrough,
+			value: "not-a-bool",
+		},
+		{name: "unterminated step array", path: "hooks.on_mode_enter", value: `["exec echo a`},
 	}
 
-	if cfg.Hints.UI.BackgroundColor.Dark != testColorHex {
-		t.Fatalf(
-			"Expected background_color dark=%q, got %q",
-			testColorHex,
-			cfg.Hints.UI.BackgroundColor.Dark,
-		)
-	}
-}
-
-func TestSetField_ColorJSON(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(
-		cfg,
-		"hints.ui.background_color",
-		`{"light":"#000","dark":"#FFF"}`,
-	)
-	if err != nil {
-		t.Fatalf("SetField() unexpected error: %v", err)
-	}
-
-	if cfg.Hints.UI.BackgroundColor.Light != "#000" {
-		t.Fatalf(
-			"Expected background_color light=%q, got %q",
-			"#000",
-			cfg.Hints.UI.BackgroundColor.Light,
-		)
-	}
-
-	if cfg.Hints.UI.BackgroundColor.Dark != "#FFF" {
-		t.Fatalf(
-			"Expected background_color dark=%q, got %q",
-			"#FFF",
-			cfg.Hints.UI.BackgroundColor.Dark,
-		)
-	}
-}
-
-func TestSetField_InvalidPath(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "hints.nonexistent_field", "value")
-	if err == nil {
-		t.Fatal("Expected error for invalid path, got nil")
-	}
-}
-
-func TestSetField_EmptyPath(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "", "value")
-	if err == nil {
-		t.Fatal("Expected error for empty path, got nil")
-	}
-}
-
-func TestSetField_InvalidIntegerValue(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "hints.ui.font_size", "not-a-number")
-	if err == nil {
-		t.Fatal("Expected error for invalid integer value, got nil")
-	}
-}
-
-func TestSetField_InvalidBoolValue(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := loader.SetField(cfg, "general.passthrough_unbounded_keys", "not-a-bool")
-	if err == nil {
-		t.Fatal("Expected error for invalid boolean value, got nil")
-	}
-}
-
-func TestDeepCopyConfig(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.HintCharacters = testHintChars
-
-	deepCopy, err := loader.DeepCopyConfig(cfg)
-	if err != nil {
-		t.Fatalf("DeepCopyConfig() unexpected error: %v", err)
-	}
-
-	if deepCopy.Hints.HintCharacters != testHintChars {
-		t.Fatalf(
-			"Expected copy hint_characters=%q, got %q",
-			testHintChars,
-			deepCopy.Hints.HintCharacters,
-		)
-	}
-
-	// Modifying the copy must not affect the original.
-	deepCopy.Hints.HintCharacters = "asdf"
-	if cfg.Hints.HintCharacters != testHintChars {
-		t.Fatal("DeepCopyConfig() did not produce an independent copy")
-	}
-}
-
-func TestValidateConfigSetField_Valid(t *testing.T) {
-	err := loader.ValidateConfigSetField("hints.hint_characters", testHintChars)
-	if err != nil {
-		t.Fatalf("ValidateConfigSetField() unexpected error: %v", err)
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			err := loader.SetField(config.DefaultConfig(), testCase.path, testCase.value)
+			if err == nil {
+				t.Errorf("SetField(%q, %q) accepted it", testCase.path, testCase.value)
+			}
+		})
 	}
 }
 
@@ -279,60 +192,27 @@ func TestValidateConfigSetField_LeavesSettingsThatDependOnOthersToTheDaemon(t *t
 	}
 }
 
-func TestValidateConfigSetField_InvalidPath(t *testing.T) {
-	err := loader.ValidateConfigSetField("hints.nonexistent", "value")
-	if err == nil {
-		t.Fatal("Expected error for invalid path")
+// TestConfigFieldType_NamesEachLeafType pins the type hint `neru config set`
+// shows on a refused value, and the "unknown" ipcctrl keys off.
+func TestConfigFieldType_NamesEachLeafType(t *testing.T) {
+	tests := []struct {
+		path string
+		want string
+	}{
+		{path: "hints.hint_characters", want: "string"},
+		{path: pathFontSize, want: "integer"},
+		{path: pathPassthrough, want: "boolean"},
+		{path: "hints.vision.minimum_confidence", want: "float"},
+		{path: "hints.clickable_roles", want: "array"},
+		{path: pathBackgroundColor, want: "color (#RGB/#RRGGBB/#AARRGGBB or JSON object)"},
+		{path: "nonexistent.path", want: "unknown"},
 	}
-}
 
-func TestConfigFieldType_String(t *testing.T) {
-	typeHint := loader.ConfigFieldType("hints.hint_characters")
-	if typeHint != "string" {
-		t.Fatalf("Expected type 'string', got %q", typeHint)
-	}
-}
-
-func TestConfigFieldType_Integer(t *testing.T) {
-	typeHint := loader.ConfigFieldType("hints.ui.font_size")
-	if typeHint != "integer" {
-		t.Fatalf("Expected type 'integer', got %q", typeHint)
-	}
-}
-
-func TestConfigFieldType_Bool(t *testing.T) {
-	typeHint := loader.ConfigFieldType("general.passthrough_unbounded_keys")
-	if typeHint != "boolean" {
-		t.Fatalf("Expected type 'boolean', got %q", typeHint)
-	}
-}
-
-func TestConfigFieldType_Float(t *testing.T) {
-	typeHint := loader.ConfigFieldType("hints.vision.minimum_confidence")
-	if typeHint != "float" {
-		t.Fatalf("Expected type 'float', got %q", typeHint)
-	}
-}
-
-func TestConfigFieldType_Array(t *testing.T) {
-	typeHint := loader.ConfigFieldType("hints.clickable_roles")
-	if typeHint != "array" {
-		t.Fatalf("Expected type 'array', got %q", typeHint)
-	}
-}
-
-func TestConfigFieldType_Color(t *testing.T) {
-	const want = "color (#RGB/#RRGGBB/#AARRGGBB or JSON object)"
-
-	typeHint := loader.ConfigFieldType("hints.ui.background_color")
-	if typeHint != want {
-		t.Fatalf("Expected type %q, got %q", want, typeHint)
-	}
-}
-
-func TestConfigFieldType_Unknown(t *testing.T) {
-	typeHint := loader.ConfigFieldType("nonexistent.path")
-	if typeHint != "unknown" {
-		t.Fatalf("Expected 'unknown', got %q", typeHint)
+	for _, testCase := range tests {
+		t.Run(testCase.path, func(t *testing.T) {
+			if got := loader.ConfigFieldType(testCase.path); got != testCase.want {
+				t.Errorf("ConfigFieldType(%q) = %q, want %q", testCase.path, got, testCase.want)
+			}
+		})
 	}
 }

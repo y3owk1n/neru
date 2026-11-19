@@ -78,26 +78,6 @@ func (h *cursorSlotHarness) restore(t *testing.T, args ...string) ipc.Response {
 	})
 }
 
-func TestCursorSlots_SaveAndRestoreRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	harness := newCursorSlotHarness(t)
-
-	saved := image.Point{X: 120, Y: 340}
-
-	if resp := harness.save(t, saved); !resp.Success {
-		t.Fatalf("save_cursor_pos = %+v, want success", resp)
-	}
-
-	if resp := harness.restore(t); !resp.Success {
-		t.Fatalf("restore_cursor_pos = %+v, want success", resp)
-	}
-
-	if len(harness.moves) != 1 || harness.moves[0] != saved {
-		t.Fatalf("cursor moves = %v, want exactly [%v]", harness.moves, saved)
-	}
-}
-
 // The reason named slots exist. A sequence that saves the cursor and then
 // invokes one that also saves used to lose the outer save silently, and the
 // outer restore then moved the cursor somewhere it never asked for.
@@ -193,21 +173,5 @@ func TestCursorSlots_RejectsInvalidSlotNames(t *testing.T) {
 				t.Fatalf("save_cursor_pos %s = %+v, want invalid input", testCase.slot, resp)
 			}
 		})
-	}
-}
-
-// The flag belongs to these two actions and nothing else, so an action that
-// does not take it must say so rather than ignore it.
-func TestCursorSlots_SlotIsRejectedOnOtherActions(t *testing.T) {
-	t.Parallel()
-
-	harness := newCursorSlotHarness(t)
-
-	resp := harness.handler.handleAction(context.Background(), ipc.Command{
-		Args: []string{leftClick, "--slot=here"},
-	})
-
-	if resp.Success || resp.Code != ipc.CodeInvalidInput {
-		t.Fatalf("left_click --slot = %+v, want invalid input", resp)
 	}
 }

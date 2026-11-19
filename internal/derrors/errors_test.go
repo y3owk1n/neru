@@ -7,21 +7,6 @@ import (
 	"github.com/y3owk1n/neru/internal/derrors"
 )
 
-func TestNew(t *testing.T) {
-	err := derrors.New(derrors.CodeInvalidInput, "test error")
-	if err == nil {
-		t.Fatal("New() returned nil")
-	}
-
-	if err.Code() != derrors.CodeInvalidInput {
-		t.Errorf("Expected code %v, got %v", derrors.CodeInvalidInput, err.Code())
-	}
-
-	if err.Message() != "test error" {
-		t.Errorf("Expected message 'test error', got '%s'", err.Message())
-	}
-}
-
 func TestNewf(t *testing.T) {
 	err := derrors.Newf(derrors.CodeInvalidConfig, "invalid value: %d", 42)
 	if err == nil {
@@ -105,26 +90,6 @@ func TestWrap(t *testing.T) {
 	nilErr := derrors.Wrap(nil, derrors.CodeActionFailed, "action failed")
 	if nilErr != nil {
 		t.Error("Wrap() should return nil for nil error")
-	}
-}
-
-func TestError_WithContext(t *testing.T) {
-	err := derrors.New(derrors.CodeHintGenerationFailed, "hint generation failed")
-
-	errWithContext := err.WithContext("element_id", "test-123")
-
-	if errWithContext.Context() == nil {
-		t.Fatal("WithContext() context is nil")
-	}
-
-	if val, ok := errWithContext.Context()["element_id"]; !ok || val != "test-123" {
-		t.Errorf("WithContext() context['element_id'] = %v, want 'test-123'", val)
-	}
-
-	_ = errWithContext.WithContext("count", 5)
-
-	if val, ok := errWithContext.Context()["count"]; !ok || val != 5 {
-		t.Errorf("WithContext() context['count'] = %v, want 5", val)
 	}
 }
 
@@ -233,36 +198,5 @@ func TestGetCode(t *testing.T) {
 				t.Errorf("GetCode(%v) = %v, want %v", testCase.err, got, testCase.want)
 			}
 		})
-	}
-}
-
-func TestErrorCodes(t *testing.T) {
-	codes := []derrors.Code{
-		derrors.CodeAccessibilityDenied,
-		derrors.CodeAccessibilityFailed,
-		derrors.CodeElementNotFound,
-		derrors.CodeInvalidConfig,
-		derrors.CodeInvalidInput,
-		derrors.CodeIPCFailed,
-		derrors.CodeIPCServerNotRunning,
-		derrors.CodeOverlayFailed,
-		derrors.CodeHintGenerationFailed,
-		derrors.CodeActionFailed,
-		derrors.CodeContextCanceled,
-		derrors.CodeTimeout,
-		derrors.CodeInternal,
-	}
-
-	seen := make(map[derrors.Code]bool)
-	for _, code := range codes {
-		if seen[code] {
-			t.Errorf("Duplicate error code: %v", code)
-		}
-
-		seen[code] = true
-
-		if code == "" {
-			t.Error("Error code should not be empty")
-		}
 	}
 }

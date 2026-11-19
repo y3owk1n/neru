@@ -73,60 +73,72 @@ func testContext(t *testing.T) context.Context {
 }
 
 // TestClient_Status_DecodesTheReply also pins the request a client sends: the
-// protocol it speaks, and no version, which the daemon would refuse unless it
-// matched the daemon's own build.
+// action, the protocol it speaks, and no version, which the daemon would
+// refuse unless it matched the daemon's own build.
 func TestClient_Status_DecodesTheReply(t *testing.T) {
-	isolate(t)
+	tests := []struct {
+		action string
+		reply  any
+		call   func(t *testing.T, neru *client.Client)
+	}{
+		{
+			action: "status",
+			reply:  ipc.StatusData{Enabled: true, Mode: modeHints},
+			call: func(t *testing.T, neru *client.Client) {
+				t.Helper()
 
-	requests := make(chan ipc.Command, 1)
+				status, err := neru.Status(testContext(t))
+				if err != nil {
+					t.Fatalf("Status() error = %v", err)
+				}
 
-	serve(t, func(_ context.Context, cmd ipc.Command) ipc.Response {
-		requests <- cmd
+				if !status.Enabled || status.Mode != modeHints {
+					t.Errorf("Status() = %+v, want enabled in hints", status)
+				}
+			},
+		},
+		{
+			action: "describe",
+			reply: ipc.DescribeData{
+				Protocol: client.ProtocolVersion,
+				Actions:  []ipc.DescribeAction{{Name: "left_click", Here: true}},
+			},
+			call: func(t *testing.T, neru *client.Client) {
+				t.Helper()
 
-		return ipc.Response{Success: true, Data: ipc.StatusData{Enabled: true, Mode: modeHints}}
-	}, nil)
+				described, err := neru.Describe(testContext(t))
+				if err != nil {
+					t.Fatalf("Describe() error = %v", err)
+				}
 
-	status, err := client.New().Status(testContext(t))
-	if err != nil {
-		t.Fatalf("Status() error = %v", err)
+				if len(described.Actions) != 1 || described.Actions[0].Name != "left_click" {
+					t.Errorf("Describe() = %+v, want left_click", described)
+				}
+			},
+		},
 	}
 
-	if !status.Enabled || status.Mode != modeHints {
-		t.Errorf("Status() = %+v, want enabled in hints", status)
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.action, func(t *testing.T) {
+			isolate(t)
 
-	got := <-requests
-	if got.Action != "status" || got.Protocol != client.ProtocolVersion || got.Version != "" {
-		t.Errorf("request = %+v, want status at protocol %d with no version",
-			got, client.ProtocolVersion)
-	}
-}
+			requests := make(chan ipc.Command, 1)
 
-func TestClient_Describe_DecodesTheReply(t *testing.T) {
-	isolate(t)
+			serve(t, func(_ context.Context, cmd ipc.Command) ipc.Response {
+				requests <- cmd
 
-	requests := make(chan ipc.Command, 1)
+				return ipc.Response{Success: true, Data: testCase.reply}
+			}, nil)
 
-	serve(t, func(_ context.Context, cmd ipc.Command) ipc.Response {
-		requests <- cmd
+			testCase.call(t, client.New())
 
-		return ipc.Response{Success: true, Data: ipc.DescribeData{
-			Protocol: client.ProtocolVersion,
-			Actions:  []ipc.DescribeAction{{Name: "left_click", Here: true}},
-		}}
-	}, nil)
-
-	described, err := client.New().Describe(testContext(t))
-	if err != nil {
-		t.Fatalf("Describe() error = %v", err)
-	}
-
-	if len(described.Actions) != 1 || described.Actions[0].Name != "left_click" {
-		t.Errorf("Describe() = %+v, want left_click", described)
-	}
-
-	if got := <-requests; got.Action != "describe" {
-		t.Errorf("request action = %q, want describe", got.Action)
+			got := <-requests
+			if got.Action != testCase.action || got.Protocol != client.ProtocolVersion ||
+				got.Version != "" {
+				t.Errorf("request = %+v, want %s at protocol %d with no version",
+					got, testCase.action, client.ProtocolVersion)
+			}
+		})
 	}
 }
 

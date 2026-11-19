@@ -2,20 +2,10 @@ package config_test
 
 import (
 	"math"
-	"slices"
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/config"
 )
-
-func TestConfigValidateHeldRepeat_AccelDefaults(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	err := cfg.ValidateHeldRepeat(nil)
-	if err != nil {
-		t.Fatalf("ValidateHeldRepeat() unexpected error: %v", err)
-	}
-}
 
 func TestConfigValidateHeldRepeat_AccelInvalid(t *testing.T) {
 	tests := []struct {
@@ -92,35 +82,9 @@ func TestConfigValidateHeldRepeat_AccelInvalid(t *testing.T) {
 	}
 }
 
-// TestConfigValidateHeldRepeat_AccelWithoutRepeatWarns pins which tier the
-// cross-field rule sits in. Acceleration only ever scales a repeat, so turning
-// it on without repeat itself does nothing, but refusing the file over it
-// would replace every other setting in it with the defaults (ADR 0002), and
-// reporting it to the log alone would hide it from `neru config validate`,
-// which is the command someone runs to find exactly this (ADR 0006).
-func TestConfigValidateHeldRepeat_AccelWithoutRepeatWarns(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.HeldRepeat.Enabled = false
-	cfg.HeldRepeat.AccelEnabled = true
-
-	warnings := &config.Warnings{}
-
-	err := cfg.ValidateWithWarnings(warnings, config.WrittenConfig{})
-	if err != nil {
-		t.Fatalf("ValidateWithWarnings() refused a configuration that loads: %v", err)
-	}
-
-	want := []string{
-		"held_repeat.accel_enabled has no effect while held_repeat.enabled is false",
-	}
-
-	if got := warnings.Messages(); !slices.Equal(got, want) {
-		t.Errorf("warnings = %q, want %q", got, want)
-	}
-}
-
-// TestConfigValidateHeldRepeat_AccelWithRepeatIsSilent is the other half. The
-// warning names a combination, so it must not fire on the one that works.
+// TestConfigValidateHeldRepeat_AccelWithRepeatIsSilent is the other half of
+// TestLoadWithValidation_ReportsAnInertAccelSetting. The warning names a
+// combination, so it must not fire on the one that works.
 func TestConfigValidateHeldRepeat_AccelWithRepeatIsSilent(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.HeldRepeat.Enabled = true

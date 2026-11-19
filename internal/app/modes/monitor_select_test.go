@@ -70,31 +70,3 @@ func TestHandlerState_ReportMonitorSelectNotSupported_NotifiesOffTheLock(t *test
 		t.Fatal("the notification was never attempted, so the user is told nothing")
 	}
 }
-
-// TestHandlerState_ReportMonitorSelectNotSupported_SurvivesNoSystemPort covers
-// the daemon built without a system port. Nothing can be notified, so the
-// report must return under the lock rather than reaching a nil port. The
-// assertion is that it comes back at all, since the failure mode is a panic
-// inside a locked entry point.
-func TestHandlerState_ReportMonitorSelectNotSupported_SurvivesNoSystemPort(t *testing.T) {
-	handler := newHandlerWithState(handlerState{
-		ctx:    context.Background(),
-		logger: zap.NewNop(),
-	})
-
-	returned := make(chan struct{})
-
-	go func() {
-		handler.mu.Lock()
-		defer handler.mu.Unlock()
-
-		handler.reportMonitorSelectNotSupported()
-		close(returned)
-	}()
-
-	select {
-	case <-returned:
-	case <-time.After(notifyWait):
-		t.Fatal("reportMonitorSelectNotSupported did not return with no system port to notify")
-	}
-}

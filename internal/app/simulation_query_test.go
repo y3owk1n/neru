@@ -16,6 +16,9 @@ import (
 	"github.com/y3owk1n/neru/internal/schematest"
 )
 
+// labelDirectionFlag picks the label direction for one hints activation.
+const labelDirectionFlag = "--label-direction"
+
 // TestSimulation_QueryHintsListsWhatHintsWouldLabel covers `neru query hints`.
 // It answers with the elements hints mode would label, each with the text
 // --text matches, what found it, its identifier and state, and its bounds, and
@@ -99,7 +102,7 @@ func TestSimulation_QueryHintsReportsTheLabelsHintsModeDraws(t *testing.T) {
 
 			var args []string
 			if direction != "" {
-				args = []string{"--label-direction", direction}
+				args = []string{labelDirectionFlag, direction}
 			}
 
 			resp := sim.app.HandleCommand(
@@ -158,15 +161,27 @@ func TestSimulation_LabelAlternationHalvesReachesBothDirections(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		args []string
-		want string
+		name       string
+		configured string
+		args       []string
+		want       string
 	}{
-		{name: "configured direction", args: nil, want: "A S D F G H J KA KS LA LS LD LF LG"},
 		{
-			name: "opposite direction",
-			args: []string{"--label-direction", domain.LabelDirectionReverse},
-			want: "AH SH DH FH GH HA JA KA LA AJ SJ DJ FJ GJ",
+			name:       "configured direction",
+			configured: domain.LabelDirectionNormal,
+			want:       "A S D F G H J KA KS LA LS LD LF LG",
+		},
+		{
+			name:       "opposite direction",
+			configured: domain.LabelDirectionNormal,
+			args:       []string{labelDirectionFlag, domain.LabelDirectionReverse},
+			want:       "AH SH DH FH GH HA JA KA LA AJ SJ DJ FJ GJ",
+		},
+		{
+			name:       "opposite of a configured reverse",
+			configured: domain.LabelDirectionReverse,
+			args:       []string{labelDirectionFlag, domain.LabelDirectionNormal},
+			want:       "A S D F G H J KA KS LA LS LD LF LG",
 		},
 	}
 
@@ -174,6 +189,7 @@ func TestSimulation_LabelAlternationHalvesReachesBothDirections(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			cfg := simConfig()
 			cfg.Hints.LabelAlternation = domain.LabelAlternationHalves
+			cfg.Hints.LabelDirection = testCase.configured
 			sim := newSimHarness(t, cfg, elements)
 
 			resp := sim.app.HandleCommand(

@@ -79,30 +79,3 @@ func TestBinder_Register_PublishesOnlyTheChordsTheBackendTook(t *testing.T) {
 		)
 	}
 }
-
-// A binder wired without the hook still registers. It is optional because the
-// hotkey table is built before the event tap exists on some startup paths.
-func TestBinder_Register_WithoutThePublishHook(t *testing.T) {
-	t.Parallel()
-
-	cfg := config.DefaultConfig()
-	cfg.Hotkeys.Bindings = map[string][]string{takenChord: {config.ModeNameGrid}}
-
-	manager := &portmocks.MockHotkeyPort{}
-
-	appState := state.NewAppState()
-	appState.SetEnabled(true)
-
-	binder := keybinding.New(keybinding.Deps{
-		Manager:     manager,
-		State:       appState,
-		Config:      func() *config.Config { return cfg },
-		RunSequence: func(string, []string) {},
-	})
-
-	binder.Register("")
-
-	if got := manager.RegisteredKeys(); len(got) != 1 {
-		t.Errorf("registered %v, want the one configured chord", got)
-	}
-}

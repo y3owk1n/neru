@@ -41,11 +41,11 @@ type StateChange struct {
 	next Mode
 }
 
-// NewStateChange records a transition from prev to next.
+// newStateChange records a transition from prev to next.
 //
 // The fields stay unexported so a subscriber cannot rewrite the transition it
-// was handed. The backends construct one through here.
-func NewStateChange(prev, next Mode) StateChange {
+// was handed. Base.SwitchTo constructs one through here.
+func newStateChange(prev, next Mode) StateChange {
 	return StateChange{prev: prev, next: next}
 }
 

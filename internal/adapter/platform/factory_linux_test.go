@@ -32,61 +32,6 @@ func TestNewSystemPort_GNOMEWaylandWithoutXwaylandReturnsHelpfulError(t *testing
 	}
 }
 
-func TestNewSystemPort_GNOMEWaylandWithXwaylandReturnsSystemPort(t *testing.T) {
-	resetLinuxBackendCache()
-
-	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
-	t.Setenv("DISPLAY", ":0")
-	t.Setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
-
-	systemPort, err := NewSystemPort()
-	if err != nil {
-		t.Fatalf("NewSystemPort() error = %v, want nil", err)
-	}
-
-	if got := systemPort.Capabilities().Platform; got != "linux/wayland-gnome" {
-		t.Fatalf("Capabilities().Platform = %q, want %q", got, "linux/wayland-gnome")
-	}
-}
-
-func TestNewSystemPort_KDEWaylandReturnsSystemPort(t *testing.T) {
-	resetLinuxBackendCache()
-
-	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
-	t.Setenv("DISPLAY", "")
-	t.Setenv("XDG_CURRENT_DESKTOP", "KDE")
-
-	systemPort, err := NewSystemPort()
-	if err != nil {
-		t.Fatalf("NewSystemPort() error = %v, want nil", err)
-	}
-
-	if systemPort == nil {
-		t.Fatal("NewSystemPort() systemPort = nil, want non-nil")
-	}
-
-	if got := systemPort.Capabilities().Platform; got != "linux/wayland-kde" {
-		t.Fatalf("Capabilities().Platform = %q, want %q", got, "linux/wayland-kde")
-	}
-}
-
-func TestNewSystemPort_COSMICWaylandReturnsSystemPort(t *testing.T) {
-	resetLinuxBackendCache()
-
-	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
-	t.Setenv("DISPLAY", "")
-	t.Setenv("XDG_CURRENT_DESKTOP", "COSMIC")
-
-	systemPort, err := NewSystemPort()
-	if err != nil {
-		t.Fatalf("NewSystemPort() error = %v, want nil", err)
-	}
-
-	if got := systemPort.Capabilities().Platform; got != "linux/wayland-cosmic" {
-		t.Fatalf("Capabilities().Platform = %q, want %q", got, "linux/wayland-cosmic")
-	}
-}
-
 func TestNewSystemPort_NoDisplayServerReturnsHelpfulError(t *testing.T) {
 	resetLinuxBackendCache()
 
@@ -108,23 +53,41 @@ func TestNewSystemPort_NoDisplayServerReturnsHelpfulError(t *testing.T) {
 	}
 }
 
-func TestNewSystemPort_SwayWaylandReturnsSystemPort(t *testing.T) {
-	resetLinuxBackendCache()
-
-	t.Setenv("WAYLAND_DISPLAY", "wayland-0")
-	t.Setenv("DISPLAY", "")
-	t.Setenv("XDG_CURRENT_DESKTOP", "sway")
-
-	systemPort, err := NewSystemPort()
-	if err != nil {
-		t.Fatalf("NewSystemPort() error = %v, want nil", err)
+// TestNewSystemPort_WaylandDesktopsReturnSystemPort pins that each Wayland
+// desktop Neru drives gets a system port reporting that desktop's stack. A
+// GNOME session draws its overlay on Xwayland, so its row carries a DISPLAY.
+func TestNewSystemPort_WaylandDesktopsReturnSystemPort(t *testing.T) {
+	tests := []struct {
+		desktop string
+		display string
+		want    string
+	}{
+		{desktop: desktopSway, want: "linux/wayland-wlroots"},
+		{desktop: desktopKDE, want: "linux/wayland-kde"},
+		{desktop: desktopCOSMIC, want: "linux/wayland-cosmic"},
+		{desktop: desktopUbuntuGNOME, display: ":0", want: "linux/wayland-gnome"},
 	}
 
-	if systemPort == nil {
-		t.Fatal("NewSystemPort() systemPort = nil, want non-nil")
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.desktop, func(t *testing.T) {
+			resetLinuxBackendCache()
 
-	if got := systemPort.Capabilities().Platform; got != "linux/wayland-wlroots" {
-		t.Fatalf("Capabilities().Platform = %q, want %q", got, "linux/wayland-wlroots")
+			t.Setenv("WAYLAND_DISPLAY", "wayland-0")
+			t.Setenv("DISPLAY", testCase.display)
+			t.Setenv("XDG_CURRENT_DESKTOP", testCase.desktop)
+
+			systemPort, err := NewSystemPort()
+			if err != nil {
+				t.Fatalf("NewSystemPort() error = %v, want nil", err)
+			}
+
+			if systemPort == nil {
+				t.Fatal("NewSystemPort() systemPort = nil, want non-nil")
+			}
+
+			if got := systemPort.Capabilities().Platform; got != testCase.want {
+				t.Fatalf("Capabilities().Platform = %q, want %q", got, testCase.want)
+			}
+		})
 	}
 }

@@ -5,7 +5,6 @@ package ipc_test
 import (
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
@@ -22,30 +21,6 @@ const (
 	testMapValue        = "value"
 	testWireVersion     = "1.2.3"
 )
-
-func TestSocketPath(t *testing.T) {
-	path := ipc.SocketPath()
-
-	if path == "" {
-		t.Error("SocketPath() returned empty string")
-	}
-
-	if len(path) < 10 {
-		t.Errorf("SocketPath() returned suspiciously short path: %s", path)
-	}
-}
-
-func TestNewClient(t *testing.T) {
-	client := ipc.NewClient()
-
-	if client == nil {
-		t.Fatal("NewClient() returned nil")
-	}
-
-	if client.SocketPath() == "" {
-		t.Error("Client socket path is empty")
-	}
-}
 
 // TestIsServerRunning asserts the probe tracks a real server's lifecycle.
 //
@@ -95,86 +70,6 @@ func TestIsServerRunning(t *testing.T) {
 
 	if ipc.IsServerRunning() {
 		t.Error("IsServerRunning() = true after the server stopped")
-	}
-}
-
-func TestNewServer(t *testing.T) {
-	logger := zap.NewNop()
-
-	tests := []struct {
-		name    string
-		handler ipc.CommandHandler
-		wantErr bool
-	}{
-		{
-			name: "valid handler",
-			handler: func(_ context.Context, _ ipc.Command) ipc.Response {
-				return ipc.Response{Success: true}
-			},
-			wantErr: false,
-		},
-		{
-			name:    "nil handler",
-			handler: nil,
-			wantErr: false, // nil handler is allowed
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			server, err := ipc.NewServer(testCase.handler, logger)
-
-			if (err != nil) != testCase.wantErr {
-				t.Errorf("NewServer() error = %v, wantErr %v", err, testCase.wantErr)
-
-				return
-			}
-
-			if !testCase.wantErr && server == nil {
-				t.Error("NewServer() returned nil server")
-			}
-
-			if server != nil {
-				_ = server.Stop()
-			}
-		})
-	}
-}
-
-func TestServerStartStop(t *testing.T) {
-	logger := zap.NewNop()
-
-	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
-		return ipc.Response{
-			Success: true,
-			Message: testResponseMessage,
-		}
-	}
-
-	server, serverErr := ipc.NewServer(handler, logger)
-	if serverErr != nil {
-		t.Fatalf("NewServer() failed: %v", serverErr)
-	}
-
-	server.Start()
-
-	// Give server time to start
-	time.Sleep(100 * time.Millisecond)
-
-	if !ipc.IsServerRunning() {
-		t.Error("Server should be running after Start()")
-	}
-
-	serverErr = server.Stop()
-	if serverErr != nil {
-		t.Errorf("Stop() failed: %v", serverErr)
-	}
-
-	// Give server time to stop
-	time.Sleep(100 * time.Millisecond)
-
-	if ipc.IsServerRunning() {
-		t.Error("Server should not be running after Stop()")
 	}
 }
 
@@ -371,30 +266,6 @@ func TestClientSend_ServerNotRunning(t *testing.T) {
 	_, err := client.Send(cmd)
 	if err == nil {
 		t.Error("Expected error when server is not running")
-	}
-}
-
-func TestClientSendWithTimeout_ServerNotRunning(t *testing.T) {
-	client := ipc.NewClient()
-
-	cmd := ipc.Command{Action: testCommandAction}
-
-	_, err := client.SendWithTimeout(cmd, time.Second)
-	if err == nil {
-		t.Error("Expected error when server is not running")
-	}
-}
-
-func TestClient_SocketPath(t *testing.T) {
-	client := ipc.NewClient()
-	path := client.SocketPath()
-
-	if path == "" {
-		t.Error("Client.SocketPath() returned empty string")
-	}
-
-	if !filepath.IsAbs(path) {
-		t.Errorf("Client.SocketPath() returned relative path: %s", path)
 	}
 }
 

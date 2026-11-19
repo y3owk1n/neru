@@ -82,8 +82,14 @@ func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen
 			"so its configured radius reaches nothing")
 	}
 
+	// The resolved Style is what reaches the surface. This backend resolves no
+	// theme of its own, so the colors are the ones the style carries.
 	if painted.fill != 0xFF112233 {
 		t.Errorf("badge fill = %#08x, want the light background the style carries", painted.fill)
+	}
+
+	if painted.border != 0xFF0A0B0C {
+		t.Errorf("badge border = %#08x, want the light border the style carries", painted.border)
 	}
 
 	if !surface.paintedText("/ sav  3") {
@@ -96,37 +102,6 @@ func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheQueryOnTheActiveScreen
 
 	if surface.flushes == 0 {
 		t.Error("the badge was never flushed, so it reaches the display on somebody else's tick")
-	}
-}
-
-// TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheThemeItsStyleCarries
-// pins the second half of "the same style resolution as every other badge". The
-// resolved Style is what reaches the surface, so a dark theme paints the dark
-// colors without this backend resolving anything itself.
-func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheThemeItsStyleCarries(t *testing.T) {
-	t.Parallel()
-
-	manager, surface := recordingManager()
-
-	err := manager.DrawHintSearchInput(
-		"s", 1,
-		hints.NewSearchInputFrame(image.Pt(0, 0), 100),
-		searchStyle(true),
-	)
-	if err != nil {
-		t.Fatalf("DrawHintSearchInput() error = %v", err)
-	}
-
-	if len(surface.rects) != 1 {
-		t.Fatalf("painted %d shapes, want exactly the badge", len(surface.rects))
-	}
-
-	if got := surface.rects[0].fill; got != 0xFF445566 {
-		t.Errorf("badge fill = %#08x, want the dark background the style carries", got)
-	}
-
-	if got := surface.rects[0].border; got != 0xFF0D0E0F {
-		t.Errorf("badge border = %#08x, want the dark border the style carries", got)
 	}
 }
 
@@ -314,5 +289,36 @@ func TestLinuxOverlayManager_HintSearchInputIsSerializedWithTheHintsDraw(t *test
 	if !manager.searchBadgeRect.Empty() {
 		t.Errorf("searchBadgeRect = %v after every badge was hidden, want the empty rectangle",
 			manager.searchBadgeRect)
+	}
+}
+
+// TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheThemeItsStyleCarries
+// pins the second half of "the same style resolution as every other badge". The
+// resolved Style is what reaches the surface, so a dark theme paints the dark
+// colors without this backend resolving anything itself.
+func TestLinuxOverlayManager_DrawHintSearchInput_PaintsTheThemeItsStyleCarries(t *testing.T) {
+	t.Parallel()
+
+	manager, surface := recordingManager()
+
+	err := manager.DrawHintSearchInput(
+		"s", 1,
+		hints.NewSearchInputFrame(image.Pt(0, 0), 100),
+		searchStyle(true),
+	)
+	if err != nil {
+		t.Fatalf("DrawHintSearchInput() error = %v", err)
+	}
+
+	if len(surface.rects) != 1 {
+		t.Fatalf("painted %d shapes, want exactly the badge", len(surface.rects))
+	}
+
+	if got := surface.rects[0].fill; got != 0xFF445566 {
+		t.Errorf("badge fill = %#08x, want the dark background the style carries", got)
+	}
+
+	if got := surface.rects[0].border; got != 0xFF0D0E0F {
+		t.Errorf("badge border = %#08x, want the dark border the style carries", got)
 	}
 }

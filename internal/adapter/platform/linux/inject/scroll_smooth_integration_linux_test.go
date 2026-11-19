@@ -15,9 +15,8 @@ import (
 
 // probeNotchPixels is what this test calls one wheel notch. It is stated here
 // rather than taken from the package so the measurement does not inherit the
-// conversion it is checking.
-// TestScrollAtCursor_ConvertsPixelsToNotchesTheWayTheProbeExpects fails if the
-// two ever disagree.
+// conversion it is checking. TestScrollNotches_RoundsToTheNearestNotch fails
+// if the package constant moves off this value.
 const probeNotchPixels = 30
 
 // axisSourceContinuous is wl_pointer.axis_source's `continuous` member, spelled
@@ -48,17 +47,6 @@ func requireDesktop(t *testing.T) {
 
 	if os.Getenv("WAYLAND_DISPLAY") == "" {
 		t.Skip("skipping: no Wayland session; this measures the wlroots injection path")
-	}
-}
-
-// TestScrollAtCursor_ConvertsPixelsToNotchesTheWayTheProbeExpects keeps the
-// measurement honest. The two tests below read a delivered value against
-// probeNotchPixels, which means nothing if the injection path scales by
-// something else.
-func TestScrollAtCursor_ConvertsPixelsToNotchesTheWayTheProbeExpects(t *testing.T) {
-	if scrollPixelsPerNotch != probeNotchPixels {
-		t.Fatalf("the scroll path converts %d pixels to a notch, the probe assumes %d",
-			scrollPixelsPerNotch, probeNotchPixels)
 	}
 }
 

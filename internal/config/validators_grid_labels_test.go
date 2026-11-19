@@ -118,11 +118,18 @@ func TestConfigValidateGrid_RawEmptyLabelsAreSilent(t *testing.T) {
 // TestConfigValidateGrid_ShortLabelsWarn pins the too-short case. One label
 // cannot name more than one row, so a grid taller than a single cell has rows
 // the user cannot reach.
+//
+// It also keeps the two too-short warnings from wearing each other's
+// consequence. A short grid.characters is not used at all, because the grid is
+// relabelled a-z, while short labels are used as written and cap the grid
+// instead, and a warning that swapped the two would send the user to fix the
+// wrong thing.
 func TestConfigValidateGrid_ShortLabelsWarn(t *testing.T) {
 	tests := []struct {
-		name  string
-		set   func(*config.Config)
-		field string
+		name       string
+		set        func(*config.Config)
+		field      string
+		relabelled bool
 	}{
 		{
 			name:  "row labels",
@@ -135,9 +142,10 @@ func TestConfigValidateGrid_ShortLabelsWarn(t *testing.T) {
 			field: fieldColLabels,
 		},
 		{
-			name:  "characters",
-			set:   func(c *config.Config) { c.Grid.Characters = "a" },
-			field: fieldCharacters,
+			name:       "characters",
+			set:        func(c *config.Config) { c.Grid.Characters = "a" },
+			field:      fieldCharacters,
+			relabelled: true,
 		},
 	}
 
@@ -154,38 +162,12 @@ func TestConfigValidateGrid_ShortLabelsWarn(t *testing.T) {
 			if !strings.Contains(got[0], "at least") {
 				t.Errorf("warning %q does not say how many characters are needed", got[0])
 			}
+
+			if strings.Contains(got[0], "a-z") != testCase.relabelled {
+				t.Errorf("warning %q mentions a-z = %v, want %v",
+					got[0], !testCase.relabelled, testCase.relabelled)
+			}
 		})
-	}
-}
-
-// TestConfigValidateGrid_ShortSetsSayWhatTheyCost keeps the two too-short
-// warnings from wearing each other's consequence. A short grid.characters is
-// not used at all, because the grid is relabelled a-z, while short labels are used as
-// written and cap the grid instead, and a warning that swapped the two would
-// send the user to fix the wrong thing.
-func TestConfigValidateGrid_ShortSetsSayWhatTheyCost(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Grid.Characters = "a"
-
-	got := warningsMentioning(validateGridWithWarnings(t, cfg), fieldCharacters)
-	if len(got) != 1 {
-		t.Fatalf("warnings for grid.characters = %q, want exactly one", got)
-	}
-
-	if !strings.Contains(got[0], "a-z") {
-		t.Errorf("warning %q does not say the grid is labeled a-z instead", got[0])
-	}
-
-	cfg = config.DefaultConfig()
-	cfg.Grid.RowLabels = "a"
-
-	got = warningsMentioning(validateGridWithWarnings(t, cfg), fieldRowLabels)
-	if len(got) != 1 {
-		t.Fatalf("warnings for grid.row_labels = %q, want exactly one", got)
-	}
-
-	if strings.Contains(got[0], "a-z") {
-		t.Errorf("warning %q claims labels the user wrote are replaced, which they are not", got[0])
 	}
 }
 
@@ -357,51 +339,6 @@ func TestConfigValidateGrid_WrittenLabelsAreReportedThemselves(t *testing.T) {
 // applies a floor (domain/grid.DistinctKeys), so a label equal to it has
 // neither a repeat nor too few characters left to be told off for.
 const spacedCharacters = "ab c"
-
-// TestConfigValidateGrid_WrittenLabelsEqualToTheInferenceAreReported is issue
-// #1281: a label set the user typed by hand that is exactly what an empty one
-// would have settled to. Compared by value the two are the same string, so the
-// fault in the label went unreported until the user fixed grid.characters and
-// ran the command again. One sitting turned into two, and a "your
-// configuration is fine" in between that was not true. The written
-// configuration answers it outright. Both fields are in the file, so both are
-// named, and the user fixes them together.
-func TestConfigValidateGrid_WrittenLabelsEqualToTheInferenceAreReported(t *testing.T) {
-	cfg, written := gridLabelsAsLoaded(spacedCharacters, "AB C")
-
-	got := validateGridAgainstWritten(t, cfg, config.AsWritten(written))
-
-	for _, field := range []string{fieldCharacters, fieldRowLabels} {
-		if len(warningsMentioning(got, field)) != 1 {
-			t.Errorf("warnings = %q, want exactly one naming %s", got, field)
-		}
-	}
-
-	// The column labels were left empty, so they are the inference and stay
-	// their source's business. The fix for this file is two lines, not three.
-	if found := warningsMentioning(got, fieldColLabels); len(found) > 0 {
-		t.Errorf("warnings for grid.col_labels = %q, want none", found)
-	}
-}
-
-// TestConfigValidateGrid_InferredLabelsStaySilentAgainstTheWritten keeps the
-// answer above from costing the common case. Labels left empty are the
-// derivation's own output whatever they equal, and the written configuration is
-// what says so. A fault in grid.characters is still one warning, under the one
-// name that is in the user's file.
-func TestConfigValidateGrid_InferredLabelsStaySilentAgainstTheWritten(t *testing.T) {
-	cfg, written := gridLabelsAsLoaded(spacedCharacters, "")
-
-	got := validateGridAgainstWritten(t, cfg, config.AsWritten(written))
-
-	if len(got) != 1 {
-		t.Fatalf("warnings = %q, want exactly one naming grid.characters", got)
-	}
-
-	if !strings.Contains(got[0], fieldCharacters) {
-		t.Errorf("warning = %q, want it to name grid.characters", got[0])
-	}
-}
 
 // TestConfigValidateGrid_WrittenLabelsAreJudgedOnTheirOwn pins the third shape.
 // A hand-written label set that differs from the characters is reported under

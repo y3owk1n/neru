@@ -2,6 +2,7 @@ package ipcctrl
 
 import (
 	"context"
+	"reflect"
 	"testing"
 	"time"
 
@@ -28,196 +29,108 @@ const (
 	waitForModeExit = "wait_for_mode_exit"
 )
 
-func TestParseActionArgs_MoveMouseFlags(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{flagCenter, "--x=100", "--y=200"})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error")
-	}
-
-	if !parsed.hasCenter {
-		t.Fatal("parseActionArgs() expected hasCenter to be true")
-	}
-
-	if parsed.xVal != 100 {
-		t.Fatalf("parseActionArgs() expected xVal to be 100, got %d", parsed.xVal)
-	}
-
-	if parsed.yVal != 200 {
-		t.Fatalf("parseActionArgs() expected yVal to be 200, got %d", parsed.yVal)
-	}
-}
-
-func TestParseActionArgs_MoveMouseWindowFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{flagWindow, "--x=50", "--y=50"})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error")
-	}
-
-	if !parsed.hasWindow {
-		t.Fatal("parseActionArgs() expected hasWindow to be true")
-	}
-
-	if parsed.xVal != 50 {
-		t.Fatalf("parseActionArgs() expected xVal to be 50, got %d", parsed.xVal)
-	}
-
-	if parsed.yVal != 50 {
-		t.Fatalf("parseActionArgs() expected yVal to be 50, got %d", parsed.yVal)
-	}
-}
-
-func TestParseActionArgs_SelectionFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{flagSelection})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error for --selection")
-	}
-
-	if !parsed.useSelection {
-		t.Fatal("parseActionArgs() expected useSelection to be true")
-	}
-}
-
-func TestParseActionArgs_PreviousFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{flagPrevious})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error for --previous")
-	}
-
-	if !parsed.usePrevious {
-		t.Fatal("parseActionArgs() expected usePrevious to be true")
-	}
-}
-
-func TestParseActionArgs_BailFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{flagBail})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error for --bail")
-	}
-
-	if !parsed.useBail {
-		t.Fatal("parseActionArgs() expected useBail to be true")
-	}
-}
-
-func TestHandleAction_FeedModeWithoutModesHandler(t *testing.T) {
-	controller := &ActionsHandler{logger: zap.NewNop()}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{"feed", "--mode", "o"},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(feed --mode o) expected failure with nil modes handler, got success")
-	}
-
-	if resp.Code != ipc.CodeActionFailed {
-		t.Fatalf(
-			"handleAction(feed --mode o) code = %q, want %q",
-			resp.Code,
-			ipc.CodeActionFailed,
-		)
-	}
-
-	if resp.Message != msgModesHandlerNotAvailable {
-		t.Fatalf(
-			"handleAction(feed --mode o) message = %q, want %q",
-			resp.Message,
-			msgModesHandlerNotAvailable,
-		)
-	}
-}
-
-func TestParseActionArgs_BareFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--bare"})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error for --bare")
-	}
-
-	if !parsed.useBare {
-		t.Fatal("parseActionArgs() expected useBare to be true")
-	}
-}
-
-func TestParseActionArgs_StepsFlagEqualsForm(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--steps=100"})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error for --steps=100")
-	}
-
-	if !parsed.hasSteps {
-		t.Fatal("parseActionArgs() expected hasSteps to be true")
-	}
-
-	if parsed.stepsOverride != 100 {
-		t.Fatalf("parseActionArgs() expected stepsOverride to be 100, got %d", parsed.stepsOverride)
-	}
-}
-
-func TestParseActionArgs_StepsFlagSpaceForm(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{"--steps", "200"})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error for --steps 200")
-	}
-
-	if !parsed.hasSteps {
-		t.Fatal("parseActionArgs() expected hasSteps to be true")
-	}
-
-	if parsed.stepsOverride != 200 {
-		t.Fatalf("parseActionArgs() expected stepsOverride to be 200, got %d", parsed.stepsOverride)
-	}
-}
-
-func TestParseActionArgs_StepsFlagRejectsZero(t *testing.T) {
-	_, parseErr := parseActionArgs([]string{"--steps=0"})
-	if !parseErr {
-		t.Fatal("parseActionArgs() expected parse error for --steps=0")
-	}
-}
-
-func TestParseActionArgs_StepsFlagRejectsNegative(t *testing.T) {
-	_, parseErr := parseActionArgs([]string{"--steps=-10"})
-	if !parseErr {
-		t.Fatal("parseActionArgs() expected parse error for --steps=-10")
-	}
-}
-
-func TestParseActionArgs_ModifierCSV(t *testing.T) {
+// TestParseActionArgs_StoresEachFlagsValue pins where each flag lands. Presence
+// is checked separately (TestParseActionArgs_MarksEveryFlagPresent), so this
+// compares every field to catch a flag written to the wrong one.
+func TestParseActionArgs_StoresEachFlagsValue(t *testing.T) {
 	tests := []struct {
-		name       string
-		args       []string
-		wantModStr string
+		name         string
+		args         []string
+		wantParseErr bool
+		want         parsedActionArgs
 	}{
 		{
-			name:       "single modifier",
-			args:       []string{"--modifier=cmd"},
-			wantModStr: "cmd",
+			name: "direction and count, equals form",
+			args: []string{directionLeft, "--count=3"},
+			want: parsedActionArgs{
+				directionStr: dirLeftValue, hasDirection: true, countVal: 3, hasCount: true,
+			},
 		},
 		{
-			name:       "comma-separated modifiers",
-			args:       []string{"--modifier=cmd,shift"},
-			wantModStr: "cmd,shift",
+			name: "direction and count, space form",
+			args: []string{"--direction", "up", "--count", "2"},
+			want: parsedActionArgs{
+				directionStr: "up", hasDirection: true, countVal: 2, hasCount: true,
+			},
 		},
 		{
-			name:       "all modifiers",
-			args:       []string{"--modifier=cmd,shift,alt,ctrl"},
-			wantModStr: "cmd,shift,alt,ctrl",
+			name: "count is optional",
+			args: []string{"--direction=right"},
+			want: parsedActionArgs{directionStr: "right", hasDirection: true},
 		},
+		{
+			name: "center and coordinates",
+			args: []string{flagCenter, "--x=100", "--y=200"},
+			want: parsedActionArgs{hasCenter: true, xVal: 100, hasX: true, yVal: 200, hasY: true},
+		},
+		{name: "window", args: []string{flagWindow}, want: parsedActionArgs{hasWindow: true}},
+		{
+			name: "selection",
+			args: []string{flagSelection},
+			want: parsedActionArgs{useSelection: true},
+		},
+		{name: "previous", args: []string{flagPrevious}, want: parsedActionArgs{usePrevious: true}},
+		{name: "bail", args: []string{flagBail}, want: parsedActionArgs{useBail: true}},
+		{name: "bare", args: []string{"--bare"}, want: parsedActionArgs{useBare: true}},
+		{
+			name: "steps, equals form",
+			args: []string{"--steps=100"},
+			want: parsedActionArgs{stepsOverride: 100, hasSteps: true},
+		},
+		{
+			name: "steps, space form",
+			args: []string{"--steps", "200"},
+			want: parsedActionArgs{stepsOverride: 200, hasSteps: true},
+		},
+		{
+			name: "modifier list is kept verbatim",
+			args: []string{"--modifier=cmd,shift"},
+			want: parsedActionArgs{modifierStr: "cmd,shift"},
+		},
+		{
+			name: "name, equals form",
+			args: []string{flagName + "=DELL U2720Q"},
+			want: parsedActionArgs{monitorName: "DELL U2720Q", hasMonitorName: true},
+		},
+		{
+			name: "name, space form",
+			args: []string{flagName, builtInRetinaDisplay},
+			want: parsedActionArgs{monitorName: builtInRetinaDisplay, hasMonitorName: true},
+		},
+		{name: "empty direction", args: []string{"--direction="}, wantParseErr: true},
+		{name: "missing direction value", args: []string{"--direction"}, wantParseErr: true},
+		{name: "non-numeric count", args: []string{"--count=many"}, wantParseErr: true},
+		{name: "zero count", args: []string{"--count=0"}, wantParseErr: true},
+		{name: "negative count", args: []string{"--count=-2"}, wantParseErr: true},
+		{name: "zero steps", args: []string{"--steps=0"}, wantParseErr: true},
+		{name: "negative steps", args: []string{"--steps=-10"}, wantParseErr: true},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			parsed, parseErr := parseActionArgs(testCase.args)
-			if parseErr {
-				t.Fatalf("parseActionArgs() unexpected parse error: %v", parseErr)
+
+			if parseErr != testCase.wantParseErr {
+				t.Fatalf(
+					"parseActionArgs(%v) parseErr = %v, want %v",
+					testCase.args,
+					parseErr,
+					testCase.wantParseErr,
+				)
 			}
 
-			if parsed.modifierStr != testCase.wantModStr {
-				t.Fatalf(
-					"parseActionArgs() expected modifierStr %q, got %q",
-					testCase.wantModStr,
-					parsed.modifierStr,
+			if testCase.wantParseErr {
+				return
+			}
+
+			parsed.present = nil
+
+			if !reflect.DeepEqual(parsed, testCase.want) {
+				t.Errorf(
+					"parseActionArgs(%v) = %+v, want %+v",
+					testCase.args,
+					parsed,
+					testCase.want,
 				)
 			}
 		})
@@ -274,26 +187,6 @@ func TestParseCSV(t *testing.T) {
 	}
 }
 
-func TestHandleAction_MoveMouseWithoutTargetingOrSelectionErrors(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{moveMouse},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(move_mouse) expected failure without explicit target or selection")
-	}
-
-	if resp.Message != "move_mouse requires --x and --y flags, --center, --window, active selection, or --bare" {
-		t.Fatalf("unexpected error message: %q", resp.Message)
-	}
-}
-
 func TestHandleAction_MoveMouseSelectionWithoutActiveSelectionErrors(t *testing.T) {
 	controller := &ActionsHandler{
 		appState: state.NewAppState(),
@@ -330,26 +223,6 @@ func TestHandleAction_MoveMouseRejectsCenterAndWindow(t *testing.T) {
 	}
 
 	if resp.Message != "--center and --window cannot be used together" {
-		t.Fatalf("unexpected error message: %q", resp.Message)
-	}
-}
-
-func TestHandleAction_MoveMouseRejectsWindowAndDX(t *testing.T) {
-	controller := &ActionsHandler{
-		appState: state.NewAppState(),
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{moveMouse, flagWindow, "--dx=10", "--dy=10"},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(move_mouse --window --dx) expected failure")
-	}
-
-	if resp.Message != "--dx is only supported with move_mouse_relative" {
 		t.Fatalf("unexpected error message: %q", resp.Message)
 	}
 }
@@ -460,42 +333,6 @@ func TestHandleAction_ScrollRejectsUnknownModifier(t *testing.T) {
 
 	if got != 0 {
 		t.Errorf("a refused modifier still reached the port as %q", got)
-	}
-}
-
-func TestParseActionArgs_NameFlag(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{flagName + "=DELL U2720Q"})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error for --name")
-	}
-
-	if !parsed.hasMonitorName {
-		t.Fatal("parseActionArgs() expected hasMonitorName to be true")
-	}
-
-	if parsed.monitorName != "DELL U2720Q" {
-		t.Fatalf(
-			"parseActionArgs() expected monitorName to be 'DELL U2720Q', got %q",
-			parsed.monitorName,
-		)
-	}
-}
-
-func TestParseActionArgs_NameFlagSpaceForm(t *testing.T) {
-	parsed, parseErr := parseActionArgs([]string{flagName, builtInRetinaDisplay})
-	if parseErr {
-		t.Fatal("parseActionArgs() unexpected parse error for --name space form")
-	}
-
-	if !parsed.hasMonitorName {
-		t.Fatal("parseActionArgs() expected hasMonitorName to be true")
-	}
-
-	if parsed.monitorName != builtInRetinaDisplay {
-		t.Fatalf(
-			"parseActionArgs() expected monitorName to be 'Built-in Retina Display', got %q",
-			parsed.monitorName,
-		)
 	}
 }
 
@@ -707,31 +544,6 @@ func TestHandleAction_WaitForModeExitBail_WithSelection(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for wait_for_mode_exit --bail")
-	}
-}
-
-func TestHandleAction_WaitForModeExitBail_StaleReasonCleared(t *testing.T) {
-	appState := state.NewAppState()
-	appState.SetMode(domain.ModeIdle)
-	appState.SetModeExitReason(state.ModeExitReasonCompleted)
-	appState.ConsumeModeExitReason()
-
-	controller := &ActionsHandler{
-		appState: appState,
-		logger:   zap.NewNop(),
-	}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{waitForModeExit, flagBail},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(wait_for_mode_exit --bail) expected bail after stale reason consumed")
-	}
-
-	if resp.Code != ipc.CodeChainBail {
-		t.Fatalf("response code = %q, want %q", resp.Code, ipc.CodeChainBail)
 	}
 }
 

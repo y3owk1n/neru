@@ -3,7 +3,6 @@ package modes
 import (
 	"context"
 	"image"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -93,11 +92,11 @@ func TestHandleKeyPress_ReplacingTheConfigSettlesANewKeymap(t *testing.T) {
 	appState := state.NewAppState()
 	appState.SetMode(domain.ModeRecursiveGrid)
 
-	configWithBinding := func(step string) *configpkg.Config {
+	configWithBinding := func(steps ...string) *configpkg.Config {
 		return &configpkg.Config{
 			RecursiveGrid: configpkg.RecursiveGridConfig{
 				Hotkeys: map[string]configpkg.StringOrStringArray{
-					"j": {step},
+					"j": steps,
 				},
 			},
 		}
@@ -113,18 +112,20 @@ func TestHandleKeyPress_ReplacingTheConfigSettlesANewKeymap(t *testing.T) {
 		modes: map[domain.Mode]Mode{
 			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
 		},
-		executeActionSequence: func(_ string, steps []string, _ []string) {
-			ran <- strings.Join(steps, ",")
+		// The whole binding goes to the daemon's sequence executor in order,
+		// named by the key it is bound to.
+		executeActionSequence: func(source string, steps []string, _ []string) {
+			ran <- source + ":" + strings.Join(steps, ",")
 		},
 	})
 
 	handler.HandleKeyPress("j")
-	waitForStep(t, ran, "action scroll_down")
+	waitForStep(t, ran, "j:action scroll_down")
 
-	handler.UpdateConfig(configWithBinding("action scroll_up"))
+	handler.UpdateConfig(configWithBinding("action scroll_up", "action go_top"))
 
 	handler.HandleKeyPress("j")
-	waitForStep(t, ran, "action scroll_up")
+	waitForStep(t, ran, "j:action scroll_up,action go_top")
 }
 
 // waitForStep waits for the steps a binding dispatched, which run on a
@@ -377,41 +378,6 @@ func TestHandleFedKeyPressPreservesPhysicalHeldRepeat(t *testing.T) {
 
 	// Stop the still-running repeat goroutine so it does not outlive the test.
 	handler.stopHeldRepeat()
-}
-
-// The mode dispatcher hands the whole binding to the daemon's sequence
-// executor rather than stepping through it itself, so that a binding runs
-// under the same rules wherever it is dispatched from. The bail and
-// continue-on-error semantics are covered against the real executor in
-// internal/app.
-func TestDispatchHotkeyActions_ForwardsWholeSequence(t *testing.T) {
-	t.Parallel()
-
-	got := make(chan []string, 1)
-
-	handler := newHandlerWithState(handlerState{
-		logger:   zap.NewNop(),
-		appState: state.NewAppState(),
-		executeActionSequence: func(source string, steps []string, _ []string) {
-			if source != "test-bind" {
-				t.Errorf("sequence source = %q, want %q", source, "test-bind")
-			}
-
-			got <- steps
-		},
-	})
-
-	want := []string{"first", "second"}
-	handler.dispatchHotkeyActions("test-mode", "test-bind", "t", want)
-
-	select {
-	case steps := <-got:
-		if !slices.Equal(steps, want) {
-			t.Fatalf("forwarded steps = %v, want %v", steps, want)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for the sequence to be dispatched")
-	}
 }
 
 func TestModeHotkeyOverride(t *testing.T) {

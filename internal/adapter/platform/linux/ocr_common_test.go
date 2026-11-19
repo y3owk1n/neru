@@ -106,12 +106,15 @@ func TestResolveTessdataDir_IgnoresAnEmptyEnvironmentEntry(t *testing.T) {
 
 // TestOCRError_MapsEveryStatusToAnActionableSentence pins the half of the
 // native contract a Go test can see: which failures a caller should stop
-// retrying, and that no status falls through to an empty message.
+// retrying, and that no status falls through to an empty message. Even the
+// success code is an error, because ocrError is only reached on a failure
+// path and answering nil there would turn a wrong branch into a silent success.
 func TestOCRError_MapsEveryStatusToAnActionableSentence(t *testing.T) {
 	tests := []struct {
 		status       ocrStatus
 		notSupported bool
 	}{
+		{ocrStatusOK, false},
 		{ocrStatusInit, true},
 		{ocrStatusAlloc, false},
 		{ocrStatusImage, false},
@@ -143,17 +146,6 @@ func TestOCRError_MapsEveryStatusToAnActionableSentence(t *testing.T) {
 				err,
 			)
 		}
-	}
-}
-
-// TestOCRError_OKIsStillAnError guards the shape every status mapper in this
-// package shares. ocrError is only reached on a failure path, so being handed
-// the success code means the caller's branch is wrong, and answering nil would
-// turn that into a silent success.
-func TestOCRError_OKIsStillAnError(t *testing.T) {
-	err := ocrError(ocrStatusOK)
-	if err == nil {
-		t.Fatal("ocrError(ocrStatusOK) returned nil")
 	}
 }
 

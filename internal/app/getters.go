@@ -5,7 +5,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app/components/grid"
 	"github.com/y3owk1n/neru/internal/app/components/hints"
-	"github.com/y3owk1n/neru/internal/app/components/scroll"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain/event"
 	"github.com/y3owk1n/neru/internal/ports"
@@ -153,15 +152,6 @@ func (a *App) GridContext() *grid.Context {
 	}
 
 	return a.gridComponent.Context
-}
-
-// ScrollContext returns the scroll context.
-func (a *App) ScrollContext() *scroll.Context {
-	if a.scrollComponent == nil {
-		return nil
-	}
-
-	return a.scrollComponent.Context
 }
 
 // EventTap returns the event tap.

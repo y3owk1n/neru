@@ -79,6 +79,18 @@ func TestAppIDMatchesProcess(t *testing.T) {
 			want:  false,
 		},
 		{
+			name:  "leading-dot app_id matches its segment",
+			appID: "." + testAppKonsole,
+			comm:  testAppKonsole,
+			want:  true,
+		},
+		{
+			name:  "trailing-dot app_id has no last segment to match",
+			appID: "org.kde.konsole.",
+			comm:  testAppKonsole,
+			want:  false,
+		},
+		{
 			name:  "app_id with no candidates does not match",
 			appID: testAppFirefox,
 			want:  false,
@@ -107,24 +119,6 @@ func TestAppIDMatchesProcess(t *testing.T) {
 				)
 			}
 		})
-	}
-}
-
-func TestLastDottedSegment(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]string{
-		"org.kde.konsole": "konsole",
-		"firefox":         "",
-		"trailing.dot.":   "",
-		".leading":        "leading",
-		"a.b":             "b",
-	}
-
-	for in, want := range tests {
-		if got := lastDottedSegment(in); got != want {
-			t.Errorf("lastDottedSegment(%q) = %q, want %q", in, got, want)
-		}
 	}
 }
 
