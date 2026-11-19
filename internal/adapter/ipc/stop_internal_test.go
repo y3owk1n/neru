@@ -97,31 +97,36 @@ func TestServer_Stop_GivesUpOnAListenerThatWillNotClose(t *testing.T) {
 	}
 }
 
-func TestServer_Stop_ClosesTheListener(t *testing.T) {
-	listener := &promptListener{}
-	server := &Server{listener: listener, logger: zap.NewNop()}
-
-	stopErr := server.Stop()
-	if stopErr != nil {
-		t.Errorf("Stop() = %v, want nil", stopErr)
-	}
-
-	if !listener.closed {
-		t.Error("Stop returned without closing the listener")
-	}
-}
-
 // TestServer_Stop_ReportsARealCloseFailure pins that giving up on a hung close did not
-// also swallow the errors a close genuinely reports.
+// also swallow the errors a close genuinely reports, and that a close which
+// succeeds is not reported as one.
 func TestServer_Stop_ReportsARealCloseFailure(t *testing.T) {
-	server := &Server{
-		listener: &promptListener{err: net.ErrClosed},
-		logger:   zap.NewNop(),
+	tests := []struct {
+		name     string
+		closeErr error
+	}{
+		{"close succeeds", nil},
+		{"close fails", net.ErrClosed},
 	}
 
-	stopErr := server.Stop()
-	if stopErr == nil {
-		t.Error("Stop() = nil, want the listener's close failure reported")
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			listener := &promptListener{err: testCase.closeErr}
+			server := &Server{listener: listener, logger: zap.NewNop()}
+
+			stopErr := server.Stop()
+			if (stopErr != nil) != (testCase.closeErr != nil) {
+				t.Errorf(
+					"Stop() = %v, want the listener's close error %v",
+					stopErr,
+					testCase.closeErr,
+				)
+			}
+
+			if !listener.closed {
+				t.Error("Stop returned without closing the listener")
+			}
+		})
 	}
 }
 

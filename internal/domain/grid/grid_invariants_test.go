@@ -108,7 +108,8 @@ func TestGrid_CellsTileTheBoundsExactly(t *testing.T) {
 					t.Fatalf("Bounds() = %v, want %v", got, bounds)
 				}
 
-				coveredArea := assertCellsAbut(t, testGrid.Cells())
+				cells := testGrid.Cells()
+				coveredArea := assertCellsAbut(t, cells)
 
 				// Non-overlapping cells that abut in both directions and cover
 				// the full area can only be an exact tiling.
@@ -118,26 +119,6 @@ func TestGrid_CellsTileTheBoundsExactly(t *testing.T) {
 						coveredArea,
 						wantArea,
 					)
-				}
-			})
-		}
-	}
-}
-
-// TestGrid_CellsNeverOverlapOrLeaveSeams is the weaker structural companion to
-// the tiling check. Whatever cells exist must line up exactly, and the grid must
-// start at the bounds origin. Kept separate because it holds even for grids that
-// legitimately cannot cover the screen (a character set too small to address it).
-func TestGrid_CellsNeverOverlapOrLeaveSeams(t *testing.T) {
-	for _, bounds := range gridSizes() {
-		for _, characters := range gridAlphabets() {
-			t.Run(gridCaseName(bounds, characters), func(t *testing.T) {
-				cells := newTestGrid(bounds, characters).Cells()
-
-				coveredArea := assertCellsAbut(t, cells)
-
-				if coveredArea <= 0 {
-					t.Fatal("grid covers no area at all")
 				}
 
 				// Cells must start at the origin of the bounds. An offset grid
@@ -406,17 +387,25 @@ func TestGrid_HasCoordinatePrefixMatchesRealPrefixes(t *testing.T) {
 		}
 	}
 
-	for prefix := range realPrefixes {
-		if !testGrid.HasCoordinatePrefix(prefix) {
-			t.Errorf("HasCoordinatePrefix(%q) = false, but a coordinate starts with it", prefix)
-		}
-	}
+	// A second identical grid comes from the cache, which rebuilds the prefix
+	// index from the cached cells, so it must answer the same.
+	cached := newTestGrid(image.Rect(0, 0, 1920, 1080), "asdfghjkl")
 
-	// And a prefix no coordinate starts with must be rejected. "ZZ" cannot
-	// occur because Z is not in the alphabet above.
-	for _, absent := range []string{"Z", "ZZ", "ZZZ"} {
-		if testGrid.HasCoordinatePrefix(absent) {
-			t.Errorf("HasCoordinatePrefix(%q) = true, but no coordinate starts with it", absent)
+	for name, built := range map[string]*grid.Grid{"built": testGrid, "cached": cached} {
+		for prefix := range realPrefixes {
+			if !built.HasCoordinatePrefix(prefix) {
+				t.Errorf("%s: HasCoordinatePrefix(%q) = false, but a coordinate starts with it",
+					name, prefix)
+			}
+		}
+
+		// And a prefix no coordinate starts with must be rejected. "ZZ" cannot
+		// occur because Z is not in the alphabet above.
+		for _, absent := range []string{"Z", "ZZ", "ZZZ"} {
+			if built.HasCoordinatePrefix(absent) {
+				t.Errorf("%s: HasCoordinatePrefix(%q) = true, but no coordinate starts with it",
+					name, absent)
+			}
 		}
 	}
 }

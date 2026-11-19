@@ -103,7 +103,6 @@ func (h *handlerState) startCustomMode(name string) {
 	}
 
 	h.prepareForModeActivation()
-	h.cursorState.SkipNextRestore()
 
 	if h.appState.CurrentMode() != domain.ModeIdle {
 		h.cleanupForKeymapModeTransition()

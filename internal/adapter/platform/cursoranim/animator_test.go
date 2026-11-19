@@ -366,61 +366,59 @@ func TestAnimatorConcurrentStopAndAnimate(t *testing.T) {
 	waitGroup.Wait()
 }
 
+// TestAnimatorStopReleasesWaiter pins the cancellation window. A waiter
+// already blocked on the running session is released by Stop rather than left
+// hanging, and once Stop returns no further step from the canceled animation
+// lands.
 func TestAnimatorStopReleasesWaiter(t *testing.T) {
 	t.Parallel()
 
 	rec := &recorder{start: image.Point{X: 0, Y: 0}}
 	animator := New(rec.pos, rec.move)
 
-	// Long animation so Stop interrupts it mid-flight.
+	// Long animation so the waiter attaches, and Stop lands, mid-flight.
 	animator.AnimateTo(image.Point{X: 5000, Y: 5000}, 200, 5000, 5.0)
 
+	waitResult := make(chan error, 1)
+
 	go func() {
-		time.Sleep(20 * time.Millisecond)
-		animator.Stop()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		waitResult <- animator.Wait(ctx)
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
+	// The session is still running, so the waiter must still be blocked.
+	// Otherwise Stop releasing it below would prove nothing.
+	select {
+	case err := <-waitResult:
+		t.Fatalf("wait returned %v while the animation was still in flight", err)
+	case <-time.After(20 * time.Millisecond):
+	}
 
-	err := animator.Wait(ctx)
-	if err != nil {
-		t.Fatalf("wait after stop returned error: %v", err)
+	animator.Stop()
+
+	select {
+	case err := <-waitResult:
+		if err != nil {
+			t.Fatalf("wait after stop returned error: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("Stop did not release the blocked waiter")
+	}
+
+	settled := rec.count()
+
+	time.Sleep(50 * time.Millisecond)
+
+	if got := rec.count(); got != settled {
+		t.Fatalf("%d step(s) landed after Stop returned, want none", got-settled)
 	}
 }
 
 // identityClamp passes points through unchanged, for tests that exercise
 // relative animation away from screen edges.
 func identityClamp(p image.Point) image.Point { return p }
-
-// TestAnimatorPendingTargetLifecycle pins the pending-target
-// contract relative moves build on. The endpoint of the animation in flight
-// is visible while it is pending and gone once the animation is stopped.
-func TestAnimatorPendingTargetLifecycle(t *testing.T) {
-	t.Parallel()
-
-	rec := &recorder{}
-	animator := New(rec.pos, rec.move)
-
-	if _, ok := animator.pendingTarget(); ok {
-		t.Fatal("pendingTarget() reported an animation before any was submitted")
-	}
-
-	// A slow glide so the session is still pending when we look.
-	target := image.Point{X: 400, Y: 300}
-	animator.AnimateTo(target, 10, 5000, 50)
-
-	got, ok := animator.pendingTarget()
-	if !ok || got != target {
-		t.Fatalf("pendingTarget() = %v, %v mid-animation, want %v, true", got, ok, target)
-	}
-
-	animator.Stop()
-
-	if _, ok := animator.pendingTarget(); ok {
-		t.Fatal("pendingTarget() still reports an animation after Stop")
-	}
-}
 
 // TestAnimatorRelativeLandsExactly pins that a relative move from
 // idle animates as a stepped glide and lands exactly on start+delta.
@@ -459,7 +457,8 @@ func TestAnimatorRelativeLandsExactly(t *testing.T) {
 // TestAnimatorRelativeExtendsPendingEndpoint pins the held-repeat
 // contract. A delta arriving mid-animation extends the pending endpoint
 // instead of restarting from the mid-glide position, and Settle warps
-// straight to the extended endpoint.
+// straight to the extended endpoint. Once Stop cancels a glide, the next
+// delta starts from the cursor again, not from the abandoned endpoint.
 func TestAnimatorRelativeExtendsPendingEndpoint(t *testing.T) {
 	t.Parallel()
 
@@ -493,31 +492,73 @@ func TestAnimatorRelativeExtendsPendingEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatalf("wait after settle returned error: %v", err)
 	}
+
+	animator.AnimateRelativeBy(image.Point{X: 100, Y: 0}, identityClamp, 10, 5000)
+	animator.Stop()
+
+	base := rec.pos()
+
+	animator.AnimateRelativeBy(image.Point{X: 1, Y: 0}, identityClamp, 10, 5000)
+
+	defer animator.Stop()
+
+	if got, _ := animator.pendingTarget(); got != base.Add(image.Point{X: 1, Y: 0}) {
+		t.Fatalf(
+			"after Stop, a delta of 1 extended to %v, want it based on the cursor at %v",
+			got,
+			base,
+		)
+	}
 }
 
 // TestAnimatorRelativeNoopKeepsAnimation pins the screen-edge
 // guard. A delta the clamp fully absorbs must not cancel and restart the
-// animation already heading to the pending endpoint.
+// animation already heading to the pending endpoint. A restart is visible as
+// the worker sampling the cursor again for its new start.
 func TestAnimatorRelativeNoopKeepsAnimation(t *testing.T) {
 	t.Parallel()
 
 	rec := &recorder{}
-	animator := New(rec.pos, rec.move)
+
+	var samples atomic.Int32
+
+	pos := func() image.Point {
+		samples.Add(1)
+
+		return rec.pos()
+	}
+	animator := New(pos, rec.move)
+
+	defer animator.Stop()
 
 	end := image.Point{X: 50, Y: 0}
 	animator.AnimateRelativeBy(end, identityClamp, 10, 5000)
+
+	// One sample is the relative base, the second is the worker's start.
+	deadline := time.Now().Add(2 * time.Second)
+	for samples.Load() < 2 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+
+	if got := samples.Load(); got != 2 {
+		t.Fatalf("cursor sampled %d times before the no-op, want 2", got)
+	}
 
 	// Clamp everything back to the pending endpoint, as a screen edge would.
 	animator.AnimateRelativeBy(image.Point{X: 100, Y: 0}, func(image.Point) image.Point {
 		return end
 	}, 10, 5000)
 
+	time.Sleep(50 * time.Millisecond)
+
+	if got := samples.Load(); got != 2 {
+		t.Fatalf("clamped no-op restarted the animation (%d cursor samples, want 2)", got)
+	}
+
 	got, ok := animator.pendingTarget()
 	if !ok || got != end {
 		t.Fatalf("pendingTarget() = %v, %v after clamped no-op, want %v, true", got, ok, end)
 	}
-
-	animator.Stop()
 }
 
 // TestAnimatorRelativeConcurrentDeltasCompose pins the

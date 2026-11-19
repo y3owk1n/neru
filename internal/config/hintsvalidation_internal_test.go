@@ -72,6 +72,24 @@ func hintsCases() []hintsCase {
 			placement: HintPlacementBottom,
 		},
 		{
+			name:      "adjacent duplicate hint chars",
+			breakIt:   func(c *Config) { c.Hints.HintCharacters = "aab" },
+			message:   "[INVALID_CONFIG] hint_characters contains duplicate character 'a'",
+			placement: HintPlacementBottom,
+		},
+		{
+			name:      "non-adjacent duplicate hint chars",
+			breakIt:   func(c *Config) { c.Hints.HintCharacters = "aba" },
+			message:   "[INVALID_CONFIG] hint_characters contains duplicate character 'a'",
+			placement: HintPlacementBottom,
+		},
+		{
+			name:      "two distinct hint chars",
+			breakIt:   func(c *Config) { c.Hints.HintCharacters = "ab" },
+			message:   "",
+			placement: HintPlacementBottom,
+		},
+		{
 			name:      "bad ui color",
 			breakIt:   func(c *Config) { c.Hints.UI.BackgroundColor = badColor() },
 			message:   "[INVALID_CONFIG] hints.ui.background_color (light) has invalid color format: nope",
@@ -130,6 +148,18 @@ func hintsCases() []hintsCase {
 			breakIt:   func(c *Config) { c.Hints.UI.Placement = placementSideways },
 			message:   "[INVALID_CONFIG] hints.ui.placement must be one of top, center, bottom",
 			placement: "sideways",
+		},
+		{
+			name:      "top placement",
+			breakIt:   func(c *Config) { c.Hints.UI.Placement = HintPlacementTop },
+			message:   "",
+			placement: HintPlacementTop,
+		},
+		{
+			name:      "center placement",
+			breakIt:   func(c *Config) { c.Hints.UI.Placement = HintPlacementCenter },
+			message:   "",
+			placement: HintPlacementCenter,
 		},
 		{
 			name:      "empty placement defaults",

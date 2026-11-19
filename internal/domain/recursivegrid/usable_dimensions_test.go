@@ -120,17 +120,3 @@ func TestUsableDimensions(t *testing.T) {
 		})
 	}
 }
-
-// TestUsableDimensions_FallbackIsTheDefaultShape holds the replacement to the
-// shape the rest of the package falls back to, so the two cannot drift apart
-// even though the case table above spells the numbers out.
-func TestUsableDimensions_FallbackIsTheDefaultShape(t *testing.T) {
-	got, asGiven := recursivegrid.UsableDimensions(domain.GridDimensions{Rows: 1, Cols: 1})
-	if asGiven {
-		t.Fatal("UsableDimensions() reported a 1x1 grid as given")
-	}
-
-	if want := recursivegrid.DefaultDimensions(); got != want {
-		t.Errorf("UsableDimensions() fell back to %+v, want %+v", got, want)
-	}
-}

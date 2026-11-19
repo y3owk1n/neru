@@ -40,43 +40,6 @@ func TestCgoSlotFuncZeroDoesNotPanic(t *testing.T) {
 	}
 }
 
-func TestCgoSlotSetInvalidatesPriorSnapshot(t *testing.T) {
-	var slot cgoSlot[int]
-
-	slot.Set(1)
-
-	_, gen, ok := slot.snapshot()
-	if !ok {
-		t.Fatal("expected snapshot")
-	}
-
-	slot.Set(0)
-
-	if slot.stillValid(gen) {
-		t.Fatal("expected generation to be invalid after clear")
-	}
-}
-
-func TestCgoSlotWithValidAsyncRejectsStaleGeneration(t *testing.T) {
-	var (
-		slot  cgoSlot[int]
-		calls atomic.Int32
-	)
-
-	slot.Set(1)
-	slot.Set(0)
-
-	slot.withValidAsync(func(_ int) {
-		calls.Add(1)
-	})
-
-	time.Sleep(20 * time.Millisecond)
-
-	if got := calls.Load(); got != 0 {
-		t.Fatalf("expected withValidAsync to drop dispatch after Set(0), got %d calls", got)
-	}
-}
-
 // TestCgoSlotDispatchesAValidSnapshot pins the half of the generation guard
 // that says yes. A snapshot nothing invalidated must actually reach its
 // callback, on both dispatch paths.

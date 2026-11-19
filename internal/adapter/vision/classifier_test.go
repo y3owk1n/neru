@@ -115,18 +115,6 @@ func TestRegionClassifier_Classify(t *testing.T) {
 	}
 }
 
-func TestMergeRegions_NonOverlapping(t *testing.T) {
-	regions := []DetectedRegion{
-		{Bounds: image.Rect(0, 0, 50, 50), Score: 0.9},
-		{Bounds: image.Rect(100, 0, 150, 50), Score: 0.8},
-	}
-
-	merged := MergeRegions(regions, 0.5)
-	if len(merged) != 2 {
-		t.Errorf("expected 2 regions, got %d", len(merged))
-	}
-}
-
 func TestMergeRegions_Overlapping(t *testing.T) {
 	regions := []DetectedRegion{
 		{Bounds: image.Rect(0, 0, 100, 100), Score: 0.9},
@@ -135,7 +123,11 @@ func TestMergeRegions_Overlapping(t *testing.T) {
 
 	merged := MergeRegions(regions, 0.5)
 	if len(merged) != 1 {
-		t.Errorf("expected 1 merged region, got %d", len(merged))
+		t.Fatalf("expected 1 merged region, got %d", len(merged))
+	}
+
+	if merged[0].Score != 0.9 || merged[0].Bounds != image.Rect(0, 0, 100, 100) {
+		t.Errorf("kept %+v, want the 0.9-score region", merged[0])
 	}
 }
 

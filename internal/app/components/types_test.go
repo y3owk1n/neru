@@ -81,6 +81,9 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 		wantRecreate   bool
 	}{
 		{
+			// Empty labels mean "infer from characters". The grid holds the
+			// inferred labels and the reloaded config arrives resolved, so the
+			// two must compare equal or every reload drops grid input.
 			name:       "identical config keeps the existing grid",
 			characters: testCharacters, rowLabels: "", colLabels: "",
 			newCharacters: testCharacters, newRowLabels: "", newColLabels: "",
@@ -163,6 +166,12 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 				t.Errorf("grid recreated = %t, want %t", recreated, testCase.wantRecreate)
 			}
 
+			// A rebuild reuses the old bounds. A zero rectangle would put every
+			// cell off-screen after the reload.
+			if got := after.Bounds(); got != before.Bounds() {
+				t.Errorf("grid bounds = %v after UpdateConfig, want %v", got, before.Bounds())
+			}
+
 			// Whether or not it was rebuilt, the grid must end up describing
 			// the labels the reloaded config asked for.
 			want := testCase.wantCharacters
@@ -174,46 +183,6 @@ func TestGridComponent_UpdateConfig_RecreatesGridOnLabelChanges(t *testing.T) {
 				t.Errorf("Characters() = %q, want %q", got, want)
 			}
 		})
-	}
-}
-
-// TestGridComponent_UpdateConfig_DefaultConfigReloadKeepsGrid is a regression
-// test for a spurious rebuild on every `neru config reload`.
-//
-// A config file that leaves row_labels and col_labels empty means "infer from
-// characters". The grid stores the *inferred* labels, so comparing them against
-// the bare "" from config never matched and the grid was rebuilt on every
-// reload, throwing away the user's in-flight coordinate input while grid mode
-// was open. Since the option is resolved at load time, DefaultConfig() already
-// carries the inferred labels and the comparison is a plain one.
-func TestGridComponent_UpdateConfig_DefaultConfigReloadKeepsGrid(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Grid.Enabled = true
-
-	component := newGridComponent(t, cfg.Grid.Characters, cfg.Grid.RowLabels, cfg.Grid.ColLabels)
-	before := component.Manager.Grid()
-
-	// Two reloads of the very same config, as a user editing an unrelated
-	// setting would produce.
-	component.UpdateConfig(cfg, zap.NewNop())
-	component.UpdateConfig(cfg, zap.NewNop())
-
-	if component.Manager.Grid() != before {
-		t.Error("reloading an unchanged default config rebuilt the grid, discarding grid input")
-	}
-}
-
-// TestGridComponent_UpdateConfig_RecreatedGridKeepsBounds checks that a rebuild
-// reuses the old grid's bounds. Falling back to a zero rectangle here would
-// place every cell off-screen after a config reload.
-func TestGridComponent_UpdateConfig_RecreatedGridKeepsBounds(t *testing.T) {
-	component := newGridComponent(t, testCharacters, "", "")
-	wantBounds := component.Manager.Grid().Bounds()
-
-	component.UpdateConfig(gridConfig("wxyz", "", ""), zap.NewNop())
-
-	if got := component.Manager.Grid().Bounds(); got != wantBounds {
-		t.Errorf("recreated grid bounds = %v, want %v", got, wantBounds)
 	}
 }
 

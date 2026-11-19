@@ -29,7 +29,6 @@ type MockEventTapPort struct {
 	handler                 func(key string)
 	hotkeys                 []string
 	interceptedModifierKeys []string
-	postedModifiers         []string
 	passthroughEnabled      bool
 	passthroughBlacklist    []string
 	passthroughCallback     func()
@@ -157,10 +156,6 @@ func (m *MockEventTapPort) SetKeyboardLayout(layoutID string) bool {
 
 // PostModifierEvent implements ports.EventTapPort.
 func (m *MockEventTapPort) PostModifierEvent(modifier string, isDown bool) {
-	m.mu.Lock()
-	m.postedModifiers = append(m.postedModifiers, modifier)
-	m.mu.Unlock()
-
 	if isDown {
 		m.record(modifier + "_down")
 
@@ -176,14 +171,6 @@ func (m *MockEventTapPort) Destroy() {
 	defer m.mu.Unlock()
 
 	m.destroyed = true
-}
-
-// PostedModifiers returns the modifiers passed to PostModifierEvent, in order.
-func (m *MockEventTapPort) PostedModifiers() []string {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	return append([]string(nil), m.postedModifiers...)
 }
 
 // ModifierPassthrough returns the last state passed to

@@ -300,16 +300,3 @@ func TestMeasureLabels(t *testing.T) {
 		}
 	})
 }
-
-func TestLabelMetrics_Repeated(t *testing.T) {
-	one := badge.LabelMetrics{WidthPerSize: 0.6, HeightPerSize: 1.2}
-
-	got := one.Repeated(3)
-	if math.Abs(got.WidthPerSize-1.8) > 1e-9 || got.HeightPerSize != 1.2 {
-		t.Fatalf("Repeated(3) = %+v, want 1.8 wide and 1.2 tall", got)
-	}
-
-	if got := one.Repeated(0); got != one {
-		t.Fatalf("Repeated(0) = %+v, want one label's worth", got)
-	}
-}

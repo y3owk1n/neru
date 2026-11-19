@@ -10,65 +10,6 @@ package windows
 
 import "testing"
 
-// The chords these tests register, in the spellings a user writes.
-const (
-	registeredChord  = "Ctrl+G"
-	otherChord       = "Ctrl+H"
-	punctuationChord = "Ctrl+Alt+;"
-)
-
-func TestEventTap_IsRegisteredHotkey(t *testing.T) {
-	t.Parallel()
-
-	tap := &EventTap{}
-	tap.SetHotkeys([]string{registeredChord, punctuationChord})
-
-	registered := []string{
-		registeredChord,
-		// The hook reads a chord in its own spelling and casing. Matching is on
-		// the normalized form, so these are the same chord.
-		"ctrl+g",
-		"Ctrl+g",
-		// Primary is the platform alias, which is Ctrl here.
-		"Primary+G",
-		punctuationChord,
-	}
-
-	for _, key := range registered {
-		if !tap.isRegisteredHotkey(key) {
-			t.Errorf("isRegisteredHotkey(%q) = false, want true: RegisterHotKey owns it", key)
-		}
-	}
-
-	for _, key := range []string{otherChord, "G", "Shift+G", ""} {
-		if tap.isRegisteredHotkey(key) {
-			t.Errorf(
-				"isRegisteredHotkey(%q) = true, want false: nothing registered it, so "+
-					"handing it back would leave nothing running it",
-				key,
-			)
-		}
-	}
-}
-
-// The list is replaced, not added to, so a chord that stopped being registered
-// stops being handed back.
-func TestEventTap_SetHotkeys_ReplacesTheList(t *testing.T) {
-	t.Parallel()
-
-	tap := &EventTap{}
-	tap.SetHotkeys([]string{registeredChord})
-	tap.SetHotkeys([]string{otherChord})
-
-	if tap.isRegisteredHotkey(registeredChord) {
-		t.Error("Ctrl+G is still treated as registered after the list was replaced")
-	}
-
-	if !tap.isRegisteredHotkey(otherChord) {
-		t.Error("Ctrl+H is not treated as registered after the list was replaced")
-	}
-}
-
 // A sticky modifier is held by the tap itself, so the hook reads it into every
 // chord. A chord that only spells a registered hotkey because of that modifier
 // is the user's Ctrl+J, not their Ctrl+Shift+J, and stays with the mode.

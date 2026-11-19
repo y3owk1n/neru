@@ -73,36 +73,12 @@ type MenuItem struct {
 	icon     []byte
 }
 
-// Title returns the menu item title (Linux).
-func (m *MenuItem) Title() string {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.title
-}
-
-// Disabled returns whether the menu item is disabled (Linux).
-func (m *MenuItem) Disabled() bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.disabled
-}
-
 // Checked returns whether the menu item is checked (Linux).
 func (m *MenuItem) Checked() bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	return m.checked
-}
-
-// Hidden returns whether the menu item is hidden (Linux).
-func (m *MenuItem) Hidden() bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.hidden
 }
 
 // SetTitle sets the menu item title (Linux).

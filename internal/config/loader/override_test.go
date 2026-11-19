@@ -92,38 +92,39 @@ func TestSaveOverride(t *testing.T) {
 	}
 }
 
-func TestSaveOverrideEmpty(t *testing.T) {
-	tmpDir := t.TempDir()
-	overridePath := filepath.Join(tmpDir, "config.override.toml")
-
-	err := loader.SaveOverride(overridePath, nil)
-	if err != nil {
-		t.Fatalf("SaveOverride(nil) failed: %v", err)
-	}
-
-	_, statErr := os.Stat(overridePath)
-	if !os.IsNotExist(statErr) {
-		t.Errorf("SaveOverride(nil) should remove the file, but it still exists")
-	}
-}
-
+// TestSaveOverrideRemovesOnEmptyMap pins that an empty override leaves no file
+// behind, whether one was there or not, so a reset cannot keep stale overrides.
 func TestSaveOverrideRemovesOnEmptyMap(t *testing.T) {
-	tmpDir := t.TempDir()
-	overridePath := filepath.Join(tmpDir, "config.override.toml")
-
-	writeErr := os.WriteFile(overridePath, []byte("# old content"), 0o644)
-	if writeErr != nil {
-		t.Fatalf("Failed to write old content: %v", writeErr)
+	tests := []struct {
+		name      string
+		overrides map[string]any
+		existing  bool
+	}{
+		{name: "nil with no file", overrides: nil, existing: false},
+		{name: "empty map over an old file", overrides: map[string]any{}, existing: true},
 	}
 
-	err := loader.SaveOverride(overridePath, map[string]any{})
-	if err != nil {
-		t.Fatalf("SaveOverride(empty) failed: %v", err)
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			overridePath := filepath.Join(t.TempDir(), "config.override.toml")
 
-	_, statErr := os.Stat(overridePath)
-	if !os.IsNotExist(statErr) {
-		t.Errorf("SaveOverride(empty) should remove the file, but it still exists")
+			if testCase.existing {
+				writeErr := os.WriteFile(overridePath, []byte("# old content"), 0o644)
+				if writeErr != nil {
+					t.Fatalf("Failed to write old content: %v", writeErr)
+				}
+			}
+
+			err := loader.SaveOverride(overridePath, testCase.overrides)
+			if err != nil {
+				t.Fatalf("SaveOverride() failed: %v", err)
+			}
+
+			_, statErr := os.Stat(overridePath)
+			if !os.IsNotExist(statErr) {
+				t.Errorf("SaveOverride() left the file behind, stat error = %v", statErr)
+			}
+		})
 	}
 }
 
@@ -190,6 +191,13 @@ clickable_roles = ["button"]
 			reloadedResult.Config.Hints.HintCharacters,
 		)
 	}
+
+	// The override layers one field over the file. Everything else the file
+	// wrote survives the reload.
+	if roles := reloadedResult.Config.Hints.ClickableRoles; len(roles) != 1 ||
+		roles[0] != testRoleButton {
+		t.Errorf("After override, expected clickable_roles=[button], got %v", roles)
+	}
 }
 
 func TestService_SaveOverrideFieldNoConfigPath(t *testing.T) {
@@ -198,59 +206,6 @@ func TestService_SaveOverrideFieldNoConfigPath(t *testing.T) {
 	err := service.SaveOverrideField("hints.hint_characters", testHintChar)
 	if err != nil {
 		t.Errorf("SaveOverrideField() with empty path should return nil, got: %v", err)
-	}
-}
-
-func TestService_OverridePreservesOtherFields(t *testing.T) {
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "config.toml")
-
-	configContent := `
-[hints]
-enabled = true
-hint_characters = "asdfghjkl"
-clickable_roles = ["button"]
-
-[general]
-passthrough_unbounded_keys = false
-`
-
-	writeFileErr := os.WriteFile(configPath, []byte(configContent), 0o644)
-	if writeFileErr != nil {
-		t.Fatalf("Failed to write config: %v", writeFileErr)
-	}
-
-	service := loader.NewService(config.DefaultConfig(), configPath, zap.NewNop(), nil)
-	_ = service.LoadWithValidation(configPath)
-
-	_ = service.SaveOverrideField("hints.hint_characters", testHintChar)
-
-	reloaded := service.LoadWithValidation(configPath)
-	if reloaded.ValidationError != nil {
-		t.Fatalf("Reload failed: %v", reloaded.ValidationError)
-	}
-
-	if reloaded.Config.Hints.HintCharacters != testHintChar {
-		t.Errorf(
-			"Expected hint_characters=%q, got %q",
-			testHintChar,
-			reloaded.Config.Hints.HintCharacters,
-		)
-	}
-
-	if reloaded.Config.General.PassthroughUnboundedKeys != false {
-		t.Errorf(
-			"Expected passthrough_unbounded_keys=false, got %v",
-			reloaded.Config.General.PassthroughUnboundedKeys,
-		)
-	}
-
-	if len(reloaded.Config.Hints.ClickableRoles) != 1 ||
-		reloaded.Config.Hints.ClickableRoles[0] != testRoleButton {
-		t.Errorf(
-			"Expected clickable_roles=[button], got %v",
-			reloaded.Config.Hints.ClickableRoles,
-		)
 	}
 }
 

@@ -13,7 +13,6 @@ import (
 // startInteractiveScroll enters scroll mode and shows the scroll frame.
 func (h *handlerState) startInteractiveScroll() {
 	h.prepareForModeActivation()
-	h.cursorState.SkipNextRestore()
 
 	h.scroll.Context.Reset()
 

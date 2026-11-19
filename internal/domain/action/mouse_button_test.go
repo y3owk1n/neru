@@ -27,28 +27,6 @@ func TestMouseButton_String(t *testing.T) {
 	}
 }
 
-func TestMousePhase_String(t *testing.T) {
-	tests := []struct {
-		phase action.MousePhase
-		want  string
-	}{
-		{action.PhaseClick, "click"},
-		{action.PhaseDown, "down"},
-		{action.PhaseUp, "up"},
-		{action.PhaseToggle, "toggle"},
-		{action.MousePhase(99), testUnknown},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.want, func(t *testing.T) {
-			got := testCase.phase.String()
-			if got != testCase.want {
-				t.Errorf("MousePhase.String() = %q, want %q", got, testCase.want)
-			}
-		})
-	}
-}
-
 func TestParsePhase(t *testing.T) {
 	tests := []struct {
 		input   string
@@ -82,6 +60,15 @@ func TestParsePhase(t *testing.T) {
 
 			if got != testCase.want {
 				t.Errorf("ParsePhase(%q) = %v, want %v", testCase.input, got, testCase.want)
+			}
+
+			// The CLI help prints the phase's String, so it must parse back.
+			if got.String() != testCase.input {
+				t.Errorf(
+					"ParsePhase(%q).String() = %q, want the input back",
+					testCase.input,
+					got.String(),
+				)
 			}
 		})
 	}
@@ -198,16 +185,6 @@ func TestMouseButtonName_RoundTrip(t *testing.T) {
 					name, gotButton, gotPhase, isMouseButton, button, phase)
 			}
 		}
-	}
-}
-
-func TestMouseButtonName_UnknownPhase(t *testing.T) {
-	if _, ok := action.MouseButtonName(action.ButtonLeft, action.MousePhase(99)); ok {
-		t.Error("MouseButtonName() with unknown phase should not be ok")
-	}
-
-	if _, ok := action.MouseButtonName(action.MouseButton(99), action.PhaseDown); ok {
-		t.Error("MouseButtonName() with unknown button should not be ok")
 	}
 }
 

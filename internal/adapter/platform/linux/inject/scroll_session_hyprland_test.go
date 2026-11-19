@@ -121,7 +121,14 @@ func TestHyprlandScrollSession_Close_RestoresHeldModifiersAfterRelease(t *testin
 // TestHyprlandScrollSession_Inject pins the chunk-to-notch conversion, which is
 // what granularity promises the animator. It only ever hands whole notches, and
 // each one goes out as a single event of the right sign on the right axis.
+// uinput scrolling is whole REL_WHEEL clicks, so a session claiming to be
+// continuous would have every sub-notch chunk silently dropped.
 func TestHyprlandScrollSession_Inject(t *testing.T) {
+	granularity := (&hyprlandScrollSession{restore: func() {}}).Granularity()
+	if granularity != scrollPixelsPerNotch {
+		t.Fatalf("Granularity() = %v, want %v", granularity, float64(scrollPixelsPerNotch))
+	}
+
 	tests := []struct {
 		name   string
 		deltaX float64
@@ -187,17 +194,6 @@ func TestHyprlandScrollSession_InjectReportsAFailedBatch(t *testing.T) {
 	err := session.Inject(0, scrollPixelsPerNotch)
 	if !errors.Is(err, errScrollDeviceGone) {
 		t.Fatalf("inject() = %v, want the recorder's refusal", err)
-	}
-}
-
-// TestHyprlandScrollSession_Granularity pins the unit the animator rounds its
-// curve to. uinput scrolling is whole REL_WHEEL clicks, so a session claiming
-// to be continuous would have every sub-notch chunk silently dropped.
-func TestHyprlandScrollSession_Granularity(t *testing.T) {
-	session := &hyprlandScrollSession{restore: func() {}}
-
-	if got := session.Granularity(); got != scrollPixelsPerNotch {
-		t.Fatalf("Granularity() = %v, want %v", got, float64(scrollPixelsPerNotch))
 	}
 }
 

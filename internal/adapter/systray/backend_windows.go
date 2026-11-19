@@ -26,11 +26,5 @@ func RunHeadless(onReady, onExit func()) { windows.RunHeadless(onReady, onExit) 
 // Quit stops the tray event loop.
 func Quit() { windows.Quit() }
 
-// AddMenuItem appends a top-level item and returns the backend's item.
-//
-// It is exported because systray_test.go exercises the live backend's menu
-// tree. One test covers all three backends, whichever one this build selected.
-func AddMenuItem(title string) *menuItem { return addMenuItem(title) }
-
 // ResetForTesting clears the tray's process-wide state between tests.
 func ResetForTesting() { windows.ResetForTesting() }

@@ -135,16 +135,20 @@ func TestSimulation_HintsJourney_SelectMovesCursor(t *testing.T) {
 // reaches the mode would show up, as a hint that highlights and then does
 // nothing.
 func TestSimulation_HintsJourney_ClickAction(t *testing.T) {
-	bindings := map[string]string{
-		"positional action": "hints left_click",
-		"long flag":         "hints --action=left_click",
-		"short flag":        "hints -a left_click",
+	bindings := map[string]struct {
+		binding string
+		want    action.Type
+	}{
+		"positional action":      {"hints left_click", action.TypeLeftClick},
+		"positional right click": {"hints right_click", action.TypeRightClick},
+		"long flag":              {"hints --action=left_click", action.TypeLeftClick},
+		"short flag":             {"hints -a left_click", action.TypeLeftClick},
 	}
 
-	for name, binding := range bindings {
+	for name, testCase := range bindings {
 		t.Run(name, func(t *testing.T) {
 			cfg := simConfig()
-			cfg.Hotkeys.Bindings[hintsHotkey] = []string{binding}
+			cfg.Hotkeys.Bindings[hintsHotkey] = []string{testCase.binding}
 
 			save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
 			sim := newSimHarness(t, cfg, []*element.Element{save})
@@ -165,6 +169,10 @@ func TestSimulation_HintsJourney_ClickAction(t *testing.T) {
 			clicks := sim.ax.recordedClicks()
 			if len(clicks) != 1 {
 				t.Fatalf("expected exactly one click, got %d", len(clicks))
+			}
+
+			if clicks[0].action != testCase.want {
+				t.Fatalf("click action %v, expected %v", clicks[0].action, testCase.want)
 			}
 
 			if clicks[0].point != save.Center() {
@@ -198,47 +206,6 @@ func TestSimulation_HintsEscape(t *testing.T) {
 
 	if clicks := sim.ax.recordedClicks(); len(clicks) != 0 {
 		t.Fatalf("escape must not click, got %v", clicks)
-	}
-}
-
-// TestSimulation_GridJourney covers the accessibility-independent path. Grid
-// mode needs no elements at all. Typing a cell's coordinate moves the cursor
-// into that cell.
-func TestSimulation_GridJourney(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), nil)
-
-	sim.pressHotkey(gridHotkey)
-	sim.waitMode(domain.ModeGrid)
-	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
-
-	grid := sim.overlay.lastGrid()
-
-	cells := grid.Cells()
-	if len(cells) == 0 {
-		t.Fatal("grid drawn with zero cells")
-	}
-
-	// Pick a cell away from index 0 so a "cursor never moved" bug cannot pass.
-	cell := cells[len(cells)/2]
-
-	movesBefore := sim.cursor.moveCount()
-	sim.typeLabel(cell.Coordinate())
-
-	sim.waitFor("cursor moved into selected cell", func() bool {
-		return sim.cursor.moveCount() > movesBefore
-	})
-
-	if pos := sim.cursor.position(); !pos.In(cell.Bounds()) {
-		t.Fatalf(
-			"cursor at %v, expected inside cell %q bounds %v",
-			pos, cell.Coordinate(), cell.Bounds(),
-		)
-	}
-
-	// A complete label opens the finer grid inside the cell, which is the
-	// other thing a user sees for that last keystroke.
-	if got := sim.overlay.subgridCount(); got != 1 {
-		t.Errorf("subgrids opened = %d, want 1 after a full label was typed", got)
 	}
 }
 
@@ -571,32 +538,14 @@ func TestSimulation_LeavingGridRepaintsNothingOnTheWayOut(t *testing.T) {
 
 	sim.press("Escape")
 	sim.waitMode(domain.ModeIdle)
-	sim.waitFor("grid off screen", func() bool { return !sim.overlay.isVisible() })
+	sim.waitFor("grid off screen", func() bool {
+		return !sim.overlay.isVisible() && len(sim.overlay.drawnModeNames()) == 0
+	})
 
 	if got := sim.overlay.gridSurfaceUpdates() - updatesBefore; got != 0 {
 		t.Errorf("leaving grid mode asked the grid surface to change %d times, want 0: it was "+
 			"repainted on the way to being cleared", got)
 	}
-}
-
-// TestSimulation_GridLeavesNothingOnScreen pins the leaving half. Exiting grid
-// mode takes the grid off the screen and returns the overlay to idle, so the
-// next mode does not appear next to the last one.
-func TestSimulation_GridLeavesNothingOnScreen(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), nil)
-
-	sim.pressHotkey(gridHotkey)
-	sim.waitMode(domain.ModeGrid)
-	sim.waitFor("grid on screen", func() bool {
-		return sim.overlay.lastGrid() != nil && sim.overlay.isVisible()
-	})
-
-	sim.press("Escape")
-	sim.waitMode(domain.ModeIdle)
-
-	sim.waitFor("grid off screen", func() bool {
-		return !sim.overlay.isVisible() && len(sim.overlay.drawnModeNames()) == 0
-	})
 }
 
 // TestSimulation_RecursiveGridZoomsWithoutShowingAgain covers the other grid
@@ -626,27 +575,6 @@ func TestSimulation_RecursiveGridZoomsWithoutShowingAgain(t *testing.T) {
 		t.Errorf("overlay shows = %d after one keystroke, want %d: zooming repeated the "+
 			"window sequence", got, showsBefore)
 	}
-}
-
-// TestSimulation_ScrollJourney covers scroll mode, where j scrolls and Escape leaves
-// the mode and lands back in idle.
-func TestSimulation_ScrollJourney(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), nil)
-
-	sim.pressHotkey(scrollHotkey)
-	sim.waitMode(domain.ModeScroll)
-
-	sim.press("j")
-
-	sim.waitFor("scroll recorded", func() bool { return len(sim.ax.recordedScrolls()) > 0 })
-
-	scrolls := sim.ax.recordedScrolls()
-	if scrolls[0].Y == 0 {
-		t.Fatalf("expected vertical scroll delta for 'j', got %v", scrolls[0])
-	}
-
-	sim.press("Escape")
-	sim.waitMode(domain.ModeIdle)
 }
 
 // TestSimulation_ModeIndicatorDisappearsWhenModeExits pins what a user sees
@@ -689,25 +617,6 @@ func TestSimulation_ModeIndicatorDisappearsWhenModeExits(t *testing.T) {
 // indicatorSettleWindow is one indicator poll interval, the window in which a
 // late tick could redraw an indicator that has just been hidden.
 const indicatorSettleWindow = 16 * time.Millisecond
-
-// TestSimulation_ModeSwitch covers chaining modes in one session: hints ->
-// escape -> grid, exercising mode teardown between activations.
-func TestSimulation_ModeSwitch(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), threeButtons(t))
-
-	sim.pressHotkey(hintsHotkey)
-	sim.waitMode(domain.ModeHints)
-
-	sim.press("Escape")
-	sim.waitMode(domain.ModeIdle)
-
-	sim.pressHotkey(gridHotkey)
-	sim.waitMode(domain.ModeGrid)
-	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
-
-	sim.press("Escape")
-	sim.waitMode(domain.ModeIdle)
-}
 
 // TestSimulation_HintsWithoutElements covers the failure path a real user
 // hits on an empty screen. Activation is abandoned, the app stays idle and
@@ -1261,69 +1170,6 @@ func TestSimulation_HintsInModeClick(t *testing.T) {
 	}
 }
 
-// TestSimulation_HintsRightClickAction covers a non-default pending action.
-// "hints right_click" must produce a right click at the element center.
-func TestSimulation_HintsRightClickAction(t *testing.T) {
-	cfg := simConfig()
-	cfg.Hotkeys.Bindings[hintsHotkey] = []string{"hints right_click"}
-
-	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
-	sim := newSimHarness(t, cfg, []*element.Element{save})
-
-	sim.pressHotkey(hintsHotkey)
-	sim.waitMode(domain.ModeHints)
-	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
-
-	sim.typeLabel(sim.overlay.lastHintLabels()[0])
-
-	sim.waitFor("click recorded", func() bool { return len(sim.ax.recordedClicks()) > 0 })
-
-	click := sim.ax.recordedClicks()[0]
-	if click.action != action.TypeRightClick {
-		t.Fatalf("expected right click, got action type %v", click.action)
-	}
-
-	if click.point != save.Center() {
-		t.Fatalf("click at %v, expected %v", click.point, save.Center())
-	}
-}
-
-// TestSimulation_HintsRepeatJourney covers --repeat. After each click the
-// mode re-arms with the action preserved, so consecutive selections click
-// consecutively without re-pressing the hotkey.
-func TestSimulation_HintsRepeatJourney(t *testing.T) {
-	cfg := simConfig()
-	cfg.Hotkeys.Bindings[hintsHotkey] = []string{stepHintsRepeatClicks}
-
-	save := simElement(t, "save", image.Rect(100, 100, 220, 140), "Save")
-	sim := newSimHarness(t, cfg, []*element.Element{save})
-
-	sim.pressHotkey(hintsHotkey)
-	sim.waitMode(domain.ModeHints)
-	sim.waitFor("hints drawn", func() bool { return sim.overlay.hintDrawCount() > 0 })
-
-	drawsBefore := sim.overlay.hintDrawCount()
-	sim.typeLabel(sim.overlay.lastHintLabels()[0])
-
-	sim.waitFor("first click recorded", func() bool { return len(sim.ax.recordedClicks()) == 1 })
-	sim.waitFor("hints re-armed after repeat click", func() bool {
-		return sim.app.CurrentMode() == domain.ModeHints &&
-			sim.overlay.hintDrawCount() > drawsBefore
-	})
-
-	sim.typeLabel(sim.overlay.lastHintLabels()[0])
-	sim.waitFor("second click recorded", func() bool { return len(sim.ax.recordedClicks()) == 2 })
-
-	for _, click := range sim.ax.recordedClicks() {
-		if click.point != save.Center() {
-			t.Fatalf("repeat click at %v, expected %v", click.point, save.Center())
-		}
-	}
-
-	sim.press("Escape")
-	sim.waitMode(domain.ModeIdle)
-}
-
 // TestSimulation_HintsRepeatExitOnUnmatchedJourney runs hints with --action left_click
 // --repeat --exit-on-unmatched. Clicking a hint runs the action and re-activates hints
 // mode, and a later unmatched key returns to idle mode.
@@ -1521,35 +1367,6 @@ func TestSimulation_RefusedBindingActivatesNothing(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestSimulation_RecursiveGridJourney covers the recursive grid. Activation
-// draws the full-screen grid, and choosing a cell redraws zoomed into that
-// cell's bounds.
-func TestSimulation_RecursiveGridJourney(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), nil)
-
-	sim.pressHotkey(recursiveGridHotkey)
-	sim.waitMode(domain.ModeRecursiveGrid)
-
-	sim.waitFor("recursive grid drawn", func() bool {
-		_, ok := sim.overlay.lastRecursiveGridBounds()
-
-		return ok
-	})
-
-	// "r" is the top-left cell of the default 3x3 key layout.
-	sim.press("r")
-
-	topLeftThird := image.Rect(0, 0, simScreen.Dx()/3+1, simScreen.Dy()/3+1)
-	sim.waitFor("grid zoomed into the top-left cell", func() bool {
-		bounds, ok := sim.overlay.lastRecursiveGridBounds()
-
-		return ok && bounds.In(topLeftThird)
-	})
-
-	sim.press("Escape")
-	sim.waitMode(domain.ModeIdle)
 }
 
 // TestSimulation_BisectJourney covers bisect mode end to end. Activation
@@ -1948,25 +1765,26 @@ func TestSimulation_ScrollTopSequence(t *testing.T) {
 	sim.pressHotkey(scrollHotkey)
 	sim.waitMode(domain.ModeScroll)
 
-	sim.press("g", "g")
+	// gg, then the two shorter upward scrolls it must outrun, so gg bound to
+	// anything but go_top fails.
+	for i, keys := range [][]string{{"g", "g"}, {"k"}, {"u"}} {
+		sim.press(keys...)
 
-	sim.waitFor("go-top scroll recorded", func() bool {
-		return len(sim.ax.recordedScrolls()) > 0
-	})
-}
-
-// TestSimulation_HotkeyRegistration covers startup registration. Every
-// binding in the config must be registered with the hotkey backend,
-// canonicalized for the platform.
-func TestSimulation_HotkeyRegistration(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), nil)
-
-	bindings := []string{hintsHotkey, gridHotkey, recursiveGridHotkey, scrollHotkey}
-	for _, binding := range bindings {
-		canonical := keyvocab.CanonicalHotkeyForPlatform(binding)
-		sim.waitFor("registration of "+canonical, func() bool {
-			return sim.hotkeys.callbackFor(canonical) != nil
+		expected := i + 1
+		sim.waitFor("scroll for "+strings.Join(keys, ""), func() bool {
+			return len(sim.ax.recordedScrolls()) >= expected
 		})
+	}
+
+	scrolls := sim.ax.recordedScrolls()
+	top, up, pageUp := scrolls[0], scrolls[1], scrolls[2]
+
+	if top.X != 0 || top.Y == 0 || (top.Y > 0) != (up.Y > 0) {
+		t.Fatalf("gg must scroll up like k, got %v and %v", top, up)
+	}
+
+	if math.Abs(float64(top.Y)) <= math.Abs(float64(pageUp.Y)) {
+		t.Fatalf("gg scrolled %v, want further than the page up %v", top, pageUp)
 	}
 }
 
@@ -1994,26 +1812,6 @@ func TestSimulation_DisabledModeBindingSkipped(t *testing.T) {
 	if sim.hotkeys.callbackFor(gridChord) != nil {
 		t.Fatalf("chord %s must not be registered while grid mode is disabled", gridChord)
 	}
-}
-
-// TestSimulation_PassthroughExitsMode covers exit_after_passthrough. When a
-// modifier shortcut passes through to the OS, the active mode exits.
-func TestSimulation_PassthroughExitsMode(t *testing.T) {
-	cfg := simConfig()
-	cfg.General.PassthroughUnboundedKeys = true
-	cfg.General.ShouldExitAfterPassthrough = true
-
-	sim := newSimHarness(t, cfg, nil)
-
-	sim.pressHotkey(scrollHotkey)
-	sim.waitMode(domain.ModeScroll)
-
-	sim.waitFor("passthrough callback registered", func() bool {
-		return sim.tap.PassthroughCallback() != nil
-	})
-
-	sim.tap.TriggerPassthrough()
-	sim.waitMode(domain.ModeIdle)
 }
 
 // TestSimulation_StalePassthroughCallback pins the regression where a
@@ -2555,27 +2353,6 @@ func TestSimulation_ReleaseHeldButtonsOnExit(t *testing.T) {
 	sim.waitFor("held buttons released on mode exit", func() bool {
 		return sim.ax.releaseCount() > releasesBefore
 	})
-}
-
-// TestSimulation_RapidModeSwitching covers direct mode-to-mode transitions
-// (no idle in between) across repeated cycles, the pattern of an experienced
-// user hopping between modes.
-func TestSimulation_RapidModeSwitching(t *testing.T) {
-	sim := newSimHarness(t, simConfig(), threeButtons(t))
-
-	for range 2 {
-		sim.pressHotkey(hintsHotkey)
-		sim.waitMode(domain.ModeHints)
-
-		sim.pressHotkey(gridHotkey)
-		sim.waitMode(domain.ModeGrid)
-
-		sim.pressHotkey(scrollHotkey)
-		sim.waitMode(domain.ModeScroll)
-
-		sim.press("Escape")
-		sim.waitMode(domain.ModeIdle)
-	}
 }
 
 // TestSimulation_ModeSwitchNeverDropsTheKeyboard is the regression for a

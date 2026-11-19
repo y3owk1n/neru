@@ -50,7 +50,7 @@ type Policy struct {
 	StopOnError bool
 }
 
-// SplitBailOnError separates the trailing bail-on-error directive from a step.
+// splitBailOnError separates the trailing bail-on-error directive from a step.
 //
 // The directive is recognized only as the final unquoted token, so a step that
 // merely carries the text as an argument keeps it. Both
@@ -61,7 +61,7 @@ type Policy struct {
 // Left in place it would reach the action's own flag parser, which reports
 // "invalid or missing flag value" without naming the flag, a much worse
 // message than saying where the directive belongs.
-func SplitBailOnError(step string) (string, bool, error) {
+func splitBailOnError(step string) (string, bool, error) {
 	step = strings.TrimSpace(step)
 
 	// Almost no step mentions the directive, and this runs for every step of

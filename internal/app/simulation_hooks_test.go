@@ -24,20 +24,6 @@ const hookScrollStep = "action scroll_down"
 // goosWindows is runtime.GOOS on Windows, whose shell the record steps change.
 const goosWindows = "windows"
 
-// TestSimulation_HookRunsWhenItsEventFires is the hook journey at its
-// simplest. Entering a mode runs the steps written for it.
-func TestSimulation_HookRunsWhenItsEventFires(t *testing.T) {
-	cfg := simConfig()
-	cfg.Hooks.OnModeEnter = config.StringOrStringArray{hookScrollStep}
-
-	sim := newSimHarness(t, cfg, nil)
-
-	sim.pressHotkey(scrollHotkey)
-	sim.waitMode(domain.ModeScroll)
-
-	sim.waitFor("hook scrolled", func() bool { return len(sim.ax.recordedScrolls()) > 0 })
-}
-
 // TestSimulation_HookDoesNotStartItselfAgain pins the loop guard. A hook that
 // enters a mode raises its own event, and that event does not run it again,
 // so the journey settles in grid instead of re-entering it forever.

@@ -9,8 +9,10 @@ import (
 
 // scopedSection is one section that carries a capture scope, with the ways a
 // test reaches it: the validator, the section's scope and its app entries.
+// defaultScope is the scope the section ships with.
 type scopedSection struct {
 	name          string
+	defaultScope  string
 	validate      func(cfg *config.Config) error
 	setScope      func(cfg *config.Config, scope string)
 	setAppConfigs func(cfg *config.Config, entries []config.AppConfig)
@@ -21,7 +23,8 @@ type scopedSection struct {
 func scopedSections() []scopedSection {
 	return []scopedSection{
 		{
-			name: "grid",
+			name:         "grid",
+			defaultScope: domain.CaptureScopeScreen,
 			validate: func(cfg *config.Config) error {
 				return cfg.ValidateGrid(nil, config.WrittenConfig{})
 			},
@@ -35,9 +38,10 @@ func scopedSections() []scopedSection {
 			},
 		},
 		{
-			name:     "recursive_grid",
-			validate: func(cfg *config.Config) error { return cfg.ValidateRecursiveGrid() },
-			setScope: func(cfg *config.Config, scope string) { cfg.RecursiveGrid.CaptureScope = scope },
+			name:         "recursive_grid",
+			defaultScope: domain.CaptureScopeScreen,
+			validate:     func(cfg *config.Config) error { return cfg.ValidateRecursiveGrid() },
+			setScope:     func(cfg *config.Config, scope string) { cfg.RecursiveGrid.CaptureScope = scope },
 			setAppConfigs: func(cfg *config.Config, entries []config.AppConfig) {
 				cfg.RecursiveGrid.AppConfigs = entries
 			},
@@ -48,19 +52,34 @@ func scopedSections() []scopedSection {
 				return cfg.RecursiveGrid.CaptureScopeForApp(bundleID)
 			},
 		},
-	}
-}
-
-func TestConfig_ValidateGridModes_DefaultScopeIsScreen(t *testing.T) {
-	cfg := config.DefaultConfig()
-
-	if cfg.Grid.CaptureScope != domain.CaptureScopeScreen {
-		t.Fatalf("grid default capture scope = %q, want screen", cfg.Grid.CaptureScope)
-	}
-
-	if cfg.RecursiveGrid.CaptureScope != domain.CaptureScopeScreen {
-		t.Fatalf("recursive_grid default capture scope = %q, want screen",
-			cfg.RecursiveGrid.CaptureScope)
+		{
+			name:         "bisect",
+			defaultScope: domain.CaptureScopeScreen,
+			validate:     func(cfg *config.Config) error { return cfg.ValidateBisect() },
+			setScope:     func(cfg *config.Config, scope string) { cfg.Bisect.CaptureScope = scope },
+			setAppConfigs: func(cfg *config.Config, entries []config.AppConfig) {
+				cfg.Bisect.AppConfigs = entries
+			},
+			hasOverrides: func(cfg *config.Config) bool { return cfg.Bisect.HasAppCaptureScopeOverrides() },
+			forApp: func(cfg *config.Config, bundleID string) string {
+				return cfg.Bisect.CaptureScopeForApp(bundleID)
+			},
+		},
+		{
+			// Vim reads the focused window by default, so its section default is
+			// the one the other sections keep for an override.
+			name:         "vim",
+			defaultScope: domain.CaptureScopeWindow,
+			validate:     func(cfg *config.Config) error { return cfg.ValidateVim() },
+			setScope:     func(cfg *config.Config, scope string) { cfg.Vim.CaptureScope = scope },
+			setAppConfigs: func(cfg *config.Config, entries []config.AppConfig) {
+				cfg.Vim.AppConfigs = entries
+			},
+			hasOverrides: func(cfg *config.Config) bool { return cfg.Vim.HasAppCaptureScopeOverrides() },
+			forApp: func(cfg *config.Config, bundleID string) string {
+				return cfg.Vim.CaptureScopeForApp(bundleID)
+			},
+		},
 	}
 }
 
@@ -107,6 +126,9 @@ func TestConfig_ValidateGridModes_RejectsAnUnknownScope(t *testing.T) {
 	}
 }
 
+// TestGridModes_CaptureScopeForApp_ShadowsTheSection pins that a per-app
+// capture scope replaces the section's for that app alone, and that an app
+// without one, or with no entry, gets the scope the section ships with.
 func TestGridModes_CaptureScopeForApp_ShadowsTheSection(t *testing.T) {
 	for _, section := range scopedSections() {
 		t.Run(section.name, func(t *testing.T) {
@@ -116,8 +138,13 @@ func TestGridModes_CaptureScopeForApp_ShadowsTheSection(t *testing.T) {
 				t.Fatal("the defaults report a per-app capture scope")
 			}
 
+			override := domain.CaptureScopeWindow
+			if section.defaultScope == domain.CaptureScopeWindow {
+				override = domain.CaptureScopeScreen
+			}
+
 			section.setAppConfigs(cfg, []config.AppConfig{
-				{BundleID: "com.example.Windowed", CaptureScope: domain.CaptureScopeWindow},
+				{BundleID: "com.example.Overridden", CaptureScope: override},
 				{BundleID: "com.example.Plain"},
 			})
 
@@ -125,19 +152,15 @@ func TestGridModes_CaptureScopeForApp_ShadowsTheSection(t *testing.T) {
 				t.Fatal("an app config with a capture scope was not reported")
 			}
 
-			if got := section.forApp(
-				cfg,
-				"com.example.windowed",
-			); got != domain.CaptureScopeWindow {
-				t.Fatalf("scope for the windowed app = %q, want window", got)
+			if got := section.forApp(cfg, "com.example.overridden"); got != override {
+				t.Fatalf("scope for the app that sets one = %q, want %q", got, override)
 			}
 
-			if got := section.forApp(cfg, "com.example.Plain"); got != domain.CaptureScopeScreen {
-				t.Fatalf("scope for an app without one = %q, want the section's screen", got)
-			}
-
-			if got := section.forApp(cfg, "com.example.Unknown"); got != domain.CaptureScopeScreen {
-				t.Fatalf("scope for an unlisted app = %q, want the section's screen", got)
+			for _, bundleID := range []string{"com.example.Plain", "com.example.Unknown"} {
+				if got := section.forApp(cfg, bundleID); got != section.defaultScope {
+					t.Fatalf("scope for %s = %q, want the section's %q",
+						bundleID, got, section.defaultScope)
+				}
 			}
 		})
 	}

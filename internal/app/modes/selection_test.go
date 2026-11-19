@@ -88,6 +88,14 @@ func TestToggleCursorFollowSelection_UpdatesOnlySupportedModes(t *testing.T) {
 			"ToggleCursorFollowSelection() expected cursor_follow_selection to become enabled in hints mode",
 		)
 	}
+
+	appState.SetMode(domain.ModeScroll)
+
+	if _, supported = handler.ToggleCursorFollowSelection(); supported {
+		t.Fatal(
+			"ToggleCursorFollowSelection() reported support in scroll mode, which has no selection",
+		)
+	}
 }
 
 func TestToggleCursorFollowSelection_MovesCursorToStoredGridSelectionWhenEnabling(t *testing.T) {

@@ -65,6 +65,16 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 			}
 		})
 	}
+
+	// HidesFromScreenShare is what decides where toggle-screen-share answers and
+	// where the hidden state, its event and the on_screen_share_hide hook can
+	// change. It must read the column pinned above, not a copy of it.
+	for _, platform := range parity.AllPlatforms {
+		want := slices.Contains(parity.Platforms{parity.Darwin, parity.Windows}, platform)
+		if got := config.HidesFromScreenShare(platform); got != want {
+			t.Errorf("HidesFromScreenShare(%s) = %t, want %t", platform, got, want)
+		}
+	}
 }
 
 // TestPlatformSupport_DeclaresTheOptionBehindAValue is the reason the strategy
@@ -294,17 +304,39 @@ func TestInertWords_LeavesTheShippedBindingsSilentWhereTheyWork(t *testing.T) {
 
 	defaults := config.DefaultConfig()
 
+	// The launcher table alone is empty on Linux, so every table a default
+	// binding lives in is read, or the check would assert nothing there.
+	tables := []map[string]config.StringOrStringArray{
+		defaults.Hints.Hotkeys,
+		defaults.Grid.Hotkeys,
+		defaults.RecursiveGrid.Hotkeys,
+		defaults.Scroll.Hotkeys,
+		defaults.Bisect.Hotkeys,
+		defaults.Vim.Hotkeys,
+		defaults.MonitorSelect.Hotkeys,
+	}
+
 	var steps []string
 
 	for _, actions := range defaults.Hotkeys.Bindings {
 		steps = append(steps, actions...)
 	}
 
+	for _, table := range tables {
+		for _, actions := range table {
+			steps = append(steps, actions...)
+		}
+	}
+
+	if len(steps) == 0 {
+		t.Fatal("the defaults bind nothing, so this check would pass vacuously")
+	}
+
 	for _, target := range []parity.Platform{parity.Darwin, parity.Linux} {
 		found := config.InertWords(config.Written{Steps: steps}, target).Names()
 		if len(found) > 0 {
 			t.Errorf(
-				"the default global bindings write %v, which does nothing on %s; "+
+				"the default bindings write %v, which does nothing on %s; "+
 					"either the default is wrong or the word's column is",
 				found, target,
 			)

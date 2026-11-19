@@ -12,44 +12,61 @@ import (
 
 func TestRouter_RouteKey(t *testing.T) {
 	logger := zap.NewNop()
-	manager := hint.NewManager(logger, nil)
-	router := hint.NewRouter(manager, logger)
+	elem, _ := element.NewElement("elem", image.Rect(0, 0, 10, 10), element.RoleButton)
+
+	// Labels spelled like the named keys, so a multi-character key that got
+	// past the single-character guard would complete one of them.
+	labels := []string{"ESCAPE", "BACKSPACE", "AB", "AC"}
 
 	tests := []struct {
 		name      string
 		key       string
-		wantExact bool
+		wantInput string
 	}{
 		{
 			name:      "escape key does not exit in router",
 			key:       "escape",
-			wantExact: false,
+			wantInput: "",
 		},
 		{
 			name:      "backspace key",
 			key:       "backspace",
-			wantExact: false,
+			wantInput: "",
 		},
 		{
 			name:      "regular key input",
 			key:       "a",
-			wantExact: false,
+			wantInput: "A",
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
+			hints := make([]*hint.Interface, 0, len(labels))
+			for _, label := range labels {
+				hints = append(hints, mustNewHint(label, elem))
+			}
+
+			manager := hint.NewManager(logger, nil)
+
+			err := manager.SetHints(hint.NewCollection(hints))
+			if err != nil {
+				t.Fatalf("SetHints: %v", err)
+			}
+
+			router := hint.NewRouter(manager, logger)
+
 			result, err := router.RouteKey(testCase.key)
 			if err != nil {
 				t.Fatalf("RouteKey: %v", err)
 			}
 
-			if (result.ExactHint() != nil) != testCase.wantExact {
-				t.Errorf(
-					"ExactHint() = %v, want exact = %v",
-					result.ExactHint(),
-					testCase.wantExact,
-				)
+			if result.ExactHint() != nil {
+				t.Errorf("ExactHint() = %q, want none", result.ExactHint().Label())
+			}
+
+			if got := manager.CurrentInput(); got != testCase.wantInput {
+				t.Errorf("CurrentInput() = %q, want %q", got, testCase.wantInput)
 			}
 		})
 	}

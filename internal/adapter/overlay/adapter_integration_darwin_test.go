@@ -4,7 +4,6 @@ package overlay_test
 
 import (
 	"context"
-	"errors"
 	"os"
 	"testing"
 
@@ -57,21 +56,6 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 	emptyHints := ports.HintsFrame{}
 
-	t.Run("ShowFrame", func(t *testing.T) {
-		// Showing a frame should not error, even with nothing in it
-		showErr := adapter.ShowFrame(ctx, emptyHints)
-		if showErr != nil {
-			t.Errorf("ShowFrame() error = %v, want nil", showErr)
-		}
-	})
-
-	t.Run("ClearFrame", func(t *testing.T) {
-		clearErr := adapter.ClearFrame(ctx)
-		if clearErr != nil {
-			t.Errorf("ClearFrame() error = %v, want nil", clearErr)
-		}
-	})
-
 	t.Run("Refresh", func(t *testing.T) {
 		refreshErr := adapter.Refresh(ctx)
 		if refreshErr != nil {
@@ -109,40 +93,6 @@ func TestOverlayAdapterIntegration(t *testing.T) {
 
 		if adapter.IsVisible() {
 			t.Error("IsVisible() = true after ClearFrame(), want false")
-		}
-	})
-}
-
-// TestOverlayAdapterContextCancellation tests context cancellation handling.
-func TestOverlayAdapterContextCancellation(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
-	requireDesktop(t)
-
-	if os.Getenv("CI") != "" {
-		t.Skip("Skipping overlay integration test in CI (no window server run loop)")
-	}
-
-	logger := logger.Get()
-	manager := overlay.Init(logger)
-	theme := &testThemeProvider{darkMode: false}
-	styles := overlay.NewStyleResolver(manager, config.DefaultConfig(), theme, logger)
-
-	adapter := overlay.NewAdapter(manager, styles, logger)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	t.Run("ShowFrame with canceled context", func(t *testing.T) {
-		showErr := adapter.ShowFrame(ctx, ports.HintsFrame{})
-		if !errors.Is(showErr, context.Canceled) {
-			t.Errorf(
-				"ShowFrame() with canceled context error = %v, want %v",
-				showErr,
-				context.Canceled,
-			)
 		}
 	})
 }

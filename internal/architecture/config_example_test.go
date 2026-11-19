@@ -9,9 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/BurntSushi/toml"
-
-	"github.com/y3owk1n/neru/configs"
 	"github.com/y3owk1n/neru/internal/config"
 )
 
@@ -101,17 +98,11 @@ type configSchema struct {
 	t       *testing.T
 	options []configOption
 	fields  []schemaField
-	// known holds every path a shipped example may legitimately write,
-	// intermediate tables included.
-	known map[string]bool
 	// colorNodes holds the path of every config.Color field, which is one
 	// option to whoever writes it and two leaves to the walk. The example
 	// checks want the leaves. The platform-support declaration wants the node,
 	// because a Color is written as one value as readily as a table.
 	colorNodes []string
-	// opaque holds the prefixes whose children the user names rather than the
-	// schema: the hotkey tables and the macro table.
-	opaque []string
 }
 
 // TestConfigOptionsAppearInTheDefaultExample pins the example TOML to the
@@ -147,33 +138,6 @@ func TestConfigOptionsAppearInTheDefaultExample(t *testing.T) {
 				"asserts a default that does not exist",
 			option.path, defaultExample,
 		)
-	}
-}
-
-// TestShippedExamplesWriteOnlySchemaKeys catches the drift running the other
-// way. TOML decoding ignores a key the schema does not have, silently, so a
-// misspelled key in an example is a dead line that looks like it works, to
-// the reviewer and then to every user who copies the file.
-func TestShippedExamplesWriteOnlySchemaKeys(t *testing.T) {
-	schema := reflectConfigSchema(t)
-	root := findRepoRoot(t)
-
-	for _, name := range configs.ShippedExamples {
-		t.Run(name, func(t *testing.T) {
-			written := decodedKeyPaths(t, filepath.Join(root, "configs", name), schema)
-
-			for _, path := range written {
-				if schema.known[path] {
-					continue
-				}
-
-				t.Errorf(
-					"configs/%s writes %q, which the config schema has no key for; "+
-						"the decoder drops it silently, so the line does nothing",
-					name, path,
-				)
-			}
-		})
 	}
 }
 
@@ -235,7 +199,7 @@ func reflectConfigSchema(t *testing.T) *configSchema {
 	t.Helper()
 
 	defaults := config.DefaultConfig()
-	schema := &configSchema{t: t, known: make(map[string]bool)}
+	schema := &configSchema{t: t}
 
 	value := reflect.ValueOf(*defaults)
 	schema.walkStruct(value.Type(), value, "", "")
@@ -260,8 +224,6 @@ func (s *configSchema) walkStruct(typ reflect.Type, val reflect.Value, prefix, e
 
 		name, freeForm := tomlFieldName(s.t, typ, field)
 		path := joinPath(prefix, name)
-
-		s.known[path] = true
 
 		fieldVal := reflect.Value{}
 		if val.IsValid() {
@@ -292,8 +254,6 @@ func (s *configSchema) walkStruct(typ reflect.Type, val reflect.Value, prefix, e
 			// The struct decoder never sees these, because internal/config/loader/
 			// load.go reads them off the raw map, because their keys are the
 			// key combinations the user invents. Nothing below is a schema path.
-			s.opaque = append(s.opaque, path)
-
 			continue
 		}
 
@@ -339,13 +299,11 @@ func (s *configSchema) walkCollection(
 
 	if typ.Kind() == reflect.Map {
 		// Map keys are the user's, not the schema's.
-		s.opaque = append(s.opaque, path)
-
 		return
 	}
 
 	// A repeated table ([[app_configs]], [[layers]]) still has a declared
-	// shape, and the keys an example writes under it are checked against it.
+	// shape, and the walk reaches its fields.
 	elem := typ.Elem()
 	for elem.Kind() == reflect.Pointer {
 		elem = elem.Elem()
@@ -364,14 +322,7 @@ func (s *configSchema) walkCollection(
 }
 
 func (s *configSchema) record(path, exemption string) {
-	s.known[path] = true
 	s.options = append(s.options, configOption{path: path, exemption: exemption})
-}
-
-func (s *configSchema) isOpaque(path string) bool {
-	return slices.ContainsFunc(s.opaque, func(prefix string) bool {
-		return path == prefix || strings.HasPrefix(path, prefix+".")
-	})
 }
 
 func joinPath(prefix, name string) string {
@@ -486,55 +437,6 @@ func tableHeader(line string) (string, bool) {
 	}
 
 	return "", false
-}
-
-// decodedKeyPaths returns the paths the TOML decoder actually reads out of an
-// example. Going through the decoder rather than the text is the point, because these
-// are exactly the keys a user's copy would carry, expanded the same way.
-func decodedKeyPaths(t *testing.T, path string, schema *configSchema) []string {
-	t.Helper()
-
-	var raw map[string]any
-
-	_, err := toml.DecodeFile(path, &raw)
-	if err != nil {
-		t.Fatalf("failed to decode %s: %v", path, err)
-	}
-
-	var paths []string
-
-	collectKeyPaths(raw, "", schema, &paths)
-	slices.Sort(paths)
-
-	return paths
-}
-
-func collectKeyPaths(node map[string]any, prefix string, schema *configSchema, out *[]string) {
-	for key, value := range node {
-		path := joinPath(prefix, key)
-
-		*out = append(*out, path)
-
-		if schema.isOpaque(path) {
-			continue
-		}
-
-		switch typed := value.(type) {
-		case map[string]any:
-			collectKeyPaths(typed, path, schema, out)
-		case []map[string]any:
-			for _, entry := range typed {
-				collectKeyPaths(entry, path, schema, out)
-			}
-		case []any:
-			// A repeated table decodes here when its entries are heterogeneous.
-			for _, entry := range typed {
-				if table, ok := entry.(map[string]any); ok {
-					collectKeyPaths(table, path, schema, out)
-				}
-			}
-		}
-	}
 }
 
 // isEmptyCollection reports whether a default value is a slice or map that

@@ -96,17 +96,6 @@ func TestFileRestoreTokenStore_SaveTightensPermissionsOnALooseFile(t *testing.T)
 	}
 }
 
-// TestFileRestoreTokenStore_LoadReportsNoTokenWhenNoneIsStored pins the
-// first-run answer. An absent file is the ordinary state before the first
-// grant, not a failure, and the caller reads it as "prompt the user".
-func TestFileRestoreTokenStore_LoadReportsNoTokenWhenNoneIsStored(t *testing.T) {
-	store, _ := storeUnderTempState(t)
-
-	if got := store.load(); got != "" {
-		t.Errorf("load() = %q, want empty", got)
-	}
-}
-
 // TestFileRestoreTokenStore_ClearRemovesTheStoredToken pins both halves of the
 // refusal path: the dead token goes away, and clearing again is not an error.
 // The caller clears on every refusal without first asking whether it stored

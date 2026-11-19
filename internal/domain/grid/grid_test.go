@@ -134,44 +134,6 @@ func TestGrid_RepeatsCanLeaveTooFewCharacters(t *testing.T) {
 	}
 }
 
-func TestGrid_WithCustomLabels(t *testing.T) {
-	logger := logger.Get()
-	bounds := image.Rect(0, 0, 300, 300)
-
-	gridInstance := grid.NewGridWithLabels(testCharacters, "123", "XYZ", bounds, logger)
-
-	if gridInstance.Characters() != testCharacters {
-		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), testCharacters)
-	}
-
-	validChars := gridInstance.ValidCharacters()
-
-	expectedChars := "ABC123XYZ"
-	for _, r := range expectedChars {
-		if !strings.ContainsRune(validChars, r) {
-			t.Errorf("ValidCharacters() missing %c, got %q", r, validChars)
-		}
-	}
-
-	cells := gridInstance.Cells()
-	if len(cells) == 0 {
-		t.Fatal("No cells generated")
-	}
-
-	foundLabels := make(map[string]bool)
-	for _, cell := range cells {
-		if foundLabels[cell.Coordinate()] {
-			t.Errorf("Duplicate coordinate found: %s", cell.Coordinate())
-		}
-
-		foundLabels[cell.Coordinate()] = true
-	}
-
-	if len(foundLabels) != len(cells) {
-		t.Errorf("Expected %d unique coordinates, got %d", len(cells), len(foundLabels))
-	}
-}
-
 func TestGrid_CustomLabelsWithSymbols(t *testing.T) {
 	logger := logger.Get()
 	bounds := image.Rect(0, 0, 500, 500)
@@ -208,37 +170,14 @@ func TestGrid_CustomLabelsWithSymbols(t *testing.T) {
 			}
 		}
 	}
-}
 
-func TestGrid_BackwardCompatibility(t *testing.T) {
-	logger := logger.Get()
-	bounds := image.Rect(0, 0, 300, 300)
-
-	// NewGrid with no row or column labels.
-	gridInstance := grid.NewGrid(testCharacters, bounds, logger)
-
-	if gridInstance.Characters() != testCharacters {
-		t.Errorf("Characters() = %q, want %q", gridInstance.Characters(), testCharacters)
-	}
-
-	// ValidCharacters should be same as Characters when no custom labels
-	if gridInstance.ValidCharacters() != gridInstance.Characters() {
-		t.Errorf(
-			"ValidCharacters() = %q, want %q",
-			gridInstance.ValidCharacters(),
-			gridInstance.Characters(),
-		)
-	}
-
-	cells := gridInstance.Cells()
-
-	coordMap := make(map[string]bool)
-	for _, cell := range cells {
-		if coordMap[cell.Coordinate()] {
-			t.Errorf("Duplicate coordinate: %s", cell.Coordinate())
+	// The column labels above are all in characters, so check column labels
+	// that share nothing with them are typeable too.
+	disjoint := grid.NewGridWithLabels(testCharacters, "123", "XYZ", bounds, logger)
+	for _, r := range "123XYZ" {
+		if !strings.ContainsRune(disjoint.ValidCharacters(), r) {
+			t.Errorf("ValidCharacters() missing label %c, got %q", r, disjoint.ValidCharacters())
 		}
-
-		coordMap[cell.Coordinate()] = true
 	}
 }
 
@@ -348,54 +287,5 @@ func assertGridPrefixesFormRectangles(t *testing.T, cells []*grid.Cell) {
 				want,
 			)
 		}
-	}
-}
-
-func TestGrid_HasCoordinatePrefix(t *testing.T) {
-	logger := logger.Get()
-	bounds := image.Rect(0, 0, 300, 300)
-
-	grid1 := grid.NewGrid(testCharacters, bounds, logger)
-
-	cells := grid1.Cells()
-	if len(cells) == 0 {
-		t.Fatal("Grid should have cells")
-	}
-
-	sampleCoord := cells[0].Coordinate()
-	if len(sampleCoord) < 2 {
-		t.Fatalf("Expected coordinate length >= 2, got %d", len(sampleCoord))
-	}
-
-	for i := 1; i <= len(sampleCoord); i++ {
-		prefix := sampleCoord[:i]
-		if !grid1.HasCoordinatePrefix(prefix) {
-			t.Errorf(
-				"HasCoordinatePrefix(%q) should be true for coordinate %q",
-				prefix,
-				sampleCoord,
-			)
-		}
-	}
-
-	if grid1.HasCoordinatePrefix("INVALID") {
-		t.Error("HasCoordinatePrefix should return false for invalid prefix")
-	}
-
-	grid2 := grid.NewGrid(testCharacters, bounds, logger)
-
-	for i := 1; i <= len(sampleCoord); i++ {
-		prefix := sampleCoord[:i]
-		if !grid2.HasCoordinatePrefix(prefix) {
-			t.Errorf(
-				"HasCoordinatePrefix(%q) should be true on cached grid for coordinate %q",
-				prefix,
-				sampleCoord,
-			)
-		}
-	}
-
-	if grid2.HasCoordinatePrefix("INVALID") {
-		t.Error("HasCoordinatePrefix should return false for invalid prefix on cached grid")
 	}
 }

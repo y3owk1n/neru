@@ -326,6 +326,10 @@ func TestDragApproachPoint_DoesNotSplitAShortStep(t *testing.T) {
 func TestAbsoluteCoordinate_RoundTripsToThePixel(t *testing.T) {
 	t.Parallel()
 
+	// The divisor Windows applies, written out rather than read from the
+	// production constant, so a wrong range there cannot cancel itself here.
+	const windowsAbsoluteDivisor = 65536
+
 	tests := []struct {
 		name   string
 		origin int
@@ -344,7 +348,7 @@ func TestAbsoluteCoordinate_RoundTripsToThePixel(t *testing.T) {
 			for pixel := test.origin; pixel < test.origin+test.size; pixel++ {
 				value := absoluteCoordinate(pixel, test.origin, test.size)
 
-				back := test.origin + int(value)*test.size/absoluteCoordinateRange
+				back := test.origin + int(value)*test.size/windowsAbsoluteDivisor
 				if back != pixel {
 					t.Fatalf("pixel %d maps to %d and back to %d", pixel, value, back)
 				}

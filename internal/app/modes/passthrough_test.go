@@ -14,45 +14,6 @@ import (
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
-func TestModeModifierKeys_HintsIncludesModifierHotkeys(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Hints.Hotkeys = map[string]config.StringOrStringArray{
-		"Cmd+L": {stepLeftClick},
-		"Alt+K": {"action move_mouse_relative --dx=0 --dy=-10"},
-		"k":     {"action scroll_up"},
-	}
-
-	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameHints, ""), config.Keymap{})
-	want := []string{
-		keyvocab.CanonicalHotkeyForPlatform("Alt+K"),
-		keyvocab.CanonicalHotkeyForPlatform("Cmd+L"),
-	}
-
-	if !slices.Equal(got, want) {
-		t.Fatalf("modeModifierKeys(ModeHints) = %v, want %v", got, want)
-	}
-}
-
-func TestModeModifierKeys_ScrollIncludesOnlyModifierHotkeys(t *testing.T) {
-	cfg := config.DefaultConfig()
-	cfg.Scroll.Hotkeys = map[string]config.StringOrStringArray{
-		"k":        {"action scroll_up"},
-		"Cmd+Up":   {"action go_top"},
-		"Cmd+Down": {"action go_bottom"},
-		"gg":       {"action go_top"},
-	}
-
-	got := modeModifierKeys(cfg.ResolveKeymap(config.ModeNameScroll, ""), config.Keymap{})
-	want := []string{
-		keyvocab.CanonicalHotkeyForPlatform("Cmd+Down"),
-		keyvocab.CanonicalHotkeyForPlatform("Cmd+Up"),
-	}
-
-	if !slices.Equal(got, want) {
-		t.Fatalf("modeModifierKeys(ModeScroll) = %v, want %v", got, want)
-	}
-}
-
 func TestHandlePassthroughLocked_IgnoresStaleSession(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.General.PassthroughUnboundedKeys = true
@@ -74,6 +35,10 @@ func TestHandlePassthroughLocked_IgnoresStaleSession(t *testing.T) {
 	}
 }
 
+// TestPassthroughCallbackFor_CapturesModeSession keeps the mode the same and
+// moves only the session, so the callback must answer to the session it was
+// built in. TestSimulation_StalePassthroughCallback changes the mode as well
+// and passes on the mode check alone.
 func TestPassthroughCallbackFor_CapturesModeSession(t *testing.T) {
 	cfg := config.DefaultConfig()
 	cfg.General.PassthroughUnboundedKeys = true
@@ -95,11 +60,10 @@ func TestPassthroughCallbackFor_CapturesModeSession(t *testing.T) {
 
 	handler.modeSession = 2
 
-	appState.SetMode(domain.ModeGrid)
-
 	callback()
 
 	if handler.refreshHintsTimer != nil {
+		handler.refreshHintsTimer.Stop()
 		t.Fatal("expected captured passthrough callback to ignore a later mode session")
 	}
 }
@@ -470,6 +434,10 @@ func TestSyncModifierPassthrough_ConsumesTheGlobalChordsAModeFallsBackTo(t *test
 		RecursiveGrid: config.RecursiveGridConfig{
 			Hotkeys: map[string]config.StringOrStringArray{
 				passthroughFirstChord: {stepLeftClick},
+				// A bare key and a sequence are the mode's own input, never
+				// a chord to intercept.
+				"k":  {"action scroll_up"},
+				"gg": {"action go_top"},
 			},
 		},
 	}

@@ -76,30 +76,6 @@ func TestHintPlacementValue_UnsetDrawsTheDefault(t *testing.T) {
 	}
 }
 
-// TestHintPlacementValue_UnknownPlacementIsNotSupported pins the other half of
-// the vocabulary. A value outside it is refused, not translated. It used to
-// come back as HINT_PLACEMENT_BOTTOM, which made a placement with no branch
-// here indistinguishable from `bottom`, silent everywhere and wrong on
-// screen. The Linux overlay already refuses the same value (#1331).
-func TestHintPlacementValue_UnknownPlacementIsNotSupported(t *testing.T) {
-	t.Parallel()
-
-	value, err := hintPlacementValue(unknownPlacement)
-	if err == nil {
-		t.Fatalf(
-			"hintPlacementValue(%q) = %d, nil; an unrecognized placement must be refused",
-			unknownPlacement, value,
-		)
-	}
-
-	if !derrors.IsNotSupported(err) {
-		t.Errorf(
-			"hintPlacementValue(%q) returned %v (code %q), want CodeNotSupported",
-			unknownPlacement, err, derrors.GetCode(err),
-		)
-	}
-}
-
 // placementStyle is a resolved hint style that differs from the next one only
 // in where the labels are placed, which is all the draw tests below vary.
 func placementStyle(t *testing.T, placement string) StyleMode {

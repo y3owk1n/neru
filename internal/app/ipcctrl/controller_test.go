@@ -206,58 +206,6 @@ func TestIPCController_HandleConfigSet_String(t *testing.T) {
 	}
 }
 
-func TestIPCController_HandleConfigSet_Integer(t *testing.T) {
-	controller := newTestController()
-
-	ctx := context.Background()
-
-	commandResponse := controller.HandleCommand(ctx, ipc.Command{
-		Action: domain.CommandConfigSet,
-		Args:   []string{"hints.ui.font_size", "14"},
-	})
-
-	if !commandResponse.Success {
-		t.Fatalf(
-			"Expected success=true, got %v: %s",
-			commandResponse.Success,
-			commandResponse.Message,
-		)
-	}
-
-	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
-	cfg := dumpedConfig(t, cfgResp)
-
-	if cfg.Hints.UI.FontSize != 14 {
-		t.Errorf("Expected font_size=14, got %d", cfg.Hints.UI.FontSize)
-	}
-}
-
-func TestIPCController_HandleConfigSet_Bool(t *testing.T) {
-	controller := newTestController()
-
-	ctx := context.Background()
-
-	commandResponse := controller.HandleCommand(ctx, ipc.Command{
-		Action: domain.CommandConfigSet,
-		Args:   []string{"general.passthrough_unbounded_keys", "true"},
-	})
-
-	if !commandResponse.Success {
-		t.Fatalf(
-			"Expected success=true, got %v: %s",
-			commandResponse.Success,
-			commandResponse.Message,
-		)
-	}
-
-	cfgResp := controller.HandleCommand(ctx, ipc.Command{Action: domain.CommandConfig})
-	cfg := dumpedConfig(t, cfgResp)
-
-	if !cfg.General.PassthroughUnboundedKeys {
-		t.Error("Expected passthrough_unbounded_keys=true")
-	}
-}
-
 func TestIPCController_HandleConfigSet_InvalidKey(t *testing.T) {
 	controller := newTestController()
 

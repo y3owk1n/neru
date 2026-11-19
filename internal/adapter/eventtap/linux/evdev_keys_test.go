@@ -44,10 +44,6 @@ func TestEvdevKeyName(t *testing.T) {
 		{code: evdevKeyLeft, want: evdevKeyNameLeft},
 		{code: evdevKeyF1, want: "F1"},
 		{code: evdevKeyF12, want: "F12"},
-		{code: evdevKeyF13, want: "F13"},
-		{code: evdevKeyF20, want: "F20"},
-		{code: evdevKeyF21, want: "F21"},
-		{code: evdevKeyF24, want: "F24"},
 	}
 
 	for _, testCase := range testCases {
@@ -55,13 +51,9 @@ func TestEvdevKeyName(t *testing.T) {
 			t.Fatalf("evdevKeyName(%d) = %q, want %q", testCase.code, got, testCase.want)
 		}
 	}
-}
 
-// TestEvdevKeyNameFunctionKeysContiguous pins the F13-F24 evdev codes, which
-// are not adjacent to the F1-F12 block (KEY_F13 is 183, not 89).
-func TestEvdevKeyNameFunctionKeysContiguous(t *testing.T) {
-	t.Parallel()
-
+	// F13-F24 are read by kernel code rather than through the package constants,
+	// because they are not adjacent to the F1-F12 block (KEY_F13 is 183, not 89).
 	const firstHighFunctionKeyCode = 183
 
 	for index := 13; index <= 24; index++ {

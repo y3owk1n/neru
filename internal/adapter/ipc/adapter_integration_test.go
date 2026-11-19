@@ -4,7 +4,6 @@ package ipc_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"go.uber.org/zap"
@@ -93,33 +92,6 @@ func TestIPCAdapterIntegration(t *testing.T) {
 		serverErr = adapter.Start(ctx)
 		if serverErr != nil {
 			t.Errorf("Start() after Stop() error = %v, want nil", serverErr)
-		}
-	})
-}
-
-// TestIPCAdapterContextCancellation tests context cancellation handling.
-func TestIPCAdapterContextCancellation(t *testing.T) {
-	log := zap.NewNop()
-	handler := func(_ context.Context, _ ipc.Command) ipc.Response {
-		return ipc.Response{Success: true}
-	}
-
-	server, serverErr := ipc.NewServer(handler, log)
-	if serverErr != nil {
-		t.Fatalf("Failed to create server: %v", serverErr)
-	}
-
-	adapter := ipc.NewAdapter(server, log)
-	defer adapter.Stop(context.Background()) //nolint:errcheck
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	t.Run("Start with canceled context", func(t *testing.T) {
-		// Start should handle a canceled context gracefully (may succeed or return context.Canceled)
-		err := adapter.Start(ctx)
-		if err != nil && !errors.Is(err, context.Canceled) {
-			t.Errorf("Start with canceled context returned unexpected error: %v", err)
 		}
 	})
 }

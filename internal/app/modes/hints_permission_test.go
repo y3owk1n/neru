@@ -133,30 +133,22 @@ func TestActivateMode_PermissionDialogDoesNotBlockOrHoldLock(t *testing.T) {
 	}
 }
 
-func TestActivateMode_ContourStrategyRequestsScreenCapturePermission(t *testing.T) {
-	modal := newPermissionModal()
-	handler := newCaptureHintsHandler(domain.StrategyContour, modal.system, zap.NewNop(), func() {})
+func TestActivateMode_PixelStrategyRequestsScreenCapturePermission(t *testing.T) {
+	// Contour and segment read the window's pixels just like vision does, so
+	// an activation without consent must raise the dialog instead of letting
+	// the capture fail under the mode handler's lock.
+	for _, strategy := range []string{domain.StrategyContour, domain.StrategySegment} {
+		t.Run(strategy, func(t *testing.T) {
+			modal := newPermissionModal()
+			handler := newCaptureHintsHandler(strategy, modal.system, zap.NewNop(), func() {})
 
-	// Contour reads the window's pixels just like vision does, so an
-	// activation without consent must raise the dialog instead of letting the
-	// capture fail under the mode handler's lock.
-	handler.ActivateMode(modecmd.Activation{Mode: domain.ModeHints})
+			handler.ActivateMode(modecmd.Activation{Mode: domain.ModeHints})
 
-	modal.awaitOpen(t)
+			modal.awaitOpen(t)
 
-	modal.consent <- ports.ScreenCaptureCanceled
-}
-
-func TestActivateMode_SegmentStrategyRequestsScreenCapturePermission(t *testing.T) {
-	modal := newPermissionModal()
-	handler := newCaptureHintsHandler(domain.StrategySegment, modal.system, zap.NewNop(), func() {})
-
-	// Segment reads the window's pixels too, so it pays the same gate.
-	handler.ActivateMode(modecmd.Activation{Mode: domain.ModeHints})
-
-	modal.awaitOpen(t)
-
-	modal.consent <- ports.ScreenCaptureCanceled
+			modal.consent <- ports.ScreenCaptureCanceled
+		})
+	}
 }
 
 func TestResumeHintActivationAfterPermission_DoesNotRepromptWhenCheckStillFails(t *testing.T) {

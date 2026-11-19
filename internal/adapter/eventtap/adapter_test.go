@@ -131,27 +131,6 @@ func TestAdapter_Destroy_DoesNotHoldTheLockWhileTheTapDrainsItsDispatcher(t *tes
 	adapter.Destroy()
 }
 
-// TestAdapter_Destroy_IsSafeToCallTwice covers the two paths that reach it,
-// the ordinary shutdown (app/lifecycle.go) and the startup unwind
-// (app/startup_phases.go), plus the case of both running.
-//
-// The adapter's own lock used to serialize the whole teardown. Now that the tap
-// is torn down outside it, the guard that keeps a second teardown from starting
-// has to be the adapter's own.
-func TestAdapter_Destroy_IsSafeToCallTwice(t *testing.T) {
-	t.Parallel()
-
-	fake := newFakeTap()
-	adapter := eventtap.NewAdapter(fake, nil)
-
-	adapter.Destroy()
-	adapter.Destroy()
-
-	if got := fake.count("Destroy"); got != 1 {
-		t.Fatalf("tap torn down %d times, want 1", got)
-	}
-}
-
 // TestAdapter_Destroy_MakesASecondCallerWaitForTheTeardown keeps the method's
 // postcondition now that the lock no longer supplies it.
 //
@@ -160,6 +139,10 @@ func TestAdapter_Destroy_IsSafeToCallTwice(t *testing.T) {
 // that caller return while the dispatcher was still draining. The app closes
 // the rest of its infrastructure on the strength of Destroy having returned, so
 // the second caller waits on the teardown, not on the lock.
+//
+// Two paths reach Destroy, the ordinary shutdown (app/lifecycle.go) and the
+// startup unwind (app/startup_phases.go), so a third call after both returned
+// must not start a second teardown either.
 func TestAdapter_Destroy_MakesASecondCallerWaitForTheTeardown(t *testing.T) {
 	t.Parallel()
 
@@ -207,6 +190,8 @@ func TestAdapter_Destroy_MakesASecondCallerWaitForTheTeardown(t *testing.T) {
 	}
 
 	<-firstReturned
+
+	adapter.Destroy()
 
 	if got := fake.count("Destroy"); got != 1 {
 		t.Fatalf("tap torn down %d times, want 1", got)

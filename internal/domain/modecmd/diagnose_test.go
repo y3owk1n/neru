@@ -175,6 +175,14 @@ func TestDiagnose_RefusesACommandThatCouldNotRun(t *testing.T) {
 			args: []string{flagRepeat, "--action=nonsense"},
 			want: "invalid action: nonsense",
 		},
+		{
+			// Parse gives the same sentence for this action, see
+			// TestValidate_PinsTheActionVocabulary.
+			name: "action a mode refuses",
+			mode: domain.ModeHints,
+			args: []string{"--action=move_mouse_relative"},
+			want: `"move_mouse_relative" cannot be used as a mode action`,
+		},
 	}
 
 	for _, testCase := range tests {
@@ -229,60 +237,6 @@ func TestDiagnose_AcceptsACleanCommand(t *testing.T) {
 
 			if len(warnings) > 0 {
 				t.Errorf("warnings = %q, want none", messages(warnings))
-			}
-		})
-	}
-}
-
-// TestDiagnose_SaysWhatParseSays pins that weighing a fault does not reword it.
-// The sentence a configuration prints is the one the daemon and the command
-// line give for the same mistake.
-func TestDiagnose_SaysWhatParseSays(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		mode domain.Mode
-		args []string
-	}{
-		{name: "unsupported flag", mode: domain.ModeGrid, args: []string{argSearch}},
-		{name: "unmet dependency", mode: domain.ModeHints, args: []string{flagRepeat}},
-		{name: "a flag nothing knows", mode: domain.ModeHints, args: []string{flagMistyped}},
-		{name: "unusable value", mode: domain.ModeHints, args: []string{argBadStrategy}},
-		{
-			name: "unusable action",
-			mode: domain.ModeHints,
-			args: []string{"--action=move_mouse_relative"},
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			_, warnings, diagnoseErr := modecmd.Diagnose(testCase.mode, testCase.args)
-
-			_, parseErr := modecmd.Parse(testCase.mode, testCase.args)
-			if parseErr == nil {
-				t.Fatalf("Parse(%v) was accepted; want a refusal", testCase.args)
-			}
-
-			got := ""
-
-			switch {
-			case diagnoseErr != nil:
-				got = message(diagnoseErr)
-			case len(warnings) > 0:
-				got = message(warnings[0])
-			default:
-				t.Fatalf(
-					"Diagnose(%v) reported nothing; want the fault Parse refuses",
-					testCase.args,
-				)
-			}
-
-			if want := message(parseErr); got != want {
-				t.Errorf("Diagnose says %q, Parse says %q", got, want)
 			}
 		})
 	}

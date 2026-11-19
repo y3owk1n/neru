@@ -66,36 +66,6 @@ func TestNewAlphabetGenerator_CharacterCountBoundary(t *testing.T) {
 	}
 }
 
-// TestAlphabetGenerator_UpdateCharacterCountBoundary applies the same boundary
-// to the reload path. Update runs on config reload with user-supplied input, so
-// it has to reject a too-small set rather than leaving the generator in a state
-// that cannot produce distinct labels.
-func TestAlphabetGenerator_UpdateCharacterCountBoundary(t *testing.T) {
-	generator, err := hint.NewAlphabetGenerator("abcdef", hint.LabelDirectionReverse)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator: %v", err)
-	}
-
-	err = generator.UpdateCharacters("a")
-	if err == nil {
-		t.Error(`UpdateCharacters("a") error = nil, want an error for a one-character set`)
-	}
-
-	// A rejected update must not have taken effect.
-	if got := generator.Characters(); !strings.EqualFold(got, "abcdef") {
-		t.Errorf("Characters() = %q after a rejected update, want the original set", got)
-	}
-
-	err = generator.UpdateCharacters("xy")
-	if err != nil {
-		t.Errorf(`UpdateCharacters("xy") error = %v, want nil for a minimum-size set`, err)
-	}
-
-	if got := generator.Characters(); !strings.EqualFold(got, "xy") {
-		t.Errorf("Characters() = %q after an accepted update, want %q", got, "xy")
-	}
-}
-
 // TestAlphabetGenerator_Generate_AssignsLabelsInReadingOrder pins the element
 // ordering. Labels are handed out in sorted order, so the sort comparator
 // decides which element gets the shortest / earliest label. Users navigate by

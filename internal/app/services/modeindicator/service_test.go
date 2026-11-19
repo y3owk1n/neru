@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/neru/internal/app/services/modeindicator"
-	"github.com/y3owk1n/neru/internal/ports"
 	portmocks "github.com/y3owk1n/neru/internal/ports/mocks"
 )
 
@@ -24,27 +23,6 @@ func TestService_UpdateIndicatorPositionForwardsToOverlay(t *testing.T) {
 	}
 }
 
-// TestService_ShowHideDriveTheModeIndicator pins which indicator this service
-// owns. Showing and hiding it must never reach another one.
-func TestService_ShowHideDriveTheModeIndicator(t *testing.T) {
-	t.Parallel()
-
-	overlay := &portmocks.MockOverlayPort{}
-	service := modeindicator.NewService(nil, overlay)
-
-	service.Show()
-
-	if visible, asked := overlay.IndicatorVisible(ports.ModeIndicator); !asked || !visible {
-		t.Errorf("after Show(): visible=%v asked=%v, want both true", visible, asked)
-	}
-
-	service.Hide()
-
-	if visible, asked := overlay.IndicatorVisible(ports.ModeIndicator); !asked || visible {
-		t.Errorf("after Hide(): visible=%v asked=%v, want asked and not visible", visible, asked)
-	}
-}
-
 // TestService_WithoutOverlayDrawsNothing pins that a service built for an
 // indicator that was never constructed is silent rather than a panic. Mode
 // logic calls it unconditionally.
@@ -55,6 +33,7 @@ func TestService_WithoutOverlayDrawsNothing(t *testing.T) {
 
 	service.Show()
 	service.UpdateIndicatorPosition(1, 2)
+	service.ResizeToActiveScreen()
 	service.Hide()
 
 	if service.Overlay() != nil {

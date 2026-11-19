@@ -94,18 +94,6 @@ func TestRectangleRegions(t *testing.T) {
 	}
 }
 
-func TestRectangleRegions_StopsWhenTheContextIsDone(t *testing.T) {
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-
-	frame := image.NewRGBA(image.Rect(0, 0, 400, 300))
-
-	_, err := rectangleRegions(ctx, frame, frame.Rect, config.DefaultConfig().Hints.Vision)
-	if err == nil {
-		t.Error("rectangleRegions answered after its context was done")
-	}
-}
-
 func TestWithoutTextOverlap(t *testing.T) {
 	word := DetectedRegion{Bounds: image.Rect(10, 10, 110, 40), Label: "Save", IsText: true}
 

@@ -159,41 +159,48 @@ func TestFunctionKeyOutOfRange(t *testing.T) {
 	}
 }
 
-func TestOEMPunctuationRoundTripLayoutAware(t *testing.T) {
-	t.Parallel()
-
-	// VK<->char for punctuation is keyboard-layout dependent (e.g. "`" is
-	// VK_OEM_3 on US but VK_OEM_8 on UK). Rather than hardcode VK codes, verify
-	// the layout-aware translation round-trips. The VK that produces a char must
-	// map back to that same char. This keeps hotkeys like "`" and "/" working on
-	// any layout. Chars that need shift on this layout are skipped.
-	for _, keyChar := range []rune{'`', '/', '-', '=', ';', '[', ']', '\''} {
-		virtualKey, ok := virtualKeyFromChar(keyChar)
-		if !ok {
-			continue
-		}
-
-		if got := KeyNameFromVirtualKey(virtualKey); got != string(keyChar) {
-			t.Fatalf("round-trip for %q: KeyNameFromVirtualKey(%#x) = %q, want %q",
-				keyChar, virtualKey, got, string(keyChar))
-		}
-	}
-}
-
 func TestNameToVirtualKeyPunctuationResolves(t *testing.T) {
 	t.Parallel()
 
-	// The literal hotkey strings used by the default config must resolve to a
-	// virtual key on the active layout so ParseHotkeyString and the hook agree.
-	for _, name := range []string{"`", "/"} {
-		virtualKey, ok := nameToVirtualKey(name)
-		if !ok || virtualKey == 0 {
-			t.Fatalf("nameToVirtualKey(%q) = %#x ok=%v, want a non-zero VK", name, virtualKey, ok)
-		}
+	// VK<->char for punctuation is keyboard-layout dependent (e.g. "`" is
+	// VK_OEM_3 on US but VK_OEM_8 on UK), so the VK is not hardcoded. The VK a
+	// name resolves to on the active layout must name that same key back, so
+	// ParseHotkeyString and the hook agree. The default config's "`" and "/"
+	// must resolve on any layout. The rest are checked where this layout types
+	// them unshifted.
+	tests := []struct {
+		label    string
+		name     string
+		required bool
+	}{
+		{label: "backtick", name: "`", required: true},
+		{label: "slash", name: "/", required: true},
+		{label: "minus", name: "-"},
+		{label: "equals", name: "="},
+		{label: "semicolon", name: ";"},
+		{label: "left bracket", name: "["},
+		{label: "right bracket", name: "]"},
+		{label: "quote", name: "'"},
+	}
 
-		if got := KeyNameFromVirtualKey(virtualKey); got != name {
-			t.Fatalf("nameToVirtualKey(%q) -> %#x -> KeyNameFromVirtualKey = %q, want %q",
-				name, virtualKey, got, name)
-		}
+	for _, test := range tests {
+		t.Run(test.label, func(t *testing.T) {
+			t.Parallel()
+
+			virtualKey, ok := nameToVirtualKey(test.name)
+			if !ok || virtualKey == 0 {
+				if test.required {
+					t.Fatalf("nameToVirtualKey(%q) = %#x ok=%v, want a non-zero VK",
+						test.name, virtualKey, ok)
+				}
+
+				t.Skipf("%q needs shift or is absent on this layout", test.name)
+			}
+
+			if got := KeyNameFromVirtualKey(virtualKey); got != test.name {
+				t.Fatalf("nameToVirtualKey(%q) -> %#x -> KeyNameFromVirtualKey = %q, want %q",
+					test.name, virtualKey, got, test.name)
+			}
+		})
 	}
 }

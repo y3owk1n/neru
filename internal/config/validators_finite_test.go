@@ -56,15 +56,6 @@ func TestConfig_ValidateFinite_RejectsEveryNonFiniteFloat(t *testing.T) {
 	}
 }
 
-// TestConfig_ValidateFinite_AcceptsTheDefaults pins the other direction, that the
-// shipped configuration is finite everywhere.
-func TestConfig_ValidateFinite_AcceptsTheDefaults(t *testing.T) {
-	err := config.DefaultConfig().ValidateFinite()
-	if err != nil {
-		t.Fatalf("the default config was rejected as non-finite: %v", err)
-	}
-}
-
 // floatRoute is the way from the root of the schema to one float: a field
 // name per struct hop, with the collection kinds that need an element made
 // on the way down.

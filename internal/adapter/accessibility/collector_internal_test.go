@@ -49,17 +49,3 @@ func TestLowerFilter_DoesNotWriteThroughToTheCaller(t *testing.T) {
 		t.Errorf("caller's list = %v, want it untouched", original)
 	}
 }
-
-// TestLowerFilter_KeepsTheNonTextFilters guards against the copy dropping the
-// fields it does not touch.
-func TestLowerFilter_KeepsTheNonTextFilters(t *testing.T) {
-	lowered := lowerFilter(ports.ElementFilter{
-		IncludeDock:        true,
-		IncludeMenubar:     true,
-		SkipWindowElements: true,
-	})
-
-	if !lowered.IncludeDock || !lowered.IncludeMenubar || !lowered.SkipWindowElements {
-		t.Errorf("filter = %+v, want the non-text fields carried through", lowered)
-	}
-}

@@ -170,43 +170,16 @@ func gridPointerCalls() []cancelingCall {
 // the race detector plus the absence of a panic, so run this with -race.
 // Without the detector it only fails on the interleaving that dereferences
 // nil, which is rare enough to look green.
+//
+// The grid pointer calls run in the same setup to check a different hazard
+// on a different pair of lines. They cancel nothing. What they have to survive
+// is Destroy setting the backend pointer to nil between the nil check and the
+// dispatch, and only holding renderMu across both prevents that.
 func TestManager_Destroy_RacedByCancelingCalls(t *testing.T) {
 	t.Parallel()
 
 	for _, backend := range attachedBackends() {
-		for _, entry := range cancelingCalls() {
-			t.Run(backend.name+"/"+entry.name, func(t *testing.T) {
-				t.Parallel()
-
-				for range concurrentDestroyRounds {
-					mgr := backend.attach()
-
-					raceAgainstDestroy(mgr, entry.call)
-
-					if !mgr.Headless() {
-						t.Fatalf(
-							"%s left a backend attached after Destroy returned; "+
-								"the overlay would go on drawing into a torn-down surface",
-							entry.name,
-						)
-					}
-				}
-			})
-		}
-	}
-}
-
-// The grid pointer takes the same shape as the calls above and none of their
-// cancel. What it has to survive is Destroy nilling the backend pointer between
-// the nil-test and the dispatch, which only holding renderMu across both
-// prevents. Without this the property is asserted by reading the code alone,
-// and the case above exercises the cancel-outside-the-lock calls instead, a
-// different hazard on a different pair of lines.
-func TestManager_Destroy_RacedByGridPointerCalls(t *testing.T) {
-	t.Parallel()
-
-	for _, backend := range attachedBackends() {
-		for _, entry := range gridPointerCalls() {
+		for _, entry := range append(cancelingCalls(), gridPointerCalls()...) {
 			t.Run(backend.name+"/"+entry.name, func(t *testing.T) {
 				t.Parallel()
 

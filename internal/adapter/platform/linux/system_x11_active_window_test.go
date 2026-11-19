@@ -28,6 +28,10 @@ const focusedAppFeature = "focused-app inspection"
 // callers degrade through, and the three ways the query can fail are failures
 // they surface. Collapsing them, which the C returning a bare 0 used to force,
 // made clicking the desktop background look like a broken X server.
+//
+// Only the unfocused desktop wraps errNoFocusedWindow. `neru doctor` tells the
+// two apart by that sentinel, and a failure wearing it would put the
+// reassuring wording on a broken session.
 func TestX11ActiveWindowQueryError(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -113,6 +117,12 @@ func TestX11ActiveWindowQueryError(t *testing.T) {
 					testCase.result, got, testCase.wantCode)
 			}
 
+			wantSentinel := testCase.result == x11ActiveWindowNone
+			if got := errors.Is(err, errNoFocusedWindow); got != wantSentinel {
+				t.Errorf("x11ActiveWindowQueryError(%v) wraps errNoFocusedWindow = %t, want %t",
+					testCase.result, got, wantSentinel)
+			}
+
 			for _, word := range testCase.wantWords {
 				if !strings.Contains(err.Error(), word) {
 					t.Errorf("x11ActiveWindowQueryError(%v) = %q, want it to mention %q",
@@ -120,37 +130,6 @@ func TestX11ActiveWindowQueryError(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// TestX11ActiveWindowQueryError_OnlyTheUnfocusedDesktopCarriesTheSentinel pins
-// the half of the split the capability surface reads. `neru doctor` explains an
-// unfocused desktop differently from a broken query, and it tells them apart by
-// this sentinel. A failure wearing it would put the reassuring wording on a
-// broken session.
-func TestX11ActiveWindowQueryError_OnlyTheUnfocusedDesktopCarriesTheSentinel(t *testing.T) {
-	unfocused := x11ActiveWindowQueryError(x11ActiveWindowNone)
-	if !errors.Is(unfocused, errNoFocusedWindow) {
-		t.Errorf("the unfocused-desktop error %v does not wrap errNoFocusedWindow", unfocused)
-	}
-
-	failures := []x11ActiveWindowResult{
-		x11ActiveWindowNoWindowManager,
-		x11ActiveWindowQueryFailed,
-		x11ActiveWindowMalformed,
-	}
-
-	for _, result := range failures {
-		err := x11ActiveWindowQueryError(result)
-		if errors.Is(err, errNoFocusedWindow) {
-			t.Errorf("failure %v wraps errNoFocusedWindow, so callers would read it as "+
-				"an unfocused desktop", result)
-		}
-
-		if derrors.IsNotSupported(err) {
-			t.Errorf("failure %v reports CodeNotSupported, so callers would degrade "+
-				"through a real failure", result)
-		}
 	}
 }
 

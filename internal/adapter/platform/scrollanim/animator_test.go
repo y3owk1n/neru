@@ -78,22 +78,35 @@ func sum(values []float64) float64 {
 
 // TestScrollChunks_TravelsTheRequestedDistance is the property the whole
 // animation rests on. Switching smooth scroll on changes when a scroll arrives,
-// never how far it goes.
+// never how far it goes. On Windows every chunk is a whole number of wheel
+// units, so the total is exact for any whole-pixel delta, a single pixel
+// included.
 func TestScrollChunks_TravelsTheRequestedDistance(t *testing.T) {
 	tests := []struct {
-		name  string
-		delta float64
-		steps int
+		name        string
+		delta       float64
+		steps       int
+		granularity float64
 	}{
 		{name: "one line down", delta: -50, steps: 20},
 		{name: "half a page up", delta: 500, steps: 20},
 		{name: "a single step", delta: 300, steps: 1},
 		{name: "more steps than pixels", delta: 7, steps: 64},
+		{name: "wheel units, one line down", delta: -50, steps: 20, granularity: testWheelUnit},
+		{name: "wheel units, half a page up", delta: 500, steps: 20, granularity: testWheelUnit},
+		{name: "wheel units, a single step", delta: 300, steps: 1, granularity: testWheelUnit},
+		{
+			name:        "wheel units, more steps than pixels",
+			delta:       7,
+			steps:       64,
+			granularity: testWheelUnit,
+		},
+		{name: "wheel units, a single pixel", delta: 1, steps: 12, granularity: testWheelUnit},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			chunks := scrollChunks(test.delta, test.steps, 0, 0)
+			chunks := scrollChunks(test.delta, test.steps, test.granularity, 0)
 
 			if len(chunks) != test.steps {
 				t.Fatalf("got %d chunks, want %d", len(chunks), test.steps)
@@ -108,19 +121,52 @@ func TestScrollChunks_TravelsTheRequestedDistance(t *testing.T) {
 
 // TestScrollChunks_EasesOut pins the shape rather than the endpoint. The early
 // chunks are the long ones, which is what makes the movement read as one
-// gesture settling rather than a constant-speed crawl.
+// gesture settling rather than a constant-speed crawl. On Windows every chunk
+// is also a whole number of wheel units, which is what lets the steps go below
+// a notch without SendInput rounding them.
 func TestScrollChunks_EasesOut(t *testing.T) {
-	chunks := scrollChunks(-1000, 10, 0, 0)
-
-	for i := 1; i < len(chunks); i++ {
-		if math.Abs(chunks[i]) > math.Abs(chunks[i-1])+1e-9 {
-			t.Fatalf("chunk %d (%v) is longer than chunk %d (%v); the curve is not easing out",
-				i, chunks[i], i-1, chunks[i-1])
-		}
+	tests := []struct {
+		name        string
+		delta       float64
+		steps       int
+		granularity float64
+	}{
+		{name: "continuous", delta: -1000, steps: 10},
+		{name: "wheel units", delta: -10, steps: 12, granularity: testWheelUnit},
 	}
 
-	if chunks[0] >= 0 {
-		t.Errorf("first chunk = %v, want a negative one for a negative delta", chunks[0])
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			chunks := scrollChunks(test.delta, test.steps, test.granularity, 0)
+
+			for index, chunk := range chunks {
+				if test.granularity > 0 {
+					units := chunk / test.granularity
+					if math.Abs(units-math.Round(units)) > 1e-9 {
+						t.Errorf("chunk %d = %v pixels, which is not a whole number of units",
+							index, chunk)
+					}
+				}
+
+				// On a granular backend the last chunk carries whatever
+				// truncation left over, which can be one unit after a run of
+				// zeros. The curve is read from the rest.
+				if test.granularity > 0 && index == len(chunks)-1 {
+					continue
+				}
+
+				if index > 0 && math.Abs(chunk) > math.Abs(chunks[index-1])+1e-9 {
+					t.Fatalf(
+						"chunk %d (%v) is longer than chunk %d (%v); the curve is not easing out",
+						index, chunk, index-1, chunks[index-1])
+				}
+			}
+
+			if chunks[0] >= 0 || chunks[0] <= test.delta {
+				t.Errorf("first chunk = %v, want a negative fraction of the %v delta",
+					chunks[0], test.delta)
+			}
+		})
 	}
 }
 
@@ -262,13 +308,15 @@ func TestAnimator_Animate_HoldsTheModifiersOfTheRequestThatIsRunning(t *testing.
 	}
 }
 
-// TestAnimator_Animate_StopsOnABackendThatDiesMidAnimation covers the
+// TestAnimator_Animate_GivesUpWhenTheBackendCannotOpenASession covers the
 // backend that passed the caller's availability check and then broke, such
 // as a dropped KDE portal grant or a lost compositor connection. There is no caller
-// left to return the error to, so the animation ends rather than spending its
-// whole duration failing once per step. The loud refusal belongs to
-// the caller's backend check, which runs before any of this.
-func TestAnimator_Animate_StopsOnABackendThatDiesMidAnimation(t *testing.T) {
+// left to return the error to, so the animation ends after one failed open
+// rather than spending its whole duration retrying once per step. The loud
+// refusal belongs to the caller's backend check, which runs before any of this.
+// A backend that dies after the session opened is
+// TestAnimator_Animate_AbandonsAnAnimationOnTheFirstFailedChunk.
+func TestAnimator_Animate_GivesUpWhenTheBackendCannotOpenASession(t *testing.T) {
 	var (
 		guard sync.Mutex
 		tries int
@@ -290,8 +338,19 @@ func TestAnimator_Animate_StopsOnABackendThatDiesMidAnimation(t *testing.T) {
 		guard.Lock()
 		defer guard.Unlock()
 
-		return tries == 1
+		return tries >= 1
 	})
+
+	// Well past the 30ms the animation would have run, so a retry per step
+	// would have tried again by now.
+	time.Sleep(60 * time.Millisecond)
+
+	guard.Lock()
+	defer guard.Unlock()
+
+	if tries != 1 {
+		t.Errorf("the animation tried to open a session %d times, want 1", tries)
+	}
 }
 
 // TestAnimator_Animate_IgnoresAnEmptyScroll keeps a zero delta from
@@ -765,64 +824,6 @@ func waitFor(t *testing.T, condition func() bool) {
 // 120 per notch and a notch is 30 pixels. Windows drives the animator with no
 // per-request cap.
 const testWheelUnit = 0.25
-
-// TestScrollChunks_TravelsTheRequestedDistanceInWheelUnits is the Windows half
-// of the distance property. Every chunk is a whole number of wheel units, so
-// the total is exact for any whole-pixel delta, a single pixel included.
-func TestScrollChunks_TravelsTheRequestedDistanceInWheelUnits(t *testing.T) {
-	tests := []struct {
-		name  string
-		delta float64
-		steps int
-	}{
-		{name: "one line down", delta: -50, steps: 20},
-		{name: "half a page up", delta: 500, steps: 20},
-		{name: "a single step", delta: 300, steps: 1},
-		{name: "more steps than pixels", delta: 7, steps: 64},
-		{name: "a single pixel", delta: 1, steps: 12},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			chunks := scrollChunks(test.delta, test.steps, testWheelUnit, 0)
-
-			if len(chunks) != test.steps {
-				t.Fatalf("got %d chunks, want %d", len(chunks), test.steps)
-			}
-
-			if got := sum(chunks); math.Abs(got-test.delta) > 1e-9 {
-				t.Errorf("chunks total %v, want %v", got, test.delta)
-			}
-		})
-	}
-}
-
-// TestScrollChunks_EasesOutInWholeWheelUnits pins the shape and the unit at
-// once. The early chunks are the long ones, and every chunk is a whole number
-// of wheel units, which is what lets the steps go below a notch without
-// SendInput rounding them.
-func TestScrollChunks_EasesOutInWholeWheelUnits(t *testing.T) {
-	chunks := scrollChunks(-10, 12, testWheelUnit, 0)
-
-	for index, chunk := range chunks {
-		if units := chunk / testWheelUnit; math.Abs(units-math.Round(units)) > 1e-9 {
-			t.Errorf("chunk %d = %v pixels, which is not a whole number of wheel units",
-				index, chunk)
-		}
-
-		// The last chunk carries whatever truncation left over, which can be
-		// one unit after a run of zeros. The curve is read from the rest.
-		if index > 0 && index < len(chunks)-1 &&
-			math.Abs(chunk) > math.Abs(chunks[index-1])+1e-9 {
-			t.Fatalf("chunk %d (%v) is longer than chunk %d (%v); the curve is not easing out",
-				index, chunk, index-1, chunks[index-1])
-		}
-	}
-
-	if chunks[0] >= 0 || chunks[0] <= -10 {
-		t.Errorf("first chunk = %v, want a negative fraction of the -10 pixel delta", chunks[0])
-	}
-}
 
 // TestAnimator_Stop_OpensNoSessionForARequestAlreadyTaken pins the stop check
 // around opening a session. A request the worker took just before Stop must

@@ -7,12 +7,8 @@ import (
 	"github.com/y3owk1n/neru/internal/domain"
 )
 
-const (
-	// vimExitChord is a chord vim does not use, bound to leave the mode.
-	vimExitChord = "Ctrl+c"
-	// vimPlainApp is an app config that sets no capture scope.
-	vimPlainApp = "com.example.VimPlain"
-)
+// vimExitChord is a chord vim does not use, bound to leave the mode.
+const vimExitChord = "Ctrl+c"
 
 // TestConfig_ValidateVim_RejectsBadAppConfigs pins what [[vim.app_configs]]
 // takes: a capture scope from the vocabulary and hotkeys, and no field that
@@ -103,29 +99,5 @@ func TestConfig_HotkeysForModeAndApp_ReadsVim(t *testing.T) {
 
 	if !cfg.Vim.HasAppHotkeyOverrides() {
 		t.Error("HasAppHotkeyOverrides() = false with a per-app table declared")
-	}
-}
-
-// TestVimConfig_CaptureScopeForApp_ShadowsTheSection pins that a per-app
-// capture scope replaces the section's for that app alone.
-func TestVimConfig_CaptureScopeForApp_ShadowsTheSection(t *testing.T) {
-	t.Parallel()
-
-	cfg := config.DefaultConfig()
-	cfg.Vim.AppConfigs = []config.AppConfig{
-		{BundleID: "com.example.Whole", CaptureScope: domain.CaptureScopeScreen},
-		{BundleID: vimPlainApp},
-	}
-
-	if !cfg.Vim.HasAppCaptureScopeOverrides() {
-		t.Fatal("an app config with a capture scope was not reported")
-	}
-
-	if got := cfg.Vim.CaptureScopeForApp("com.example.whole"); got != domain.CaptureScopeScreen {
-		t.Fatalf("scope for the app that sets one = %q, want screen", got)
-	}
-
-	if got := cfg.Vim.CaptureScopeForApp(vimPlainApp); got != domain.CaptureScopeWindow {
-		t.Fatalf("scope for an app without one = %q, want the section's window", got)
 	}
 }

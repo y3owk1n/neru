@@ -93,7 +93,6 @@ type Error struct {
 	code    Code
 	message string
 	cause   error
-	context map[string]any
 }
 
 // New creates a new domain error with the given code and message.
@@ -127,11 +126,6 @@ func (e *Error) Cause() error {
 	return e.cause
 }
 
-// Context returns the error context.
-func (e *Error) Context() map[string]any {
-	return e.context
-}
-
 // Error implements the error interface.
 func (e *Error) Error() string {
 	if e.cause != nil {
@@ -154,17 +148,6 @@ func (e *Error) Is(target error) bool {
 	}
 
 	return e.code == targetError.code
-}
-
-// WithContext adds context information to the error.
-func (e *Error) WithContext(key string, value any) *Error {
-	if e.context == nil {
-		e.context = make(map[string]any)
-	}
-
-	e.context[key] = value
-
-	return e
 }
 
 // Wrap wraps an existing error with a domain error code and message.

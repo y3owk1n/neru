@@ -147,7 +147,6 @@ var singleCharCache sync.Map // map[rune]string
 //   - LabelDirectionNormal (default) uses a prefix-avoidance greedy
 //     algorithm so shorter labels are preferred (e.g. "AAA", "AAB", "AAC").
 type AlphabetGenerator struct {
-	characters       string
 	uppercaseChars   string
 	maxHints         int
 	uppercaseRuneMap map[rune]rune
@@ -233,11 +232,6 @@ func (g *AlphabetGenerator) MaxHints() int {
 	return g.maxHints
 }
 
-// Characters returns the character set used for hint generation.
-func (g *AlphabetGenerator) Characters() string {
-	return g.characters
-}
-
 // LabelsForTesting exposes the internal label-generation algorithm so tests
 // can assert on the exact ordering produced by each LabelDirection. It must
 // not be called from production code. Use Generate instead. The slice is
@@ -249,12 +243,6 @@ func (g *AlphabetGenerator) LabelsForTesting(count int) []string {
 // LabelDirection returns the label generation direction.
 func (g *AlphabetGenerator) LabelDirection() LabelDirection {
 	return g.labelDirection
-}
-
-// UpdateCharacters updates the character set and recalculates max hints.
-// The label direction is preserved.
-func (g *AlphabetGenerator) UpdateCharacters(characters string) error {
-	return g.Update(characters, g.labelDirection)
 }
 
 // UpdateLabelDirection swaps the label generation direction. Character set
@@ -272,8 +260,7 @@ func (g *AlphabetGenerator) UpdateLabelAlternation(alternation LabelAlternation)
 }
 
 // Update replaces both the character set and label direction in a single
-// call. Callers that only need to change one field should prefer
-// UpdateCharacters or UpdateLabelDirection so the intent is explicit.
+// call.
 func (g *AlphabetGenerator) Update(characters string, direction LabelDirection) error {
 	if len(characters) < MinCharactersLength {
 		return derrors.Newf(
@@ -319,7 +306,6 @@ func (g *AlphabetGenerator) Update(characters string, direction LabelDirection) 
 	n := charCount
 	maxHints := n * n * n
 
-	g.characters = uppercaseChars
 	g.uppercaseChars = uppercaseChars
 	g.maxHints = maxHints
 	g.uppercaseRuneMap = uppercaseRuneMap

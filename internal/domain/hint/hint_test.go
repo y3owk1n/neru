@@ -15,6 +15,7 @@ const (
 	saveAsTitle   = "Save As"
 	dirNormalStr  = "normal"
 	dirReverseStr = "reverse"
+	charsABC      = "abc"
 )
 
 func TestNewHint(t *testing.T) {
@@ -76,90 +77,6 @@ func TestNewHint(t *testing.T) {
 				t.Errorf("Position() = %v, want %v", testHint.Position(), testCase.position)
 			}
 		})
-	}
-}
-
-func TestHint_HasPrefix(t *testing.T) {
-	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
-	testHint, _ := hint.NewHint("ASDF", elem, image.Point{})
-
-	tests := []struct {
-		prefix string
-		want   bool
-	}{
-		{"A", true},
-		{"AS", true},
-		{"ASD", true},
-		{"ASDF", true},
-		{"ASDFF", false},
-		{"B", false},
-		{"", true}, // Empty prefix matches everything
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.prefix, func(t *testing.T) {
-			got := testHint.HasPrefix(testCase.prefix)
-			if got != testCase.want {
-				t.Errorf("HasPrefix(%q) = %v, want %v", testCase.prefix, got, testCase.want)
-			}
-		})
-	}
-}
-
-func TestHint_Methods(t *testing.T) {
-	elem, _ := element.NewElement("test", image.Rect(10, 10, 50, 50), element.RoleButton)
-	testHint, _ := hint.NewHint("AS", elem, image.Point{X: 30, Y: 30})
-
-	if testHint.Element() != elem {
-		t.Error("Element() returned wrong element")
-	}
-
-	// MatchedPrefix starts empty.
-	if testHint.MatchedPrefix() != "" {
-		t.Errorf("MatchedPrefix() = %q, want empty string", testHint.MatchedPrefix())
-	}
-
-	hintWithPrefix := testHint.WithMatchedPrefix("A")
-	if hintWithPrefix.MatchedPrefix() != "A" {
-		t.Errorf(
-			"WithMatchedPrefix() MatchedPrefix() = %q, want %q",
-			hintWithPrefix.MatchedPrefix(),
-			"A",
-		)
-	}
-
-	// WithMatchedPrefix returns a new instance.
-	if hintWithPrefix == testHint {
-		t.Error("WithMatchedPrefix() should return a new instance")
-	}
-
-	bounds := testHint.Bounds()
-
-	expectedBounds := image.Rect(10, 10, 50, 50)
-	if bounds != expectedBounds {
-		t.Errorf("Bounds() = %v, want %v", bounds, expectedBounds)
-	}
-
-	screenBounds := image.Rect(0, 0, 100, 100)
-	if !testHint.IsVisible(screenBounds) {
-		t.Error("IsVisible() should return true for element within screen bounds")
-	}
-
-	smallScreen := image.Rect(60, 60, 100, 100)
-	if testHint.IsVisible(smallScreen) {
-		t.Error("IsVisible() should return false for element outside screen bounds")
-	}
-
-	if !testHint.MatchesLabel("AS") {
-		t.Error("MatchesLabel() should return true for exact match")
-	}
-
-	if testHint.MatchesLabel("A") {
-		t.Error("MatchesLabel() should return false for partial match")
-	}
-
-	if testHint.MatchesLabel("ASDF") {
-		t.Error("MatchesLabel() should return false for longer string")
 	}
 }
 
@@ -347,51 +264,6 @@ func TestCollection_FilterBySearch_SearchesAdditionalText(t *testing.T) {
 	}
 }
 
-func TestAlphabetGenerator_Generate(t *testing.T) {
-	generator, generatorErr := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
-	if generatorErr != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
-	}
-
-	elements := make([]*element.Element, 10)
-	for index := range elements {
-		elements[index], _ = element.NewElement(
-			element.ID("elem-"+string(rune('0'+index))),
-			image.Rect(index*10, index*10, index*10+50, index*10+50),
-			element.RoleButton,
-		)
-	}
-
-	ctx := context.Background()
-
-	hints, hintsErr := generator.Generate(ctx, elements)
-	if hintsErr != nil {
-		t.Fatalf("Generate() error: %v", hintsErr)
-	}
-
-	if len(hints) != len(elements) {
-		t.Errorf("Generate() returned %d hints, want %d", len(hints), len(elements))
-	}
-
-	seen := make(map[string]bool)
-	for _, hint := range hints {
-		if seen[hint.Label()] {
-			t.Errorf("Duplicate label: %s", hint.Label())
-		}
-
-		seen[hint.Label()] = true
-	}
-
-	for _, hint := range hints {
-		label := hint.Label()
-		for _, r := range label {
-			if r < 'A' || r > 'Z' {
-				t.Errorf("Label %q contains non-uppercase character", label)
-			}
-		}
-	}
-}
-
 func TestAlphabetGenerator_DeduplicatesCharacters(t *testing.T) {
 	t.Run("dedup duplicate chars", func(t *testing.T) {
 		generator, err := hint.NewAlphabetGenerator("aab", hint.LabelDirectionReverse)
@@ -421,78 +293,6 @@ func TestAlphabetGenerator_DeduplicatesCharacters(t *testing.T) {
 			t.Fatal("NewAlphabetGenerator() expected error for \"aA\" (1 unique char after dedup)")
 		}
 	})
-}
-
-func TestAlphabetGenerator_DeduplicateProducesUniqueLabels(t *testing.T) {
-	// With "aabc", deduped unique chars are "abc" (3 chars).
-	// 3^3 = 27 max hints, so 10 elements should get unique 2-char labels.
-	generator, err := hint.NewAlphabetGenerator("aabc", hint.LabelDirectionReverse)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
-	}
-
-	if got := generator.Characters(); got != "ABC" {
-		t.Fatalf("Characters() = %q, want %q (deduped)", got, "ABC")
-	}
-
-	elements := make([]*element.Element, 10)
-	for i := range elements {
-		elements[i], _ = element.NewElement(
-			element.ID(string(rune('0'+i))),
-			image.Rect(i*10, i*10, i*10+50, i*10+50),
-			element.RoleButton,
-		)
-	}
-
-	hints, err := generator.Generate(context.Background(), elements)
-	if err != nil {
-		t.Fatalf("Generate() error: %v", err)
-	}
-
-	seen := make(map[string]struct{}, len(hints))
-	for _, h := range hints {
-		label := h.Label()
-		if _, ok := seen[label]; ok {
-			t.Errorf("Duplicate label generated: %q (characters=%q)", label, "aabc")
-		}
-
-		seen[label] = struct{}{}
-	}
-
-	if len(seen) != len(hints) {
-		t.Errorf("Got %d unique labels for %d hints", len(seen), len(hints))
-	}
-}
-
-func TestAlphabetGenerator_MaxHints(t *testing.T) {
-	tests := []struct {
-		characters string
-		wantMax    int
-	}{
-		{"asdf", 64},       // 4^3 = 64
-		{"asd", 27},        // 3^3 = 27
-		{"asdfghjkl", 729}, // 9^3 = 729
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.characters, func(t *testing.T) {
-			generator, generatorErr := hint.NewAlphabetGenerator(
-				testCase.characters,
-				hint.LabelDirectionReverse,
-			)
-			if generatorErr != nil {
-				t.Fatalf("NewAlphabetGenerator() error: %v", generatorErr)
-			}
-
-			got := generator.MaxHints()
-			charCount := len(testCase.characters)
-			want := charCount * charCount * charCount
-
-			if got != want {
-				t.Errorf("MaxHints() = %d, want %d", got, want)
-			}
-		})
-	}
 }
 
 func TestAlphabetGenerator_TooManyElements(t *testing.T) {
@@ -530,120 +330,121 @@ func TestAlphabetGenerator_TooManyElements(t *testing.T) {
 }
 
 func TestAlphabetGenerator_ReverseDirection(t *testing.T) {
-	// Reverse direction emits fixed-length base-N labels. For "abc" with 9
-	// labels (3 single-char capacity is exceeded) every label is 2 chars
-	// and the output interleaves by leading character: AA, BA, CA, AB, BB,
-	// CB, AC, BC, CC.
-	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionReverse)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	tests := []struct {
+		name  string
+		count int
+		want  []string
+	}{
+		{
+			// When the count fits within the alphabet, reverse returns
+			// single-char labels in alphabetical order.
+			name:  "single char tier",
+			count: 3,
+			want:  []string{"A", "B", "C"},
+		},
+		{
+			// Reverse direction emits fixed-length base-N labels. With 9
+			// labels (3 single-char capacity is exceeded) every label is 2
+			// chars and the output interleaves by leading character.
+			name:  "two char tier interleaves",
+			count: 9,
+			want: []string{
+				"AA", "BA", "CA",
+				"AB", "BB", "CB",
+				"AC", "BC", "CC",
+			},
+		},
 	}
 
-	got := generator.LabelsForTesting(9)
-	want := []string{
-		"AA", "BA", "CA",
-		"AB", "BB", "CB",
-		"AC", "BC", "CC",
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionReverse)
+			if err != nil {
+				t.Fatalf("NewAlphabetGenerator() error: %v", err)
+			}
 
-	if !equalStringSlices(got, want) {
-		t.Errorf("LabelsForTesting(9) = %v, want %v", got, want)
-	}
-}
-
-func TestAlphabetGenerator_ReverseDirection_SingleCharTier(t *testing.T) {
-	// When the count fits within the alphabet, reverse returns single-char
-	// labels in alphabetical order.
-	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionReverse)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
-	}
-
-	got := generator.LabelsForTesting(3)
-	want := []string{"A", "B", "C"}
-
-	if !equalStringSlices(got, want) {
-		t.Errorf("LabelsForTesting(3) = %v, want %v", got, want)
+			got := generator.LabelsForTesting(testCase.count)
+			if !equalStringSlices(got, testCase.want) {
+				t.Errorf("LabelsForTesting(%d) = %v, want %v", testCase.count, got, testCase.want)
+			}
+		})
 	}
 }
 
 func TestAlphabetGenerator_NormalDirection(t *testing.T) {
-	// Normal direction uses the prefix-avoidance algorithm. For "abc" with 9
-	// labels it expands all 3 single-char slots into 9 two-char labels.
-	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionNormal)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
+	// Normal direction uses the prefix-avoidance algorithm.
+	tests := []struct {
+		name       string
+		characters string
+		count      int
+		want       []string
+	}{
+		{
+			// When the count fits within the alphabet, normal returns
+			// single-char labels in alphabetical order.
+			name:       "single char tier",
+			characters: charsABC,
+			count:      3,
+			want:       []string{"A", "B", "C"},
+		},
+		{
+			// For "abc" with 9 labels it expands all 3 single-char slots
+			// into 9 two-char labels.
+			name:       "two char tier",
+			characters: charsABC,
+			count:      9,
+			want: []string{
+				"AA", "AB", "AC",
+				"BA", "BB", "BC",
+				"CA", "CB", "CC",
+			},
+		},
+		{
+			// For "abcd" with 10 labels the algorithm keeps 2 single-char
+			// slots (A, B) and emits the remaining 8 two-char labels
+			// starting from "C".
+			name:       "mixed tiers",
+			characters: "abcd",
+			count:      10,
+			want: []string{
+				"A", "B",
+				"CA", "CB", "CC", "CD",
+				"DA", "DB", "DC", "DD",
+			},
+		},
+		{
+			// For "abc" with 15 labels: tier 1 holds 0 (capacity 3 < 15),
+			// tier 2 holds 6 (capacity 9 >= 15 needs 6 of them), tier 3
+			// holds 9. The 9 three-char labels continue from the base-N
+			// cursor [6,0,0].
+			name:       "expands to three chars",
+			characters: charsABC,
+			count:      15,
+			want: []string{
+				"AA", "AB", "AC",
+				"BA", "BB", "BC",
+				"CAA", "CAB", "CAC",
+				"CBA", "CBB", "CBC",
+				"CCA", "CCB", "CCC",
+			},
+		},
 	}
 
-	got := generator.LabelsForTesting(9)
-	want := []string{
-		"AA", "AB", "AC",
-		"BA", "BB", "BC",
-		"CA", "CB", "CC",
-	}
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			generator, err := hint.NewAlphabetGenerator(
+				testCase.characters,
+				hint.LabelDirectionNormal,
+			)
+			if err != nil {
+				t.Fatalf("NewAlphabetGenerator() error: %v", err)
+			}
 
-	if !equalStringSlices(got, want) {
-		t.Errorf("LabelsForTesting(9) = %v, want %v", got, want)
-	}
-}
-
-func TestAlphabetGenerator_NormalDirection_MixedTiers(t *testing.T) {
-	// For "abcd" with 10 labels the algorithm keeps 2 single-char slots
-	// (A, B) and emits the remaining 8 two-char labels starting from "C".
-	generator, err := hint.NewAlphabetGenerator("abcd", hint.LabelDirectionNormal)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
-	}
-
-	got := generator.LabelsForTesting(10)
-	want := []string{
-		"A", "B",
-		"CA", "CB", "CC", "CD",
-		"DA", "DB", "DC", "DD",
-	}
-
-	if !equalStringSlices(got, want) {
-		t.Errorf("LabelsForTesting(10) = %v, want %v", got, want)
-	}
-}
-
-func TestAlphabetGenerator_NormalDirection_ExpandsToThreeChars(t *testing.T) {
-	// For "abc" with 15 labels: tier 1 holds 0 (capacity 3 < 15), tier 2
-	// holds 6 (capacity 9 >= 15 needs 6 of them), tier 3 holds 9. The 9
-	// three-char labels continue from the base-N cursor [6,0,0] -> CAA,
-	// CAB, CAC, CBA, CBB, CBC, CCA, CCB, CCC.
-	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionNormal)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
-	}
-
-	got := generator.LabelsForTesting(15)
-	want := []string{
-		"AA", "AB", "AC",
-		"BA", "BB", "BC",
-		"CAA", "CAB", "CAC",
-		"CBA", "CBB", "CBC",
-		"CCA", "CCB", "CCC",
-	}
-
-	if !equalStringSlices(got, want) {
-		t.Errorf("LabelsForTesting(15) = %v, want %v", got, want)
-	}
-}
-
-func TestAlphabetGenerator_NormalDirection_SingleCharTier(t *testing.T) {
-	// When the count fits within the alphabet, normal returns single-char
-	// labels in alphabetical order.
-	generator, err := hint.NewAlphabetGenerator("abc", hint.LabelDirectionNormal)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
-	}
-
-	got := generator.LabelsForTesting(3)
-	want := []string{"A", "B", "C"}
-
-	if !equalStringSlices(got, want) {
-		t.Errorf("LabelsForTesting(3) = %v, want %v", got, want)
+			got := generator.LabelsForTesting(testCase.count)
+			if !equalStringSlices(got, testCase.want) {
+				t.Errorf("LabelsForTesting(%d) = %v, want %v", testCase.count, got, testCase.want)
+			}
+		})
 	}
 }
 
@@ -689,24 +490,6 @@ func TestAlphabetGenerator_DirectionsShareCacheKeys(t *testing.T) {
 			"after UpdateLabelDirection(reverse) LabelsForTesting(9) = %v, want %v",
 			got, reverseLabels,
 		)
-	}
-}
-
-func TestAlphabetGenerator_UpdatePreservesDirection(t *testing.T) {
-	// UpdateCharacters (the legacy call) must preserve the configured
-	// direction rather than reset it.
-	generator, err := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionNormal)
-	if err != nil {
-		t.Fatalf("NewAlphabetGenerator() error: %v", err)
-	}
-
-	err = generator.UpdateCharacters("qwer")
-	if err != nil {
-		t.Fatalf("UpdateCharacters() error: %v", err)
-	}
-
-	if got := generator.LabelDirection(); got != hint.LabelDirectionNormal {
-		t.Errorf("LabelDirection() = %v, want %v", got, hint.LabelDirectionNormal)
 	}
 }
 
@@ -791,36 +574,6 @@ func equalStringSlices(got, want []string) bool {
 	}
 
 	return true
-}
-
-func TestNewCollection(t *testing.T) {
-	element, _ := element.NewElement("test", image.Rect(0, 0, 50, 50), element.RoleButton)
-
-	hints := []*hint.Interface{
-		mustNewHint("A", element),
-		mustNewHint("AS", element),
-		mustNewHint("AD", element),
-		mustNewHint("AF", element),
-		mustNewHint("S", element),
-	}
-
-	collection := hint.NewCollection(hints)
-
-	if collection.Count() != 5 {
-		t.Errorf("Count() = %d, want 5", collection.Count())
-	}
-
-	hint := collection.FindByLabel("AS")
-	if hint == nil {
-		t.Error("FindByLabel(\"AS\") returned nil")
-	} else if hint.Label() != "AS" {
-		t.Errorf("FindByLabel(\"AS\") returned hint with label %q", hint.Label())
-	}
-
-	filtered := collection.FilterByPrefix("A")
-	if len(filtered) != 4 { // A, AS, AD, AF
-		t.Errorf("FilterByPrefix(\"A\") returned %d hints, want 4", len(filtered))
-	}
 }
 
 func TestCollection_FilterByPrefix(t *testing.T) {

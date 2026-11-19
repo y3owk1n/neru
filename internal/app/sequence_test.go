@@ -17,41 +17,34 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/state"
 )
 
-// sequenceTestCommand is the fake IPC command the sequence tests dispatch, so
+// sequenceTestCommand is the fake IPC command the sequence test dispatches, so
 // a step exercises the real executeHotkeyAction path without depending on any
 // service.
-const (
-	leftClickStep       = "action left_click"
-	sequenceTestCommand = "step"
+const sequenceTestCommand = "step"
 
-	failureMessage = "boom"
-	bailMessage    = "mode exited without selection"
-
-	stepOne   = "step one"
-	stepTwo   = "step two"
-	stepThree = "step three"
-)
+// stepOne is the first step the sequence tests dispatch.
+const stepOne = "step one"
 
 // stepRecorder answers the fake step command, recording every step a sequence
-// dispatched and deciding how each one replies.
+// dispatched. A step equal to fail is answered with a failure.
 type stepRecorder struct {
-	respond func(ctx context.Context, step string) ipc.Response
-	steps   []string
-	mu      sync.Mutex
+	steps []string
+	fail  string
+	mu    sync.Mutex
 }
 
-func (r *stepRecorder) handle(ctx context.Context, cmd ipc.Command) ipc.Response {
+func (r *stepRecorder) handle(_ context.Context, cmd ipc.Command) ipc.Response {
 	step := strings.TrimSpace(cmd.Action + " " + strings.Join(cmd.Args, " "))
 
 	r.mu.Lock()
 	r.steps = append(r.steps, step)
 	r.mu.Unlock()
 
-	if r.respond == nil {
-		return ipc.Response{Success: true, Message: "ok", Code: ipc.CodeOK}
+	if step == r.fail {
+		return ipc.Response{Success: false, Message: "boom", Code: ipc.CodeActionFailed}
 	}
 
-	return r.respond(ctx, step)
+	return ipc.Response{Success: true, Message: "ok", Code: ipc.CodeOK}
 }
 
 func (r *stepRecorder) recorded() []string {
@@ -64,7 +57,8 @@ func (r *stepRecorder) recorded() []string {
 // newSequenceTestApp builds a whitebox App whose IPC controller answers the
 // fake step command with the recorder. Everything the executor touches, the
 // logger, the app context and the controller, is real. Only the command the
-// steps name is fake.
+// steps name is fake. Initialization never ran, so the App has no executor of
+// its own yet.
 func newSequenceTestApp(t *testing.T, recorder *stepRecorder) *App {
 	t.Helper()
 
@@ -93,11 +87,15 @@ func newSequenceTestApp(t *testing.T, recorder *stepRecorder) *App {
 	return application
 }
 
+// TestExecuteActionSequence_RunsEveryStepInOrder pins the fallback a sequence
+// takes before startup has built the executor. The App builds one from its own
+// controller and runs the steps through it. Executor semantics are tested in
+// internal/app/sequence.
 func TestExecuteActionSequence_RunsEveryStepInOrder(t *testing.T) {
 	recorder := &stepRecorder{}
 	application := newSequenceTestApp(t, recorder)
 
-	steps := []string{stepOne, stepTwo, stepThree}
+	steps := []string{stepOne, "step two", "step three"}
 
 	outcome := application.sequences().Run(context.Background(), "test", steps)
 
@@ -114,476 +112,22 @@ func TestExecuteActionSequence_RunsEveryStepInOrder(t *testing.T) {
 	}
 }
 
-func TestExecuteActionSequence_SkipsBlankSteps(t *testing.T) {
-	recorder := &stepRecorder{}
-	application := newSequenceTestApp(t, recorder)
-
-	outcome := application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{"", stepOne, "   ", stepTwo},
-	)
-
-	if outcome.Executed != 2 {
-		t.Fatalf("executed = %d, want 2 (blank steps should not count)", outcome.Executed)
-	}
-
-	want := []string{stepOne, stepTwo}
-	if got := recorder.recorded(); !slices.Equal(got, want) {
-		t.Fatalf("dispatched %v, want %v", got, want)
-	}
-}
-
-func TestExecuteActionSequence_StopsOnBail(t *testing.T) {
-	recorder := &stepRecorder{
-		respond: func(_ context.Context, step string) ipc.Response {
-			if step == stepTwo {
-				return ipc.Response{
-					Success: false,
-					Message: bailMessage,
-					Code:    ipc.CodeChainBail,
-				}
-			}
-
-			return ipc.Response{Success: true, Code: ipc.CodeOK}
-		},
-	}
-	application := newSequenceTestApp(t, recorder)
-
-	outcome := application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{stepOne, stepTwo, stepThree},
-	)
-
-	if !outcome.Bailed {
-		t.Fatal("outcome.Bailed = false, want true")
-	}
-
-	if outcome.Executed != 2 || outcome.FailedIndex != 2 {
-		t.Fatalf("executed = %d, failedIndex = %d, want 2 and 2",
-			outcome.Executed, outcome.FailedIndex)
-	}
-
-	want := []string{stepOne, stepTwo}
-	if got := recorder.recorded(); !slices.Equal(got, want) {
-		t.Fatalf("dispatched %v, want %v (a bail must stop the sequence)", got, want)
-	}
-}
-
-func TestExecuteActionSequence_ContinuesAfterStepFailure(t *testing.T) {
-	recorder := &stepRecorder{
-		respond: func(_ context.Context, step string) ipc.Response {
-			if step == stepOne {
-				return ipc.Response{
-					Success: false,
-					Message: "boom",
-					Code:    ipc.CodeActionFailed,
-				}
-			}
-
-			return ipc.Response{Success: true, Code: ipc.CodeOK}
-		},
-	}
-	application := newSequenceTestApp(t, recorder)
-
-	steps := []string{stepOne, stepTwo, stepThree}
-
-	outcome := application.sequences().Run(context.Background(), "test", steps)
-
-	if outcome.Bailed {
-		t.Fatal("outcome.Bailed = true, want false for a regular failure")
-	}
-
-	if outcome.Err == nil {
-		t.Fatal("outcome.Err = nil, want the first step error")
-	}
-
-	if outcome.FailedStep != stepOne || outcome.FailedIndex != 1 {
-		t.Fatalf("failedStep = %q at %d, want %q at 1",
-			outcome.FailedStep, outcome.FailedIndex, stepOne)
-	}
-
-	if outcome.Executed != len(steps) {
-		t.Fatalf("executed = %d, want %d (a regular failure must not stop the sequence)",
-			outcome.Executed, len(steps))
-	}
-}
-
-// A step can start another sequence ("run" is itself an action), so the depth
-// carried through the step context is what stops a binding that refers back to
-// itself from recursing without bound.
-func TestExecuteActionSequence_StopsRunawayNesting(t *testing.T) {
-	var (
-		application *App
-		depth       int
-		depthMu     sync.Mutex
-	)
-
-	recorder := &stepRecorder{
-		respond: func(ctx context.Context, _ string) ipc.Response {
-			depthMu.Lock()
-			depth++
-			depthMu.Unlock()
-
-			application.sequences().Run(ctx, "nested", []string{"step deeper"})
-
-			return ipc.Response{Success: true, Code: ipc.CodeOK}
-		},
-	}
-
-	application = newSequenceTestApp(t, recorder)
-
-	application.sequences().Run(context.Background(), "test", []string{stepOne})
-
-	depthMu.Lock()
-	defer depthMu.Unlock()
-
-	if depth != sequence.MaxDepth {
-		t.Fatalf("nested %d levels, want the guard to stop at %d", depth, sequence.MaxDepth)
-	}
-}
-
-// A step marked fatal ends the sequence, while an unmarked failure beside it
-// does not. That is the whole point of making the policy explicit per step.
-func TestExecuteActionSequence_StopsAtAFatalStep(t *testing.T) {
-	recorder := &stepRecorder{
-		respond: func(_ context.Context, step string) ipc.Response {
-			if step == stepTwo {
-				return ipc.Response{
-					Success: false,
-					Message: failureMessage,
-					Code:    ipc.CodeActionFailed,
-				}
-			}
-
-			return ipc.Response{Success: true, Code: ipc.CodeOK}
-		},
-	}
-	application := newSequenceTestApp(t, recorder)
-
-	outcome := application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{stepOne, stepTwo + " " + sequence.BailOnErrorFlag, stepThree},
-	)
-
-	if !outcome.Stopped {
-		t.Fatal("outcome.Stopped = false, want the sequence to end at the fatal step")
-	}
-
-	if outcome.Bailed {
-		t.Fatal("outcome.Bailed = true, want false: a failure is not a chain bail")
-	}
-
-	// The directive is a sequencing instruction, so the step must be dispatched
-	// without it, or the action's own flag parser would reject it.
-	want := []string{stepOne, stepTwo}
-	if got := recorder.recorded(); !slices.Equal(got, want) {
-		t.Fatalf("dispatched %v, want %v", got, want)
-	}
-}
-
+// TestExecuteActionSequence_StopOnErrorPolicyMarksEveryStep pins that the
+// App wrapper hands the caller's policy to the executor, so `run
+// --stop-on-error` stops at the first failing step.
 func TestExecuteActionSequence_StopOnErrorPolicyMarksEveryStep(t *testing.T) {
-	recorder := &stepRecorder{
-		respond: func(_ context.Context, step string) ipc.Response {
-			if step == stepOne {
-				return ipc.Response{
-					Success: false,
-					Message: failureMessage,
-					Code:    ipc.CodeActionFailed,
-				}
-			}
-
-			return ipc.Response{Success: true, Code: ipc.CodeOK}
-		},
-	}
+	recorder := &stepRecorder{fail: stepOne}
 	application := newSequenceTestApp(t, recorder)
 
 	outcome := application.executeActionSequenceWithPolicy(
 		context.Background(),
 		"test",
-		[]string{stepOne, stepTwo},
+		[]string{stepOne, "step two"},
 		sequence.Policy{StopOnError: true},
 	)
 
 	if !outcome.Stopped || outcome.Executed != 1 {
 		t.Fatalf("stopped = %v after %d steps, want a stop at the first",
 			outcome.Stopped, outcome.Executed)
-	}
-}
-
-func TestSplitBailOnError(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		step      string
-		wantStep  string
-		wantFatal bool
-		wantErr   bool
-	}{
-		{
-			name:      "trailing directive is consumed",
-			step:      "action left_click " + sequence.BailOnErrorFlag,
-			wantStep:  leftClickStep,
-			wantFatal: true,
-		},
-		{
-			name:     "no directive",
-			step:     leftClickStep,
-			wantStep: leftClickStep,
-		},
-		{
-			// The text appears inside a quoted argument, so it belongs to the
-			// step rather than to the sequence.
-			name:     "quoted text is not a directive",
-			step:     `exec sh -c "echo ` + sequence.BailOnErrorFlag + `"`,
-			wantStep: `exec sh -c "echo ` + sequence.BailOnErrorFlag + `"`,
-		},
-		{
-			// Quoted as the final argument, so the author wants the text, not the
-			// directive, and the step must reach the action unchanged.
-			name:     "quoted final token is an argument",
-			step:     `exec printf '` + sequence.BailOnErrorFlag + `'`,
-			wantStep: `exec printf '` + sequence.BailOnErrorFlag + `'`,
-		},
-		{
-			name:    "directive in the middle is rejected",
-			step:    "action left_click " + sequence.BailOnErrorFlag + " --bare",
-			wantErr: true,
-		},
-		{
-			name:     "directive alone is not a step",
-			step:     sequence.BailOnErrorFlag,
-			wantStep: sequence.BailOnErrorFlag,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			gotStep, gotFatal, gotErr := sequence.SplitBailOnError(testCase.step)
-
-			if (gotErr != nil) != testCase.wantErr {
-				t.Fatalf("error = %v, wantErr = %v", gotErr, testCase.wantErr)
-			}
-
-			if testCase.wantErr {
-				return
-			}
-
-			if gotStep != testCase.wantStep || gotFatal != testCase.wantFatal {
-				t.Fatalf("sequence.SplitBailOnError(%q) = (%q, %v), want (%q, %v)",
-					testCase.step, gotStep, gotFatal, testCase.wantStep, testCase.wantFatal)
-			}
-		})
-	}
-}
-
-// A misplaced directive must not be dispatched as though it were part of the
-// action, because the action's flag parser would reject it with a message that
-// says nothing about sequencing.
-func TestExecuteActionSequence_RejectsMisplacedDirective(t *testing.T) {
-	recorder := &stepRecorder{}
-	application := newSequenceTestApp(t, recorder)
-
-	outcome := application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{stepOne + " " + sequence.BailOnErrorFlag + " --bare", stepTwo},
-	)
-
-	if !outcome.Stopped || outcome.Err == nil {
-		t.Fatalf("outcome = %+v, want a stop with an error", outcome)
-	}
-
-	if got := recorder.recorded(); len(got) != 0 {
-		t.Fatalf("dispatched %v, want nothing: the step was never valid", got)
-	}
-}
-
-// macroTestApp is a sequence test app whose config defines the given macros.
-func macroTestApp(t *testing.T, recorder *stepRecorder, macros map[string][]string) *App {
-	t.Helper()
-
-	application := newSequenceTestApp(t, recorder)
-
-	table := make(map[string]config.StringOrStringArray, len(macros))
-	for name, steps := range macros {
-		table[name] = steps
-	}
-
-	application.config.Macros = table
-
-	return application
-}
-
-func TestExecuteActionSequence_ExpandsAMacro(t *testing.T) {
-	recorder := &stepRecorder{}
-	application := macroTestApp(t, recorder, map[string][]string{
-		"two": {stepOne, stepTwo},
-	})
-
-	outcome := application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{"macro two", stepThree},
-	)
-
-	if outcome.Err != nil {
-		t.Fatalf("outcome.Err = %v, want nil", outcome.Err)
-	}
-
-	// The caller counts the step it wrote, not the steps the macro carried.
-	if outcome.Executed != 2 {
-		t.Fatalf("executed = %d, want 2", outcome.Executed)
-	}
-
-	want := []string{stepOne, stepTwo, stepThree}
-	if got := recorder.recorded(); !slices.Equal(got, want) {
-		t.Fatalf("dispatched %v, want %v", got, want)
-	}
-}
-
-func TestExecuteActionSequence_SubstitutesMacroArguments(t *testing.T) {
-	recorder := &stepRecorder{}
-	application := macroTestApp(t, recorder, map[string][]string{
-		"say": {"step $2 $1"},
-	})
-
-	application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{"macro say alpha beta"},
-	)
-
-	want := []string{"step beta alpha"}
-	if got := recorder.recorded(); !slices.Equal(got, want) {
-		t.Fatalf("dispatched %v, want %v", got, want)
-	}
-}
-
-func TestExecuteActionSequence_RejectsBadMacroCalls(t *testing.T) {
-	tests := []struct {
-		name string
-		step string
-	}{
-		{name: "unknown macro", step: "macro nope"},
-		{name: "too few arguments", step: "macro needs_two alpha"},
-		{name: "too many arguments", step: "macro needs_two alpha beta gamma"},
-		{name: "no name", step: "macro"},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			recorder := &stepRecorder{}
-			application := macroTestApp(t, recorder, map[string][]string{
-				"needs_two": {"step $1 $2"},
-			})
-
-			outcome := application.sequences().Run(
-				context.Background(),
-				"test",
-				[]string{testCase.step},
-			)
-
-			if outcome.Err == nil {
-				t.Fatalf("outcome.Err = nil, want a rejection of %q", testCase.step)
-			}
-
-			if got := recorder.recorded(); len(got) != 0 {
-				t.Fatalf("dispatched %v, want nothing", got)
-			}
-		})
-	}
-}
-
-// A macro that invokes itself is a runaway sequence, and the depth guard is
-// what stops it, the same guard that bounds a nested run.
-func TestExecuteActionSequence_StopsASelfInvokingMacro(t *testing.T) {
-	recorder := &stepRecorder{}
-	application := macroTestApp(t, recorder, map[string][]string{
-		"loop": {stepOne, "macro loop"},
-	})
-
-	outcome := application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{"macro loop"},
-	)
-
-	if outcome.Err == nil {
-		t.Fatal("outcome.Err = nil, want the depth guard to stop the recursion")
-	}
-
-	if got := len(recorder.recorded()); got != sequence.MaxDepth-1 {
-		t.Fatalf("dispatched %d steps, want the guard to stop at %d", got, sequence.MaxDepth-1)
-	}
-}
-
-// A canceled mode inside a macro must still read as a bail to the caller,
-// rather than as an ordinary failure it might carry on past.
-func TestExecuteActionSequence_PropagatesABailOutOfAMacro(t *testing.T) {
-	recorder := &stepRecorder{
-		respond: func(_ context.Context, step string) ipc.Response {
-			if step == stepOne {
-				return ipc.Response{
-					Success: false,
-					Message: bailMessage,
-					Code:    ipc.CodeChainBail,
-				}
-			}
-
-			return ipc.Response{Success: true, Code: ipc.CodeOK}
-		},
-	}
-	application := macroTestApp(t, recorder, map[string][]string{
-		"bails": {stepOne},
-	})
-
-	outcome := application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{"macro bails", stepTwo},
-	)
-
-	if !outcome.Bailed || !outcome.Stopped {
-		t.Fatalf("outcome bailed=%v stopped=%v, want both", outcome.Bailed, outcome.Stopped)
-	}
-
-	if got := recorder.recorded(); !slices.Equal(got, []string{stepOne}) {
-		t.Fatalf("dispatched %v, want the sequence to stop after the macro", got)
-	}
-}
-
-// The bail directive is consumed before the call is parsed, so it must not be
-// mistaken for one of the macro's arguments.
-func TestExecuteActionSequence_BailDirectiveIsNotAMacroArgument(t *testing.T) {
-	recorder := &stepRecorder{
-		respond: func(_ context.Context, _ string) ipc.Response {
-			return ipc.Response{Success: false, Message: failureMessage, Code: ipc.CodeActionFailed}
-		},
-	}
-	application := macroTestApp(t, recorder, map[string][]string{
-		"needs_two": {"step $1 $2"},
-	})
-
-	outcome := application.sequences().Run(
-		context.Background(),
-		"test",
-		[]string{"macro needs_two alpha beta " + sequence.BailOnErrorFlag, stepThree},
-	)
-
-	// The call is well-formed. It is the macro's own step that fails, and the
-	// directive makes that failure end the calling sequence.
-	if !outcome.Stopped {
-		t.Fatalf("outcome = %+v, want the directive to stop the sequence", outcome)
-	}
-
-	want := []string{"step alpha beta"}
-	if got := recorder.recorded(); !slices.Equal(got, want) {
-		t.Fatalf("dispatched %v, want %v", got, want)
 	}
 }

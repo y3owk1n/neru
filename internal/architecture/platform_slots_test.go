@@ -32,16 +32,29 @@ var knownOS = []string{osDarwin, osLinux, osWindows}
 // The set is derived from the tree rather than listed by hand. A hand-written
 // list would have to be edited every time a backend becomes its own package,
 // and the edit would look identical whether it was correct or was papering over
-// a package that is not actually single-platform. Deriving it means the
-// exemption is only ever granted to a directory that has earned it.
+// a package that is not actually single-platform.
+//
+// A directory joins it two ways. A path segment named after an OS puts it in
+// unconditionally, because that name is what the One Rule test and depguard
+// exempt, so the tag check must judge every such directory whatever its files
+// say. Any other directory joins only when every file in it targets the same
+// single OS, which is what lets atspi or kwin skip the suffix.
 func wholePlatformDirs(t *testing.T) map[string]string {
 	t.Helper()
+
+	whole := map[string]string{}
 
 	// candidates maps a directory to the single OS every constrained file in it
 	// targets, or to "" once a file contradicts that.
 	candidates := map[string]string{}
 
 	for _, file := range goFiles(t) {
+		if namedOS := dirOS(file.dir); namedOS != "" {
+			whole[file.dir] = namedOS
+
+			continue
+		}
+
 		if file.base == docGoFile {
 			continue
 		}
@@ -63,8 +76,6 @@ func wholePlatformDirs(t *testing.T) map[string]string {
 		}
 	}
 
-	whole := map[string]string{}
-
 	for dir, targetOS := range candidates {
 		if targetOS != "" {
 			whole[dir] = targetOS
@@ -72,6 +83,20 @@ func wholePlatformDirs(t *testing.T) map[string]string {
 	}
 
 	return whole
+}
+
+// dirOS returns the OS a directory is named for, taken from its deepest path
+// segment equal to a known GOOS, or "" when no segment is one. A subdirectory
+// of linux/ is linux code, the same way "/darwin/" anywhere in a path is enough
+// for the One Rule test.
+func dirOS(dir string) string {
+	for _, segment := range slices.Backward(strings.Split(dir, "/")) {
+		if slices.Contains(knownOS, segment) {
+			return segment
+		}
+	}
+
+	return ""
 }
 
 // fallbackSuffixes are the only legal names for a file whose build constraint
@@ -235,8 +260,12 @@ func checkCgoSuffix(t *testing.T, file goFile, constraints fileConstraint) {
 // package exemption. Files there may skip the OS suffix precisely because the
 // package is single-platform, which only holds if every file declares the tag.
 // An untagged file would compile into every build and break cross-compilation.
+// In a darwin/ directory it is worse. The One Rule test and depguard exempt
+// the whole directory, so an untagged file there could import the darwin
+// bridge from every build and nothing else would object.
 func TestPlatformPackagesTagEveryFile(t *testing.T) {
 	whole := wholePlatformDirs(t)
+	fileSet := token.NewFileSet()
 
 	for _, file := range goFiles(t) {
 		wantOS, single := whole[file.dir]
@@ -245,8 +274,23 @@ func TestPlatformPackagesTagEveryFile(t *testing.T) {
 		}
 
 		// doc.go is allowed to stay untagged so `go vet ./...` can resolve the
-		// package on other hosts. It holds only the package comment.
-		if file.base == docGoFile {
+		// package on other hosts. It must hold only the package comment, or it
+		// becomes the untagged file this test exists to refuse.
+		if file.base == docGoFile && !parseConstraint(t, file.absPath).hasConstraint {
+			parsed, err := parser.ParseFile(fileSet, file.absPath, nil, parser.ImportsOnly)
+			if err != nil {
+				t.Fatalf("ParseFile(%s) error = %v", file.relPath, err)
+			}
+
+			if len(parsed.Imports) > 0 {
+				t.Errorf(
+					"%s: an untagged doc.go in %s must import nothing, it holds "+
+						"only the package comment",
+					file.relPath,
+					file.dir,
+				)
+			}
+
 			continue
 		}
 
@@ -254,7 +298,7 @@ func TestPlatformPackagesTagEveryFile(t *testing.T) {
 
 		if !constraints.hasConstraint {
 			t.Errorf(
-				"%s: every file in %s must declare //go:build %s — the package "+
+				"%s: every file in %s must declare //go:build %s, the package "+
 					"is single-platform and nothing else keeps it out of other builds",
 				file.relPath,
 				file.dir,

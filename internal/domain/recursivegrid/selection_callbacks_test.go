@@ -63,8 +63,9 @@ func TestManager_HandleInput_SelectionCallbacksAreNotInterchangeable(t *testing.
 
 	// That 50x50 cell cannot divide (halving it falls under the 50px minimum),
 	// so the next keystroke resolves the selection.
-	_, completed = manager.HandleInput("k")
+	point, completed := manager.HandleInput("k")
 	require.True(t, completed, "the selection at the final depth resolves")
+	assert.Equal(t, image.Point{X: 38, Y: 38}, point, "HandleInput returns the completed point")
 
 	assert.Equal(t, []selectionEvent{
 		{callback: updateCallback, point: image.Point{X: 25, Y: 25}},

@@ -116,37 +116,6 @@ func (a *smoothCursorAnimator) animateForTest(
 	})
 }
 
-// TestCursorAnimator_PendingTarget pins the pending-target contract relative
-// moves build on. The endpoint of the animation in flight is visible while it
-// is pending and gone once the animation is stopped. Without it, each held-key
-// repeat would restart from the mid-animation cursor position and silently
-// drop the un-animated remainder of every delta.
-func TestCursorAnimator_PendingTarget(t *testing.T) {
-	animator := testAnimator()
-
-	if _, ok := animator.pendingTarget(); ok {
-		t.Fatal("pendingTarget() reported an animation before any was submitted")
-	}
-
-	end := image.Point{X: 120, Y: 80}
-	animator.submitForTest(end)
-
-	got, ok := animator.pendingTarget()
-	if !ok {
-		t.Fatal("pendingTarget() reported no animation while one is pending")
-	}
-
-	if got != end {
-		t.Fatalf("pendingTarget() = %v, want %v", got, end)
-	}
-
-	animator.stop()
-
-	if _, ok := animator.pendingTarget(); ok {
-		t.Fatal("pendingTarget() still reports an animation after stop()")
-	}
-}
-
 // TestCursorAnimator_FinishOrNext guards the completion path. Reaching a
 // target ends the session only when nothing newer is queued. A target that
 // superseded this one continues the same session, keeping its waiters
@@ -294,6 +263,8 @@ func TestCursorAnimator_AnimateRelativeBy_ConcurrentDeltasCompose(t *testing.T) 
 // settle(). It hands back the in-flight endpoint exactly once, releases
 // waiters, invalidates queued steps, and reports ok == false on an idle
 // animator so no settle warp is posted when there is nothing to finish.
+// stop() clears the pending endpoint the same way, or a relative move after
+// it would extend an animation that no longer exists.
 func TestCursorAnimator_TakePendingForSettle(t *testing.T) {
 	animator := testAnimator()
 
@@ -322,6 +293,13 @@ func TestCursorAnimator_TakePendingForSettle(t *testing.T) {
 
 	if animator.postIfCurrent(generation, end, 0, 0) {
 		t.Fatal("a step from the settled animation was still posted after settle")
+	}
+
+	animator.submitForTest(end)
+	animator.stop()
+
+	if _, ok := animator.pendingTarget(); ok {
+		t.Fatal("pendingTarget() still reports an animation after stop()")
 	}
 }
 

@@ -176,60 +176,52 @@ func TestSubgridCells_CoversTheCellExactly(t *testing.T) {
 // moves the cursor to are the same arithmetic, so the cursor has to land in the
 // cell the key was written on. Four copies of that arithmetic used to agree by
 // coincidence.
+//
+// The shipped subgrid is 3x3, so a manager that had its two counts the wrong
+// way round would divide the cell into exactly the same nine rectangles. The
+// non-square row is the only shape that can tell a row count from a column
+// count. Without it the mistake would surface only for whoever configured a
+// subgrid that was not square, and would look like a rendering bug rather than
+// a swapped pair.
 func TestManager_SubgridSelectionLandsInsideTheCellItDrew(t *testing.T) {
-	const configured = "asdfghjkl"
+	const shippedKeys = "asdfghjkl"
 
-	drawn := grid.SubgridKeys(configured, domain.SubgridRows*domain.SubgridCols)
-
-	for index, key := range drawn {
-		manager, opened := newSubgridKeyManager(t, configured)
-
-		cells := grid.SubgridCells(opened, domain.SubgridDimensions())
-
-		point, selected := manager.HandleInput(string(key))
-		if !selected {
-			t.Fatalf("subgrid refused %q, which it is drawn with", string(key))
-		}
-
-		if !point.In(cells[index]) {
-			t.Errorf("key %q draws %v but moves the cursor to %v",
-				string(key), cells[index], point)
-		}
-	}
-}
-
-// TestManager_SubgridSelectionLandsInsideTheCellItDrew_NonSquare is the same
-// check on a subgrid whose two counts differ, which is the only shape that can
-// tell a row count from a column count. The shipped subgrid is 3x3, so a
-// manager that had its two counts the wrong way round would divide the cell
-// into exactly the same nine rectangles and this whole file would still pass.
-// The mistake would surface only for whoever configured a subgrid that was not
-// square, and would look like a rendering bug rather than a swapped pair.
-func TestManager_SubgridSelectionLandsInsideTheCellItDrew_NonSquare(t *testing.T) {
-	// Four columns over two rows, and eight keys to name the eight cells.
-	dims := domain.GridDimensions{Rows: 2, Cols: 4}
-
-	const configured = "asdfghjk"
-
-	drawn := grid.SubgridKeys(configured, dims.CellCount())
-	if len(drawn) != dims.CellCount() {
-		t.Fatalf("SubgridKeys(%q) drew %d keys, want %d",
-			configured, len(drawn), dims.CellCount())
+	testCases := []struct {
+		name       string
+		dims       domain.GridDimensions
+		configured string
+	}{
+		{name: "shipped", dims: domain.SubgridDimensions(), configured: shippedKeys},
+		{
+			name:       "four columns over two rows",
+			dims:       domain.GridDimensions{Rows: 2, Cols: 4},
+			configured: "asdfghjk",
+		},
 	}
 
-	for index, key := range drawn {
-		manager, opened := newSubgridManager(t, dims, configured)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			drawn := grid.SubgridKeys(testCase.configured, testCase.dims.CellCount())
+			if len(drawn) != testCase.dims.CellCount() {
+				t.Fatalf("SubgridKeys(%q) drew %d keys, want %d",
+					testCase.configured, len(drawn), testCase.dims.CellCount())
+			}
 
-		cells := grid.SubgridCells(opened, dims)
+			for index, key := range drawn {
+				manager, opened := newSubgridManager(t, testCase.dims, testCase.configured)
 
-		point, selected := manager.HandleInput(string(key))
-		if !selected {
-			t.Fatalf("subgrid refused %q, which it is drawn with", string(key))
-		}
+				cells := grid.SubgridCells(opened, testCase.dims)
 
-		if !point.In(cells[index]) {
-			t.Errorf("key %q draws %v but moves the cursor to %v",
-				string(key), cells[index], point)
-		}
+				point, selected := manager.HandleInput(string(key))
+				if !selected {
+					t.Fatalf("subgrid refused %q, which it is drawn with", string(key))
+				}
+
+				if !point.In(cells[index]) {
+					t.Errorf("key %q draws %v but moves the cursor to %v",
+						string(key), cells[index], point)
+				}
+			}
+		})
 	}
 }

@@ -149,21 +149,53 @@ func TestEventTap_HandleKey_ConsumesShiftOnlyChordsWithPassthroughOn(t *testing.
 }
 
 // A chord RegisterHotKey owns is handed back undispatched whether or not
-// passthrough is on, so exactly one of the two runs the binding.
+// passthrough is on, so exactly one of the two runs the binding. The hook reads
+// a chord in its own spelling and casing, so the match is on the normalized
+// form. The list is replaced, not added to, so a chord that stopped being
+// registered goes back to the mode.
 func TestEventTap_HandleKey_HandsARegisteredHotkeyBack(t *testing.T) {
 	t.Parallel()
 
 	eventTap := newTestTap(t)
-	eventTap.SetHotkeys([]string{"Ctrl+G"})
+	eventTap.SetHotkeys([]string{"Ctrl+H"})
+	eventTap.SetHotkeys([]string{"Ctrl+G", "Ctrl+Alt+;"})
 	eventTap.SetModifierPassthrough(false, nil)
 
-	dispatched, consumed := routedKey(t, eventTap, "Ctrl+G")
+	tests := []struct {
+		key        string
+		handedBack bool
+	}{
+		{key: "Ctrl+G", handedBack: true},
+		{key: "ctrl+g", handedBack: true},
+		{key: "Ctrl+g", handedBack: true},
+		// Primary is the platform alias, which is Ctrl here.
+		{key: "Primary+G", handedBack: true},
+		{key: "Ctrl+Alt+;", handedBack: true},
+		// Registered before the list was replaced.
+		{key: "Ctrl+H", handedBack: false},
+		{key: "Ctrl+Shift+G", handedBack: false},
+	}
 
-	if consumed || len(dispatched) != 0 {
-		t.Errorf(
-			"consumed=%v dispatched=%v, want the chord left to RegisterHotKey",
-			consumed,
-			dispatched,
-		)
+	for _, test := range tests {
+		dispatched, consumed := routedKey(t, eventTap, test.key)
+
+		if test.handedBack && (consumed || len(dispatched) != 0) {
+			t.Errorf(
+				"%q: consumed=%v dispatched=%v, want the chord left to RegisterHotKey",
+				test.key,
+				consumed,
+				dispatched,
+			)
+		}
+
+		if !test.handedBack && (!consumed || len(dispatched) != 1) {
+			t.Errorf(
+				"%q: consumed=%v dispatched=%v, want the mode to get it, since "+
+					"handing it back would leave nothing running it",
+				test.key,
+				consumed,
+				dispatched,
+			)
+		}
 	}
 }

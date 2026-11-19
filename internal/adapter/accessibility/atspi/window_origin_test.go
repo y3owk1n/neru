@@ -596,11 +596,11 @@ func TestSwayComputeOrigin(t *testing.T) {
 	if _, known := swayComputeOrigin(&tree, 500, 500, zap.NewNop()); known {
 		t.Fatal("expected size mismatch to be rejected")
 	}
-}
 
-func TestSwayFindFocusedNoneFocused(t *testing.T) {
-	tree := swayNode{Focused: false, Nodes: []swayNode{{Focused: false}}}
-	if findFocused(&tree) != nil {
-		t.Fatal("expected no focused node")
+	// A tree with no focused node has no origin, even for a zero-sized frame
+	// that any zero-valued node would match.
+	unfocused := swayNode{Nodes: []swayNode{{}}}
+	if _, known := swayComputeOrigin(&unfocused, 0, 0, zap.NewNop()); known {
+		t.Fatal("expected a tree with no focused node to have no origin")
 	}
 }

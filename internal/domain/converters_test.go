@@ -5,17 +5,6 @@ import (
 
 	"github.com/y3owk1n/neru/internal/app"
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/action"
-)
-
-const (
-	testConvLeftClick   = "left_click"
-	testConvRightClick  = "right_click"
-	testConvMiddleClick = "middle_click"
-	testConvMouseDown   = "left_mouse_down"
-	testConvMouseUp     = "left_mouse_up"
-	testConvMoveMouse   = "move_mouse"
-	testConvScroll      = "scroll"
 )
 
 func TestModeString(t *testing.T) {
@@ -44,6 +33,33 @@ func TestModeString(t *testing.T) {
 			mode: app.ModeScroll,
 			want: domain.ModeNameScroll,
 		},
+		// The names below are IPC action words and the status `mode` value,
+		// so they are spelled out rather than read from the constants.
+		{
+			name: "recursive grid mode",
+			mode: domain.ModeRecursiveGrid,
+			want: "recursive_grid",
+		},
+		{
+			name: "bisect mode",
+			mode: domain.ModeBisect,
+			want: "bisect",
+		},
+		{
+			name: "monitor select mode",
+			mode: domain.ModeMonitorSelect,
+			want: "monitor_select",
+		},
+		{
+			name: "vim mode",
+			mode: domain.ModeVim,
+			want: "vim",
+		},
+		{
+			name: "declared mode",
+			mode: domain.ModeCustom,
+			want: "mode",
+		},
 		{
 			name: "unknown mode",
 			mode: app.Mode(999),
@@ -56,64 +72,6 @@ func TestModeString(t *testing.T) {
 			got := domain.ModeString(testCase.mode)
 			if got != testCase.want {
 				t.Errorf("ModeString(%v) = %q, want %q", testCase.mode, got, testCase.want)
-			}
-		})
-	}
-}
-
-func TestActionString(t *testing.T) {
-	tests := []struct {
-		name   string
-		action action.Type
-		want   string
-	}{
-		{
-			name:   "left click",
-			action: action.TypeLeftClick,
-			want:   testConvLeftClick,
-		},
-		{
-			name:   "right click",
-			action: action.TypeRightClick,
-			want:   testConvRightClick,
-		},
-		{
-			name:   "mouse up",
-			action: action.TypeLeftMouseUp,
-			want:   testConvMouseUp,
-		},
-		{
-			name:   "mouse down",
-			action: action.TypeLeftMouseDown,
-			want:   testConvMouseDown,
-		},
-		{
-			name:   "middle click",
-			action: action.TypeMiddleClick,
-			want:   testConvMiddleClick,
-		},
-		{
-			name:   "move mouse",
-			action: action.TypeMoveMouse,
-			want:   testConvMoveMouse,
-		},
-		{
-			name:   "scroll",
-			action: action.TypeScroll,
-			want:   testConvScroll,
-		},
-		{
-			name:   "unknown action",
-			action: action.Type(999),
-			want:   domain.UnknownAction,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := domain.ActionString(testCase.action)
-			if got != testCase.want {
-				t.Errorf("ActionString(%v) = %q, want %q", testCase.action, got, testCase.want)
 			}
 		})
 	}

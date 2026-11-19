@@ -12,6 +12,8 @@ const (
 	desktopHyprland = "Hyprland"
 	desktopKDE      = "KDE"
 	desktopCOSMIC   = "COSMIC"
+
+	desktopUbuntuGNOME = "ubuntu:GNOME"
 )
 
 // TestLinuxBackend_IsWayland pins the Wayland/X11 split every subsystem with two
@@ -91,7 +93,7 @@ func TestDetectLinuxBackendFromEnv(t *testing.T) {
 		},
 		{
 			name:           "wayland gnome desktop",
-			currentDesktop: "ubuntu:GNOME",
+			currentDesktop: desktopUbuntuGNOME,
 			waylandDisplay: waylandDisplay,
 			want:           BackendWaylandGNOME,
 		},

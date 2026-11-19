@@ -72,16 +72,3 @@ func TestWarmBadgeTextWidths_LeavesADrawNothingToMeasure(t *testing.T) {
 		t.Fatalf("draws measured %d more times after warming, want none", asked-warmed)
 	}
 }
-
-func TestWarmBadgeTextWidths_NoConfigurationIsNothingToWarm(t *testing.T) {
-	measurer := &countingMeasurer{}
-
-	ports.SetTextMeasurer(measurer)
-	t.Cleanup(func() { ports.SetTextMeasurer(nil) })
-
-	manager.WarmBadgeTextWidths(nil)
-
-	if asked := measurer.calls.Load(); asked != 0 {
-		t.Fatalf("measured %d times with no configuration, want 0", asked)
-	}
-}

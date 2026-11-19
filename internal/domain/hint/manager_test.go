@@ -84,43 +84,6 @@ func TestManager_Filtering(t *testing.T) {
 	}
 }
 
-func TestManager_Backspace(t *testing.T) {
-	element, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
-	h1, _ := hint.NewHint("AA", element, image.Point{0, 0})
-	collection := hint.NewCollection([]*hint.Interface{h1})
-
-	manager := hint.NewManager(logger.Get(), nil)
-
-	err := manager.SetHints(collection)
-	if err != nil {
-		t.Fatalf("SetHints: %v", err)
-	}
-
-	// Type 'A'
-	err = inputErr(manager.HandleInput("A"))
-	if err != nil {
-		t.Fatalf("HandleInput: %v", err)
-	}
-
-	if len(manager.FilteredHints()) != 1 {
-		t.Error("Expected 1 hint after 'A'")
-	}
-
-	// Backspace via explicit API (backspace is driven by hotkeys, not HandleInput)
-	err = manager.HandleBackspace()
-	if err != nil {
-		t.Fatalf("HandleBackspace: %v", err)
-	}
-
-	if len(manager.FilteredHints()) != 1 {
-		t.Error("Expected 1 hint after Backspace")
-	}
-
-	if manager.CurrentInput() != "" {
-		t.Errorf("Expected empty input, got %q", manager.CurrentInput())
-	}
-}
-
 func TestManager_ClearReleasesSessionState(t *testing.T) {
 	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
 	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
@@ -150,82 +113,6 @@ func TestManager_ClearReleasesSessionState(t *testing.T) {
 
 	if filtered := manager.FilteredHints(); filtered != nil {
 		t.Fatalf("Expected no filtered hints after Clear(), got %d", len(filtered))
-	}
-}
-
-func TestHintManager_RouterIntegration(t *testing.T) {
-	logger := logger.Get()
-
-	hintManager := hint.NewManager(logger, nil)
-	hintRouter := hint.NewRouter(hintManager, logger)
-
-	elem1, _ := element.NewElement("elem1", image.Rect(10, 10, 50, 50), element.RoleButton)
-	elem2, _ := element.NewElement("elem2", image.Rect(60, 10, 100, 50), element.RoleButton)
-	elem3, _ := element.NewElement("elem3", image.Rect(10, 60, 50, 100), element.RoleButton)
-	testElements := []*element.Element{elem1, elem2, elem3}
-
-	gen, err := hint.NewAlphabetGenerator("asdf", hint.LabelDirectionReverse)
-	if err != nil {
-		t.Fatalf("Failed to create hint generator: %v", err)
-	}
-
-	hintInterfaces, err := gen.Generate(context.Background(), testElements)
-	if err != nil {
-		t.Fatalf("Failed to generate hints: %v", err)
-	}
-
-	hints := hint.NewCollection(hintInterfaces)
-
-	err = hintManager.SetHints(hints)
-	if err != nil {
-		t.Fatalf("SetHints: %v", err)
-	}
-
-	t.Run("Hint manager and router integration", func(t *testing.T) {
-		// Router no longer handles mode exit keys.
-		result, err := hintRouter.RouteKey("escape")
-		if err != nil {
-			t.Fatalf("RouteKey: %v", err)
-		}
-
-		if result.ExactHint() != nil {
-			t.Error("Expected no exact match on escape in hint router")
-		}
-	})
-
-	t.Run("Hint manager callback integration", func(t *testing.T) {
-		var callbackCalled bool
-
-		hintManager.SetUpdateCallback(func(hints []*hint.Interface) {
-			callbackCalled = true
-		})
-
-		// Reset should trigger callback
-		err := hintManager.Reset()
-		if err != nil {
-			t.Fatalf("Reset: %v", err)
-		}
-
-		if !callbackCalled {
-			t.Error("Expected callback to be called on reset")
-		}
-	})
-}
-
-func TestCollection_Empty(t *testing.T) {
-	// Empty collection
-	empty := hint.NewCollection([]*hint.Interface{})
-	if !empty.Empty() {
-		t.Error("Empty collection should return true for Empty()")
-	}
-
-	// Non-empty collection
-	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
-	h, _ := hint.NewHint("A", elem, image.Point{0, 0})
-
-	nonEmpty := hint.NewCollection([]*hint.Interface{h})
-	if nonEmpty.Empty() {
-		t.Error("Non-empty collection should return false for Empty()")
 	}
 }
 
@@ -290,39 +177,6 @@ func TestManager_ResetRequiresExternalMu(t *testing.T) {
 	err = manager.Reset()
 	if !errors.Is(err, hint.ErrExternalMuNotHeld) {
 		t.Fatalf("Reset without externalMu: got %v, want %v", err, hint.ErrExternalMuNotHeld)
-	}
-}
-
-func TestManager_ImmediateUpdateSucceedsWithExternalMu(t *testing.T) {
-	// Mirror the production call pattern: hold externalMu, then call
-	// HandleInput. The immediate-update path should succeed without panic.
-	var mut sync.Mutex
-
-	elem, _ := element.NewElement(element.ID("1"), image.Rect(0, 0, 10, 10), element.RoleButton)
-	h1, _ := hint.NewHint("AA", elem, image.Point{0, 0})
-	h2, _ := hint.NewHint("AB", elem, image.Point{0, 0})
-	collection := hint.NewCollection([]*hint.Interface{h1, h2})
-	manager := hint.NewManager(logger.Get(), &mut)
-
-	var callbackCalled bool
-	manager.SetUpdateCallback(func(_ []*hint.Interface) {
-		callbackCalled = true
-	})
-	mut.Lock()
-
-	err := manager.SetHints(collection)
-	if err != nil {
-		t.Fatalf("SetHints: %v", err)
-	}
-	// "A" matches both hints (AA, AB) and redraws them.
-	err = inputErr(manager.HandleInput("A"))
-	if err != nil {
-		t.Fatalf("HandleInput: %v", err)
-	}
-	mut.Unlock()
-
-	if !callbackCalled {
-		t.Error("Expected callback to be called via immediateUpdate")
 	}
 }
 

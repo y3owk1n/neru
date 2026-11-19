@@ -500,27 +500,6 @@ func TestConfig_AppConfigVisibleCheckEnabled(t *testing.T) {
 	}
 }
 
-func TestFindConfigFile(t *testing.T) {
-	// Only checks that FindConfigFile does not panic. The actual file discovery
-	// would need complex mocking.
-	defer func() {
-		if r := recover(); r != nil {
-			t.Errorf("FindConfigFile() panicked: %v", r)
-		}
-	}()
-
-	service := loader.NewService(config.DefaultConfig(), "", zap.NewNop(), nil)
-	result := service.FindConfigFile()
-
-	// Result should be a string (could be empty if no config found)
-	if result != "" {
-		// If a config file is found, it should be a valid path
-		if !filepath.IsAbs(result) {
-			t.Errorf("FindConfigFile() returned relative path: %s", result)
-		}
-	}
-}
-
 // writeConfigFile creates a minimal, valid config file at path, creating any
 // missing parent directories.
 func writeConfigFile(t *testing.T, path string) {

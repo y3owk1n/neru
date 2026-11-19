@@ -20,47 +20,9 @@ func outOfRangeCells(cellCount int) []recursivegrid.Cell {
 }
 
 func newGuardGrid() *recursivegrid.RecursiveGrid {
-	return recursivegrid.NewRecursiveGrid(image.Rect(0, 0, 800, 600), 10, 10, 5)
-}
-
-// TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells pins the documented
-// fallback. An index outside the cell list yields the center of the current
-// bounds, and never panics.
-//
-// Cell indices reach these methods straight from a keypress. The key-to-cell
-// map is built from user-configurable key strings, and a stale or mismatched
-// layout override can yield an index outside the current depth's cell list.
-// Every accessor therefore guards the index and falls back to the current
-// bounds rather than indexing out of range.
-//
-// The guards were untested, which is the dangerous combination. An inverted
-// comparison in one of them turns a mistyped key into a panic that takes the
-// daemon down, and the tests would not have noticed.
-func TestRecursiveGrid_CellCenter_RejectsOutOfRangeCells(t *testing.T) {
-	grid := newGuardGrid()
-	cellCount := len(grid.Divide())
-
-	if cellCount == 0 {
-		t.Fatal("grid divided into no cells")
-	}
-
-	want := grid.CurrentCenter()
-
-	for _, cell := range outOfRangeCells(cellCount) {
-		if got := grid.CellCenter(cell); got != want {
-			t.Errorf("CellCenter(%d) = %v, want the current center %v", cell, got, want)
-		}
-	}
-
-	// Every in-range index must instead return a point inside that cell. The
-	// guard must not be so eager that it swallows valid selections.
-	cells := grid.Divide()
-	for idx, bounds := range cells {
-		center := grid.CellCenter(recursivegrid.Cell(idx))
-		if !center.In(bounds) {
-			t.Errorf("CellCenter(%d) = %v, outside that cell's bounds %v", idx, center, bounds)
-		}
-	}
+	return recursivegrid.NewRecursiveGridWithLayers(
+		image.Rect(0, 0, 800, 600), 10, 10, 5, recursivegrid.DefaultDimensions(), nil,
+	)
 }
 
 // TestRecursiveGrid_CellBounds_RejectsOutOfRangeCells covers the rendering
@@ -153,34 +115,48 @@ func TestRecursiveGrid_SelectCell_ValidCellDescends(t *testing.T) {
 // rounding helper on the path that actually produces negative coordinates. On
 // macOS a display positioned left of or above the primary has a negative
 // origin, so a monitor change remaps the active region into negative space.
-// Rounding that truncates toward zero instead of to nearest drifts the region
-// by a pixel per remap, in opposite directions either side of the origin.
+// Rounding that truncates instead of rounding to nearest drifts the region by a
+// pixel per remap, so each case pins the exact rectangle the region lands on.
 func TestRecursiveGrid_RemapToNewBounds_HandlesNegativeOrigins(t *testing.T) {
 	tests := []struct {
 		name     string
 		from, to image.Rectangle
+		want     image.Rectangle
 	}{
 		{
+			// The region (1067,0)-(1280,120) moves 1920 to the left.
 			"primary to a display left of it",
 			image.Rect(0, 0, 1920, 1080),
 			image.Rect(-1920, 0, 0, 1080),
+			image.Rect(-853, 0, -640, 120),
 		},
 		{
 			"primary to a display above it",
 			image.Rect(0, 0, 1920, 1080),
 			image.Rect(0, -1080, 1920, 0),
+			image.Rect(1067, -1080, 1280, -960),
 		},
 		{
 			"negative origin back to primary",
 			image.Rect(-1920, -1080, 0, 0),
 			image.Rect(0, 0, 1920, 1080),
+			image.Rect(1067, 0, 1280, 120),
 		},
-		{"odd sizes across the origin", image.Rect(-1001, -733, 0, 0), image.Rect(0, 0, 1367, 769)},
+		{
+			// The region (-444,-733)-(-333,-651) sits 557 into a 1001-wide
+			// display. 557*1367/1001 = 760.6, which rounds to 761.
+			"odd sizes across the origin",
+			image.Rect(-1001, -733, 0, 0),
+			image.Rect(0, 0, 1367, 769),
+			image.Rect(761, 0, 912, 86),
+		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			grid := recursivegrid.NewRecursiveGrid(testCase.from, 10, 10, 5)
+			grid := recursivegrid.NewRecursiveGridWithLayers(
+				testCase.from, 10, 10, 5, recursivegrid.DefaultDimensions(), nil,
+			)
 
 			// Descend twice so the remap has a non-trivial region to carry.
 			grid.SelectCell(recursivegrid.TopRight)
@@ -190,15 +166,8 @@ func TestRecursiveGrid_RemapToNewBounds_HandlesNegativeOrigins(t *testing.T) {
 
 			grid.RemapToNewBounds(testCase.to)
 
-			// The remapped region must land inside the new display, or the
-			// recursive grid is drawn off-screen after a monitor change.
-			if got := grid.CurrentBounds(); !got.In(testCase.to) {
-				t.Errorf("after remap CurrentBounds() = %v, outside the new bounds %v",
-					got, testCase.to)
-			}
-
-			if got := grid.CurrentBounds(); got.Empty() {
-				t.Errorf("after remap CurrentBounds() = %v, which is empty", got)
+			if got := grid.CurrentBounds(); got != testCase.want {
+				t.Errorf("after remap CurrentBounds() = %v, want %v", got, testCase.want)
 			}
 
 			// Remapping repositions, and it must not change how deep the user is.

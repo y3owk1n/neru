@@ -78,25 +78,6 @@ func (h *Interface) Bounds() image.Rectangle {
 	return h.element.Bounds()
 }
 
-// IsVisible checks if the hint is visible within the given screen bounds.
-func (h *Interface) IsVisible(screenBounds image.Rectangle) bool {
-	return h.element.IsVisible(screenBounds)
-}
-
-// MatchesLabel checks if the hint label matches the given input.
-func (h *Interface) MatchesLabel(input string) bool {
-	return h.label == input
-}
-
-// HasPrefix checks if the hint label starts with the given prefix.
-func (h *Interface) HasPrefix(prefix string) bool {
-	if len(prefix) > len(h.label) {
-		return false
-	}
-
-	return h.label[:len(prefix)] == prefix
-}
-
 // Generator generates hint labels for UI elements.
 type Generator interface {
 	// Generate creates hints for the given elements.
@@ -104,9 +85,6 @@ type Generator interface {
 
 	// MaxHints returns the maximum number of hints this generator can create.
 	MaxHints() int
-
-	// Characters returns the character set used for hint generation.
-	Characters() string
 
 	// LabelDirection returns the label enumeration direction the generator
 	// is configured to use. Implementations expose this so the hint service
@@ -457,11 +435,6 @@ func (c *Collection) WithoutMatchedPrefixes() *Collection {
 // Count returns the number of hints in the collection.
 func (c *Collection) Count() int {
 	return len(c.hints)
-}
-
-// Empty returns true if the collection has no hints.
-func (c *Collection) Empty() bool {
-	return len(c.hints) == 0
 }
 
 // normalizedSearchTexts returns the texts FilterBySearch matches against, one

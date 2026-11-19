@@ -85,6 +85,13 @@ func TestLinuxAppWatcherTickDispatch(t *testing.T) {
 			expected: []watchEvent{{kindDeactivate, appKonsole, appKonsole}},
 		},
 		{
+			// A stray id beside ok=false is still no focus, and the regain
+			// step below would see it as a deactivate if it were remembered.
+			name: "not ok with a stray id emits nothing",
+			id:   "stale", ok: false,
+			expected: nil,
+		},
+		{
 			name: "still no focus emits nothing",
 			id:   "", ok: false,
 			expected: nil,
@@ -105,28 +112,6 @@ func TestLinuxAppWatcherTickDispatch(t *testing.T) {
 		if !eventsEqual(*events, step.expected) {
 			t.Errorf("%s: got %+v, want %+v", step.name, *events, step.expected)
 		}
-	}
-}
-
-// TestLinuxAppWatcherOKFalseWithIDTreatedAsNoFocus ensures a non-ok result is
-// treated as "no focus" even when the identity returns a stray non-empty id.
-func TestLinuxAppWatcherOKFalseWithIDTreatedAsNoFocus(t *testing.T) {
-	watcher, events := newRecordingWatcher()
-
-	poller := &linuxAppWatcher{
-		identity: func(string) (string, bool) { return "stale", false },
-		interval: time.Millisecond,
-		watcher:  watcher,
-	}
-
-	poller.tick("wayland-kde")
-
-	if len(*events) != 0 {
-		t.Fatalf("expected no events when ok=false, got %+v", *events)
-	}
-
-	if poller.last != "" {
-		t.Fatalf("expected last to stay empty, got %q", poller.last)
 	}
 }
 

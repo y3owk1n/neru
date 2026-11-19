@@ -22,27 +22,6 @@ type Manager struct {
 	callbacks SelectionCallbacks    // What the selection tells its owner
 }
 
-// NewManager creates a recursive-grid manager with default dimensions (3x3)
-// and default size/depth limits. Used primarily in tests.
-func NewManager(
-	screenBounds image.Rectangle,
-	keys string,
-	callbacks SelectionCallbacks,
-	logger *zap.Logger,
-) *Manager {
-	return NewManagerWithLayers(
-		screenBounds,
-		keys,
-		25, //nolint:mnd
-		25, //nolint:mnd
-		10, //nolint:mnd
-		DefaultDimensions(),
-		nil, nil,
-		callbacks,
-		logger,
-	)
-}
-
 // NewManagerWithLayers creates a manager with a custom shape and optional
 // per-depth layout and key overrides. Pass nil for depthLayouts/depthKeys
 // to use default dimensions at all depths.
@@ -249,11 +228,6 @@ func (m *Manager) CurrentDepth() int {
 	return m.grid.CurrentDepth()
 }
 
-// IsComplete returns true if the grid cannot be divided further (min size or max depth).
-func (m *Manager) IsComplete() bool {
-	return m.grid.IsComplete()
-}
-
 // CanDivide returns true if the current bounds can be divided further.
 func (m *Manager) CanDivide() bool {
 	return m.grid.CanDivide()
@@ -262,11 +236,6 @@ func (m *Manager) CanDivide() bool {
 // CurrentCenter returns the center point of the current bounds.
 func (m *Manager) CurrentCenter() image.Point {
 	return m.grid.CurrentCenter()
-}
-
-// CellCenter returns the center point for a specific cell.
-func (m *Manager) CellCenter(q Cell) image.Point {
-	return m.grid.CellCenter(q)
 }
 
 // CellBounds returns the bounds for a specific cell.

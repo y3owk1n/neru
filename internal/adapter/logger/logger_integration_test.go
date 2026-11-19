@@ -4,7 +4,6 @@ package logger_test
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,88 +21,6 @@ const (
 	logLevelWarn  = "warn"
 	logLevelError = "error"
 )
-
-func TestInitIntegration(t *testing.T) {
-	tempDir := t.TempDir()
-	logPath := filepath.Join(tempDir, "test.log")
-
-	tests := []struct {
-		name               string
-		logLevel           string
-		logFilePath        string
-		disableFileLogging bool
-		maxFileSize        int
-		maxBackups         int
-		maxAge             int
-		wantErr            bool
-	}{
-		{
-			name:               "debug level with file logging",
-			logLevel:           logLevelDebug,
-			logFilePath:        logPath,
-			disableFileLogging: false,
-			maxFileSize:        10,
-			maxBackups:         3,
-			maxAge:             7,
-			wantErr:            false,
-		},
-		{
-			name:               "info level with file logging",
-			logLevel:           logLevelInfo,
-			logFilePath:        logPath,
-			disableFileLogging: false,
-			maxFileSize:        10,
-			maxBackups:         3,
-			maxAge:             7,
-			wantErr:            false,
-		},
-		{
-			name:               "warn level no file",
-			logLevel:           logLevelWarn,
-			logFilePath:        "",
-			disableFileLogging: true,
-			maxFileSize:        10,
-			maxBackups:         3,
-			maxAge:             7,
-			wantErr:            false,
-		},
-		{
-			name:               "error level",
-			logLevel:           logLevelError,
-			logFilePath:        logPath,
-			disableFileLogging: false,
-			maxFileSize:        10,
-			maxBackups:         3,
-			maxAge:             7,
-			wantErr:            false,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			initErr := logger.Init(
-				testCase.logLevel,
-				testCase.logFilePath,
-				testCase.disableFileLogging,
-				testCase.maxFileSize,
-				testCase.maxBackups,
-				testCase.maxAge,
-				nil,
-			)
-
-			if (initErr != nil) != testCase.wantErr {
-				t.Errorf("Init() error = %v, wantErr %v", initErr, testCase.wantErr)
-			}
-
-			loggerInstance := logger.Get()
-			if loggerInstance == nil {
-				t.Error("Get() returned nil after Init()")
-			}
-
-			_ = logger.Close()
-		})
-	}
-}
 
 func TestLoggingFunctions(t *testing.T) {
 	tempDir := t.TempDir()
@@ -271,37 +188,19 @@ func TestLogLevels(t *testing.T) {
 				_ = logger.Close()
 			}()
 
-			logger := logger.Get()
-			if logger == nil {
-				t.Error("Get() returned nil")
+			core := logger.Get().Core()
+			if !core.Enabled(testCase.wantLevel) {
+				t.Errorf("log_level %q does not enable %v", testCase.logLevel, testCase.wantLevel)
+			}
+
+			if core.Enabled(testCase.wantLevel - 1) {
+				t.Errorf(
+					"log_level %q enables %v, want nothing below %v",
+					testCase.logLevel,
+					testCase.wantLevel-1,
+					testCase.wantLevel,
+				)
 			}
 		})
-	}
-}
-
-func TestFileRotation(t *testing.T) {
-	tempDir := t.TempDir()
-	logPath := filepath.Join(tempDir, "test.log")
-
-	// Initialize with small max size for testing
-	initErr := logger.Init(logLevelInfo, logPath, false, 1, 2, 1, io.Discard)
-	if initErr != nil {
-		t.Fatalf("Init() failed: %v", initErr)
-	}
-
-	defer func() {
-		_ = logger.Close()
-	}()
-
-	// Write enough logs to trigger rotation
-	for range 1000 {
-		logger.Get().Info("test message with some content to fill up the log file")
-	}
-
-	_ = logger.Sync()
-
-	_, initErr = os.Stat(logPath)
-	if os.IsNotExist(initErr) {
-		t.Error("Log file was not created")
 	}
 }

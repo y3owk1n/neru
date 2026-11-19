@@ -25,11 +25,6 @@ var (
 	mcDetectionEnabled atomic.Bool
 )
 
-// AppWatcher returns the global application watcher instance.
-func AppWatcher() AppWatcherInterface {
-	return appWatcherSlot.Get()
-}
-
 // HotkeyEventKind describes whether a global hotkey was pressed or released.
 type HotkeyEventKind int
 

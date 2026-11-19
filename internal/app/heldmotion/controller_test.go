@@ -72,32 +72,6 @@ func newControllerWithRamp(t *testing.T, rec *recorder, ramp motion.Ramp) *heldm
 	return heldmotion.New(ctx, system, func() motion.Ramp { return ramp }, nil)
 }
 
-func TestGroup_Press_TwoKeysGlideDiagonallyUntilReleased(t *testing.T) {
-	rec := &recorder{}
-	keys := newController(t, rec).Group("test")
-
-	keys.Press("l", motion.Direction{X: 1}, 10)
-	keys.Press("j", motion.Direction{Y: 1}, 10)
-
-	time.Sleep(100 * time.Millisecond)
-
-	keys.Release("l")
-	keys.Release("j")
-
-	last, count := waitQuiet(t, rec)
-	if count == 0 {
-		t.Fatal("no cursor moves posted while keys were held")
-	}
-
-	if last.X <= 100 || last.Y <= 100 {
-		t.Fatalf("last position %v, want down-right of the start", last)
-	}
-
-	if last.X != last.Y {
-		t.Errorf("diagonal drifted: %v", last)
-	}
-}
-
 func TestGroup_Release_OtherGroupsKeysStayHeld(t *testing.T) {
 	rec := &recorder{}
 	ctrl := newController(t, rec)
@@ -299,5 +273,31 @@ func TestGroup_Release_DiagonalTapStillTravelsOneStepPerKey(t *testing.T) {
 	last, _ := waitQuiet(t, rec)
 	if last.X < 109 || last.X > 111 || last.Y < 109 || last.Y > 111 {
 		t.Fatalf("diagonal tap landed at %v, want about (110, 110)", last)
+	}
+}
+
+func TestGroup_Press_TwoKeysGlideDiagonallyUntilReleased(t *testing.T) {
+	rec := &recorder{}
+	keys := newController(t, rec).Group("test")
+
+	keys.Press("l", motion.Direction{X: 1}, 10)
+	keys.Press("j", motion.Direction{Y: 1}, 10)
+
+	time.Sleep(100 * time.Millisecond)
+
+	keys.Release("l")
+	keys.Release("j")
+
+	last, count := waitQuiet(t, rec)
+	if count == 0 {
+		t.Fatal("no cursor moves posted while keys were held")
+	}
+
+	if last.X <= 100 || last.Y <= 100 {
+		t.Fatalf("last position %v, want down-right of the start", last)
+	}
+
+	if last.X != last.Y {
+		t.Errorf("diagonal drifted: %v", last)
 	}
 }

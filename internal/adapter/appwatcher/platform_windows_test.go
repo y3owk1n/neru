@@ -249,9 +249,22 @@ func TestWindowsAppWatcher_Start_HookFailureLeavesWatcherIdle(t *testing.T) {
 	backend, recorder := newTestBackend(hook, hwndNotepad)
 
 	backend.start()
+
+	// A working start publishes the app in front at once, so a loop started
+	// despite the failure has had the time to publish before this checks.
+	time.Sleep(50 * time.Millisecond)
+	recorder.waitFor(t, nil)
+
 	backend.stop()
 
-	recorder.waitFor(t, nil)
+	// The failed start left nothing half-installed, so a start whose hook
+	// installs is a fresh subscription that publishes.
+	hook.err = nil
+
+	backend.start()
+	defer backend.stop()
+
+	recorder.waitFor(t, []watchEvent{{kindActivate, nameNotepad, pathNotepad}})
 }
 
 func TestWindowsAppWatcher_Start_PublishesDisplayChanges(t *testing.T) {

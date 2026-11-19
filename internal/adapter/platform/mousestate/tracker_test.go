@@ -36,6 +36,10 @@ func TestTracker_SetDownAndClear(t *testing.T) {
 		t.Fatal("IsDown(right) = false after SetDown, want true")
 	}
 
+	if !tracker.AnyDown() {
+		t.Error("AnyDown() = false after SetDown, want true")
+	}
+
 	if tracker.IsDown(action.ButtonLeft) {
 		t.Error("IsDown(left) = true, want false: pressing one button must not hold another")
 	}
@@ -55,6 +59,10 @@ func TestTracker_SetDownAndClear(t *testing.T) {
 
 	if tracker.IsDown(action.ButtonRight) {
 		t.Error("IsDown(right) = true after Clear, want false")
+	}
+
+	if tracker.AnyDown() {
+		t.Error("AnyDown() = true after the only held button was cleared, want false")
 	}
 
 	if _, stillHeld := tracker.DownModifiers(action.ButtonRight); stillHeld {

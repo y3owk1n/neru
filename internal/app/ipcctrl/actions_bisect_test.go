@@ -58,24 +58,3 @@ func TestHandleAction_BisectRejectsUnknownDirectionAndForeignFlags(t *testing.T)
 		})
 	}
 }
-
-func TestHandleAction_BisectWithoutModesHandler(t *testing.T) {
-	controller := &ActionsHandler{logger: zap.NewNop()}
-
-	resp := controller.handleAction(context.Background(), ipc.Command{
-		Action: ActionCommand,
-		Args:   []string{bisectAction, "--direction=up_left"},
-	})
-
-	if resp.Success {
-		t.Fatal("handleAction(bisect) with nil modes handler expected failure, got success")
-	}
-
-	if resp.Code != ipc.CodeActionFailed {
-		t.Fatalf("code = %q, want %q", resp.Code, ipc.CodeActionFailed)
-	}
-
-	if resp.Message != msgModesHandlerNotAvailable {
-		t.Fatalf("message = %q, want %q", resp.Message, msgModesHandlerNotAvailable)
-	}
-}

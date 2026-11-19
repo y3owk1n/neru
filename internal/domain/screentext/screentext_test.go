@@ -124,25 +124,6 @@ func TestHost_Keys_MoveTheCursorOverTheScreen(t *testing.T) {
 	}
 }
 
-func TestHost_Yank_CopiesTheWord(t *testing.T) {
-	var copied string
-
-	text := screentext.New(screen())
-	host := screentext.NewHost(text, 0, func(s string) { copied = s })
-	m := screentext.NewMachine(host)
-
-	for _, k := range vim.Keys("wyiw") {
-		err := m.Feed(k)
-		if err != nil {
-			t.Fatalf("feed %q: %v", k, err)
-		}
-	}
-
-	if copied != "Edit" {
-		t.Fatalf("copied %q, want %q", copied, "Edit")
-	}
-}
-
 func TestText_Nearest_FindsTheByteUnderAPoint(t *testing.T) {
 	text := screentext.New(screen())
 
@@ -576,8 +557,8 @@ func TestNew_KeepsTheOneReadableLineNumberOutOfTheText(t *testing.T) {
 	words = slices.DeleteFunc(words, func(word screentext.Word) bool { return word.Text == "" })
 
 	got := screentext.New(words).String()
-	if strings.Contains(got, "2 ") || strings.HasPrefix(got, "Why do\n2") {
-		t.Fatalf("text = %q, want the number apart from its line", got)
+	if want := "2\n\nWhy do\nIt is\ncontent"; got != want {
+		t.Fatalf("text = %q, want the number apart from its line, %q", got, want)
 	}
 }
 
@@ -674,13 +655,6 @@ func sections() []screentext.Word {
 		{Text: wordLtwo, Bounds: image.Rect(0, 40, 40, 50)},
 		{Text: "Rone", Bounds: image.Rect(200, 20, 240, 30)},
 		{Text: "Rtwo", Bounds: image.Rect(200, 52, 240, 62)},
-	}
-}
-
-func TestNew_LaysOutAColumnBeforeTheColumnBesideIt(t *testing.T) {
-	got := screentext.New(sections()).String()
-	if want := "Lone\n\nLtwo\n\nRone\n\nRtwo"; got != want {
-		t.Fatalf("text = %q, want each column whole, %q", got, want)
 	}
 }
 

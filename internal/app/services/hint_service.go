@@ -170,22 +170,6 @@ func (s *HintService) LabelElements(
 	return s.labelElements(ctx, elements, labelDirection)
 }
 
-// RefreshHints updates the hint display (e.g., after screen changes).
-func (s *HintService) RefreshHints(ctx context.Context) error {
-	if !s.overlay.IsVisible() {
-		s.logger.Debug("Overlay not visible, skipping refresh")
-
-		return nil
-	}
-
-	refreshOverlayErr := s.overlay.Refresh(ctx)
-	if refreshOverlayErr != nil {
-		return derrors.WrapOverlayFailed(refreshOverlayErr, "refresh hints")
-	}
-
-	return nil
-}
-
 // UpdateConfig updates the hints configuration.
 // Hint filters can therefore change without a restart.
 func (s *HintService) UpdateConfig(config config.HintsConfig) {

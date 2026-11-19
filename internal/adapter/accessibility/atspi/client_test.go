@@ -37,6 +37,8 @@ func TestAppMatchesFocusedID(t *testing.T) {
 		{"empty app_id", "Firefox", "", false},
 		{"segment does not collide", "fox", appIDFirefox, false},
 		{"different apps", "Nautilus", "org.gnome.Calculator", false},
+		{"trailing dot leaves no segment", "org.", "org", false},
+		{"leading-dot app_id matches its segment", appKonsole, "." + appKonsole, true},
 	}
 
 	for _, tc := range cases {
@@ -87,26 +89,6 @@ func TestClient_TitleScanMissed_SkipsOnlyWhileNothingChanged(t *testing.T) {
 				t.Errorf("titleScanMissed() = %v, want %v", got, test.want)
 			}
 		})
-	}
-}
-
-func TestLastDotSegment(t *testing.T) {
-	cases := []struct {
-		in   string
-		want string
-	}{
-		{"org.mozilla.firefox", appFirefox},
-		{"helium", ""},
-		{"trailing.", ""},
-		{"", ""},
-		{"a.b", "b"},
-		{".leading", "leading"},
-	}
-
-	for _, tc := range cases {
-		if got := lastDotSegment(tc.in); got != tc.want {
-			t.Errorf("lastDotSegment(%q) = %q, want %q", tc.in, got, tc.want)
-		}
 	}
 }
 
@@ -319,24 +301,13 @@ func TestRoleBitfield(t *testing.T) {
 		t.Fatalf("len = %d, want %d", len(got), atspiRoleWords)
 	}
 
-	want := make([]int32, atspiRoleWords)
-	for _, id := range []int32{43, 88, 129} {
-		want[id/32] |= 1 << uint(id%32)
-	}
+	// Written out by hand, so a packing bug cannot reproduce itself here.
+	want := []int32{0, 1 << 11, 1 << 24, 0, 1 << 1}
 
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("word %d = %d, want %d (got=%v want=%v)", i, got[i], want[i], got, want)
 		}
-	}
-
-	// Explicit spot-checks guard against off-by-one word/bit packing.
-	if got[1] != 1<<11 {
-		t.Errorf("word1 = %d, want %d (push button)", got[1], int32(1)<<11)
-	}
-
-	if got[4] != 1<<1 {
-		t.Errorf("word4 = %d, want %d (push-button-menu)", got[4], int32(1)<<1)
 	}
 }
 

@@ -1,24 +1,12 @@
 package state
 
-import (
-	"image"
-	"sync"
-)
+import "sync"
 
-// CursorState manages cursor position tracking and restoration functionality.
-//
-// This state is used to remember the cursor position before activating
-// hint/grid modes and optionally restore it after the action is complete.
+// CursorState tracks per-session cursor flags, such as whether a click was
+// performed and so needs a settle delay before the cursor moves again.
 type CursorState struct {
 	mu sync.RWMutex
 
-	// Capture state
-	initialPos          image.Point
-	initialScreenBounds image.Rectangle
-	captured            bool
-
-	// Behavior flags
-	skipRestoreOnce bool
 	actionPerformed bool
 }
 
@@ -27,68 +15,12 @@ func NewCursorState() *CursorState {
 	return &CursorState{}
 }
 
-// Capture stores the current cursor position and screen bounds.
-func (c *CursorState) Capture(pos image.Point, bounds image.Rectangle) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.initialPos = pos
-	c.initialScreenBounds = bounds
-	c.captured = true
-}
-
-// IsCaptured returns whether cursor position has been captured.
-func (c *CursorState) IsCaptured() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.captured
-}
-
-// Reset clears the captured cursor state.
+// Reset clears the session flags.
 func (c *CursorState) Reset() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.captured = false
-	c.skipRestoreOnce = false
 	c.actionPerformed = false
-}
-
-// InitialPosition returns the captured cursor position.
-func (c *CursorState) InitialPosition() image.Point {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.initialPos
-}
-
-// InitialScreenBounds returns the captured screen bounds.
-func (c *CursorState) InitialScreenBounds() image.Rectangle {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.initialScreenBounds
-}
-
-// ShouldMoveCursor returns whether the cursor should be moved on mode exit.
-// The caller handles deciding the policy (restore vs center)
-// based on config. This method only tracks whether the cursor was captured
-// and whether a skip was requested.
-func (c *CursorState) ShouldMoveCursor() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	return c.captured && !c.skipRestoreOnce
-}
-
-// SkipNextRestore sets a flag to skip the next cursor restoration or centering.
-// This is useful for operations that want to leave the cursor at its new position.
-func (c *CursorState) SkipNextRestore() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.skipRestoreOnce = true
 }
 
 // MarkActionPerformed records that a click/mouse action was just executed.

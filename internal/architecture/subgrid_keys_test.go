@@ -28,6 +28,12 @@ var subgridKeyDeciders = []string{
 	"internal/domain/grid",
 }
 
+// subgridKeyReaderFloor is the fewest functions outside subgridKeyDeciders
+// this pin expects to find reading the key set. Eleven do today, across the
+// mode layer, the component factory and the overlay backends, so six leaves
+// room for consolidation and still catches a walk that reads none.
+const subgridKeyReaderFloor = 6
+
 // TestSubgridKeySetIsDecidedOnce keeps the drawn keys and the accepted keys the
 // same keys. Four consumers used to answer "what if sublayer_keys is blank?"
 // for themselves: the mode layer, the component factory and two overlay
@@ -40,6 +46,7 @@ var subgridKeyDeciders = []string{
 // Passing the resolved value on is what a consumer is for.
 func TestSubgridKeySetIsDecidedOnce(t *testing.T) {
 	fileSet := token.NewFileSet()
+	readers := 0
 
 	for _, file := range goFiles(t) {
 		if decidesSubgridKeys(file.dir) {
@@ -58,9 +65,11 @@ func TestSubgridKeySetIsDecidedOnce(t *testing.T) {
 
 		for _, decl := range parsed.Decls {
 			funcDecl, isFunc := decl.(*ast.FuncDecl)
-			if !isFunc || funcDecl.Body == nil {
+			if !isFunc || funcDecl.Body == nil || !namesAnyOf(funcDecl.Body, subgridKeyNames) {
 				continue
 			}
+
+			readers++
 
 			if !testsSubgridKeysForBlank(funcDecl.Body) {
 				continue
@@ -76,6 +85,15 @@ func TestSubgridKeySetIsDecidedOnce(t *testing.T) {
 			)
 		}
 	}
+
+	// A rename of the option or the field would otherwise leave this judging
+	// no function at all and passing.
+	assertWalkedAtLeast(
+		t,
+		"functions outside the deciders that read the subgrid key set",
+		readers,
+		subgridKeyReaderFloor,
+	)
 }
 
 // subgridKeyCarriers are the managers that keep their own copy of the key set
@@ -257,7 +275,7 @@ func subgridKeyLocals(body *ast.BlockStmt) map[string]bool {
 
 // namesAnyOf reports whether the expression mentions any of the given names,
 // so that a call wrapped around one (strings.TrimSpace(keys)) still counts.
-func namesAnyOf(expr ast.Expr, names map[string]bool) bool {
+func namesAnyOf(expr ast.Node, names map[string]bool) bool {
 	found := false
 
 	ast.Inspect(expr, func(node ast.Node) bool {

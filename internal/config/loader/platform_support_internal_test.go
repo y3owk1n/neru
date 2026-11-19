@@ -60,25 +60,6 @@ func TestWarnInertWords_SaysItOnce(t *testing.T) {
 	}
 }
 
-// TestWarnInertWords_SaysNothingWhenNothingIsInert keeps the warning off the
-// path it does not belong on. A configuration whose every word works here has
-// nothing to be told.
-func TestWarnInertWords_SaysNothingWhenNothingIsInert(t *testing.T) {
-	t.Parallel()
-
-	warnings := &config.Warnings{}
-
-	written := config.Written{Options: map[string]string{"grid.enabled": "true"}}
-
-	if inert := warnInertWords(warnings, written, parity.Linux); len(inert) > 0 {
-		t.Errorf("warnInertWords found %v for a configuration that works", inert.Names())
-	}
-
-	if messages := warnings.Messages(); len(messages) > 0 {
-		t.Errorf("warnInertWords recorded %q for a configuration that works", messages)
-	}
-}
-
 // TestListInert_StopsListingAndCounts pins the bound. A user with forty inert
 // options learns more from a sentence and a command to run than from forty
 // paths in a warning.

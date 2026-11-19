@@ -34,27 +34,6 @@ func TestGeometry_BoundsBeforeAnyUpdate(t *testing.T) {
 	}
 }
 
-// TestGeometry_UpdateActiveWindowFeedsBounds is the whole point of the bridge.
-// What the KWin script pushes is what FocusedWindowBounds later answers with.
-func TestGeometry_UpdateActiveWindowFeedsBounds(t *testing.T) {
-	geometry := newGeometry(zap.NewNop())
-
-	dbusErr := geometry.UpdateActiveWindow("100,50,800,600,konsole")
-	if dbusErr != nil {
-		t.Fatalf("UpdateActiveWindow returned %v, want nil", dbusErr)
-	}
-
-	rect, ok, err := geometry.Bounds()
-	if !ok || err != nil {
-		t.Fatalf("Bounds() = (%v, %v, %v), want a rectangle with ok=true", rect, ok, err)
-	}
-
-	want := image.Rect(100, 50, 900, 650)
-	if rect != want {
-		t.Errorf("Bounds() = %v, want %v", rect, want)
-	}
-}
-
 // TestGeometry_UpdateActiveWindowRejectsUnusablePayloads keeps a malformed or
 // degenerate push from replacing a good cache. The script is remote code as far
 // as this process is concerned. A truncated payload, a non-numeric field or a
@@ -78,9 +57,13 @@ func TestGeometry_UpdateActiveWindowRejectsUnusablePayloads(t *testing.T) {
 	for _, testCase := range payloads {
 		t.Run(testCase.name, func(t *testing.T) {
 			geometry := newGeometry(zap.NewNop())
-			_ = geometry.UpdateActiveWindow("100,50,800,600,konsole")
 
-			dbusErr := geometry.UpdateActiveWindow(testCase.payload)
+			dbusErr := geometry.UpdateActiveWindow("100,50,800,600,konsole")
+			if dbusErr != nil {
+				t.Fatalf("UpdateActiveWindow(good payload) returned %v, want nil", dbusErr)
+			}
+
+			dbusErr = geometry.UpdateActiveWindow(testCase.payload)
 			if dbusErr != nil {
 				t.Fatalf("UpdateActiveWindow returned %v; malformed pushes are dropped, "+
 					"not reported back to KWin", dbusErr)
@@ -175,32 +158,6 @@ func TestGeometry_UpdateAfterAClearReportsAgain(t *testing.T) {
 	rect, ok, err := geometry.Bounds()
 	if !ok || err != nil || rect != image.Rect(10, 20, 310, 420) {
 		t.Errorf("Bounds() = (%v, %v, %v), want the newly pushed rectangle", rect, ok, err)
-	}
-}
-
-// TestGeometry_ClearActiveWindowIsNotAMalformedPush pins the distinction the
-// two methods exist to draw.
-//
-// A malformed push is a push that failed, and the previous rectangle survives
-// it as the best available answer. A clear is KWin saying that rectangle
-// describes nothing on screen. Collapsing them, say by expressing a clear as an
-// empty payload, would make one of the two behave as the other.
-func TestGeometry_ClearActiveWindowIsNotAMalformedPush(t *testing.T) {
-	geometry := newGeometry(zap.NewNop())
-
-	_ = geometry.UpdateActiveWindow("100,50,800,600,konsole,konsole,Konsole")
-	_ = geometry.UpdateActiveWindow("")
-
-	_, cached, _ := geometry.Bounds()
-	if !cached {
-		t.Fatal("a malformed push emptied the cache; only a clear may do that")
-	}
-
-	_ = geometry.ClearActiveWindow("closed")
-
-	_, cached, _ = geometry.Bounds()
-	if cached {
-		t.Error("a clear left the previous rectangle in place")
 	}
 }
 

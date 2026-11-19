@@ -4,8 +4,13 @@ package linux
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
+
+// taskCommLen is the kernel's TASK_COMM_LEN minus the terminating NUL, the
+// most of the executable's name /proc/<pid>/comm keeps.
+const taskCommLen = 15
 
 func TestLinuxApplicationNameByPID(t *testing.T) {
 	t.Parallel()
@@ -17,21 +22,27 @@ func TestLinuxApplicationNameByPID(t *testing.T) {
 		t.Fatalf("linuxApplicationNameByPID(self) error: %v", err)
 	}
 
-	if name == "" {
-		t.Fatal("linuxApplicationNameByPID(self) returned empty name")
+	want := filepath.Base(os.Args[0])
+	if len(want) > taskCommLen {
+		want = want[:taskCommLen]
+	}
+
+	if name != want {
+		t.Fatalf("linuxApplicationNameByPID(self) = %q, want %q", name, want)
 	}
 }
 
 func TestLinuxApplicationBundleIDByPID(t *testing.T) {
 	t.Parallel()
 
-	id, err := linuxApplicationBundleIDByPID(os.Getpid())
+	bundleID, err := linuxApplicationBundleIDByPID(os.Getpid())
 	if err != nil {
 		t.Fatalf("linuxApplicationBundleIDByPID(self) error: %v", err)
 	}
 
-	if id == "" {
-		t.Fatal("linuxApplicationBundleIDByPID(self) returned empty identifier")
+	// Per-app config matches on the basename of argv[0], not its full path.
+	if want := filepath.Base(os.Args[0]); bundleID != want {
+		t.Fatalf("linuxApplicationBundleIDByPID(self) = %q, want %q", bundleID, want)
 	}
 }
 

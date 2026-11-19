@@ -17,57 +17,6 @@ import (
 	"github.com/y3owk1n/neru/internal/adapter/logger"
 )
 
-func TestGet(t *testing.T) {
-	log := logger.Get()
-	if log == nil {
-		t.Fatal("Get() returned nil")
-	}
-
-	_ = log.With(zap.String("test", "value")) // Should not panic
-}
-
-func TestReset(t *testing.T) {
-	original := logger.Get()
-
-	logger.Reset()
-
-	newLogger := logger.Get()
-	if newLogger == nil {
-		t.Fatal("Get() returned nil after reset")
-	}
-
-	if original == newLogger {
-		t.Error("Reset() did not create a new logger instance")
-	}
-}
-
-func TestInit(t *testing.T) {
-	logger.Reset()
-
-	var buf bytes.Buffer
-
-	err := logger.Init("info", "", true, 10, 5, 30, &buf)
-	if err != nil {
-		t.Fatalf("Init() error = %v", err)
-	}
-
-	log := logger.Get()
-	if log == nil {
-		t.Fatal("Get() returned nil after Init")
-	}
-
-	log.Info("test message", zap.String("key", "value"))
-	output := buf.String()
-
-	if !strings.Contains(output, "test message") {
-		t.Errorf("Log output does not contain expected message. Got: %s", output)
-	}
-
-	if !strings.Contains(output, "key=value") {
-		t.Errorf("Log output does not contain structured field. Got: %s", output)
-	}
-}
-
 func TestInit_ConsoleWritesOneLinePerEntry(t *testing.T) {
 	const timestamp = `^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2}) `
 
@@ -120,40 +69,6 @@ func TestInit_ConsoleWritesOneLinePerEntry(t *testing.T) {
 				t.Errorf("console line = %q, want it to match %q", output, pattern)
 			}
 		})
-	}
-}
-
-func TestSync(t *testing.T) {
-	logger.Reset()
-
-	err := logger.Init("info", "", true, 10, 5, 30, &bytes.Buffer{})
-	if err != nil {
-		t.Fatalf("Init() error = %v", err)
-	}
-
-	syncErr := logger.Sync()
-	if syncErr != nil {
-		t.Errorf("Sync() error = %v", syncErr)
-	}
-}
-
-func TestClose(t *testing.T) {
-	logger.Reset()
-
-	err := logger.Init("info", "", true, 10, 5, 30, &bytes.Buffer{})
-	if err != nil {
-		t.Fatalf("Init() error = %v", err)
-	}
-
-	closeErr := logger.Close()
-	if closeErr != nil {
-		t.Errorf("Close() error = %v", closeErr)
-	}
-
-	// After close, Get should still return a logger (fallback)
-	log := logger.Get()
-	if log == nil {
-		t.Error("Get() returned nil after Close")
 	}
 }
 

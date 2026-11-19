@@ -72,45 +72,6 @@ func activate(name string, toggle bool) modecmd.Activation {
 	return activation
 }
 
-// TestCustomMode_Activate_EntersTheDeclaredModeAndAnswersItsKeys pins the
-// whole path a declared mode exists for. Entering it by name settles that
-// declaration's keymap, a bound bare key runs its steps, the default Escape
-// binding leads out, and leaving clears the name.
-func TestCustomMode_Activate_EntersTheDeclaredModeAndAnswersItsKeys(t *testing.T) {
-	t.Parallel()
-
-	handler, ran := newCustomModeHandler(configDeclaring())
-
-	handler.ActivateMode(activate(declaredWindow, false))
-
-	if got := handler.appState.CurrentMode(); got != domain.ModeCustom {
-		t.Fatalf("mode = %v after activation, want ModeCustom", got)
-	}
-
-	if handler.appState.CustomModeName() != declaredWindow {
-		t.Fatalf("customModeName = %q, want %q", handler.appState.CustomModeName(), declaredWindow)
-	}
-
-	handler.HandleKeyPress("h")
-	waitForStep(t, ran, stepFocusWest)
-
-	handler.HandleKeyPress("Escape")
-	waitForStep(t, ran, configpkg.CmdIdle)
-
-	handler.ActivateMode(modecmd.Activation{Mode: domain.ModeIdle})
-
-	if got := handler.appState.CurrentMode(); got != domain.ModeIdle {
-		t.Fatalf("mode = %v after idle, want ModeIdle", got)
-	}
-
-	if handler.appState.CustomModeName() != "" {
-		t.Errorf(
-			"customModeName = %q after leaving, want it cleared",
-			handler.appState.CustomModeName(),
-		)
-	}
-}
-
 // TestCustomMode_Activate_SwitchesBetweenDeclarations pins that two declared
 // modes are two modes even though they share one enum value. Entering the
 // second from the first switches the keymap, and --toggle exits only when the

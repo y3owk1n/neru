@@ -53,68 +53,6 @@ func TestEventTapEnqueueKey_NonBlockingWhenQueueBackedUp(t *testing.T) {
 	close(blockCh)
 }
 
-func TestEventTapEnqueueKey_PreservesOrder(t *testing.T) {
-	var (
-		receivedMu sync.Mutex
-		received   []string
-		done       = make(chan struct{})
-	)
-
-	eventTap := &EventTap{
-		logger: zap.NewNop(),
-		callback: func(key string) {
-			receivedMu.Lock()
-
-			received = append(received, key)
-
-			if len(received) == 4 {
-				select {
-				case <-done:
-				default:
-					close(done)
-				}
-			}
-
-			receivedMu.Unlock()
-		},
-		queue:        newUnboundedQueue(),
-		stopDispatch: make(chan struct{}),
-	}
-	eventTap.startDispatcher()
-
-	defer eventTap.stopDispatcher()
-
-	expected := []string{"u", "i", "j", "k"}
-	for _, key := range expected {
-		eventTap.enqueueKey(key)
-	}
-
-	select {
-	case <-done:
-	case <-time.After(300 * time.Millisecond):
-		t.Fatal("did not receive all callbacks in time")
-	}
-
-	receivedMu.Lock()
-
-	defer receivedMu.Unlock()
-
-	if len(received) != len(expected) {
-		t.Fatalf("received %d keys, want %d", len(received), len(expected))
-	}
-
-	for index := range expected {
-		if received[index] != expected[index] {
-			t.Fatalf(
-				"callback order mismatch at index %d: got %q, want %q",
-				index,
-				received[index],
-				expected[index],
-			)
-		}
-	}
-}
-
 func TestEventTapEnqueuePassthrough_PreservesSnapshotOrder(t *testing.T) {
 	var (
 		receivedMu sync.Mutex
@@ -136,7 +74,7 @@ func TestEventTapEnqueuePassthrough_PreservesSnapshotOrder(t *testing.T) {
 		defer receivedMu.Unlock()
 
 		received = append(received, value)
-		if len(received) == 4 {
+		if len(received) == 6 {
 			select {
 			case <-done:
 			default:
@@ -157,6 +95,8 @@ func TestEventTapEnqueuePassthrough_PreservesSnapshotOrder(t *testing.T) {
 	eventTap.enqueuePassthrough(func() {
 		appendEvent("passthrough:second")
 	})
+	eventTap.enqueueKey("j")
+	eventTap.enqueueKey("k")
 
 	select {
 	case <-done:
@@ -172,6 +112,8 @@ func TestEventTapEnqueuePassthrough_PreservesSnapshotOrder(t *testing.T) {
 		"passthrough:first",
 		"key:i",
 		"passthrough:second",
+		"key:j",
+		"key:k",
 	}
 
 	if len(received) != len(expected) {

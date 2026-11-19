@@ -91,7 +91,7 @@ func (b *Base) SwitchTo(next Mode) {
 		)
 	}
 
-	b.publish(NewStateChange(prev, next))
+	b.publish(newStateChange(prev, next))
 }
 
 // Subscribe registers a callback for overlay mode changes.

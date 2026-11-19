@@ -143,7 +143,7 @@ func (e *Executor) RunWithPolicy(
 			continue
 		}
 
-		dispatchStep, stepIsFatal, directiveErr := SplitBailOnError(trimmedStep)
+		dispatchStep, stepIsFatal, directiveErr := splitBailOnError(trimmedStep)
 		stepIsFatal = stepIsFatal || policy.StopOnError
 
 		outcome.Executed++

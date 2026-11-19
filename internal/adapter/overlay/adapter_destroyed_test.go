@@ -350,9 +350,14 @@ func TestAdapterDestroy_IsSafeToCallTwice(t *testing.T) {
 	manager := &countingManager{}
 	port := destroyedPort(manager)
 
+	before := manager.reached()
+
 	port.Destroy()
 
 	released := manager.reached()
+	if released != before+1 {
+		t.Fatalf("Destroy() made %d backend calls, want exactly the one release", released-before)
+	}
 
 	done := make(chan struct{})
 

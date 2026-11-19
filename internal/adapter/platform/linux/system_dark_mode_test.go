@@ -11,51 +11,6 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-func TestScanINIValueFindsKeyInCorrectSection(t *testing.T) {
-	t.Parallel()
-
-	// kdeglobals-shaped fixture: comments, multiple sections, the key we
-	// care about lives only in the [General] section.
-	body := strings.Join([]string{
-		"# kdeglobals fixture",
-		"[KDE]",
-		"ColorScheme=ShouldBeIgnored",
-		"",
-		"[General]",
-		"ColorScheme=BreezeDark",
-		"Other=value",
-		"",
-		"[General-Substitution]",
-		"ColorScheme=AlsoIgnored",
-	}, "\n")
-
-	got := scanINIValue(strings.NewReader(body), "General", "ColorScheme")
-	if got != "BreezeDark" {
-		t.Fatalf("scanINIValue() = %q, want %q", got, "BreezeDark")
-	}
-}
-
-func TestScanINIValueReturnsEmptyWhenSectionOrKeyMissing(t *testing.T) {
-	t.Parallel()
-
-	cases := map[string]string{
-		"missing section": "[Other]\nColorScheme=BreezeDark\n",
-		"missing key":     "[General]\nOther=value\n",
-		"empty body":      "",
-	}
-
-	for name, body := range cases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			got := scanINIValue(strings.NewReader(body), "General", "ColorScheme")
-			if got != "" {
-				t.Fatalf("scanINIValue() = %q, want empty", got)
-			}
-		})
-	}
-}
-
 func TestDarkModeCapabilitySupportedStates(t *testing.T) {
 	t.Parallel()
 
@@ -137,14 +92,20 @@ func TestDarkModeCapabilityDowngradesToStubWhenUnreachable(t *testing.T) {
 func writeKDEGlobals(t *testing.T, path, scheme string) {
 	t.Helper()
 
-	err := os.MkdirAll(filepath.Dir(path), 0o755)
-	if err != nil {
-		t.Fatalf("MkdirAll(%q): %v", filepath.Dir(path), err)
-	}
-
 	body := "[General]\n"
 	if scheme != "" {
 		body += "ColorScheme=" + scheme + "\n"
+	}
+
+	writeKDEGlobalsBody(t, path, body)
+}
+
+func writeKDEGlobalsBody(t *testing.T, path, body string) {
+	t.Helper()
+
+	err := os.MkdirAll(filepath.Dir(path), 0o755)
+	if err != nil {
+		t.Fatalf("MkdirAll(%q): %v", filepath.Dir(path), err)
 	}
 
 	err = os.WriteFile(path, []byte(body), 0o600)
@@ -237,6 +198,44 @@ func TestReadKDEColorScheme(t *testing.T) {
 			},
 			want:   colorSchemeLight,
 			wantOK: true,
+		},
+		{
+			// Only [General] counts. A ColorScheme under another section, or
+			// under one whose name starts with General, is not the scheme.
+			name: "reads ColorScheme only from the General section",
+			setup: func(t *testing.T, home string) {
+				t.Helper()
+				writeKDEGlobalsBody(t, primary(home), strings.Join([]string{
+					"# kdeglobals fixture",
+					"[KDE]",
+					"ColorScheme=BreezeDark",
+					"",
+					"[General]",
+					"ColorScheme=BreezeLight",
+					"Other=value",
+					"",
+					"[General-Substitution]",
+					"ColorScheme=OxygenDark",
+				}, "\n"))
+			},
+			want:   colorSchemeLight,
+			wantOK: true,
+		},
+		{
+			name: "a General section without ColorScheme yields unknown",
+			setup: func(t *testing.T, home string) {
+				t.Helper()
+				writeKDEGlobals(t, primary(home), "")
+			},
+			wantOK: false,
+		},
+		{
+			name: "a ColorScheme outside any General section yields unknown",
+			setup: func(t *testing.T, home string) {
+				t.Helper()
+				writeKDEGlobalsBody(t, primary(home), "[Other]\nColorScheme=BreezeDark\n")
+			},
+			wantOK: false,
 		},
 		{
 			name:   "no files yields unknown",

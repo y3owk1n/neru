@@ -6,11 +6,20 @@ import (
 
 const testKeyCmdShiftS = "Cmd+Shift+S"
 
+// TestFindNormalizedMapKey_Bindings pins the case-insensitive match that keeps
+// one key from being bound twice under two spellings, returning the spelling
+// the table holds, and the raw key on a miss. The function is generic with no
+// code per value type, so one instantiation covers the hotkey tables too.
 func TestFindNormalizedMapKey_Bindings(t *testing.T) {
 	bindings := map[string][]string{
-		testKeyCmdShiftS:  {ModeNameScroll},
-		"Cmd+Shift+Space": {ModeNameHints},
-		"Cmd+Shift+G":     {ModeNameGrid},
+		testKeyCmdShiftS:    {ModeNameScroll},
+		"Cmd+Shift+Space":   {ModeNameHints},
+		"Cmd+Shift+G":       {ModeNameGrid},
+		KeyDisplayEscape:    {CmdIdle},
+		KeyComboShiftL:      {CmdLeftClick},
+		"Up":                {CmdMoveMouseUp},
+		KeyDisplayBackspace: {CmdBackspace},
+		"j":                 {"action scroll_down"},
 	}
 
 	tests := []struct {
@@ -38,36 +47,10 @@ func TestFindNormalizedMapKey_Bindings(t *testing.T) {
 			rawKey:   "Ctrl+X",
 			expected: "Ctrl+X",
 		},
-	}
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			got := FindNormalizedMapKey(bindings, testCase.rawKey, defaultPrimaryModifier())
-			if got != testCase.expected {
-				t.Errorf("FindNormalizedMapKey(%q) = %q, want %q",
-					testCase.rawKey, got, testCase.expected)
-			}
-		})
-	}
-}
-
-func TestFindNormalizedMapKey_SOSA(t *testing.T) {
-	_map := map[string]StringOrStringArray{
-		KeyDisplayEscape:    {CmdIdle},
-		KeyComboShiftL:      {CmdLeftClick},
-		"Up":                {CmdMoveMouseUp},
-		KeyDisplayBackspace: {CmdBackspace},
-		"j":                 {"action scroll_down"},
-	}
-
-	tests := []struct {
-		name     string
-		rawKey   string
-		expected string
-	}{
 		{
-			name:     "exact match",
+			name:     "named key exact match",
 			rawKey:   "Escape",
-			expected: "Escape",
+			expected: KeyDisplayEscape,
 		},
 		{
 			name:     "lowercase escape matches Escape",
@@ -90,14 +73,14 @@ func TestFindNormalizedMapKey_SOSA(t *testing.T) {
 			expected: "j",
 		},
 		{
-			name:     "no match returns rawKey",
+			name:     "single char miss returns rawKey",
 			rawKey:   "x",
 			expected: "x",
 		},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			got := FindNormalizedMapKey(_map, testCase.rawKey, defaultPrimaryModifier())
+			got := FindNormalizedMapKey(bindings, testCase.rawKey, defaultPrimaryModifier())
 			if got != testCase.expected {
 				t.Errorf("FindNormalizedMapKey(%q) = %q, want %q",
 					testCase.rawKey, got, testCase.expected)

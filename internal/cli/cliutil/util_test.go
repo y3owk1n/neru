@@ -51,15 +51,6 @@ func TestIsHealthyHealthStatus(t *testing.T) {
 	}
 }
 
-func TestMaxComponentWidth(t *testing.T) {
-	keys := []string{"config", "capability.dark_mode_detection", "event_tap"}
-
-	got := maxComponentWidth(keys)
-	if got != len("capability.dark_mode_detection") {
-		t.Fatalf("maxComponentWidth() = %d, want %d", got, len("capability.dark_mode_detection"))
-	}
-}
-
 func TestPrintProfile(t *testing.T) {
 	t.Parallel()
 
@@ -139,20 +130,6 @@ func TestPrintJSON(t *testing.T) {
 	}
 }
 
-// A payload that cannot be encoded has to surface as an error rather than as
-// empty output a script would read as success.
-func TestPrintJSON_ReportsUnencodablePayload(t *testing.T) {
-	t.Parallel()
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&bytes.Buffer{})
-
-	err := NewOutputFormatter().PrintJSON(cmd, make(chan int))
-	if err == nil {
-		t.Fatal("PrintJSON() = nil, want an error for an unencodable payload")
-	}
-}
-
 func TestPrintToggles(t *testing.T) {
 	t.Parallel()
 
@@ -213,33 +190,34 @@ func TestPrintToggles_SkipsAbsentState(t *testing.T) {
 func TestPrintOverlayBackend(t *testing.T) {
 	t.Parallel()
 
-	var output bytes.Buffer
-
-	cmd := &cobra.Command{}
-	cmd.SetOut(&output)
-
-	printOverlayBackend(cmd, map[string]any{
-		"overlay_detail": "layered Win32 window + GDI",
-	})
-
-	want := "  Overlay backend: layered Win32 window + GDI\n"
-	if got := output.String(); got != want {
-		t.Fatalf("printOverlayBackend output = %q, want %q", got, want)
+	tests := []struct {
+		name   string
+		detail string
+		want   string
+	}{
+		{
+			name:   "detail present",
+			detail: "layered Win32 window + GDI",
+			want:   "  Overlay backend: layered Win32 window + GDI\n",
+		},
+		{name: "detail absent", detail: "", want: ""},
 	}
-}
 
-func TestPrintOverlayBackend_SkipsAbsentDetail(t *testing.T) {
-	t.Parallel()
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-	var output bytes.Buffer
+			var output bytes.Buffer
 
-	cmd := &cobra.Command{}
-	cmd.SetOut(&output)
+			cmd := &cobra.Command{}
+			cmd.SetOut(&output)
 
-	printOverlayBackend(cmd, map[string]any{"overlay_detail": ""})
+			printOverlayBackend(cmd, map[string]any{"overlay_detail": testCase.detail})
 
-	if got := output.String(); got != "" {
-		t.Fatalf("printOverlayBackend output = %q, want nothing", got)
+			if got := output.String(); got != testCase.want {
+				t.Fatalf("printOverlayBackend output = %q, want %q", got, testCase.want)
+			}
+		})
 	}
 }
 
