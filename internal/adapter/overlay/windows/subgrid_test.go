@@ -34,8 +34,16 @@ type recordingWindow struct {
 	sizes []float64
 	// rects is every rectangle filled or stroked, in order.
 	rects []image.Rectangle
+	// labels is every hint label painted, with its typed part.
+	labels []recordedLabel
 	// scale is what Scale answers. Zero means 1, a 100% display.
 	scale float64
+}
+
+// recordedLabel is one hint label the overlay painted.
+type recordedLabel struct {
+	text, typed       string
+	color, typedColor uint32
 }
 
 func (w *recordingWindow) HWND() windows.HWND { return 0 }
@@ -103,6 +111,23 @@ func (w *recordingWindow) DrawTextCentered(
 	w.sizes = append(w.sizes, fontSize)
 }
 
+// DrawHintLabel records like DrawTextCentered, bold as a label always is, and
+// keeps the typed part and its color in labels.
+func (w *recordingWindow) DrawHintLabel(
+	label, typed string,
+	_ image.Rectangle,
+	_ string,
+	fontSize float64,
+	color, typedColor uint32,
+) {
+	w.texts = append(w.texts, label)
+	w.bolds = append(w.bolds, true)
+	w.sizes = append(w.sizes, fontSize)
+	w.labels = append(w.labels, recordedLabel{
+		text: label, typed: typed, color: color, typedColor: typedColor,
+	})
+}
+
 func (w *recordingWindow) DrawPointerGlyph(_ image.Point, _ int, char string, _ string, _ uint32) {
 	w.texts = append(w.texts, char)
 	w.bolds = append(w.bolds, false)
@@ -116,6 +141,7 @@ func (w *recordingWindow) forget() {
 	w.texts = nil
 	w.bolds = nil
 	w.rects = nil
+	w.labels = nil
 }
 
 // fixedTheme is a ThemeProvider that answers one mode.

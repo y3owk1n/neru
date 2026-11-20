@@ -58,6 +58,10 @@ type recordedText struct {
 	fontSize   float64
 	color      uint32
 	bold       bool
+	// matched and matchedColor are a hint label's typed bytes and the color
+	// they were drawn in. Plain text has none.
+	matched      int
+	matchedColor uint32
 }
 
 func (s *recordingSurface) alive() bool { return true }
@@ -124,6 +128,22 @@ func (s *recordingSurface) textPrim(
 		fontSize:   fontSize,
 		color:      color,
 		bold:       bold,
+	})
+}
+
+func (s *recordingSurface) labelPrim(
+	text string, matched int, fontFamily string,
+	centerX, centerY, fontSize float64, color, matchedColor uint32, bold bool,
+) {
+	s.texts = append(s.texts, recordedText{
+		text:         text,
+		fontFamily:   fontFamily,
+		center:       image.Pt(int(centerX), int(centerY)),
+		fontSize:     fontSize,
+		color:        color,
+		bold:         bold,
+		matched:      matched,
+		matchedColor: matchedColor,
 	})
 }
 

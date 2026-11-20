@@ -13,6 +13,14 @@ func alphaAt(pixels []byte, bufW, x, y int) byte {
 	return pixels[(y*bufW+x)*bytesPerPixel+3]
 }
 
+// pixelAt returns the premultiplied B, G, R and A the rasterizer wrote at
+// (x, y) in a buffer of the given width.
+func pixelAt(pixels []byte, bufW, x, y int) [bytesPerPixel]byte {
+	idx := (y*bufW + x) * bytesPerPixel
+
+	return [bytesPerPixel]byte(pixels[idx : idx+bytesPerPixel])
+}
+
 // TestFillRoundedRect_QueuesTheUnclippedRectangle pins that a rounded fill
 // hanging off the surface keeps its own geometry.
 //
@@ -288,6 +296,103 @@ func TestDrawPointerGlyph_TinySizeStillDraws(t *testing.T) {
 
 		if got.text != pointerGlyphDefault {
 			t.Errorf("size %d drew %q, want the default disc", size, got.text)
+		}
+	}
+}
+
+func TestTypedSplit_EndsWhereTheTypedLettersEnd(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                        string
+		texW, pad, box, full, typed int
+		want                        int
+	}{
+		// A 20-wide label centered in a 30-wide box starts 5 in, past the
+		// pad, and its first letter is 7 wide.
+		{name: "first letter typed", texW: 32, pad: 1, box: 30, full: 20, typed: 7, want: 13},
+		{name: "nothing typed", texW: 32, pad: 1, box: 30, full: 20, typed: 0, want: 6},
+		{name: "whole label typed", texW: 32, pad: 1, box: 30, full: 20, typed: 20, want: 26},
+		{name: "kept on the bitmap", texW: 10, pad: 1, box: 30, full: 20, typed: 20, want: 10},
+	}
+
+	for _, test := range tests {
+		got := typedSplit(test.texW, test.pad, test.box, test.full, test.typed)
+		if got != test.want {
+			t.Errorf("%s: typedSplit = %d, want %d", test.name, got, test.want)
+		}
+	}
+}
+
+// TestCompositeLabelAt_ColorsTheTypedColumns pins the two runs a partly typed
+// label is laid down in: the typed letters' columns in the typed color and the
+// rest in the text color, every covered pixel exactly once.
+func TestCompositeLabelAt_ColorsTheTypedColumns(t *testing.T) {
+	t.Parallel()
+
+	const (
+		texW, texH = 4, 1
+		stride     = texW * bytesPerPixel
+		bufW       = 6
+	)
+
+	coverage := make([]byte, texH*stride)
+	for texX := range texW {
+		coverage[texX*bytesPerPixel+2] = alphaMax
+	}
+
+	pixels := make([]byte, bufW*bytesPerPixel)
+	compositeLabelAt(pixels, bufW, 1, coverage, texW, texH, stride, 1, 0, 2, 0xFFFF0000, 0xFF0000FF)
+
+	want := [][bytesPerPixel]byte{
+		{0, 0, 0, 0},
+		{0, 0, 255, 255},
+		{0, 0, 255, 255},
+		{255, 0, 0, 255},
+		{255, 0, 0, 255},
+		{0, 0, 0, 0},
+	}
+
+	for x, wantPixel := range want {
+		if got := pixelAt(pixels, bufW, x, 0); got != wantPixel {
+			t.Errorf("pixel %d = %v (BGRA), want %v", x, got, wantPixel)
+		}
+	}
+}
+
+func TestDrawHintLabel_QueuesTheTypedPartInUTF16Units(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, label, typed string
+		want               int
+	}{
+		{name: "nothing typed", label: "SD", typed: "", want: 0},
+		{name: "first letter typed", label: "SD", typed: "S", want: 1},
+		{name: "a letter outside the basic plane", label: "𝐀B", typed: "𝐀", want: 2},
+		{name: "not the label's start", label: "SD", typed: "D", want: 0},
+	}
+
+	for _, test := range tests {
+		window := &OverlayWindow{width: 100, height: 100}
+		window.DrawHintLabel(
+			test.label,
+			test.typed,
+			image.Rect(0, 0, 40, 16),
+			"",
+			11,
+			0xFF302505,
+			0xFFD4AC3A,
+		)
+
+		if len(window.cmds) != 1 {
+			t.Fatalf("%s: queued %d commands, want 1", test.name, len(window.cmds))
+		}
+
+		cmd := window.cmds[0]
+		if cmd.typed != test.want || !cmd.bold || cmd.typedColor != 0xFFD4AC3A {
+			t.Errorf("%s: typed %d, bold %v, typed color %08X, want %d, bold, FFD4AC3A",
+				test.name, cmd.typed, cmd.bold, cmd.typedColor, test.want)
 		}
 	}
 }

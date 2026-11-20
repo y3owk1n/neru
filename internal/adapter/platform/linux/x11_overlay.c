@@ -1,6 +1,7 @@
 #include "x11_overlay.h"
 
 #include "font_fallback.h"
+#include "label_text.h"
 #include "x11_system.h"
 
 #include <X11/Xatom.h>
@@ -383,7 +384,7 @@ void neru_x11_overlay_hint_badge(
 
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color, int bold) {
+    unsigned int color, int bold, int matched, unsigned int matched_color) {
 	cairo_t *cr = overlay->cr;
 	cairo_text_extents_t extents;
 	char family[256];
@@ -393,9 +394,8 @@ void neru_x11_overlay_text(
 	    cr, family, CAIRO_FONT_SLANT_NORMAL, bold ? CAIRO_FONT_WEIGHT_BOLD : CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_font_size(cr, font_size);
 	cairo_text_extents(cr, text, &extents);
-	neru_x11_overlay_color(cr, color);
 	cairo_move_to(cr, x - (extents.width / 2.0) - extents.x_bearing, y - (extents.height / 2.0) - extents.y_bearing);
-	cairo_show_text(cr, text);
+	neru_label_show(cr, text, matched, color, matched_color);
 	cairo_restore(cr);
 }
 

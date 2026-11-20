@@ -79,6 +79,12 @@ type overlaySurface interface {
 		fill, border uint32, lineWidth float64,
 	)
 	textPrim(text, fontFamily string, centerX, centerY, fontSize float64, color uint32, bold bool)
+	// labelPrim draws a hint label as textPrim draws text, with its first
+	// matched bytes, the part already typed, in matchedColor.
+	labelPrim(
+		text string, matched int, fontFamily string,
+		centerX, centerY, fontSize float64, color, matchedColor uint32, bold bool,
+	)
 }
 
 // changeTrackedSurface commits only what changed. A mode's indicator tick
@@ -206,8 +212,26 @@ func (s *changeTrackedSurface) hintBadgePrim(
 func (s *changeTrackedSurface) textPrim(
 	text, fontFamily string, centerX, centerY, fontSize float64, color uint32, bold bool,
 ) {
-	// Glyphs reach past the measured width and the font size a little, so
-	// the mark is half a font size wider and twice as tall.
+	s.markText(text, fontFamily, centerX, centerY, fontSize, bold)
+	s.overlaySurface.textPrim(text, fontFamily, centerX, centerY, fontSize, color, bold)
+}
+
+func (s *changeTrackedSurface) labelPrim(
+	text string, matched int, fontFamily string,
+	centerX, centerY, fontSize float64, color, matchedColor uint32, bold bool,
+) {
+	s.markText(text, fontFamily, centerX, centerY, fontSize, bold)
+	s.overlaySurface.labelPrim(
+		text, matched, fontFamily, centerX, centerY, fontSize, color, matchedColor, bold,
+	)
+}
+
+// markText records the area text centered on (centerX, centerY) can cover.
+// Glyphs reach past the measured width and the font size a little, so the mark
+// is half a font size wider and twice as tall.
+func (s *changeTrackedSurface) markText(
+	text, fontFamily string, centerX, centerY, fontSize float64, bold bool,
+) {
 	halfWidth := float64(
 		badge.TextWidth(text, fontFamily, fontSize, bold),
 	)/textHalves + fontSize/textHalves
@@ -215,7 +239,6 @@ func (s *changeTrackedSurface) textPrim(
 		int(math.Floor(centerX-halfWidth)), int(math.Floor(centerY-fontSize)),
 		int(math.Ceil(centerX+halfWidth)), int(math.Ceil(centerY+fontSize)),
 	))
-	s.overlaySurface.textPrim(text, fontFamily, centerX, centerY, fontSize, color, bold)
 }
 
 func (s *changeTrackedSurface) surfaceFlush() {
@@ -889,11 +912,6 @@ func (o *sharedOverlay) repaintHints(
 			)
 		}
 
-		textColor := style.TextColor()
-		if hint.MatchedPrefix() != "" {
-			textColor = style.MatchedTextColor()
-		}
-
 		label := hint.Label()
 		// Size the badge from the scaled font so it fits the text
 		// drawTextCentered renders. Position stays in device pixels.
@@ -928,12 +946,14 @@ func (o *sharedOverlay) repaintHints(
 			badgeRect, float64(radius), hintTailEdge(badgeRect, arrow, hasArrow), arrow,
 			fill, border, borderWidth,
 		)
-		o.drawTextCentered(
-			label, badgeRect,
+		// Only the typed part of the label takes the matched color, as on
+		// macOS, so the letters still to type stay readable.
+		o.drawLabelCentered(
+			label, len(hint.TypedPrefix()), badgeRect,
 			style.FontFamily(),
 			fontSize,
-			badge.ParseHexARGB(textColor),
-			true,
+			badge.ParseHexARGB(style.TextColor()),
+			badge.ParseHexARGB(style.MatchedTextColor()),
 		)
 	}
 
@@ -1561,6 +1581,20 @@ func (o *sharedOverlay) drawTextCentered(
 		float64(bounds.Min.X+bounds.Dx()/2),
 		float64(bounds.Min.Y+bounds.Dy()/2),
 		fontSize*o.srf.surfaceScale(), color, bold,
+	)
+}
+
+// drawLabelCentered draws a hint label as drawTextCentered draws bold text,
+// with its first matched bytes in matchedColor.
+func (o *sharedOverlay) drawLabelCentered(
+	label string, matched int, bounds image.Rectangle,
+	fontFamily string, fontSize float64, color, matchedColor uint32,
+) {
+	o.srf.labelPrim(
+		label, matched, fontFamily,
+		float64(bounds.Min.X+bounds.Dx()/2),
+		float64(bounds.Min.Y+bounds.Dy()/2),
+		fontSize*o.srf.surfaceScale(), color, matchedColor, true,
 	)
 }
 
