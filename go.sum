@@ -62,6 +62,8 @@ github.com/y3owk1n/yomi v0.0.0-20261122054514-a47aa3e6ef0f h1:M+n74KqDLe9+TxzFf1
 github.com/y3owk1n/yomi v0.0.0-20261122054514-a47aa3e6ef0f/go.mod h1:eGGG/UxibiHzJXCwGvWt5yB4FgIMgWYncPHiXWHqdh0=
 github.com/y3owk1n/yomi v0.0.0-20261122055020-9548b411388d h1:q1oUT6+Jfkkrv1zWrFOp6X9Lw5Ow1yNG7otexBuwuJA=
 github.com/y3owk1n/yomi v0.0.0-20261122055020-9548b411388d/go.mod h1:eGGG/UxibiHzJXCwGvWt5yB4FgIMgWYncPHiXWHqdh0=
+github.com/y3owk1n/yomi v0.0.0-20261122074316-87bdf3bfa605 h1:sTk5MmTldDXFqkLlxBHuM6cW92FUxCLAxjjqkQAi47A=
+github.com/y3owk1n/yomi v0.0.0-20261122074316-87bdf3bfa605/go.mod h1:eGGG/UxibiHzJXCwGvWt5yB4FgIMgWYncPHiXWHqdh0=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=

@@ -40,7 +40,7 @@ import (
 func (a *Adapter) captureText(
 	ctx context.Context,
 	region image.Rectangle,
-) (*image.RGBA, image.Rectangle, int, error) {
+) (*image.RGBA, image.Rectangle, float64, error) {
 	img, err := a.captureRegion(ctx, region)
 	if err != nil {
 		return nil, image.Rectangle{}, 0, err
@@ -49,10 +49,10 @@ func (a *Adapter) captureText(
 	return img, region, textScale(region), nil
 }
 
-// textScale is the whole-number scale yomi reads region's text at, from the
-// DPI scale of the monitor holding it.
-func textScale(region image.Rectangle) int {
-	return wholeScale(platformwindows.DPIScaleAt(regionCenter(region)))
+// textScale is the scale region's text is drawn at, the DPI scale of the
+// monitor holding it.
+func textScale(region image.Rectangle) float64 {
+	return platformwindows.DPIScaleAt(regionCenter(region))
 }
 
 // AccurateReadDiffers is false. yomi reads every script in one pass, so an

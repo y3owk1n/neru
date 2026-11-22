@@ -34,13 +34,13 @@ import (
 func (a *Adapter) captureText(
 	ctx context.Context,
 	region image.Rectangle,
-) (*image.RGBA, image.Rectangle, int, error) {
+) (*image.RGBA, image.Rectangle, float64, error) {
 	img, err := a.captureRegion(ctx, region)
 	if err != nil {
 		return nil, image.Rectangle{}, 0, err
 	}
 
-	return img, region, yomiScale(img, region), nil
+	return img, region, frameScale(img, region), nil
 }
 
 // AccurateReadDiffers is false. yomi reads every script in one pass, so an
@@ -257,7 +257,7 @@ func (a *Adapter) readFrameLines(
 ) ([][]ports.TextPiece, error) {
 	started := time.Now()
 
-	lines, err := readYomiLines(ctx, img, region, yomiScale(img, region))
+	lines, err := readYomiLines(ctx, img, region, frameScale(img, region))
 	if err != nil {
 		return nil, derrors.Wrapf(
 			err,

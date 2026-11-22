@@ -62,7 +62,7 @@ func (a *Adapter) DetectElements(
 	// takes it about four times as long while it competes with the text read
 	// for the same cores, so it gets the frame box-filtered down.
 	rectFrame := img
-	if factor := yomiScale(img, region); factor > 1 {
+	if factor := wholeScale(frameScale(img, region)); factor > 1 {
 		rectFrame = frame.Downsample(img, factor)
 	}
 

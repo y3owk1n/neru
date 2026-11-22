@@ -37,7 +37,7 @@ const bytesPerPixel = 4
 func (a *Adapter) captureText(
 	ctx context.Context,
 	region image.Rectangle,
-) (*image.RGBA, image.Rectangle, int, error) {
+) (*image.RGBA, image.Rectangle, float64, error) {
 	frame, err := captureReadFrame(ctx, region)
 	if err != nil {
 		return nil, image.Rectangle{}, 0, err
@@ -51,7 +51,7 @@ func (a *Adapter) captureText(
 
 	shown := rectOf(frame.bounds)
 
-	return img, shown, yomiScale(img, shown), nil
+	return img, shown, frameScale(img, shown), nil
 }
 
 // rectOf is r in integer points.
@@ -396,7 +396,7 @@ func readFrameLines(ctx context.Context, frame readFrame) ([][]ports.TextPiece, 
 
 	shown := rectOf(frame.bounds)
 
-	return readYomiLines(ctx, img, shown, yomiScale(img, shown))
+	return readYomiLines(ctx, img, shown, frameScale(img, shown))
 }
 
 // ReadLinesOnceChanged waits for region to change from what the last fast
