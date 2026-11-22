@@ -51,7 +51,7 @@ func (m *MockVisionPort) Health(ctx context.Context) error {
 		return m.HealthFunc(ctx)
 	}
 
-	return derrors.New(derrors.CodeNotSupported, "vision framework is only available on macOS")
+	return derrors.New(derrors.CodeNotSupported, "vision detection is not available in this mock")
 }
 
 // DetectElements implements ports.VisionPort.
