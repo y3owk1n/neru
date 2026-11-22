@@ -83,10 +83,11 @@ func rectangleRegions(
 	return regions, nil
 }
 
-// withoutTextOverlap drops the rectangles that a text region overlaps by at
-// least iouThreshold. The text region already hints that target and carries
-// its label for hint search, which a rectangle would take away if it won the
-// merge.
+// withoutTextOverlap drops the rectangles a text region already hints: one
+// it overlaps by at least iouThreshold, and one mostly inside it, such as a
+// box the detector drew around one word of a line. The text region carries its
+// label for hint search, which a rectangle would take away if it won the
+// merge. A second hint on the same target only crowds it.
 func withoutTextOverlap(
 	rects []DetectedRegion,
 	text []DetectedRegion,
@@ -100,7 +101,10 @@ func withoutTextOverlap(
 
 	for _, rect := range rects {
 		covered := slices.ContainsFunc(text, func(word DetectedRegion) bool {
-			return intersectionOverUnion(rect.Bounds, word.Bounds) >= iouThreshold
+			inside := area(rect.Bounds.Intersect(word.Bounds))
+
+			return intersectionOverUnion(rect.Bounds, word.Bounds) >= iouThreshold ||
+				float64(inside) >= mostlyInside*float64(area(rect.Bounds))
 		})
 		if !covered {
 			kept = append(kept, rect)
@@ -109,6 +113,10 @@ func withoutTextOverlap(
 
 	return kept
 }
+
+// mostlyInside is the share of a rectangle a text region must cover for the
+// rectangle to count as part of the text.
+const mostlyInside = 0.5
 
 // startRectangles runs rectangleRegions in the background when
 // hints.vision.detect_rectangles is on, bounded by request_timeout_ms, so it

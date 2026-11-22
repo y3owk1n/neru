@@ -105,6 +105,11 @@ func TestWithoutTextOverlap(t *testing.T) {
 		{"a box around the word is the word's target", image.Rect(5, 5, 115, 45), false},
 		{"a large box holding the word is its own target", image.Rect(0, 0, 400, 200), true},
 		{"a box away from text is kept", image.Rect(200, 200, 240, 240), true},
+		{
+			"a box around one word of the line is part of the text",
+			image.Rect(40, 12, 70, 38),
+			false,
+		},
 	}
 
 	for _, test := range tests {
