@@ -127,8 +127,8 @@ neru_version() {
 }
 
 # probe_binary BIN -> dies before anything is installed when BIN cannot
-# start here. On Linux the release links libtesseract, libpipewire and the
-# X11/Wayland libraries dynamically, so a missing one fails every command.
+# start here. On Linux the release links libpipewire and the X11/Wayland
+# libraries dynamically, so a missing one fails every command.
 probe_binary() {
     local out missing
     if out="$("$1" --version 2>&1)"; then return 0; fi
@@ -153,23 +153,9 @@ probe_binary() {
                 printf '%s\n' "$missing" | sed 's|.*|      pacman -F &|' >&2
             fi
         fi
-        # Fedora names tesseract's library libtesseract.so.5.5 (CMake soname)
-        # where the Ubuntu-built release wants libtesseract.so.5. Installing
-        # more packages cannot fix that, but a compatibility symlink does.
-        local fedora_tess="" f
-        for f in /usr/lib64/libtesseract.so.5.[0-9]* /usr/lib/libtesseract.so.5.[0-9]*; do
-            [ -e "$f" ] && { fedora_tess="$f"; break; }
-        done
-        if printf '%s\n' "$missing" | grep -qx 'libtesseract.so.5' && [ -n "$fedora_tess" ]; then
-            note "Your distribution ships the library as $(basename "$fedora_tess"). Link it under the"
-            note "name the release build expects, then rerun this script:"
-            note "      sudo ln -s $(basename "$fedora_tess") $(dirname "$fedora_tess")/libtesseract.so.5"
-            note "Details: https://github.com/$repo/blob/main/docs/guide/linux.md#troubleshooting"
-        else
-            note "The full list per distribution is under"
-            note "https://github.com/$repo/blob/main/docs/guide/linux.md#runtime-libraries"
-            note "Install them, then rerun this script."
-        fi
+        note "The full list per distribution is under"
+        note "https://github.com/$repo/blob/main/docs/guide/linux.md#runtime-libraries"
+        note "Install them, then rerun this script."
     fi
     die "Nothing was installed."
 }

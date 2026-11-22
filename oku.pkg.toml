@@ -92,8 +92,6 @@ libxkbcommon = { apt = "libxkbcommon-dev", dnf = "libxkbcommon-devel", pacman = 
 libei = { apt = "libei-dev", dnf = "libei-devel", pacman = "libei", when = { os = "linux" } }
 liboeffis = { apt = "liboeffis-dev", dnf = "liboeffis-devel", pacman = "libei", when = { os = "linux" } }
 fontconfig = { apt = "libfontconfig-dev", dnf = "fontconfig-devel", pacman = "fontconfig", when = { os = "linux" } }
-tesseract = { apt = "libtesseract-dev", dnf = "tesseract-devel", pacman = "tesseract", when = { os = "linux" } }
-tesseract-eng = { apt = "tesseract-ocr-eng", dnf = "tesseract-langpack-eng", pacman = "tesseract-data-eng", when = { os = "linux" } }
 pipewire = { apt = "libpipewire-0.3-dev", dnf = "pipewire-devel", pacman = "libpipewire", when = { os = "linux" } }
 wayland-protocols = { apt = "wayland-protocols", dnf = "wayland-protocols-devel", pacman = "wayland-protocols", when = { os = "linux" } }
 fonts-dejavu = { apt = "fonts-dejavu-core", dnf = "dejavu-sans-fonts", pacman = "ttf-dejavu", when = { os = "linux" } }

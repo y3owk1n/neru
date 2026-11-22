@@ -54,8 +54,9 @@ To drop the completion instead, delete the two lines under
 
 ### "error while loading shared libraries"
 
-On Linux a runtime library is missing, or Fedora names tesseract differently.
-See [Linux setup](linux.md#error-while-loading-shared-libraries-libtesseractso5).
+On Linux a runtime library is missing. See
+[Linux setup](linux.md#runtime-libraries) for the list and the command that
+installs it on your distribution.
 
 ## Permissions
 

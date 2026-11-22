@@ -56,15 +56,6 @@ The binary links these dynamically, and the daemon stops before any Neru code
 runs if one is missing. The install script lists each missing library first,
 and on apt, dnf and pacman prints the command that finds its package.
 
-- **tesseract** reads screen text for `hints.strategy = "vision"`, and is
-  required whatever the strategy is.
-- **tesseract English language data** is a separate package. Without it the
-  `vision` strategy reports that `eng.traineddata` is missing. Set
-  `TESSDATA_PREFIX` to use language data from elsewhere, such as `tessdata_fast`.
-  Vim mode also reads the languages in other scripts your locale names, such
-  as Chinese or Russian, when their data is installed. For Chinese that is
-  `tesseract-langpack-chi_sim` on Fedora, `tesseract-ocr-chi-sim` on Debian and
-  Ubuntu, or `tesseract-data-chi_sim` on Arch.
 - **pipewire** carries screen capture on KDE, but a missing
   `libpipewire-0.3.so` stops the daemon on every desktop.
 - **libei** injects input on KDE, COSMIC and GNOME.
@@ -81,7 +72,7 @@ clipboard tool. Install `wl-copy` (package `wl-clipboard`) on Wayland, or
 ### Debian / Ubuntu
 
 ```bash
-sudo apt-get install -y tesseract-ocr tesseract-ocr-eng fonts-dejavu-core
+sudo apt-get install -y fonts-dejavu-core
 ```
 
 Find the package for any other missing library with
@@ -89,12 +80,9 @@ Find the package for any other missing library with
 
 ### Fedora
 
-The library is `tesseract-libs`, not `tesseract`, and it needs
-[a compatibility link](#error-while-loading-shared-libraries-libtesseractso5).
-
 ```bash
 sudo dnf install -y \
-  tesseract-libs tesseract-langpack-eng libei pipewire-libs cairo libxkbcommon \
+  libei pipewire-libs cairo libxkbcommon \
   libX11 libXtst libXrandr libXrender libXext libXfixes \
   dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
 ```
@@ -104,7 +92,7 @@ sudo dnf install -y \
 ```bash
 sudo pacman -S --needed \
   cairo wayland libx11 libxtst libxrandr libxrender libxext libxfixes \
-  libxkbcommon libei fontconfig tesseract tesseract-data-eng libpipewire ttf-dejavu
+  libxkbcommon libei fontconfig libpipewire ttf-dejavu
 ```
 
 On KDE, approve [screen sharing](linux-desktops.md#screen-sharing-consent)
@@ -241,20 +229,6 @@ Linux has under [Known gaps](../reference/platform-support.md#known-gaps).
 ## Troubleshooting
 
 General problems are in [Troubleshooting](troubleshooting.md).
-
-### "error while loading shared libraries: libtesseract.so.5"
-
-Release binaries expect `libtesseract.so.5`, and Fedora ships
-`libtesseract.so.5.5`. The installer detects this and points here. Add a link,
-using the name `ls` prints:
-
-```bash
-sudo dnf install -y tesseract-libs tesseract-langpack-eng
-ls /usr/lib64/libtesseract.so.5.*
-sudo ln -s libtesseract.so.5.5 /usr/lib64/libtesseract.so.5
-```
-
-Debian, Ubuntu, Arch and builds from source do not need this.
 
 ### "WAYLAND_DISPLAY is not set"
 

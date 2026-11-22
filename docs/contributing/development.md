@@ -194,8 +194,8 @@ through apt, dnf or pacman.
   separately there and which the recipe does not list.
 - On another distribution, install the equivalents of: cairo, wayland and
   wayland-protocols, libX11, libXtst, libXrandr, libXrender, libXext,
-  libXfixes, libxkbcommon, libei and liboeffis, fontconfig, tesseract with
-  English data, pipewire, and the DejaVu fonts.
+  libXfixes, libxkbcommon, libei and liboeffis, fontconfig, pipewire, and the
+  DejaVu fonts.
 
 The build links libei and liboeffis even if you only test on wlroots. DejaVu
 is the default font when `font_family` is unset. Runtime roles of each library

@@ -125,13 +125,11 @@ func LinuxCapabilities() PlatformCapabilities {
 		),
 		// Both halves are implemented on every backend: capture through
 		// wlr-screencopy, XGetImage or the portal's ScreenCast session,
-		// recognition through tesseract. The detail names the three things that
-		// can still be missing on a given machine, because this preset is static
-		// and `neru doctor` reports it without probing. KDE's screen-sharing
-		// consent has to be approved once, the tesseract language data is a
-		// separate distribution package from the library Neru links, and the
-		// CGO-off build has no engine. VisionPort.Health answers the same
-		// question for the live session, and names which one it is.
+		// recognition through yomi, compiled in. The detail names what can still
+		// be missing on a given machine, because this preset is static and
+		// `neru doctor` reports it without probing. KDE's screen-sharing consent
+		// has to be approved once. VisionPort.Health answers the same question
+		// for the live session.
 		Vision: supportedCapability(
 			"vision element detection via yomi OCR over a screen capture " +
 				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +

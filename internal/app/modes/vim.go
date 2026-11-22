@@ -422,8 +422,7 @@ func (h *handlerState) startRefine() {
 // cancelYoungRefine stops the accurate read in flight, for a screen that has
 // since changed, while it is still waiting for the vision port to prepare or
 // has run less than vimRefineLetFinish. Canceling the wait leaves the
-// preparation running. Canceling stops a tesseract, Windows OCR or macOS
-// Vision recognition, the macOS helper process and the icon pass.
+// preparation running. Canceling stops a yomi read and the icon pass.
 func (h *handlerState) cancelYoungRefine() {
 	session := h.vim
 	if session.refining &&

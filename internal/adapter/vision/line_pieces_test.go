@@ -50,8 +50,8 @@ func TestPiecesFromSymbols_LaysCharactersOutAsCellsPerLineAndWord(t *testing.T) 
 }
 
 func TestPiecesFromSymbols_KeepsAWordWithCrossedInkWhole(t *testing.T) {
-	// tesseract sometimes gives a character a box over the one before it, as
-	// a "t" covering the "e" of "the".
+	// A recognizer can give a character a box over the one before it, as a
+	// "t" covering the "e" of "the".
 	img := image.NewRGBA(image.Rect(0, 0, 100, 40))
 	symbols := []lineSymbol{
 		{text: "h", ink: image.Rect(10, 10, 18, 30), line: 0, word: 0},
@@ -71,9 +71,9 @@ func TestPiecesFromSymbols_KeepsAWordWithCrossedInkWhole(t *testing.T) {
 }
 
 func TestPiecesFromSymbols_MovesABoundaryInsideACharacterToTheGap(t *testing.T) {
-	// Two glyphs, 10 to 20 and 24 to 34, on white. tesseract
-	// reads the first one 4 pixels too wide, so halfway between the boxes is
-	// column 23, inside the second glyph's ink. The gap is columns 20 to 23.
+	// Two glyphs, 10 to 20 and 24 to 34, on white. The recognizer reads the
+	// first one 4 pixels too wide, so halfway between the boxes is column 23,
+	// inside the second glyph's ink. The gap is columns 20 to 23.
 	img := image.NewRGBA(image.Rect(0, 0, 60, 40))
 	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
 
@@ -105,8 +105,8 @@ func TestPiecesFromSymbols_MovesABoundaryInsideACharacterToTheGap(t *testing.T) 
 //nolint:gosmopolitan // The fixtures are Chinese text.
 func TestPiecesFromSymbols_PlacesWideCharactersFromTheirInk(t *testing.T) {
 	// Three 20-pixel characters on a 24-pixel pitch, the middle one in two
-	// halves with a 2-pixel gap, as 测 is. tesseract reads each as a word of
-	// its own with boxes that drift right.
+	// halves with a 2-pixel gap, as 测 is. The recognizer reads each as a word
+	// of its own with boxes that drift right.
 	img := image.NewRGBA(image.Rect(0, 0, 100, 40))
 	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
 

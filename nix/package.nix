@@ -2,7 +2,6 @@
   fetchurl,
   gitUpdater,
   installShellFiles,
-  makeWrapper,
   patchelf,
   stdenv,
   versionCheckHook,
@@ -22,17 +21,10 @@
   libxtst,
   libxi,
   fontconfig,
-  # tesseract backs the `vision` hint strategy on Linux. It is a required
-  # dependency rather than an optional one: neru links libtesseract dynamically,
-  # so a missing library stops the daemon before any neru code runs, whatever
-  # hints.strategy is set to. The language data ships in the same derivation, at
-  # $out/share/tessdata, and the wrapper below is what points neru at it — a Nix
-  # store path is not somewhere the runtime search of /usr/share could find.
-  tesseract,
   # pipewire is how KDE Plasma sessions read the screen. KWin implements no
   # screencopy protocol, so capture there goes through xdg-desktop-portal's
-  # ScreenCast session and its frames arrive over PipeWire. Like tesseract it is
-  # required rather than optional: neru links libpipewire-0.3 dynamically, so a
+  # ScreenCast session and its frames arrive over PipeWire. It is required
+  # rather than optional: neru links libpipewire-0.3 dynamically, so a
   # missing library stops the daemon before any neru code runs, whatever desktop
   # it was started on.
   pipewire,
@@ -84,7 +76,6 @@ if useZip then
       libxtst
       libxi
       fontconfig
-      tesseract
       pipewire
     ];
   in
@@ -108,7 +99,6 @@ if useZip then
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       patchelf
-      makeWrapper
     ];
 
     buildInputs = lib.optionals stdenv.hostPlatform.isLinux linuxLibs;
@@ -162,12 +152,6 @@ if useZip then
               --fish <($out/Applications/Neru.app/Contents/MacOS/neru completion fish) \
               --zsh <($out/Applications/Neru.app/Contents/MacOS/neru completion zsh)
       fi
-    ''
-    + lib.optionalString stdenv.hostPlatform.isLinux ''
-      # --set-default, so a user who exports their own TESSDATA_PREFIX (a
-      # tessdata_fast checkout, another language) keeps it.
-      wrapProgram $out/bin/neru \
-        --set-default TESSDATA_PREFIX ${tesseract}/share/tessdata
     '';
 
     doInstallCheck = true;
@@ -222,7 +206,6 @@ else
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       pkg-config
-      makeWrapper
     ];
 
     buildInputs =
@@ -240,7 +223,6 @@ else
         libxtst
         libxi
         fontconfig
-        tesseract
         pipewire
       ]
       ++ lib.optionals stdenv.hostPlatform.isDarwin [
@@ -280,13 +262,6 @@ else
       	--fish <($out/bin/neru completion fish) \
       	--zsh <($out/bin/neru completion zsh)
       fi
-    ''
-    + lib.optionalString stdenv.hostPlatform.isLinux ''
-      # tesseract resolves its language data at run time, and it lives in a
-      # store path no filesystem search would find. --set-default, so a user who
-      # exports their own TESSDATA_PREFIX keeps it.
-      wrapProgram $out/bin/neru \
-        --set-default TESSDATA_PREFIX ${tesseract}/share/tessdata
     ''
     + lib.optionalString stdenv.hostPlatform.isDarwin ''
       # Create a simple .app bundle on the fly for macOS source builds.
