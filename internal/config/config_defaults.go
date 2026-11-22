@@ -31,8 +31,11 @@ const (
 	DefaultVisionMergeIOUThreshold = 0.5
 	// DefaultVisionRectangleMaxCandidates is the default maximum rectangle observations.
 	DefaultVisionRectangleMaxCandidates = 100
-	// DefaultVisionRectangleMinSize is the default minimum normalized rectangle size.
-	DefaultVisionRectangleMinSize = 0.01
+	// DefaultVisionRectangleMinSize is the default minimum normalized rectangle
+	// size. The contour detector outlines shapes inside photos, video frames
+	// and thumbnails as well as controls, and below 7% of the region's shorter
+	// side those shapes outnumber the controls it adds.
+	DefaultVisionRectangleMinSize = 0.07
 	// DefaultVisionRectangleMinAspect is the default minimum rectangle aspect ratio.
 	DefaultVisionRectangleMinAspect = 0.3
 	// DefaultVisionRectangleMaxAspect is the default maximum rectangle aspect ratio.

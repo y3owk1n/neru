@@ -222,7 +222,7 @@ request_timeout_ms = 5000
 minimum_confidence = 0.0                    # 0.0 to 1.0
 merge_iou_threshold = 0.5
 rectangle_max_candidates = 100
-rectangle_min_size = 0.01                   # Fraction of width/height (0.01 = 1%)
+rectangle_min_size = 0.07                   # Fraction of width/height (0.07 = 7%)
 rectangle_min_aspect = 0.3                  # width/height
 rectangle_max_aspect = 10.0                 # width/height
 button_min_confidence = 0.3

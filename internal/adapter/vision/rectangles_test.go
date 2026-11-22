@@ -43,7 +43,7 @@ func TestRectangleRegions(t *testing.T) {
 		want []string
 	}{
 		{
-			"the defaults drop the thin box by aspect",
+			"the aspect floor drops the thin box",
 			func(*config.HintsVisionConfig) {},
 			[]string{button, icon},
 		},
@@ -66,7 +66,10 @@ func TestRectangleRegions(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			// The shapes sit on a small frame, so each case starts from a 1% size
+			// floor and tests its own rule apart from the shipped 7%.
 			cfg := config.DefaultConfig().Hints.Vision
+			cfg.RectangleMinSize = 0.01
 			test.edit(&cfg)
 
 			regions, err := rectangleRegions(t.Context(), frame, region, cfg)
