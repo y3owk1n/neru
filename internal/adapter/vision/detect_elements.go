@@ -54,6 +54,20 @@ func (a *Adapter) DetectElements(
 		return nil, err
 	}
 
+	return a.detectInFrame(ctx, img, region, scale, cfg, splitWord)
+}
+
+// detectInFrame finds the text and button shapes in img, a capture of region
+// with its text drawn at scale pixels per point, as DetectElements does after
+// capturing.
+func (a *Adapter) detectInFrame(
+	ctx context.Context,
+	img *image.RGBA,
+	region image.Rectangle,
+	scale float64,
+	cfg config.HintsVisionConfig,
+	splitWord bool,
+) ([]*element.Element, error) {
 	// Canceling on return stops the rectangle pass when the text half fails.
 	rectCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
