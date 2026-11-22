@@ -5,11 +5,9 @@ package vision
 import (
 	"context"
 	"image"
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
-	"golang.org/x/image/draw"
 
 	"github.com/y3owk1n/neru/internal/adapter/platform"
 	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
@@ -23,8 +21,8 @@ import (
 
 // Linux answers this port with screen capture (wlr-screencopy on wlroots,
 // XGetImage on X11, a PipeWire stream off the portal's ScreenCast session on
-// KDE) plus tesseract (platform/linux/ocr.c) for text and the pure-Go contour
-// detector for rectangles, run concurrently over one frame (rectangles.go).
+// KDE) plus yomi (yomi_linux.go) for text and the pure-Go contour detector for
+// rectangles, run concurrently over one frame (rectangles.go).
 //
 // Privacy: recognized text is screen content. It reaches an element's title
 // and search text and nowhere else. Nothing here logs it or counts it into a
@@ -55,16 +53,6 @@ func (a *Adapter) DetectElements(
 		return nil, nil
 	}
 
-	// Check the engine before capturing, or a machine with no language data
-	// would have its window captured on every activation for nothing. After the
-	// first call this is a cached handle.
-	if cfg.DetectText {
-		engineErr := platformlinux.OCRHealth()
-		if engineErr != nil {
-			return nil, engineErr
-		}
-	}
-
 	img, err := a.captureRegion(ctx, region)
 	if err != nil {
 		return nil, err
@@ -77,36 +65,43 @@ func (a *Adapter) DetectElements(
 	rectangles := a.startRectangles(rectCtx, img, region, cfg)
 
 	var (
-		words []platformlinux.OCRWord
-		stats platformlinux.OCRStats
-		text  []DetectedRegion
+		words       []recognizedWord
+		recognition time.Duration
+		text        []DetectedRegion
 	)
 
 	if cfg.DetectText {
-		words, stats, err = platformlinux.RecognizeText(img, platformlinux.OCRParams{
-			WordLevel: splitWord,
-			TimeoutMS: cfg.RequestTimeoutMS,
-		})
-		if err != nil {
-			// A refusal already names what to install, so it passes unchanged.
-			if derrors.IsNotSupported(err) {
-				return nil, err
-			}
+		readCtx := ctx
 
+		if cfg.RequestTimeoutMS > 0 {
+			var cancelRead context.CancelFunc
+
+			readCtx, cancelRead = context.WithTimeout(
+				ctx, time.Duration(cfg.RequestTimeoutMS)*time.Millisecond,
+			)
+			defer cancelRead()
+		}
+
+		started := time.Now()
+		lines, readErr := readYomi(readCtx, img, region)
+		recognition = time.Since(started)
+
+		if readErr != nil {
 			// The cost and budget tell an early give-up from a timeout. The error
 			// never carries the recognized text.
 			return nil, derrors.Wrapf(
-				err,
-				derrors.GetCode(err),
+				readErr,
+				derrors.GetCode(readErr),
 				"text recognition failed after %s (budget %d ms, frame %dx%d)",
-				stats.Recognition,
+				recognition,
 				cfg.RequestTimeoutMS,
 				img.Rect.Dx(),
 				img.Rect.Dy(),
 			)
 		}
 
-		text = regionsFromWords(toRecognizedWords(words), region, img.Rect, cfg.MinimumConfidence)
+		words = yomiWords(lines, splitWord)
+		text = regionsFromWords(words, region, img.Rect, cfg.MinimumConfidence)
 	}
 
 	found, err := rectangles()
@@ -122,7 +117,7 @@ func (a *Adapter) DetectElements(
 	elements, skipped := elementsFromRegions(merged, &classifier)
 
 	a.logger.Debug("Vision detection complete",
-		zap.Duration("recognition", stats.Recognition),
+		zap.Duration("recognition", recognition),
 		zap.Int("frame_width", img.Rect.Dx()),
 		zap.Int("frame_height", img.Rect.Dy()),
 		zap.Int("raw_words", len(words)),
@@ -135,27 +130,10 @@ func (a *Adapter) DetectElements(
 	return elements, nil
 }
 
-// toRecognizedWords adapts the platform bridge's word type to the shared one,
-// so the region mapping stays testable on a non-Linux host.
-func toRecognizedWords(words []platformlinux.OCRWord) []recognizedWord {
-	converted := make([]recognizedWord, 0, len(words))
-
-	for _, word := range words {
-		converted = append(converted, recognizedWord{
-			Text:       word.Text,
-			Bounds:     word.Bounds,
-			Confidence: word.Confidence,
-		})
-	}
-
-	return converted
-}
-
-// AccurateReadDiffers is true when the locale names a language in another
-// script whose data is installed, the one thing an accurate read adds here.
-// It asks what ReadLines asks, so the two never disagree.
+// AccurateReadDiffers is false. yomi reads every script in one pass, so an
+// accurate read would read the same lines again.
 func (a *Adapter) AccurateReadDiffers() bool {
-	return a.secondLanguage() != ""
+	return false
 }
 
 // CaptureExcludesOwnWindows is true once the overlay is built. No Linux
@@ -258,10 +236,8 @@ func detectionFrameOf(img *image.RGBA, region image.Rectangle) detectionFrame {
 // SystemPort.CheckScreenCapturePermission so the user is asked rather than
 // told the strategy is unavailable.
 //
-// The recognition half catches missing tesseract language data, a separate
-// distribution package, and the error names the file. Checking it warms the
-// engine, whose handle is cached. Nothing in the daemon calls this today, and
-// DetectElements runs the same checks.
+// The recognition half loads yomi's recognizers, which are compiled in, so it
+// fails only on a broken build. Nothing in the daemon calls this today.
 func (a *Adapter) Health(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -274,7 +250,9 @@ func (a *Adapter) Health(ctx context.Context) error {
 		return captureErr
 	}
 
-	return platformlinux.OCRHealth()
+	_, err := yomiEngine()
+
+	return err
 }
 
 // backend names the live display server, from platform.DetectLinuxBackend, the
@@ -323,28 +301,20 @@ func (a *Adapter) overlayDrawnOn() []image.Rectangle {
 	return platformlinux.OwnWindowsDrawnOn()
 }
 
-// ReadText reports CodeNotSupported. tesseract already reads text accurately
-// in the detection pass, so copy_text keeps the text the hint has.
+// ReadText reports CodeNotSupported. yomi already reads text accurately in the
+// detection pass, so copy_text keeps the text the hint has.
 func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
 	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Linux")
 }
 
-// ReadLines captures region and has tesseract read it a character at a time.
-// An accurate read also reads it in the languages of other scripts the locale
-// names, on an engine of its own, as macOS reads in the preferred languages,
-// since eng reads them as Latin noise. The fast read, which a keystroke waits
-// on, stays eng alone.
+// ReadLines captures region and has yomi read it. Both levels read the same
+// way, since one pass reads every script accurately.
 func (a *Adapter) ReadLines(
 	ctx context.Context,
 	region image.Rectangle,
 	level ports.TextLevel,
 ) ([][]ports.TextPiece, error) {
 	if region.Empty() {
-		err := platformlinux.LinesReadable()
-		if err != nil {
-			return nil, err
-		}
-
 		return nil, derrors.New(
 			derrors.CodeInvalidInput,
 			"reading lines needs a region with an area",
@@ -364,133 +334,36 @@ func (a *Adapter) ReadLines(
 	return lines, err
 }
 
-// readFrameLines reads img, a capture of region, at level.
+// readFrameLines reads img, a capture of region. level only goes to the log,
+// since both levels read alike.
 func (a *Adapter) readFrameLines(
 	ctx context.Context,
 	region image.Rectangle,
 	img *image.RGBA,
 	level ports.TextLevel,
 ) ([][]ports.TextPiece, error) {
-	timeoutMS := 0
-	if deadline, ok := ctx.Deadline(); ok {
-		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
-	}
+	started := time.Now()
 
-	params := platformlinux.OCRParams{TimeoutMS: timeoutMS, Done: ctx.Done()}
-
-	lines, stats, err := readLinePieces(img, img, region, params)
+	lines, err := readYomiLines(ctx, img, region)
 	if err != nil {
-		if derrors.IsNotSupported(err) {
-			return nil, err
-		}
-
 		return nil, derrors.Wrapf(
 			err,
 			derrors.GetCode(err),
 			"reading lines failed after %s (frame %dx%d)",
-			stats.Recognition,
+			time.Since(started),
 			img.Rect.Dx(),
 			img.Rect.Dy(),
 		)
 	}
 
-	second := ""
-	if level == ports.TextAccurate {
-		second = a.secondLanguage()
-	}
-
-	if second != "" {
-		params.Language = second
-		if timeoutMS > 0 {
-			params.TimeoutMS = max(timeoutMS-int(stats.Recognition.Milliseconds()), 1)
-		}
-
-		secondLines, secondStats, secondErr := readLinePieces(
-			atLeastTwoPixelsPerPoint(img, region), img, region, params,
-		)
-		if secondErr != nil {
-			a.logger.Debug("Second-language read failed, keeping the eng read",
-				zap.Duration("recognition", secondStats.Recognition), zap.Error(secondErr))
-		} else {
-			lines = mergeSecondLines(lines, secondLines)
-			stats.Recognition += secondStats.Recognition
-		}
-	}
-
 	a.logger.Debug("Read lines",
 		zap.Bool("accurate", level == ports.TextAccurate),
-		zap.Bool("second_language", second != ""),
 		zap.Int("line_count", len(lines)),
-		zap.Duration("recognition", stats.Recognition))
+		zap.Duration("recognition", time.Since(started)))
 
 	return lines, nil
 }
 
-// secondLanguageWarned keeps missing language data to one warning.
-var secondLanguageWarned sync.Once
-
-// secondLanguage is the languages an accurate read reads a second time in, or
-// "" for none. A locale naming one whose data is missing warns once and reads
-// in the rest.
-func (a *Adapter) secondLanguage() string {
-	language, err := platformlinux.SecondLanguage()
-	if err != nil {
-		secondLanguageWarned.Do(func() {
-			a.logger.Warn("Vim mode cannot read every language the locale names", zap.Error(err))
-		})
-	}
-
-	return language
-}
-
-// wideReadPixelsPerPoint is how many pixels per point the second-language read
-// gets. At one pixel per point, small Chinese text reads better as eng's Latin
-// noise, so tesseract keeps that reading, while at two it reads the
-// characters.
-const wideReadPixelsPerPoint = 2
-
-// atLeastTwoPixelsPerPoint is img, which shows region, scaled up to
-// wideReadPixelsPerPoint pixels per point when it has fewer.
-func atLeastTwoPixelsPerPoint(img *image.RGBA, region image.Rectangle) *image.RGBA {
-	if region.Dx() <= 0 || img.Rect.Dx() >= wideReadPixelsPerPoint*region.Dx() {
-		return img
-	}
-
-	scaled := image.NewRGBA(image.Rect(
-		0, 0, wideReadPixelsPerPoint*region.Dx(), wideReadPixelsPerPoint*region.Dy(),
-	))
-	draw.CatmullRom.Scale(scaled, scaled.Rect, img, img.Rect, draw.Src, nil)
-
-	return scaled
-}
-
-// readLinePieces has tesseract read read, a frame of img at any scale, and lays
-// the characters out as ReadLines pieces over img, which shows region. The
-// layout cuts at img's own pixels, since scaling blurs away the one-pixel gaps
-// between small characters.
-func readLinePieces(
-	read, img *image.RGBA,
-	region image.Rectangle,
-	params platformlinux.OCRParams,
-) ([][]ports.TextPiece, platformlinux.OCRStats, error) {
-	found, stats, err := platformlinux.RecognizeLines(read, params)
-	if err != nil {
-		return nil, stats, err
-	}
-
-	symbols := make([]lineSymbol, 0, len(found))
-	for _, symbol := range found {
-		symbols = append(symbols, lineSymbol{
-			text: symbol.Text,
-			ink:  toRegion(symbol.Bounds.Add(read.Rect.Min), read.Rect, img.Rect),
-			line: symbol.Line,
-			word: symbol.Word,
-		})
-	}
-
-	return piecesFromSymbols(symbols, img, region), stats, nil
-}
-
-// accurateReadPreparation is nil. tesseract compiles nothing on first use, so
+// accurateReadPreparation is nil. yomi compiles nothing on first use, so
 // there is nothing to prepare.
 func (a *Adapter) accurateReadPreparation() func() error { return nil }

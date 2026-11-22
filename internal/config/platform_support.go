@@ -16,7 +16,7 @@ const (
 	noteScreenShareHide = "hiding the overlay from a screen share is an NSWindow sharing level " +
 		"on macOS and a display affinity on Windows, with no X11 or Wayland counterpart"
 	noteVisionConfidence = "Windows.Media.Ocr reports no per-word confidence, so every word " +
-		"scores one there and a floor keeps everything; the Vision framework and tesseract " +
+		"scores one there and a floor keeps everything; the Vision framework and yomi " +
 		"score each word"
 	noteMacOSSurfaces = "the menu bar, the Dock, Notification Center, Stage Manager, " +
 		"picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart"
@@ -179,7 +179,7 @@ func PlatformSupport() parity.Declaration {
 
 		parity.Everywhere(parity.KindOption, captureScopeOptions...),
 		// The vision strategy's text half runs everywhere: the Vision framework
-		// on macOS, tesseract on Linux, Windows.Media.Ocr on Windows. The
+		// on macOS, yomi on Linux, Windows.Media.Ocr on Windows. The
 		// strategy value itself carries no declaration, like contour.
 		parity.Everywhere(parity.KindOption,
 			"hints.vision.detect_text",

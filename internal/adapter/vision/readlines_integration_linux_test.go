@@ -3,6 +3,7 @@
 package vision
 
 import (
+	"context"
 	"image"
 	"image/draw"
 	"image/png"
@@ -13,26 +14,20 @@ import (
 	"strings"
 	"testing"
 
-	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// TestReadLinePieces_ReadsChineseInTheLocalesLanguage pins the second read an
-// accurate read makes on Linux. eng alone reads the Chinese line of
-// cjk-16pt-2x.png as Latin noise. With a Chinese locale, the chi_sim+eng read
-// replaces them, and each character comes back as a piece of its own whose box
-// holds its ink, within maxMeanInkOffset points of it on average.
-func TestReadLinePieces_ReadsChineseInTheLocalesLanguage(t *testing.T) {
-	for _, name := range []string{"LANGUAGE", "LC_ALL", "LC_MESSAGES"} {
-		t.Setenv(name, "")
-	}
-
-	t.Setenv("LANG", "zh_CN.UTF-8")
-
-	language, err := platformlinux.SecondLanguage()
-	if err != nil || language == "" {
-		t.Skipf("skipping: no Chinese tesseract data (%v)", err)
-	}
+// TestReadYomiLines_ReadsChineseAndJapaneseWithoutALocale reads
+// cjk-16pt-2x.png with no locale naming Chinese or Japanese. At least
+// minCJKAccuracy of the characters must read right. On each line read exactly
+// right, every character must come back as a piece of its own whose box holds
+// its ink, within maxMeanInkOffset points of it on average. A misread line is
+// left out of that, since a wrong character count moves the cells
+// placeWideRuns cuts for the characters around it. yomi misreads 4 of the 44
+// characters today (们 as ¶」, 散 as 歇, 测 as its traditional form), all on
+// the first two lines.
+func TestReadYomiLines_ReadsChineseAndJapaneseWithoutALocale(t *testing.T) {
+	const minCJKAccuracy = 0.9
 
 	img := loadLinuxFixture(
 		t,
@@ -40,26 +35,18 @@ func TestReadLinePieces_ReadsChineseInTheLocalesLanguage(t *testing.T) {
 	)
 	region := image.Rect(0, 0, img.Rect.Dx()/2, img.Rect.Dy()/2)
 
-	detected, _, err := readLinePieces(img, img, region, platformlinux.OCRParams{})
+	lines, err := readYomiLines(context.Background(), img, region)
 	if err != nil {
-		t.Fatalf("reading in eng: %v", err)
+		t.Fatalf("reading: %v", err)
 	}
 
-	wide, _, err := readLinePieces(img, img, region, platformlinux.OCRParams{Language: language})
-	if err != nil {
-		t.Fatalf("reading in %s: %v", language, err)
+	if len(lines) != len(cjkInk) {
+		t.Fatalf("read %d lines, want %d", len(lines), len(cjkInk))
 	}
 
-	lines := mergeSecondLines(detected, wide)
-	slices.SortFunc(lines, func(a, b []ports.TextPiece) int {
-		return lineBounds(a).Min.Y - lineBounds(b).Min.Y
-	})
+	offsets, placed, wrong, total := 0.0, 0, 0, 0
 
-	offsets, count := 0.0, 0
-
-	// The second line's brackets read as Latin letters on tesseract's fast
-	// models, and the third line is Japanese, which chi_sim does not read.
-	for index, want := range cjkInk[:1] {
+	for index, want := range cjkInk {
 		var got []ports.TextPiece
 		for _, piece := range lines[index] {
 			if strings.TrimSpace(piece.Text) != "" {
@@ -67,24 +54,27 @@ func TestReadLinePieces_ReadsChineseInTheLocalesLanguage(t *testing.T) {
 			}
 		}
 
-		if len(got) != len(want) {
-			t.Errorf("line %d read as %d pieces %v, want one per character of %v",
-				index, len(got), got, want)
+		var read, expected []rune
+		for _, piece := range got {
+			read = append(read, []rune(piece.Text)...)
+		}
 
+		for _, ink := range want {
+			expected = append(expected, []rune(ink.char)...)
+		}
+
+		wrong += editDistance(read, expected)
+		total += len(expected)
+
+		if string(read) != string(expected) || len(got) != len(want) {
 			continue
 		}
 
 		for offset, piece := range got {
 			ink := want[offset]
-			if piece.Text != ink.char {
-				t.Errorf("line %d piece %d is %q, want %q", index, offset, piece.Text, ink.char)
-
-				continue
-			}
-
 			left, right := float64(piece.Bounds.Min.X), float64(piece.Bounds.Max.X)
 			offsets += math.Abs((left+right)/2 - ink.x)
-			count++
+			placed++
 
 			if ink.x < left || ink.x > right {
 				t.Errorf("line %d: %q spans %.0f to %.0f, which misses its ink at %.1f",
@@ -93,52 +83,65 @@ func TestReadLinePieces_ReadsChineseInTheLocalesLanguage(t *testing.T) {
 		}
 	}
 
-	if count > 0 {
-		t.Logf("boxes are %.2f points from their ink on average", offsets/float64(count))
+	if accuracy := 1 - float64(wrong)/float64(total); accuracy < minCJKAccuracy {
+		t.Errorf("read %.0f%% of the characters right, want at least %.0f%%",
+			100*accuracy, 100*minCJKAccuracy)
 	}
 
-	if count > 0 && offsets/float64(count) > maxMeanInkOffset {
+	if placed == 0 {
+		t.Fatal("no line read exactly right, so no placement to check")
+	}
+
+	if offsets/float64(placed) > maxMeanInkOffset {
 		t.Errorf("boxes are %.2f points from their ink on average, want at most %.2f",
-			offsets/float64(count), maxMeanInkOffset)
+			offsets/float64(placed), maxMeanInkOffset)
 	}
 }
 
-// TestReadLinePieces_ReadsRussianInTheLocalesLanguage pins the second read in
-// another script than Chinese. eng reads the Russian line of
-// mixed-line-16pt-2x.png as Latin noise, and with a Russian locale the rus+eng
-// read replaces it, while the English line stays as eng read it.
-func TestReadLinePieces_ReadsRussianInTheLocalesLanguage(t *testing.T) {
-	for _, name := range []string{"LANGUAGE", "LC_ALL", "LC_MESSAGES"} {
-		t.Setenv(name, "")
+// editDistance is the Levenshtein distance between read and want.
+func editDistance(read, want []rune) int {
+	prev := make([]int, len(want)+1)
+	for col := range prev {
+		prev[col] = col
 	}
 
-	t.Setenv("LANG", "ru_RU.UTF-8")
+	for row := range read {
+		cur := make([]int, len(want)+1)
+		cur[0] = row + 1
 
-	language, err := platformlinux.SecondLanguage()
-	if err != nil || language == "" {
-		t.Skipf("skipping: no Russian tesseract data (%v)", err)
+		for col := range want {
+			cost := 1
+			if read[row] == want[col] {
+				cost = 0
+			}
+
+			cur[col+1] = min(prev[col+1]+1, cur[col]+1, prev[col]+cost)
+		}
+
+		prev = cur
 	}
 
+	return prev[len(want)]
+}
+
+// TestReadYomiLines_ReadsRussianBesideEnglishWithoutALocale reads
+// mixed-line-16pt-2x.png with no locale naming Russian, and expects its
+// Russian line in Russian and its English line in English.
+func TestReadYomiLines_ReadsRussianBesideEnglishWithoutALocale(t *testing.T) {
 	img := loadLinuxFixture(
 		t,
 		filepath.Join("..", "platform", "testdata", "scripts", "mixed-line-16pt-2x.png"),
 	)
 	region := image.Rect(0, 0, img.Rect.Dx()/2, img.Rect.Dy()/2)
 
-	detected, _, err := readLinePieces(img, img, region, platformlinux.OCRParams{})
+	lines, err := readYomiLines(context.Background(), img, region)
 	if err != nil {
-		t.Fatalf("reading in eng: %v", err)
+		t.Fatalf("reading: %v", err)
 	}
 
-	second, _, err := readLinePieces(img, img, region, platformlinux.OCRParams{Language: language})
-	if err != nil {
-		t.Fatalf("reading in %s: %v", language, err)
-	}
+	texts := make([]string, 0, len(lines))
 
-	merged := mergeSecondLines(detected, second)
-	texts := make([]string, 0, len(merged))
-
-	for _, line := range merged {
+	for _, line := range lines {
 		var text strings.Builder
 		for _, piece := range line {
 			text.WriteString(piece.Text)
@@ -155,7 +158,7 @@ func TestReadLinePieces_ReadsRussianInTheLocalesLanguage(t *testing.T) {
 		texts,
 		func(text string) bool { return strings.HasPrefix(text, "Variousversions") },
 	) {
-		t.Fatalf("lines read %q, want the English line kept as eng read it", texts)
+		t.Fatalf("lines read %q, want the English line read in English", texts)
 	}
 }
 

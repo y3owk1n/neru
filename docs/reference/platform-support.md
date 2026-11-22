@@ -80,8 +80,8 @@ GTK 4 apps, which answer no hit-test. Elsewhere on Linux it drops only
 elements something else in the same window covers. The app answers the hit-test
 itself, so it never sees other windows, on X11 or Wayland.
 
-² **Text and shapes come from two engines.** Linux (tesseract) and Windows
-(`Windows.Media.Ocr`) read the words, and the `contour` detector finds button
+² **Text and shapes come from two engines.** Linux (yomi, built into Neru) and
+Windows (`Windows.Media.Ocr`) read the words, and the `contour` detector finds button
 shapes in the same frame. It uses its shipped thresholds, not
 `[hints.contour]`, and scores every shape one, so the `*_confidence` options
 never drop a shape. Windows also needs an OCR language pack, and ignores the
@@ -161,15 +161,11 @@ copies what the hints pass read. Linux and Windows always copy what the hints
 pass read, since their OCR reads small UI text word for word from the whole
 screen. `contour` and `segment` hints there have nothing to copy.
 
-¹⁶ **Linux vim mode reads Latin script, plus the languages in other scripts
-the daemon's locale names** in `LANGUAGE`, `LC_ALL`, `LC_MESSAGES` or `LANG`,
-such as Chinese or Russian, when their tesseract data is installed beside
-`eng.traineddata`. The accurate read reads them, so until that finishes a line
-in one shows as noise. Vim mode reads a line that mixes English with a word of
-Russian or Arabic as English.
-tesseract reads Korean less reliably than Chinese and Japanese, so a Korean
-line can come back in pieces. It reads 「 and 」 as Latin letters, and its
-`tessdata_fast` models misread more than the standard ones distributions ship. On niri, as on the other wlroots
+¹⁶ **Linux vim mode reads every script yomi reads**: Latin, Greek and
+Cyrillic, Chinese, Japanese and Korean, Arabic and Hebrew, the Indic scripts,
+Thai, Lao, Khmer and Myanmar, Georgian, Armenian and Ethiopic, with no
+language data to install and no locale to set. It reads Arabic, Hebrew, the
+Indic scripts, Myanmar, Armenian and Amharic less reliably than the rest. On niri, as on the other wlroots
 compositors under [wlroots compositors](../guide/linux-desktops.md#wlroots-compositors),
 a tiled window gives no bounds on niri 26.04 and earlier, and vim mode reads
 the whole screen. Floating the window reads just the window. Later niri
@@ -215,7 +211,7 @@ load, and `neru doctor` lists them under `platform_support`.
 | `hints.include_menubar_hints`, `hints.additional_menubar_hints_targets`, `hints.include_dock_hints`, `hints.include_nc_hints`, `hints.include_stage_manager_hints`, `hints.include_pip_hints`, `hints.include_screen_capture_hints` | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.detect_mission_control`, `hints.on_mission_control_activated`, `hints.on_mission_control_deactivated`, `hooks.on_mission_control_activated`, `hooks.on_mission_control_deactivated` | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `grid.prewarm_enabled` | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
-| `hints.vision.minimum_confidence`, `hints.vision.button_min_confidence`, `hints.vision.generic_clickable_min_confidence` | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; the Vision framework and tesseract score each word |
+| `hints.vision.minimum_confidence`, `hints.vision.button_min_confidence`, `hints.vision.generic_clickable_min_confidence` | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; the Vision framework and yomi score each word |
 | `hide_cursor` (action), `show_cursor` (action) | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 
 <!-- END GENERATED PLATFORM SUPPORT -->
@@ -237,10 +233,8 @@ Linux and Windows have no exclusives.
 A gap is anything you can write that means less on a platform than on macOS.
 A boundary is a requirement the platform imposes, not something Neru lacks.
 
-**Linux**: two gaps.
+**Linux**: one gap.
 
-- **Vim mode reads Latin script and the languages the locale names**, with
-  their tesseract language data installed. macOS reads every script it knows.
 - **A Wayland monitor's resolution or scale change** needs a
   [daemon restart](../guide/troubleshooting.md#restart-the-daemon) before
   overlays fit it again. Plugging in or removing a monitor is tracked live.

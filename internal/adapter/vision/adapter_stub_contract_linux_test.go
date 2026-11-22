@@ -17,10 +17,10 @@ import (
 )
 
 // Linux implements both halves of ports.VisionPort: screen capture through
-// wlr-screencopy or XGetImage, and text recognition through tesseract. Neither
-// half can be exercised for real on a runner with no display server and,
-// depending on the image, no language data, so this file pins the *shape* of
-// every answer, which is where a half-implemented port does its damage.
+// wlr-screencopy or XGetImage, and text recognition through yomi. Capture
+// cannot be exercised for real on a runner with no display server, so this
+// file pins the *shape* of every answer, which is where a half-implemented
+// port does its damage.
 //
 // The rule these tests share: never neither, never both. A method returns a
 // result or an error, and an error that means "this machine cannot do this"
@@ -125,32 +125,30 @@ func TestVisionAdapter_DetectElementsIsCancelable(t *testing.T) {
 }
 
 // TestVisionAdapter_HealthNamesWhatIsMissingOnLinux is the acceptance criterion
-// for the pieces no linking decision can settle. The strategy needs two things
-// this machine may not have: a display server that can be captured, and
-// tesseract language data, which is a package separate from the library Neru
-// links. A build that starts perfectly well can still be unable to run it.
-// When that is the case Health must report CodeNotSupported *naming which one*,
-// because "the vision strategy is unavailable" is not something a user can act
-// on.
+// for the piece no linking decision can settle. The strategy needs a display
+// server that can be captured, which this machine may not have. Text
+// recognition is compiled in. A build that starts perfectly well can still be
+// unable to run it. When that is the case Health must report CodeNotSupported
+// *naming what is missing*, because "the vision strategy is unavailable" is
+// not something a user can act on.
 func TestVisionAdapter_HealthNamesWhatIsMissingOnLinux(t *testing.T) {
 	// The pieces Health can find missing, each named by the word a user would
-	// search for. A runner with no session hits the first. A machine with the
-	// library and no language pack hits "traineddata". A CGO_ENABLED=0 build
-	// hits "CGO".
+	// search for. A runner with no session hits the first. A CGO_ENABLED=0
+	// build hits "CGO".
 	//
 	// Which one this run hits is not chosen here. The display backend is
 	// detected once per process (platform.DetectLinuxBackend caches it), so a
 	// test cannot put this adapter on a different display server than the one
 	// the suite is running under. What is pinned is that whichever half is
 	// missing, the sentence names it.
-	nameable := []string{"display", "screencopy", "traineddata", "CGO"}
+	nameable := []string{"display", "screencopy", "CGO"}
 
 	adapter := vision.NewAdapter(nil)
 
 	err := adapter.Health(context.Background())
 	if err == nil {
-		// A session that can be captured, with the language data installed, is
-		// the state a machine with the documented dependencies is in.
+		// A session that can be captured is the state a machine with the
+		// documented dependencies is in.
 		return
 	}
 
@@ -169,9 +167,9 @@ func TestVisionAdapter_HealthNamesWhatIsMissingOnLinux(t *testing.T) {
 }
 
 // TestVisionAdapter_HealthIsRepeatable guards the engine cache behind
-// recognition. Health warms tesseract, and a warm-up that answered differently
-// the second time would make the strategy's availability depend on how many
-// times it had been asked about.
+// recognition. Health loads the recognizers once, and a load that answered
+// differently the second time would make the strategy's availability depend on
+// how many times it had been asked about.
 func TestVisionAdapter_HealthIsRepeatable(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
 	ctx := context.Background()
@@ -320,8 +318,8 @@ func TestVisionAdapter_CaptureExcludesOwnWindowsOnceTheOverlayRegisters(t *testi
 }
 
 // TestVisionAdapter_ReadTextDefersToThePassOnLinux pins that there is no
-// second, more careful read here. tesseract already reads text accurately in
-// the detection pass, so ReadText reports CodeNotSupported with no text, and
+// second, more careful read here. yomi already reads text accurately in the
+// detection pass, so ReadText reports CodeNotSupported with no text, and
 // copy_text keeps the text the pass read.
 func TestVisionAdapter_ReadTextDefersToThePassOnLinux(t *testing.T) {
 	text, err := vision.NewAdapter(nil).ReadText(context.Background(), image.Rect(0, 0, 100, 100))
@@ -331,36 +329,21 @@ func TestVisionAdapter_ReadTextDefersToThePassOnLinux(t *testing.T) {
 }
 
 // TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead pins the question
-// vim mode asks before it captures anything. An empty region answers
-// CodeNotSupported where lines cannot be read, a build without CGO or a
-// machine without tesseract's language data, and CodeInvalidInput where they
-// can, never nothing at all.
+// vim mode asks before it captures anything. Recognition is compiled in, so
+// lines can always be read, and an empty region answers CodeInvalidInput,
+// never nothing at all.
 func TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead(t *testing.T) {
 	lines, err := vision.NewAdapter(nil).ReadLines(
 		context.Background(), image.Rectangle{}, ports.TextFast,
 	)
-	if lines != nil || err == nil {
-		t.Fatalf("ReadLines(empty) = %v, %v, want nothing and an error", lines, err)
-	}
-
-	readable := platformlinux.LinesReadable()
-	if readable != nil && !derrors.IsNotSupported(err) {
-		t.Fatalf(
-			"ReadLines(empty) = %v where lines cannot be read (%v), want CodeNotSupported",
-			err,
-			readable,
-		)
-	}
-
-	if readable == nil && derrors.GetCode(err) != derrors.CodeInvalidInput {
-		t.Fatalf("ReadLines(empty) = %v where lines can be read, want CodeInvalidInput", err)
+	if lines != nil || derrors.GetCode(err) != derrors.CodeInvalidInput {
+		t.Fatalf("ReadLines(empty) = %v, %v, want nothing and CodeInvalidInput", lines, err)
 	}
 }
 
 // TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoesOnLinux pins
 // that the read vim mode makes after a scroll answers a region with no area
-// the way a fast ReadLines does, so a machine without tesseract's language
-// data refuses it with the same reason.
+// the way a fast ReadLines does.
 func TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoesOnLinux(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
 
