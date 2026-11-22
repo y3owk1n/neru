@@ -110,6 +110,8 @@ func TestWithoutTextOverlap(t *testing.T) {
 			image.Rect(40, 12, 70, 38),
 			false,
 		},
+		{"a box half inside the text is part of it", image.Rect(90, 15, 130, 35), false},
+		{"a box less than half inside the text is kept", image.Rect(91, 15, 131, 35), true},
 	}
 
 	for _, test := range tests {
