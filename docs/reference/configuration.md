@@ -770,7 +770,7 @@ some platforms, see
 | ---------------------------------- | ----- | ------- | ----------------------------------------------------------------------------- |
 | `detect_text`                      | bool  | `true`  | Enable text detection. With this off, Linux detects nothing                   |
 | `detect_rectangles`                | bool  | `true`  | Enable rectangle detection                                                    |
-| `request_timeout_ms`               | int   | `5000`  | Timeout for one analysis request (one OCR pass on Linux), in ms               |
+| `request_timeout_ms`               | int   | `5000`  | Timeout for one analysis request (one OCR pass on macOS and Linux), in ms     |
 | `minimum_confidence`               | float | `0.0`   | Minimum confidence (0.0 to 1.0) for keeping an observation                    |
 | `merge_iou_threshold`              | float | `0.5`   | Intersection-over-Union overlap at which boxes merge                          |
 | `rectangle_max_candidates`         | int   | `100`   | Maximum rectangle candidates to evaluate                                      |

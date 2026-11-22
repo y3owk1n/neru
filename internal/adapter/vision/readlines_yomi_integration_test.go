@@ -1,4 +1,4 @@
-//go:build integration && linux
+//go:build integration && (darwin || linux)
 
 package vision
 
@@ -29,7 +29,7 @@ import (
 func TestReadYomiLines_ReadsChineseAndJapaneseWithoutALocale(t *testing.T) {
 	const minCJKAccuracy = 0.9
 
-	img := loadLinuxFixture(
+	img := loadFixtureImage(
 		t,
 		filepath.Join("..", "platform", "testdata", "scripts", "cjk-16pt-2x.png"),
 	)
@@ -128,7 +128,7 @@ func editDistance(read, want []rune) int {
 // mixed-line-16pt-2x.png with no locale naming Russian, and expects its
 // Russian line in Russian and its English line in English.
 func TestReadYomiLines_ReadsRussianBesideEnglishWithoutALocale(t *testing.T) {
-	img := loadLinuxFixture(
+	img := loadFixtureImage(
 		t,
 		filepath.Join("..", "platform", "testdata", "scripts", "mixed-line-16pt-2x.png"),
 	)
@@ -162,8 +162,8 @@ func TestReadYomiLines_ReadsRussianBesideEnglishWithoutALocale(t *testing.T) {
 	}
 }
 
-// loadLinuxFixture decodes a PNG fixture into the RGBA frame a capture gives.
-func loadLinuxFixture(t *testing.T, path string) *image.RGBA {
+// loadFixtureImage decodes a PNG fixture into the RGBA frame a capture gives.
+func loadFixtureImage(t *testing.T, path string) *image.RGBA {
 	t.Helper()
 
 	file, err := os.Open(path)

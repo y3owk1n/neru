@@ -126,7 +126,7 @@ the spelling for a mixed package, and none uses them today. The
 `*_integration_cgo.go` row exists because Go rejects `import "C"` in a
 `_test.go` file. Darwin scaffolding in a mixed package is spelled
 `*_integration_darwin.go`, since the package needs the OS token and darwin code
-never carries a cgo tag (`vision/readtext_support_integration_darwin.go`).
+never carries a cgo tag.
 
 The guardrail rejects `_stub.go`, `_default.go`, `_fallback.go`, `_noop.go`
 and similar names, and requires an OS tag on every file in a single-platform

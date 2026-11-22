@@ -211,7 +211,7 @@ load, and `neru doctor` lists them under `platform_support`.
 | `hints.include_menubar_hints`, `hints.additional_menubar_hints_targets`, `hints.include_dock_hints`, `hints.include_nc_hints`, `hints.include_stage_manager_hints`, `hints.include_pip_hints`, `hints.include_screen_capture_hints` | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.detect_mission_control`, `hints.on_mission_control_activated`, `hints.on_mission_control_deactivated`, `hooks.on_mission_control_activated`, `hooks.on_mission_control_deactivated` | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `grid.prewarm_enabled` | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
-| `hints.vision.minimum_confidence`, `hints.vision.button_min_confidence`, `hints.vision.generic_clickable_min_confidence` | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; the Vision framework and yomi score each word |
+| `hints.vision.minimum_confidence`, `hints.vision.button_min_confidence`, `hints.vision.generic_clickable_min_confidence` | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; yomi scores each word |
 | `hide_cursor` (action), `show_cursor` (action) | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 
 <!-- END GENERATED PLATFORM SUPPORT -->

@@ -44,10 +44,7 @@ type SystrayComponent interface {
 type App struct {
 	ctx    context.Context //nolint:containedctx // Root context for all App operations
 	cancel context.CancelFunc
-	// linesHelper is the hidden command the vision adapter reads text lines
-	// accurately with, in a process of its own.
-	linesHelper string
-	config      *config.Config
+	config *config.Config
 	// writtenConfig is config before the loader settled its derived values,
 	// handed to the config service so a later `neru config set` derives from
 	// what the user wrote rather than from what was derived for them.

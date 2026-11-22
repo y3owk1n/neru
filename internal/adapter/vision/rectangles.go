@@ -32,8 +32,7 @@ var rectangleParams = contour.Params{
 
 // rectangleRegions finds button shapes in frame, captured from region, with
 // the contour detector, and returns the ones the rectangle_* filters keep, in
-// global coordinates. macOS answers the same options with Vision's rectangle
-// request.
+// global coordinates.
 //
 // rectangle_min_size is a fraction of the region's shorter side, which a
 // box's shorter side must reach. The aspect bounds are width over height.

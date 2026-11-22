@@ -141,18 +141,6 @@ func WithVisionPort(vision ports.VisionPort) Option {
 	}
 }
 
-// WithLinesHelper names the hidden command the vision adapter runs this
-// executable with to read text lines accurately in a process of its own.
-// Without it they are read in the daemon, where a model compiling for a new
-// script holds up every other read for seconds.
-func WithLinesHelper(command string) Option {
-	return func(a *App) error {
-		a.linesHelper = command
-
-		return nil
-	}
-}
-
 // WithMouse sets the port clicks and scrolls are injected through.
 // Note: mouse can be nil, will be initialized during app startup if not provided.
 func WithMouse(mouse ports.MousePort) Option {

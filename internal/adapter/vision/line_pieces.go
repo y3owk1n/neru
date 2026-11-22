@@ -405,10 +405,9 @@ func textHasWide(text string) bool {
 // wordSymbols splits a word into one symbol per character for
 // piecesFromSymbols, when the recognizer gave a box for the whole word only.
 // box is in img's pixels. Each character takes a run of ink columns. The
-// narrowest gaps between runs merge until there is one run per character, as
-// macOS measures a word Vision gave no character boxes for. A word with fewer
-// runs than characters, such as one whose letters touch, splits by the
-// characters' widths.
+// narrowest gaps between runs merge until there is one run per character. A
+// word with fewer runs than characters, such as one whose letters touch,
+// splits by the characters' widths.
 func wordSymbols(img *image.RGBA, text string, box image.Rectangle, line, word int) []lineSymbol {
 	var chars []string
 	for char := graphemes.FromString(text); char.Next(); {
