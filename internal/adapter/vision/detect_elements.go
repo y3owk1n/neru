@@ -9,6 +9,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/y3owk1n/neru/internal/adapter/vision/frame"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
 	"github.com/y3owk1n/neru/internal/domain/element"
@@ -57,7 +58,15 @@ func (a *Adapter) DetectElements(
 	rectCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	rectangles := a.startRectangles(rectCtx, img, region, cfg)
+	// The contour detector was tuned on one pixel per point, and a 2x frame
+	// takes it about four times as long while it competes with the text read
+	// for the same cores, so it gets the frame box-filtered down.
+	rectFrame := img
+	if factor := yomiScale(img, region); factor > 1 {
+		rectFrame = frame.Downsample(img, factor)
+	}
+
+	rectangles := a.startRectangles(rectCtx, rectFrame, region, cfg)
 
 	var (
 		words       []recognizedWord
