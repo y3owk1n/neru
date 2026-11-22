@@ -1,4 +1,4 @@
-//go:build integration && (darwin || linux)
+//go:build integration && (darwin || linux || windows)
 
 package vision
 

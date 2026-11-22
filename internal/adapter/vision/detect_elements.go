@@ -1,4 +1,4 @@
-//go:build darwin || linux
+//go:build darwin || linux || windows
 
 package vision
 
@@ -15,7 +15,7 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// macOS and Linux answer DetectElements alike. The platform captures the
+// Every platform answers DetectElements alike. The platform captures the
 // frame (captureText), yomi reads its text (yomi_read.go), and the pure-Go
 // contour detector finds button shapes in the same frame (rectangles.go), the
 // two running at once.
@@ -49,7 +49,7 @@ func (a *Adapter) DetectElements(
 		return nil, nil
 	}
 
-	img, region, err := a.captureText(ctx, region)
+	img, region, scale, err := a.captureText(ctx, region)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (a *Adapter) DetectElements(
 		}
 
 		started := time.Now()
-		lines, readErr := readYomi(readCtx, img, region)
+		lines, readErr := readYomi(readCtx, img, scale)
 		recognition = time.Since(started)
 
 		if readErr != nil {

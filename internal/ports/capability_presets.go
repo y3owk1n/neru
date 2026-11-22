@@ -42,7 +42,8 @@ func DarwinCapabilities() PlatformCapabilities {
 			"system dark mode detection available via Cocoa appearance APIs",
 		),
 		Vision: supportedCapability(
-			"OCR element detection available via the Vision framework and ScreenCaptureKit",
+			"vision element detection via yomi OCR over a ScreenCaptureKit capture, " +
+				"with button shapes from the contour detector over the same frame",
 		),
 		KeyFeed:   supportedCapability("key injection available via CGEventPost"),
 		Systray:   supportedCapability("tray icon available via NSStatusItem"),
@@ -132,13 +133,10 @@ func LinuxCapabilities() PlatformCapabilities {
 		// CGO-off build has no engine. VisionPort.Health answers the same
 		// question for the live session, and names which one it is.
 		Vision: supportedCapability(
-			"vision element detection via tesseract OCR over a screen capture " +
+			"vision element detection via yomi OCR over a screen capture " +
 				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +
 				"ScreenCast session on KDE and COSMIC, which asks for screen-sharing consent " +
-				"once), with button shapes from the contour detector over the same " +
-				"frame; text needs a cgo build and the tesseract eng language data installed, " +
-				"which vim mode also reads a character at a time, with a second read in the " +
-				"languages of other scripts the locale names when their data is installed",
+				"once), with button shapes from the contour detector over the same frame",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via XTest on X11, and on Wayland a uinput virtual keyboard " +
@@ -207,10 +205,8 @@ func WindowsCapabilities() PlatformCapabilities {
 				"(Themes\\Personalize AppsUseLightTheme)",
 		),
 		Vision: supportedCapability(
-			"vision element detection via Windows.Media.Ocr over a BitBlt screen " +
-				"capture, with button shapes from the contour detector over the same " +
-				"frame; text needs an OCR language pack for one of the account's languages, " +
-				"and vim mode splits each word it reads into characters by their ink",
+			"vision element detection via yomi OCR over a BitBlt screen capture, " +
+				"with button shapes from the contour detector over the same frame",
 		),
 		KeyFeed: supportedCapability("key injection available via SendInput"),
 		Systray: supportedCapability(

@@ -35,14 +35,14 @@ becomes Stable after six releases in a row with no bug filed against it alone.
 | ------------------------------ | :---: | :-------: | :---------------: | :-----------: | :-----: |
 | Grid, recursive grid, bisect   | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Hints from the accessibility tree | ✅ | ⚠️ ¹     | ⚠️ ¹              | ⚠️ ¹          | ⚠️ ¹    |
-| Hints from OCR (`vision`)      | ✅    | ⚠️ ²      | ⚠️ ²              | ⚠️ ²          | ⚠️ ²    |
+| Hints from OCR (`vision`)      | ⚠️ ²  | ⚠️ ²      | ⚠️ ²              | ⚠️ ²          | ⚠️ ²    |
 | Hints from shapes (`contour`)  | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Hints from layout (`segment`)  | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Hint search                    | ⚠️ ³  | ⚠️ ³      | ⚠️ ³              | ⚠️ ³          | ⚠️ ³    |
 | Menu bar, Dock and other system surfaces in hints | ✅ | ➖ | ➖          | ➖            | ➖      |
 | Scroll mode                    | ✅    | ✅        | ✅                | ✅            | ✅      |
 | Monitor select                 | ✅    | ✅        | ✅                | ✅            | ✅      |
-| Vim mode                       | ✅    | ⚠️ ¹⁶     | ⚠️ ¹⁶             | ⚠️ ¹⁶         | ⚠️ ¹⁷   |
+| Vim mode                       | ✅    | ⚠️ ¹⁶     | ⚠️ ¹⁶             | ⚠️ ¹⁶         | ✅      |
 | Clicks, drag, modified clicks  | ✅    | ✅        | ✅ ⁴              | ✅ ⁴          | ✅      |
 | Smooth cursor and held-key glide | ✅  | ✅        | ✅                | ✅            | ✅      |
 | Smooth scroll                  | ✅    | ⚠️ ⁵      | ✅ ⁵              | ⚠️ ⁵          | ✅      |
@@ -80,13 +80,11 @@ GTK 4 apps, which answer no hit-test. Elsewhere on Linux it drops only
 elements something else in the same window covers. The app answers the hit-test
 itself, so it never sees other windows, on X11 or Wayland.
 
-² **Text and shapes come from two engines.** Linux (yomi, built into Neru) and
-Windows (`Windows.Media.Ocr`) read the words, and the `contour` detector finds button
-shapes in the same frame. It uses its shipped thresholds, not
-`[hints.contour]`, and scores every shape one, so the `*_confidence` options
-never drop a shape. Windows also needs an OCR language pack, and ignores the
-`*_confidence` options for words too. Neru never logs or stores recognized
-text.
+² **Text and shapes come from two engines.** yomi, built into Neru, reads
+the words, and the `contour` detector finds button shapes in the same frame.
+It uses its shipped thresholds, not `[hints.contour]`, and scores every shape
+one, so the `*_confidence` options never drop a shape. Neru never logs or
+stores recognized text.
 
 ³ **Hint search reads the keys Neru captures**, the same way on every
 platform, so an input method never sees them. You find text in another script
@@ -164,8 +162,7 @@ screen. `contour` and `segment` hints there have nothing to copy.
 ¹⁶ **Linux vim mode reads every script yomi reads**: Latin, Greek and
 Cyrillic, Chinese, Japanese and Korean, Arabic and Hebrew, the Indic scripts,
 Thai, Lao, Khmer and Myanmar, Georgian, Armenian and Ethiopic, with no
-language data to install and no locale to set. It reads Arabic, Hebrew, the
-Indic scripts, Myanmar, Armenian and Amharic less reliably than the rest. On niri, as on the other wlroots
+language data to install and no locale to set. On niri, as on the other wlroots
 compositors under [wlroots compositors](../guide/linux-desktops.md#wlroots-compositors),
 a tiled window gives no bounds on niri 26.04 and earlier, and vim mode reads
 the whole screen. Floating the window reads just the window. Later niri
@@ -175,19 +172,6 @@ keyboard proxy, which needs a readable `/dev/input` and a writable
 while a mode is open, where a key it typed would come back to it. So there,
 while a mode is open, vim mode refuses each edit and says why in its status
 line, and `action feed` is refused too.
-
-¹⁷ **Windows vim mode reads two languages at most.** The fast read uses the
-first language in the account's list that has an OCR pack, since
-Windows.Media.Ocr builds its engine from that list. The accurate read also
-reads with the first Chinese, Japanese or Korean language in the list when
-its OCR pack is installed. That language can stay below English, so apps keep
-their English menus. Until the accurate read finishes, a line in that
-language shows as noise or is missing. The Chinese engine reads small text
-less reliably at 100% scaling than at 200%. Other packs further down, such as
-Russian below English, go unused. The engine
-gives a box for each word only, so vim mode places each character by its own
-ink. In a word whose letters touch, the cursor can sit a little off a
-character.
 
 **Windows on ARM** draws overlays with GDI, the CPU fallback, instead of
 Direct2D.
@@ -211,7 +195,6 @@ load, and `neru doctor` lists them under `platform_support`.
 | `hints.include_menubar_hints`, `hints.additional_menubar_hints_targets`, `hints.include_dock_hints`, `hints.include_nc_hints`, `hints.include_stage_manager_hints`, `hints.include_pip_hints`, `hints.include_screen_capture_hints` | ✅ | ❌ | ❌ | the menu bar, the Dock, Notification Center, Stage Manager, picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart |
 | `hints.detect_mission_control`, `hints.on_mission_control_activated`, `hints.on_mission_control_deactivated`, `hooks.on_mission_control_activated`, `hooks.on_mission_control_deactivated` | ✅ | ❌ | ❌ | Mission Control is a macOS concept, so the detection never fires and the hooks never run |
 | `grid.prewarm_enabled` | ✅ | ❌ | ❌ | only the darwin grid overlay prewarms its layers; the other backends draw on demand |
-| `hints.vision.minimum_confidence`, `hints.vision.button_min_confidence`, `hints.vision.generic_clickable_min_confidence` | ✅ | ✅ | ❌ | Windows.Media.Ocr reports no per-word confidence, so every word scores one there and a floor keeps everything; yomi scores each word |
 | `hide_cursor` (action), `show_cursor` (action) | ✅ | ❌ | ❌ | a Wayland client may not hide another client's cursor, and the blessed Linux stack is Wayland; Windows has no equivalent either |
 
 <!-- END GENERATED PLATFORM SUPPORT -->
@@ -257,11 +240,7 @@ These are boundaries, not gaps:
   `general.hide_overlay_in_screen_share` and `neru toggle-screen-share` do
   nothing there.
 
-**Windows**: one gap.
-
-- **Vim mode reads two languages at most**, the first in the account's
-  language list that has an OCR pack and the first Chinese, Japanese or Korean
-  one. macOS reads every script it knows.
+**Windows**: no gaps.
 
 These are boundaries, not gaps:
 

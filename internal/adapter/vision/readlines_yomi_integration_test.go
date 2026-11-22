@@ -1,4 +1,4 @@
-//go:build integration && (darwin || linux)
+//go:build integration && (darwin || linux || windows)
 
 package vision
 
@@ -35,7 +35,7 @@ func TestReadYomiLines_ReadsChineseAndJapaneseWithoutALocale(t *testing.T) {
 	)
 	region := image.Rect(0, 0, img.Rect.Dx()/2, img.Rect.Dy()/2)
 
-	lines, err := readYomiLines(context.Background(), img, region)
+	lines, err := readYomiLines(context.Background(), img, region, 2)
 	if err != nil {
 		t.Fatalf("reading: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestReadYomiLines_ReadsRussianBesideEnglishWithoutALocale(t *testing.T) {
 	)
 	region := image.Rect(0, 0, img.Rect.Dx()/2, img.Rect.Dy()/2)
 
-	lines, err := readYomiLines(context.Background(), img, region)
+	lines, err := readYomiLines(context.Background(), img, region, 2)
 	if err != nil {
 		t.Fatalf("reading: %v", err)
 	}

@@ -6,10 +6,8 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"unicode"
 
 	"github.com/clipperhouse/displaywidth"
-	"github.com/clipperhouse/uax29/v2/graphemes"
 
 	"github.com/y3owk1n/neru/internal/ports"
 )
@@ -37,18 +35,17 @@ type lineSymbol struct {
 // pieces, one per character, in the global coordinates of region, which img
 // shows. A word's characters get cells that meet halfway between their ink and
 // share the word's height, so a point between two characters falls on one of
-// them. Each piece carries its word's background color. macOS measures the
-// same cells from the pixels in its bridge.
+// them. Each piece carries its word's background color.
 //
-// tesseract places characters roughly, so each boundary between two of a
-// word's cells then moves to the nearest blank column, as macOS does for wide
-// characters. Sometimes one character's ink starts left of the one before it.
-// Such a word becomes one piece, and vim mode splits it by the characters'
-// widths.
+// A recognizer places characters only roughly, yomi from the time steps it
+// read them at, so each boundary between two of a word's cells then moves to
+// the nearest blank column. Sometimes one character's ink starts left of the
+// one before it. Such a word becomes one piece, and vim mode splits it by the
+// characters' widths.
 //
-// tesseract reads each Chinese, Japanese or Korean character as a word of its
-// own, and its boxes for them drift by most of a character. A run of such
-// words is placed from the ink instead (placeWideRuns).
+// A run of Chinese, Japanese or Korean characters is placed from the ink
+// instead (placeWideRuns), since an even pitch fits them better than the
+// recognizer's boxes do.
 func piecesFromSymbols(
 	symbols []lineSymbol,
 	img *image.RGBA,
@@ -152,8 +149,8 @@ func piecesFromSymbols(
 // placeWideRuns places each run of characters in a line that are words of
 // their own or take two cells, when the run has one that takes two cells,
 // keyed by the symbol's index. A run is one word, as Chinese and Japanese
-// have no spaces, where tesseract reads each character as a word. A space
-// ends a run, so Korean words stay apart. evenPitchCells cuts the run's ink
+// have no spaces, whether the recognizer gave it as one word or as a word per
+// character. A space ends a run, so Korean words stay apart. evenPitchCells cuts the run's ink
 // into cells.
 func placeWideRuns(symbols []lineSymbol, img *image.RGBA) map[int]wideCell {
 	single := func(index int) bool {
@@ -178,8 +175,8 @@ func placeWideRuns(symbols []lineSymbol, img *image.RGBA) map[int]wideCell {
 		}
 
 		// A run stops at a space between two words of several characters, as
-		// between Korean words. tesseract's boxes for these characters drift,
-		// so the space is looked for in the pixels.
+		// between Korean words. A recognizer's boxes for these characters
+		// drift, so the space is looked for in the pixels.
 		joins := func(index int) bool {
 			if symbols[index].word == symbols[index-1].word || single(index) || single(index-1) {
 				return true
@@ -274,7 +271,7 @@ func evenPitchCells(run []lineSymbol, img *image.RGBA) []image.Rectangle {
 
 	inked := func(column int) bool { return inkedColumn(img, column, box, background) }
 
-	// tesseract's box can stop inside a character or short of it, so the
+	// The recognizer's box can stop inside a character or short of it, so the
 	// run reaches to the ink at either end. It reaches at most a character's
 	// height past the box, so a background whose columns all read as ink
 	// cannot stretch it to the frame's edges.
@@ -382,9 +379,9 @@ func evenPitchCuts(left, right int, inked func(int) bool, count int) []int {
 	return edges
 }
 
-// fullwidthPunctuation is the fullwidth form of the ASCII punctuation tesseract
-// reads a Chinese or Japanese mark in a run as, such as "，" for ",". Other text
-// is returned as is.
+// fullwidthPunctuation is the fullwidth form of the ASCII punctuation a
+// recognizer can read a Chinese or Japanese mark in a run as, such as "，" for
+// ",". Other text is returned as is.
 func fullwidthPunctuation(text string) string {
 	const fullwidthOffset = 0xFEE0
 
@@ -404,94 +401,6 @@ func textHasWide(text string) bool {
 	}
 
 	return false
-}
-
-// wordSymbols splits a word into one symbol per character for
-// piecesFromSymbols, when the recognizer gave a box for the whole word only.
-// box is in img's pixels. Each character takes a run of ink columns. The
-// narrowest gaps between runs merge until there is one run per character. A
-// word with fewer runs than characters, such as one whose letters touch,
-// splits by the characters' widths.
-func wordSymbols(img *image.RGBA, text string, box image.Rectangle, line, word int) []lineSymbol {
-	var chars []string
-	for char := graphemes.FromString(text); char.Next(); {
-		chars = append(chars, char.Value())
-	}
-
-	symbol := func(char string, left, right int) lineSymbol {
-		return lineSymbol{
-			text: char, ink: image.Rect(left, box.Min.Y, right, box.Max.Y), line: line, word: word,
-		}
-	}
-
-	visible := box.Intersect(img.Rect)
-	if len(chars) <= 1 || visible.Empty() {
-		return []lineSymbol{symbol(text, box.Min.X, box.Max.X)}
-	}
-
-	runs := inkRuns(img, visible)
-
-	for len(runs) > len(chars) {
-		narrowest := 0
-
-		for index := 1; index+1 < len(runs); index++ {
-			if runs[index+1][0]-runs[index][1] < runs[narrowest+1][0]-runs[narrowest][1] {
-				narrowest = index
-			}
-		}
-
-		next := narrowest + 1
-		runs[narrowest][1] = runs[next][1]
-		runs = slices.Delete(runs, next, next+1)
-	}
-
-	symbols := make([]lineSymbol, len(chars))
-
-	if len(runs) == len(chars) {
-		for index, char := range chars {
-			symbols[index] = symbol(char, runs[index][0], runs[index][1])
-		}
-
-		return symbols
-	}
-
-	total := 0
-	for _, char := range chars {
-		total += max(displaywidth.String(char), 1)
-	}
-
-	left, cells := box.Min.X, 0
-
-	for index, char := range chars {
-		cells += max(displaywidth.String(char), 1)
-		right := box.Min.X + box.Dx()*cells/total
-		symbols[index] = symbol(char, left, right)
-		left = right
-	}
-
-	return symbols
-}
-
-// inkRuns is the runs of columns of box in img that have ink, each as its
-// first column and the one past its last.
-func inkRuns(img *image.RGBA, box image.Rectangle) [][2]int {
-	background := lumaOf(img, box)
-
-	var runs [][2]int
-
-	for column := box.Min.X; column < box.Max.X; column++ {
-		if !inkedColumn(img, column, box, background) {
-			continue
-		}
-
-		if len(runs) > 0 && runs[len(runs)-1][1] == column {
-			runs[len(runs)-1][1] = column + 1
-		} else {
-			runs = append(runs, [2]int{column, column + 1})
-		}
-	}
-
-	return runs
 }
 
 // leftToRight reports whether each character's ink in word starts and ends
@@ -558,10 +467,10 @@ func snapWindow(pixels, region image.Rectangle) int {
 const inkContrast = 64
 
 // snapToBlankColumns moves each boundary between two of a word's cells to the
-// nearest column of box with no ink, within window pixels. tesseract places a
-// character's box only roughly, so the halfway point between two boxes can
-// land inside one of the characters, while the gap between them is a column or
-// two away.
+// nearest column of box with no ink, within window pixels. A recognizer
+// places a character's box only roughly, so the halfway point between two
+// boxes can land inside one of the characters, while the gap between them is a
+// column or two away.
 func snapToBlankColumns(cells [][2]int, img *image.RGBA, box image.Rectangle, window int) [][2]int {
 	if len(cells) <= 1 {
 		return cells
@@ -975,75 +884,4 @@ func backgroundOf(img *image.RGBA, box image.Rectangle) uint32 {
 	blue := uint32(best%levels) << shift
 
 	return red<<16 | green<<8 | blue
-}
-
-// mergeSecondLines is the eng lines, with the lines a second-language line
-// overlaps replaced by it, when it is in another script and none of them are,
-// which is a line eng read as Latin noise, sometimes in pieces. A line is in
-// another script when it has a character taking two cells, as a Chinese word
-// in an English line does, or when most of its letters are outside Latin
-// script. A Russian read can give an English line a few Cyrillic lookalikes,
-// which do not count. A line eng read in another script stays, and a line
-// only the second read found joins the rest. Two reads are the same line when
-// their boxes overlap by at least half the smaller box, as on macOS.
-func mergeSecondLines(detected, second [][]ports.TextPiece) [][]ports.TextPiece {
-	merged := slices.Clone(detected)
-
-	for _, line := range second {
-		if !lineInOtherScript(line) {
-			continue
-		}
-
-		box := lineBounds(line)
-		overlaps := func(other []ports.TextPiece) bool {
-			otherBox := lineBounds(other)
-			smaller := min(area(box), area(otherBox))
-
-			return smaller > 0 && area(box.Intersect(otherBox))*halfDivisor >= smaller
-		}
-
-		if slices.ContainsFunc(merged, func(other []ports.TextPiece) bool {
-			return overlaps(other) && lineInOtherScript(other)
-		}) {
-			continue
-		}
-
-		merged = append(slices.DeleteFunc(merged, overlaps), line)
-	}
-
-	return merged
-}
-
-// lineInOtherScript reports whether a line has a character taking two cells,
-// or whether most of its letters are outside Latin script.
-func lineInOtherScript(line []ports.TextPiece) bool {
-	letters, other := 0, 0
-
-	for _, piece := range line {
-		if textHasWide(piece.Text) {
-			return true
-		}
-
-		for _, r := range piece.Text {
-			if unicode.IsLetter(r) {
-				letters++
-
-				if !unicode.Is(unicode.Latin, r) {
-					other++
-				}
-			}
-		}
-	}
-
-	return other > 0 && other*halfDivisor >= letters
-}
-
-// lineBounds is the box around a line's pieces.
-func lineBounds(line []ports.TextPiece) image.Rectangle {
-	var box image.Rectangle
-	for _, piece := range line {
-		box = box.Union(piece.Bounds)
-	}
-
-	return box
 }

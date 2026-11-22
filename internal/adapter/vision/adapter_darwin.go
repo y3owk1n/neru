@@ -32,24 +32,26 @@ import (
 const bytesPerPixel = 4
 
 // captureText captures region at readLinesScale for DetectElements and
-// returns the frame with the region it shows, region clipped to the display
-// that holds it.
+// returns the frame, the region it shows (region clipped to the display that
+// holds it) and the scale its text is drawn at.
 func (a *Adapter) captureText(
 	ctx context.Context,
 	region image.Rectangle,
-) (*image.RGBA, image.Rectangle, error) {
+) (*image.RGBA, image.Rectangle, int, error) {
 	frame, err := captureReadFrame(ctx, region)
 	if err != nil {
-		return nil, image.Rectangle{}, err
+		return nil, image.Rectangle{}, 0, err
 	}
 	defer releaseFrame(frame)
 
 	img, err := cgImageToRGBA(frame.image)
 	if err != nil {
-		return nil, image.Rectangle{}, err
+		return nil, image.Rectangle{}, 0, err
 	}
 
-	return img, rectOf(frame.bounds), nil
+	shown := rectOf(frame.bounds)
+
+	return img, shown, yomiScale(img, shown), nil
 }
 
 // rectOf is r in integer points.
@@ -392,7 +394,9 @@ func readFrameLines(ctx context.Context, frame readFrame) ([][]ports.TextPiece, 
 		return nil, err
 	}
 
-	return readYomiLines(ctx, img, rectOf(frame.bounds))
+	shown := rectOf(frame.bounds)
+
+	return readYomiLines(ctx, img, shown, yomiScale(img, shown))
 }
 
 // ReadLinesOnceChanged waits for region to change from what the last fast

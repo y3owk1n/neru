@@ -7,9 +7,8 @@
 // compositors or XGetImage on X11. Both read text with yomi (yomi_read.go) and
 // find button shapes with the contour detector over the same frame
 // (detect_elements.go, rectangles.go), then the classifier in heuristics.go
-// assigns roles. adapter_windows.go captures with BitBlt, reads text with
-// Windows.Media.Ocr and finds shapes the same way. adapter_other.go has no
-// capture and refuses everything.
+// assigns roles. adapter_windows.go captures with BitBlt and reads the same
+// way. adapter_other.go has no capture and refuses everything.
 //
 // The contour and segment strategies are two more detectors: the wl-kbptr
 // algorithm in the contour subpackage, and the segment subpackage, which

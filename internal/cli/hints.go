@@ -35,8 +35,7 @@ var HintsCmd = BuildModeCommand(ModeConfig{
 
   Use --strategy vision to detect elements by recognizing what is on screen
   instead of walking the accessibility tree. It reads text with yomi, built
-  into Neru, on macOS and Linux and with Windows.Media.Ocr on Windows, and
-  finds button shapes with the contour detector everywhere.
+  into Neru, and finds button shapes with the contour detector.
 
   Use --strategy contour to detect interactive targets (buttons, icons,
   text) by edge and contour analysis of the focused window's pixels, an

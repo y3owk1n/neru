@@ -14,9 +14,9 @@ import "github.com/y3owk1n/neru/internal/domain/parity"
 // (docs/adr/0013-parity-is-measured-in-words-not-subsystems.md).
 //
 // Every flag is everywhere today. The vision strategy value and --split-word
-// carried a macOS-and-Linux column until Windows grew an OCR engine
-// (Windows.Media.Ocr). Add a narrow column back the moment a flag needs one
-// rather than reaching for the nearest fit.
+// carried a macOS-and-Linux column until Windows could read text. Add a narrow
+// column back the moment a flag needs one rather than reaching for the nearest
+// fit.
 func PlatformSupport() parity.Declaration {
 	return parity.Everywhere(parity.KindModeFlag,
 		FlagAction.String(),

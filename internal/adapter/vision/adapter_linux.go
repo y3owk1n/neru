@@ -28,15 +28,19 @@ import (
 // and search text and nowhere else. Nothing here logs it or counts it into a
 // message. Debug lines carry durations and counts.
 
-// captureText captures region for DetectElements and returns the frame with
-// the region it shows, which on Linux is region itself.
+// captureText captures region for DetectElements and returns the frame, the
+// region it shows, which on Linux is region itself, and the scale its text is
+// drawn at.
 func (a *Adapter) captureText(
 	ctx context.Context,
 	region image.Rectangle,
-) (*image.RGBA, image.Rectangle, error) {
+) (*image.RGBA, image.Rectangle, int, error) {
 	img, err := a.captureRegion(ctx, region)
+	if err != nil {
+		return nil, image.Rectangle{}, 0, err
+	}
 
-	return img, region, err
+	return img, region, yomiScale(img, region), nil
 }
 
 // AccurateReadDiffers is false. yomi reads every script in one pass, so an
@@ -253,7 +257,7 @@ func (a *Adapter) readFrameLines(
 ) ([][]ports.TextPiece, error) {
 	started := time.Now()
 
-	lines, err := readYomiLines(ctx, img, region)
+	lines, err := readYomiLines(ctx, img, region, yomiScale(img, region))
 	if err != nil {
 		return nil, derrors.Wrapf(
 			err,

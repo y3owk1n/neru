@@ -10,9 +10,9 @@ import (
 )
 
 // Adapter implements ports.VisionPort. Its methods live in the platform files:
-// ScreenCaptureKit and yomi in adapter_darwin.go, the Linux capture backends
-// and yomi in adapter_linux.go, Windows.Media.Ocr in adapter_windows.go, and
-// CodeNotSupported stubs in adapter_other.go.
+// each platform's capture in adapter_darwin.go, adapter_linux.go and
+// adapter_windows.go, the reading every platform shares in detect_elements.go
+// and yomi_read.go, and CodeNotSupported stubs in adapter_other.go.
 //
 // The adapter captures the screen and runs text recognition and rectangle
 // detection to detect interactive UI elements. A

@@ -66,7 +66,7 @@ the footnotes below give the mechanism behind its limits.
 | **`monitor_select` mode**     | native panels         | Cairo panels        | Cairo panels              | Cairo panels         | layered panels            |
 | **`vim` mode**                | CALayers on the shared window | Cairo on the shared overlay | Cairo on the shared overlay | Cairo on the shared overlay | the shared overlay window |
 | **Screen capture**            | ScreenCaptureKit      | `XGetImage`         | `wlr-screencopy`          | portal ScreenCast, consent ⁴ | `BitBlt` ⁴        |
-| **Vision / OCR detection**    | yomi and contour ⁵    | yomi and contour ⁵ | yomi and contour ⁵ | yomi and contour ⁵ | `Windows.Media.Ocr` and contour ⁵ |
+| **Vision / OCR detection**    | yomi and contour ⁵    | yomi and contour ⁵ | yomi and contour ⁵ | yomi and contour ⁵ | yomi and contour ⁵ |
 | **Key feed (`action feed`)** | `CGEventPost`         | XTest                | uinput / virtual-keyboard | uinput               | `SendInput`               |
 | **Service management (`neru services`)** | launchd user agent | systemd user unit only ² | systemd user unit only ² | systemd user unit only ² | Task Scheduler logon task |
 
@@ -127,25 +127,17 @@ capture Neru's windows with the rest of the screen. There a hints refresh with
 a screen-reading strategy takes the old labels off before it captures, and
 snap refuses those strategies while a mode is open.
 
-⁵ **Vision.** macOS and Linux read text with yomi, a pure-Go recognizer Neru
-links, with its models compiled in, and find button shapes with the contour
-detector in the same frame, with its shipped thresholds. Neither uses the
-Vision framework. One yomi engine holds every recognizer and a router that
-picks each line's script, so a read needs no language data or locale, and an
-accurate read reads nothing a fast one did not. `copy_text` keeps the text the
-hints pass read, since that read is already accurate. yomi gives each word's
-characters in reading order with a box each, and a run of Chinese or Japanese
-characters is cut into cells of even pitch from its ink. Windows uses
-`Windows.Media.Ocr`, which reports no per-word confidence. Its engine reads in
-the first account language with an OCR pack. A vim accurate read also reads
-the frame with an engine for the first Chinese, Japanese or Korean language in
-`GlobalizationPreferences.Languages`, built with `TryCreateFromLanguage`, and
-merges its lines into the first read's. With no such language, or with the
-first engine already reading it, vim keeps the fast read. Each engine runs on
-a worker thread of its own, and the accurate read has its own copy of the
-first engine, so a fast read never queues behind it. Windows also finds
-rectangles with the contour detector. Recognized text is never logged or
-stored.
+⁵ **Vision.** Every platform reads text with yomi, a pure-Go recognizer Neru
+links, with its models compiled in, and finds button shapes with the contour
+detector in the same frame, with its shipped thresholds. None uses the
+platform's own OCR. One yomi engine holds every recognizer and a router that
+picks each line's script, so a read needs no language data, OCR pack or
+locale, and an accurate read reads nothing a fast one did not. `copy_text`
+keeps the text the hints pass read, since that read is already accurate. yomi
+gives each word's characters in reading order with a box each, and a run of
+Chinese or Japanese characters is cut into cells of even pitch from its ink.
+On Windows the frame is in physical pixels, and yomi reads it at the monitor's
+DPI scale. Recognized text is never logged or stored.
 
 ⁶ **Modifiers on injected input.** On X11, Wayland and Windows, an injected
 pointer event carries whatever modifiers the keyboard holds, so a chord still
@@ -356,11 +348,11 @@ Mode logic is shared. Only these rows differ, by rendering or element discovery.
 | Mode              | Feature                        | macOS                      | Linux                      | Windows                     |
 | ----------------- | ------------------------------ | -------------------------- | -------------------------- | --------------------------- |
 | **Hints**         | Element discovery              | full AX tree            | AT-SPI, toolkit-dependent | UIA, control view only |
-| **Hints**         | `vision` strategy + per-app overrides | yomi for text, the contour detector for rectangles | yomi for text, the contour detector for rectangles | `Windows.Media.Ocr` for text, the contour detector for rectangles, no confidence |
+| **Hints**         | `vision` strategy + per-app overrides | yomi for text, the contour detector for rectangles | yomi for text, the contour detector for rectangles | yomi for text, the contour detector for rectangles |
 | **Hints**         | Label arrow / tail             | NSBezierPath            | Cairo triangle          | triangle |
 | **Scroll**        | Smooth scroll animation        | continuous              | continuous (X11: whole notches) | 120ths of a notch |
 | **Monitor select**| Whole mode                     | native panels           | Cairo panels            | one layered window per display |
-| **Vim**           | Whole mode                     | yomi character boxes, Chinese and Japanese placed by their ink, CALayers on the shared window | yomi character boxes, Chinese and Japanese placed by their ink, Cairo on the shared overlay | Windows.Media.Ocr word boxes split into characters by their ink, the shared overlay window |
+| **Vim**           | Whole mode                     | yomi character boxes, Chinese and Japanese placed by their ink, CALayers on the shared window | yomi character boxes, Chinese and Japanese placed by their ink, Cairo on the shared overlay | yomi character boxes, Chinese and Japanese placed by their ink, the shared overlay window |
 
 Everything else is the same on all three, including label placement, the
 search badge, label sizing, virtual pointer indicators, transition animations,

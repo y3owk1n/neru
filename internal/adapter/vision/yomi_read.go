@@ -1,4 +1,4 @@
-//go:build darwin || linux
+//go:build darwin || linux || windows
 
 package vision
 
@@ -63,28 +63,33 @@ var yomiEngine = sync.OnceValues(func() (*yomi.Engine, error) {
 const wholeScaleSlack = 0.2
 
 // yomiScale is the whole-number scale yomi reads img at, img being a capture
-// of region. A Wayland output at a fractional scale hands back frames at 1.25
-// or 1.5 pixels per point, and yomi reads them best as 2x. A 1.5x frame keeps
-// 97.8% of words that way against 88.2% read as 1x, and a 1.25x one 96.5%
-// against 95.3%. A frame within wholeScaleSlack of a whole scale reads as
-// that scale.
+// of region whose pixels are the region's points times the display's scale,
+// as on macOS and Linux. A Wayland output at a fractional scale hands back
+// frames at 1.25 or 1.5 pixels per point, and yomi reads them best as 2x. A
+// 1.5x frame keeps 97.8% of words that way against 88.2% read as 1x, and a
+// 1.25x one 96.5% against 95.3%.
 func yomiScale(img *image.RGBA, region image.Rectangle) int {
 	if region.Dy() <= 0 {
 		return 1
 	}
 
-	return max(1, int(math.Ceil(float64(img.Rect.Dy())/float64(region.Dy())-wholeScaleSlack)))
+	return wholeScale(float64(img.Rect.Dy()) / float64(region.Dy()))
 }
 
-// readYomi reads img, a capture of region, and returns its lines with boxes in
-// img's pixels, origin at the top-left of the buffer.
-func readYomi(ctx context.Context, img *image.RGBA, region image.Rectangle) ([]yomi.Line, error) {
+// wholeScale rounds a display scale up to the whole one yomi reads at, unless
+// it is within wholeScaleSlack of the one below.
+func wholeScale(scale float64) int {
+	return max(1, int(math.Ceil(scale-wholeScaleSlack)))
+}
+
+// readYomi reads img, whose text is drawn at scale pixels per point, and
+// returns its lines with boxes in img's pixels, origin at the top-left of the
+// buffer.
+func readYomi(ctx context.Context, img *image.RGBA, scale int) ([]yomi.Line, error) {
 	engine, err := yomiEngine()
 	if err != nil {
 		return nil, err
 	}
-
-	scale := yomiScale(img, region)
 
 	lines, err := engine.Read(ctx, img, scale)
 	if err != nil {
@@ -174,14 +179,15 @@ func yomiSymbols(lines []yomi.Line) []lineSymbol {
 	return symbols
 }
 
-// readYomiLines reads img, a capture of region, as ReadLines pieces in the
-// global coordinates of region.
+// readYomiLines reads img, a capture of region with its text at scale pixels
+// per point, as ReadLines pieces in the global coordinates of region.
 func readYomiLines(
 	ctx context.Context,
 	img *image.RGBA,
 	region image.Rectangle,
+	scale int,
 ) ([][]ports.TextPiece, error) {
-	found, err := readYomi(ctx, img, region)
+	found, err := readYomi(ctx, img, scale)
 	if err != nil {
 		return nil, err
 	}

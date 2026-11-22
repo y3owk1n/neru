@@ -5,12 +5,10 @@ package vision_test
 import (
 	"context"
 	"image"
-	"strings"
 	"testing"
 
 	"golang.org/x/sys/windows"
 
-	platformwindows "github.com/y3owk1n/neru/internal/adapter/platform/windows"
 	"github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/derrors"
@@ -18,21 +16,19 @@ import (
 )
 
 // Windows implements both halves of ports.VisionPort, capture through BitBlt
-// off the desktop DC and recognition through Windows.Media.Ocr, so this file
-// pins the shape of each answer rather than a refusal. Every method returns a
-// result or a live reason, never neither and never both. The one
-// CodeNotSupported recognition may answer with is a missing OCR language
-// pack, and that answer has to say so, because it is the failure a user can
-// fix.
+// off the desktop DC and recognition through yomi, so this file pins the shape
+// of each answer rather than a refusal. Every method returns a result or a
+// live reason, never neither and never both, and recognition, compiled in,
+// never answers CodeNotSupported.
 //
 // The tests here run on a headless CI runner too. Capture accepts a live
-// failure (no interactive desktop), recognition accepts a missing language
-// pack, and both reject only the answers a caller could misread.
+// failure (no interactive desktop), and both halves reject only the answers a
+// caller could misread.
 
 // TestVisionAdapter_RecognitionAnswersOnWindows is the half that protects the
 // user. A nil from DetectElements or Health would select the vision strategy
-// and then silently produce no hints, and an unexplained CodeNotSupported
-// would send them to the wrong remedy.
+// and then silently produce no hints, and a CodeNotSupported would tell the
+// hint pipeline text recognition is missing on a platform that has it.
 func TestVisionAdapter_RecognitionAnswersOnWindows(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
 	ctx := context.Background()
@@ -84,9 +80,8 @@ func TestVisionAdapter_RecognitionAnswersOnWindows(t *testing.T) {
 				return
 			}
 
-			if derrors.IsNotSupported(err) && !strings.Contains(err.Error(), "language") {
-				t.Errorf("%s reports CodeNotSupported without naming the OCR language "+
-					"pack, which is the only thing Windows can be missing: %v",
+			if derrors.IsNotSupported(err) {
+				t.Errorf("%s reports CodeNotSupported, but text recognition is compiled in: %v",
 					testCase.name, err)
 			}
 		})
@@ -238,9 +233,9 @@ func TestVisionAdapter_CaptureExcludesOwnWindowsFromWindows10Version2004(t *test
 }
 
 // TestVisionAdapter_ReadTextDefersToThePassOnWindows pins that there is no
-// second, more careful read here. Windows.Media.Ocr already reads text
-// accurately in the detection pass, so ReadText reports CodeNotSupported with
-// no text, and copy_text keeps the text the pass read.
+// second, more careful read here. yomi already reads text accurately in the
+// detection pass, so ReadText reports CodeNotSupported with no text, and
+// copy_text keeps the text the pass read.
 func TestVisionAdapter_ReadTextDefersToThePassOnWindows(t *testing.T) {
 	text, err := vision.NewAdapter(nil).ReadText(context.Background(), image.Rect(0, 0, 100, 100))
 	if !derrors.IsNotSupported(err) || text != "" {
@@ -250,8 +245,7 @@ func TestVisionAdapter_ReadTextDefersToThePassOnWindows(t *testing.T) {
 
 // TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoes pins that the
 // read vim mode makes after a scroll answers a region with no area the way a
-// fast ReadLines does, so a machine with no OCR language pack refuses it with
-// the same reason.
+// fast ReadLines does.
 func TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoes(t *testing.T) {
 	adapter := vision.NewAdapter(nil)
 
@@ -264,28 +258,14 @@ func TestVisionAdapter_ReadLinesOnceChangedAnswersAsReadLinesDoes(t *testing.T) 
 }
 
 // TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead pins the question
-// vim mode asks before it captures anything. An empty region answers
-// what the OCR engine answers where lines cannot be read, CodeNotSupported
-// naming the language pack on a machine with none, and CodeInvalidInput where
-// they can, never nothing at all.
+// vim mode asks before it captures anything. Recognition is compiled in, so
+// lines can always be read, and an empty region answers CodeInvalidInput,
+// never nothing at all.
 func TestVisionAdapter_ReadLinesAnswersWhetherLinesCanBeRead(t *testing.T) {
 	lines, err := vision.NewAdapter(nil).ReadLines(
 		context.Background(), image.Rectangle{}, ports.TextFast,
 	)
-	if lines != nil || err == nil {
-		t.Fatalf("ReadLines(empty) = %v, %v, want nothing and an error", lines, err)
-	}
-
-	engine := platformwindows.OCRHealth()
-	if engine != nil && derrors.GetCode(err) != derrors.GetCode(engine) {
-		t.Fatalf(
-			"ReadLines(empty) = %v with no OCR engine (%v), want the engine's answer",
-			err,
-			engine,
-		)
-	}
-
-	if engine == nil && derrors.GetCode(err) != derrors.CodeInvalidInput {
-		t.Fatalf("ReadLines(empty) = %v with an OCR engine, want CodeInvalidInput", err)
+	if lines != nil || derrors.GetCode(err) != derrors.CodeInvalidInput {
+		t.Fatalf("ReadLines(empty) = %v, %v, want nothing and CodeInvalidInput", lines, err)
 	}
 }
