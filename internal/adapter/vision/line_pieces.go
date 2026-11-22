@@ -14,6 +14,9 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
+// bytesPerRGBA is the bytes of one pixel in an image.RGBA.
+const bytesPerRGBA = 4
+
 // halfDivisor halves a length, thirdDivisor takes a third of one, and
 // quarterDivisor a quarter.
 const (
@@ -55,6 +58,7 @@ func piecesFromSymbols(
 
 	placed := placeWideRuns(symbols, img)
 	spans := lineSpans(symbols)
+	borders := newBorderScan(img)
 
 	for start := 0; start < len(symbols); {
 		end := start + 1
@@ -75,7 +79,7 @@ func piecesFromSymbols(
 			lines = append(lines, nil)
 		}
 
-		above, below := bordersOf(img, box, spans[line])
+		above, below := borders.bordersOf(box, spans[line])
 		above, below = toRegionLength(
 			above,
 			img.Rect,
@@ -607,9 +611,10 @@ func inkedColumn(img *image.RGBA, column int, box image.Rectangle, background in
 		return false
 	}
 
+	box = box.Intersect(img.Rect)
 	for y := box.Min.Y; y < box.Max.Y; y++ {
-		pixel := img.RGBAAt(column, y)
-		if abs(luma(pixel.R, pixel.G, pixel.B)-background) > inkContrast {
+		i := img.PixOffset(column, y)
+		if abs(luma(img.Pix[i], img.Pix[i+1], img.Pix[i+2])-background) > inkContrast {
 			return true
 		}
 	}
@@ -628,10 +633,11 @@ func inkedColumn(img *image.RGBA, column int, box image.Rectangle, background in
 func lumaOf(img *image.RGBA, box image.Rectangle) int {
 	var histogram [256]int
 
+	box = box.Intersect(img.Rect)
 	for y := box.Min.Y; y < box.Max.Y; y++ {
-		for x := box.Min.X; x < box.Max.X; x++ {
-			pixel := img.RGBAAt(x, y)
-			histogram[luma(pixel.R, pixel.G, pixel.B)]++
+		row := img.Pix[img.PixOffset(box.Min.X, y):img.PixOffset(box.Max.X, y)]
+		for i := 0; i+2 < len(row); i += bytesPerRGBA {
+			histogram[luma(row[i], row[i+1], row[i+2])]++
 		}
 	}
 
@@ -748,16 +754,61 @@ const (
 // none within reach. Comparing a whole line keeps a link's underline or the
 // ink of the line above from reading as one.
 func bordersOf(img *image.RGBA, box image.Rectangle, span [2]int) (int, int) {
+	return newBorderScan(img).bordersOf(box, span)
+}
+
+// borderScan answers bordersOf for the words of one image, remembering each
+// row it has checked against a span and background. The words of a line share
+// both, so a line's rows are scanned once rather than once per word.
+type borderScan struct {
+	img  *image.RGBA
+	rows map[borderLine][]int8
+}
+
+// borderLine is a span and background rows are checked against. Its row
+// answers are 0 for not yet checked, 1 for a border and -1 for none.
+type borderLine struct {
+	span       [2]int
+	background color.RGBA
+}
+
+func newBorderScan(img *image.RGBA) *borderScan {
+	return &borderScan{img: img, rows: map[borderLine][]int8{}}
+}
+
+func (s *borderScan) bordersOf(box image.Rectangle, span [2]int) (int, int) {
+	img := s.img
+
 	background, found := rawBackgroundOf(img, box)
 	if !found || span[1] <= span[0] {
 		return 0, 0
+	}
+
+	key := borderLine{span: span, background: background}
+
+	rows := s.rows[key]
+	if rows == nil {
+		rows = make([]int8, img.Rect.Dy())
+		s.rows[key] = rows
+	}
+
+	border := func(y int) bool {
+		answer := &rows[y-img.Rect.Min.Y]
+		if *answer == 0 {
+			*answer = -1
+			if borderRow(img, y, span, background) {
+				*answer = 1
+			}
+		}
+
+		return *answer == 1
 	}
 
 	reach := borderReachLines * box.Dy()
 	above, below := 0, 0
 
 	for y := box.Min.Y - 1; y >= max(img.Rect.Min.Y, box.Min.Y-reach); y-- {
-		if borderRow(img, y, span, background) {
+		if border(y) {
 			above = box.Min.Y - y
 
 			break
@@ -765,7 +816,7 @@ func bordersOf(img *image.RGBA, box image.Rectangle, span [2]int) (int, int) {
 	}
 
 	for y := box.Max.Y; y < min(img.Rect.Max.Y, box.Max.Y+reach); y++ {
-		if borderRow(img, y, span, background) {
+		if border(y) {
 			below = y - box.Max.Y + 1
 
 			break
@@ -788,11 +839,14 @@ func borderRow(img *image.RGBA, row int, span [2]int, background color.RGBA) boo
 	var first color.RGBA
 
 	seen := false
+	pix := img.Pix[img.PixOffset(left, row) : img.PixOffset(right-1, row)+bytesPerRGBA]
 
 	for x := left; x < right; x += step {
 		samples++
 
-		pixel := img.RGBAAt(x, row)
+		i := (x - left) * bytesPerRGBA
+		pixel := color.RGBA{R: pix[i], G: pix[i+1], B: pix[i+2], A: pix[i+3]}
+
 		if !contrasts(pixel, background) {
 			continue
 		}
@@ -825,27 +879,48 @@ func rawBackgroundOf(img *image.RGBA, box image.Rectangle) (color.RGBA, bool) {
 		return color.RGBA{}, false
 	}
 
-	counts := map[color.RGBA]int{}
+	// A box's edge holds a few colors, so a short list counts them faster
+	// than a map.
+	type tally struct {
+		pixel color.RGBA
+		count int
+	}
+
+	var counts []tally
+
+	add := func(x, y int) {
+		i := img.PixOffset(x, y)
+		pixel := color.RGBA{R: img.Pix[i], G: img.Pix[i+1], B: img.Pix[i+2], A: img.Pix[i+3]}
+
+		for k := range counts {
+			if counts[k].pixel == pixel {
+				counts[k].count++
+
+				return
+			}
+		}
+
+		counts = append(counts, tally{pixel, 1})
+	}
 
 	for x := box.Min.X; x < box.Max.X; x++ {
-		counts[img.RGBAAt(x, box.Min.Y)]++
-		counts[img.RGBAAt(x, box.Max.Y-1)]++
+		add(x, box.Min.Y)
+		add(x, box.Max.Y-1)
 	}
 
 	for y := box.Min.Y; y < box.Max.Y; y++ {
-		counts[img.RGBAAt(box.Min.X, y)]++
-		counts[img.RGBAAt(box.Max.X-1, y)]++
+		add(box.Min.X, y)
+		add(box.Max.X-1, y)
 	}
 
-	var best color.RGBA
-
-	for pixel, count := range counts {
-		if count > counts[best] || (count == counts[best] && pixelLess(pixel, best)) {
-			best = pixel
+	best := counts[0]
+	for _, t := range counts[1:] {
+		if t.count > best.count || (t.count == best.count && pixelLess(t.pixel, best.pixel)) {
+			best = t
 		}
 	}
 
-	return best, true
+	return best.pixel, true
 }
 
 // pixelLess orders colors, so a tie between two picks the same one each time.
@@ -874,8 +949,8 @@ func backgroundOf(img *image.RGBA, box image.Rectangle) uint32 {
 	var counts [levels * levels * levels]int
 
 	tally := func(x, y int) {
-		pixel := img.RGBAAt(x, y)
-		counts[(int(pixel.R>>shift)*levels+int(pixel.G>>shift))*levels+int(pixel.B>>shift)]++
+		i := img.PixOffset(x, y)
+		counts[(int(img.Pix[i]>>shift)*levels+int(img.Pix[i+1]>>shift))*levels+int(img.Pix[i+2]>>shift)]++
 	}
 
 	for x := box.Min.X; x < box.Max.X; x++ {
