@@ -274,12 +274,15 @@ func TestPiecesFromSymbols_PlacesWideCharactersOnAGradient(t *testing.T) {
 		t.Fatalf("lines = %v, want three pieces", lines)
 	}
 
-	// The cells stay on the characters' ink, 50 to 118, and do not spread
-	// across the gradient to the frame's edges.
-	for _, piece := range lines[0] {
-		if piece.Bounds.Min.X < 48 || piece.Bounds.Max.X > 120 {
-			t.Fatalf("%q spans %d to %d, want it within the ink, 50 to 118",
-				piece.Text, piece.Bounds.Min.X, piece.Bounds.Max.X)
+	// Each cell holds its own character's center, 60, 84 and 108, and the
+	// cells stay on the ink, 50 to 118, rather than spreading across the
+	// gradient to the frame's edges.
+	for index, piece := range lines[0] {
+		center := 60 + 24*index
+		if center < piece.Bounds.Min.X || center >= piece.Bounds.Max.X ||
+			piece.Bounds.Min.X < 48 || piece.Bounds.Max.X > 120 {
+			t.Fatalf("%q spans %d to %d, want it around %d within the ink, 50 to 118",
+				piece.Text, piece.Bounds.Min.X, piece.Bounds.Max.X, center)
 		}
 	}
 }
