@@ -270,10 +270,12 @@ func evenPitchCells(run []lineSymbol, img *image.RGBA) []image.Rectangle {
 
 	inked := func(column int) bool { return inkedColumn(img, column, box, background) }
 
-	// tesseract's box can stop inside a character or short of it, so the run
-	// reaches to the ink at either end.
+	// tesseract's box can stop inside a character or short of it, so the
+	// run reaches to the ink at either end. It reaches at most a character's
+	// height past the box, so a background whose columns all read as ink
+	// cannot stretch it to the frame's edges.
 	left, right := box.Min.X, box.Max.X
-	for inked(left - 1) {
+	for left > box.Min.X-box.Dy() && inked(left-1) {
 		left--
 	}
 
@@ -281,7 +283,7 @@ func evenPitchCells(run []lineSymbol, img *image.RGBA) []image.Rectangle {
 		left++
 	}
 
-	for inked(right) {
+	for right < box.Max.X+box.Dy() && inked(right) {
 		right++
 	}
 
@@ -616,9 +618,14 @@ func inkedColumn(img *image.RGBA, column int, box image.Rectangle, background in
 	return false
 }
 
-// lumaOf is the most common luma inside box in img. Text covers less of its
-// own box than the background does, while the pixels around the box can run
-// along a border, such as an editor's current-line highlight.
+// lumaOf is the background luma inside box in img. It finds the band of lumas
+// backgroundBand either side of a center that holds the most pixels, then
+// takes the most common luma in that band. Text covers less of its own box
+// than the background does, while the pixels around the box can run along a
+// border, such as an editor's current-line highlight. A gradient behind a
+// video's title spreads over many lumas while solid text sits on one, so the
+// single most common luma can be the text's. The band counts the gradient's
+// lumas together.
 func lumaOf(img *image.RGBA, box image.Rectangle) int {
 	var histogram [256]int
 
@@ -629,15 +636,31 @@ func lumaOf(img *image.RGBA, box image.Rectangle) int {
 		}
 	}
 
-	best := 0
-	for value, count := range histogram {
-		if count > histogram[best] {
+	band, busiest := 0, -1
+	for value := range histogram {
+		count := 0
+		for near := max(0, value-backgroundBand); near <= min(len(histogram)-1, value+backgroundBand); near++ {
+			count += histogram[near]
+		}
+
+		if count > busiest {
+			band, busiest = value, count
+		}
+	}
+
+	best := max(0, band-backgroundBand)
+	for value := best; value <= min(len(histogram)-1, band+backgroundBand); value++ {
+		if histogram[value] > histogram[best] {
 			best = value
 		}
 	}
 
 	return best
 }
+
+// backgroundBand is how many lumas the band in lumaOf reaches on either side
+// of its center.
+const backgroundBand = 8
 
 // The Rec. 601 luma weights, in thousandths.
 const (

@@ -241,6 +241,52 @@ func TestMergeSecondLines_ReplacesOnlyLinesReadAsLatinNoise(t *testing.T) {
 	}
 }
 
+//nolint:gosmopolitan // The fixtures are Chinese text.
+func TestPiecesFromSymbols_PlacesWideCharactersOnAGradient(t *testing.T) {
+	// Three 20-pixel characters on a 24-pixel pitch, each drawn as three white
+	// strokes as 三 is, over a dark gradient like the one behind a video title.
+	// Under the run the gradient spreads over nine lumas while the text sits
+	// on one, so the text's luma is the most common there. The recognizer
+	// gives each character a narrow box of its own.
+	img := image.NewRGBA(image.Rect(0, 0, 200, 40))
+	for x := range 200 {
+		shade := uint8(30 + x*32/200)
+		for y := range 40 {
+			img.SetRGBA(x, y, color.RGBA{R: shade, G: shade, B: shade, A: 0xFF})
+		}
+	}
+
+	for _, left := range []int{50, 74, 98} {
+		for _, top := range []int{10, 18, 27} {
+			stroke := image.Rect(left, top, left+20, top+3)
+			draw.Draw(img, stroke, image.NewUniform(color.White), image.Point{}, draw.Src)
+		}
+	}
+
+	symbols := []lineSymbol{
+		{text: "今", ink: image.Rect(52, 10, 58, 30), line: 0, word: 0},
+		{text: "天", ink: image.Rect(76, 10, 82, 30), line: 0, word: 1},
+		{text: "好", ink: image.Rect(100, 10, 106, 30), line: 0, word: 2},
+	}
+
+	lines := piecesFromSymbols(symbols, img, img.Rect)
+	if len(lines) != 1 || len(lines[0]) != 3 {
+		t.Fatalf("lines = %v, want three pieces", lines)
+	}
+
+	// Each cell holds its own character's center, 60, 84 and 108, and the
+	// cells stay on the ink, 50 to 118, rather than spreading across the
+	// gradient to the frame's edges.
+	for index, piece := range lines[0] {
+		center := 60 + 24*index
+		if center < piece.Bounds.Min.X || center >= piece.Bounds.Max.X ||
+			piece.Bounds.Min.X < 48 || piece.Bounds.Max.X > 120 {
+			t.Fatalf("%q spans %d to %d, want it around %d within the ink, 50 to 118",
+				piece.Text, piece.Bounds.Min.X, piece.Bounds.Max.X, center)
+		}
+	}
+}
+
 // drawGlyph draws a stand-in for a character over box: its outline, two
 // pixels thick, so like real text it leaves most of its box background.
 func drawGlyph(img *image.RGBA, box image.Rectangle) {
