@@ -10,9 +10,11 @@ var VimCmd = BuildModeCommand(ModeConfig{
 --capture-scope screen, and puts a cursor on it that vim's keys move.
 
 Motions, counts, text objects, search, registers, macros and dot repeat work
-as they do in vim. Marks do not, because every scroll and edit reads the
-screen again and a mark would point at other text. Search, :s and the s jump
-find text in another script by its romanization, so /bo finds Борис.
+as they do in vim. j and k keep the cursor's place on screen, not its count
+of characters. They go straight down or up, in any font. Marks do not,
+because every scroll and edit reads the screen again and a mark would point
+at other text. Search, :s and the s jump find text in another script by its
+romanization, so /bo finds Борис.
 
 Vim mode makes each edit in the app under the cursor, by clicking the caret
 into place, selecting with Shift+Right and typing, then reads the screen

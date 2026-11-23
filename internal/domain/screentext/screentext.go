@@ -96,10 +96,10 @@ type Text struct {
 // the line whose vertical span covers its vertical center, and words on a
 // line sort left to right. Each word starts at the column its left edge is
 // at, counted in the width of one character from the container's left edge,
-// so indentation and wide gaps become spaces and columns line up from line to
-// line for j and k. A gap between two lines that leaves room for more becomes
-// blank lines, which is where paragraphs end. The padding is not text the app
-// has.
+// so indentation and wide gaps become spaces. j and k use pixel positions
+// instead, through Host.Goal. A gap between two lines that leaves room for
+// more becomes blank lines, which is where paragraphs end. The padding is not
+// text the app has.
 func New(words []Word) *Text {
 	kept := slices.DeleteFunc(slices.Clone(words), func(word Word) bool {
 		return strings.TrimSpace(word.Text) == "" || word.Bounds.Empty()

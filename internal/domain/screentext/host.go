@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/clipperhouse/uax29/v2/graphemes"
 	"github.com/y3owk1n/fude/vim"
 )
 
@@ -200,6 +201,36 @@ func (h *Host) Viewport() (int, int, int) { return 0, h.text.Lines(), math.MaxIn
 
 // SetTop does nothing, since every line shows.
 func (h *Host) SetTop(int) {}
+
+// Goal is the pixel column at the middle of the character at pos, so j and
+// k go straight down the screen in any font. Past the end of the text
+// it is the last character's right edge.
+func (h *Host) Goal(pos int) (int, bool) {
+	box := h.text.boxAt(pos)
+	if pos >= len(h.text.boxes) {
+		return box.Max.X, true
+	}
+
+	return (box.Min.X + box.Max.X) / halfDivisor, true
+}
+
+// AtGoal returns the character of the line at start nearest the pixel column
+// goal, or start on an empty line.
+func (h *Host) AtGoal(start, goal int) int {
+	best, bestDistance := start, -1
+
+	for char := graphemes.FromString(h.text.s[start:vim.LineEnd(h.text, start)]); char.Next(); {
+		pos := start + char.Start()
+		box := h.text.boxes[pos]
+
+		distance := max(box.Min.X-goal, 0, goal-box.Max.X)
+		if bestDistance < 0 || distance < bestDistance {
+			best, bestDistance = pos, distance
+		}
+	}
+
+	return best
+}
 
 // Clipboard is empty, since the screen pastes nowhere.
 func (h *Host) Clipboard() (string, error) { return "", nil }
