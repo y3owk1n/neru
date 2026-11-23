@@ -149,8 +149,12 @@ works right away.
 
 ¹⁵ **How `copy_text` reads a hint found on screen differs by platform.**
 On macOS, hints mode places those hints from one read of the whole screen,
-and that read gets small text wrong. While hints mode is open, `copy_text`
-reads the hint's own box again, enlarged, and copies that. It also gives
+and that read gets small text wrong and reads Latin script alone. While hints
+mode is open, `copy_text` reads the hint's own box again and copies that. Once
+text recognition is prepared, that second read also reads Chinese, Japanese,
+Korean and other scripts. Neru prepares it at launch when a binding, hook or
+macro in the config opens vim mode. Otherwise the first `copy_text` starts the preparation, and `copy_text`
+reads Latin script alone until it is done. It also gives
 `contour` and `segment` hints, which carry no text of their own, something to
 copy. Once hints mode has closed, as for an `--on-exit` copy after a click, it
 copies what the hints pass read. Linux and Windows always copy what the hints

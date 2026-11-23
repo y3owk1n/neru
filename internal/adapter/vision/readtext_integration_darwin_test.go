@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -143,4 +144,66 @@ func loadFixtureFrame(t *testing.T, path string) *image.RGBA {
 	draw.Draw(frame, frame.Rect, decoded, decoded.Bounds().Min, draw.Src)
 
 	return frame
+}
+
+// TestReadText_ReadsEachLineAccuratelyOnceTheHelperIsReady pins copy_text's
+// second look at a hint once the lines helper is ready. The fast recognizer
+// reads Latin script alone and turned Chinese, Korean or Russian into Latin
+// noise. Each line of a fixture at two pixels per point, cropped as a hint's
+// box would be and read through the helper the way ReadText reads it, has to
+// come back as written, Latin lines included.
+//
+//nolint:gosmopolitan
+func TestReadText_ReadsEachLineAccuratelyOnceTheHelperIsReady(t *testing.T) {
+	tests := []struct {
+		fixture  string
+		language string
+		want     []string
+	}{
+		{
+			fixture: filepath.Join("scripts", "cjk-16pt-2x.png"),
+			want: []string{
+				"今天的天气很好，我们去公园散步。",
+				"日本語のテキスト",
+			},
+		},
+		{
+			fixture:  filepath.Join("scripts", "mixed-line-16pt-2x.png"),
+			language: "zh-Hans",
+			want: []string{
+				"Various versions have 你好 evolved over the years",
+				"한국어 텍스트를 읽습니다",
+				"Русский текст для проверки",
+			},
+		},
+		{
+			fixture: filepath.Join("ocr", "4k-11pt.png"),
+			want: []string{
+				"denotes breaking CLI changes.",
+				"run neru --cfg-dir ~/.nerurc",
+				"Settings Downloads Help",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.fixture, func(t *testing.T) {
+			frame := loadFixtureFrame(t, filepath.Join("..", "platform", "testdata", test.fixture))
+
+			read := []string{}
+
+			for _, line := range textLines(frame, readTextPadding*2) {
+				crop := image.NewRGBA(image.Rect(0, 0, line.Dx(), line.Dy()))
+				draw.Draw(crop, crop.Rect, frame, line.Min, draw.Src)
+
+				read = append(read, readTextInHelperFromImage(t, crop, test.language))
+			}
+
+			for _, want := range test.want {
+				if !slices.Contains(read, want) {
+					t.Errorf("no line read as %q: %q", want, read)
+				}
+			}
+		})
+	}
 }

@@ -14,6 +14,7 @@ import (
 	"context"
 	"image"
 	"math"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -420,7 +421,11 @@ const readTextPadding = 4
 // than queue.
 var readTextMu sync.Mutex
 
-// ReadText captures rect at readTextScale and reads it. The recognizer cannot
+// ReadText reads rect with the accurate recognizer in the lines helper once
+// PrepareAccurateRead is done, since the fast one reads Latin script alone and
+// turns Chinese, Japanese or Korean into Latin noise. Until then, when the
+// helper fails, and when it finds no text, as it can on a mostly empty box, it
+// captures rect at readTextScale and reads it fast. The fast recognizer cannot
 // be canceled, so a read that outlives ctx keeps running on its own and its
 // result is dropped. Holding readTextMu means that costs at most one read in
 // flight.
@@ -432,6 +437,34 @@ func (a *Adapter) ReadText(ctx context.Context, rect image.Rectangle) (string, e
 	timeout, err := captureTimeoutMS(ctx)
 	if err != nil {
 		return "", err
+	}
+
+	if a.accurateReadReady() {
+		started := time.Now()
+
+		lines, err := a.readLinesInHelper(ctx, rect.Inset(-readTextPadding), timeout)
+		if text := joinLines(lines); err == nil && text != "" {
+			a.logger.Debug("Read text accurately", zap.Duration("duration", time.Since(started)))
+
+			return text, nil
+		}
+
+		if ctx.Err() != nil {
+			return "", derrors.Wrap(
+				ctx.Err(),
+				derrors.CodeContextCanceled,
+				"text reading timed out",
+			)
+		}
+
+		if err != nil {
+			a.logger.Debug("Accurate text read failed, reading fast", zap.Error(err))
+		}
+
+		timeout, err = captureTimeoutMS(ctx)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if !readTextMu.TryLock() {
@@ -458,6 +491,44 @@ func (a *Adapter) ReadText(ctx context.Context, rect image.Rectangle) (string, e
 	case <-ctx.Done():
 		return "", derrors.Wrap(ctx.Err(), derrors.CodeContextCanceled, "text reading timed out")
 	}
+}
+
+// accurateReadReady reports whether an accurate read would run in the helper
+// with nothing left to compile. An accurate read in this process, or one
+// started while the helper compiles, would hold up the fast reads a key waits
+// on.
+func (a *Adapter) accurateReadReady() bool {
+	if a.linesHelper == "" {
+		return false
+	}
+
+	select {
+	case <-a.PrepareAccurateRead():
+		return true
+	default:
+		return false
+	}
+}
+
+// joinLines joins the words of lines with a space, top to bottom, as the
+// recognizer spelled them. A word's pieces join with nothing between them.
+func joinLines(lines [][]ports.TextPiece) string {
+	var text strings.Builder
+
+	for _, line := range lines {
+		word := -1
+
+		for _, piece := range line {
+			if text.Len() > 0 && piece.Word != word {
+				text.WriteByte(' ')
+			}
+
+			text.WriteString(piece.Text)
+			word = piece.Word
+		}
+	}
+
+	return text.String()
 }
 
 // readTextNow captures region and reads it.
