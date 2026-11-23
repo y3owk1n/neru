@@ -653,7 +653,8 @@ counts, text objects, search, registers, macros and `.` work as in vim. `j`
 and `k` keep the cursor's place on screen, not its count of characters. They
 go to the character straight below or above it, in any font. A `Ctrl+V` block
 takes the characters between its corners on screen, so it shows as a
-rectangle. Marks do not work, because every scroll and edit reads the screen
+rectangle. A gap between two words is one space, so `h` and `l` cross it in
+one step. Marks do not work, because every scroll and edit reads the screen
 again and a mark would point at other text. For the same reason a read of
 the screen ends visual mode, as when `j` past the last line scrolls the app.
 Vim mode makes each edit in the app under the cursor, by clicking the caret
