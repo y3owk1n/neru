@@ -149,17 +149,20 @@ worker thread of its own, and the accurate read has its own copy of the first
 engine, so a fast read never queues behind it. On both, the
 contour detector finds rectangles in the same frame, with its shipped
 thresholds. macOS places hints with Vision's fast recognizer over the whole
-frame, and at that size it misreads small text. `copy_text` reads a
-screen-found hint again with the same recognizer, language correction off, on
-a capture of only the hint's box at three times its size in points. Any one
-read of that capture can still swap a letter, so Neru reads a one-line box at
-five heights from 80 to 120 pixels and keeps the read most of them give. That
-reads every line of the OCR fixtures word for word. One read at the captured
-size misread about one line in seven. A read that takes longer than 500 ms is
-dropped, and the copy uses the hints pass's text. Neru does not use Vision's
-accurate recognizer, because it skips text on mostly empty frames that the
-fast one finds. Its first load on a Mac that has not used it yet also takes
-tens of seconds and holds up every fast request until it finishes. Recognized
+frame. At that size it misreads small text, and it reads Latin script alone,
+so Chinese, Japanese or Korean comes out as Latin noise. `copy_text` reads a
+screen-found hint again on a capture of only the hint's box. Once vim mode's
+accurate read is prepared, `copy_text` reads that capture with the accurate
+recognizer, in the helper process vim mode uses. The accurate recognizer reads
+every script and spells small text right. Until the preparation is done, when
+the helper fails, and when the accurate read finds no text, `copy_text` uses
+the fast recognizer instead, with language correction off, at three times the
+box's size in points. Any one fast read of that capture can still swap a
+letter, so Neru reads a one-line box at five heights from 80 to 120 pixels and
+keeps the read most of them give. That reads every line of the OCR fixtures
+word for word. One read at the captured size misread about one line in seven.
+A read that takes longer than 500 ms is dropped, and the copy uses the hints
+pass's text. Recognized
 text is never logged or stored.
 
 ⁶ **Modifiers on injected input.** On X11, Wayland and Windows, an injected

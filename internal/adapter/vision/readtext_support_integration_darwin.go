@@ -22,7 +22,11 @@ static int accurateReadLists(const char *language) {
 import "C"
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"image"
+	"testing"
 	"unsafe"
 )
 
@@ -171,4 +175,36 @@ func accurateReadReads(language string) bool {
 	defer C.free(unsafe.Pointer(cLanguage))
 
 	return C.accurateReadLists(cLanguage) == 1
+}
+
+// readTextInHelperFromImage reads img, a capture at readLinesScale, the
+// way ReadText reads once the lines helper is ready, with language as the
+// user's Chinese, Japanese or Korean language. It serves the helper's request
+// in this process rather than in a child, for a test that cannot put pixels
+// on the screen.
+func readTextInHelperFromImage(t *testing.T, img *image.RGBA, language string) string {
+	t.Helper()
+
+	shows := image.Rect(0, 0, img.Rect.Dx()/readLinesScale, img.Rect.Dy()/readLinesScale)
+
+	request, err := encodeLinesRequest(img, shows, readLinesTestTimeoutMS, language)
+	if err != nil {
+		t.Fatalf("encode the request: %v", err)
+	}
+
+	var out bytes.Buffer
+
+	err = ServeTextLines(context.Background(), request, &out)
+	if err != nil {
+		t.Fatalf("serve the request: %v", err)
+	}
+
+	var pieces []linePiece
+
+	err = json.Unmarshal(out.Bytes(), &pieces)
+	if err != nil {
+		t.Fatalf("the answer is not JSON pieces: %v", err)
+	}
+
+	return joinLines(groupLines(pieces))
 }

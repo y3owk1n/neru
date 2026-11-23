@@ -169,9 +169,9 @@ func (a *App) reconfigureAfterUpdate(loadResult *config.LoadResult) {
 
 // prepareVimRead has the vision port prepare accurate reads when cfg can open
 // vim mode, so on macOS the compile after an install or an update happens at
-// launch rather than in the first session. Only vim mode reads accurately, so
-// with a configuration that never opens it, vim mode starts the preparation
-// itself at the first `neru vim`.
+// launch rather than in the first session. With a configuration that never
+// opens it, the first `neru vim` or copy_text starts the preparation, and
+// copy_text reads fast until it is done.
 func (a *App) prepareVimRead(cfg *config.Config) {
 	if a.vision == nil || !cfg.Vim.Enabled || !cfg.BindsMode(config.ModeNameVim) {
 		return
