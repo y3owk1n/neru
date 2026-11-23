@@ -4178,6 +4178,29 @@ func TestSimulation_VimJGoesStraightDownOverProportionalText(t *testing.T) {
 	})
 }
 
+// TestSimulation_VimBlockIsARectangleOnScreen covers Ctrl+V on text whose
+// characters differ in width. Each line shows the characters between the
+// corners on screen, not the characters at the same count from its start. A
+// line that ends before the block shows nothing.
+func TestSimulation_VimBlockIsARectangleOnScreen(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		"iiiiiiiiii": image.Rect(100, 100, 150, 130),
+		"ok":         image.Rect(100, 140, 120, 170),
+		"mmmmmmmmmm": image.Rect(100, 180, 350, 210),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "0", "9", "l", "Ctrl+v", "j", "j")
+	vimFrameShows(sim, "three i over the second m, none on ok", func(f ports.VimFrame) bool {
+		return slices.Equal(f.Selection, []image.Rectangle{
+			image.Rect(135, 100, 150, 130),
+			image.Rect(125, 180, 150, 210),
+		})
+	})
+}
+
 // TestSimulation_VimClicks covers the clicks at the cursor. Return, gc, gr and
 // the click ex commands click there, and a count clicks that many times, so
 // 2gc is a double click, up to three. After each, vim mode stays open and

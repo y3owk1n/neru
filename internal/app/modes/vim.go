@@ -1209,7 +1209,14 @@ func (h *handlerState) vimFrame() ports.VimFrame {
 	}
 
 	if sel, ok := machine.Selection(); ok {
-		for _, seg := range lineSegments(text, sel.Start, sel.End) {
+		// A block draws each line's share of it, which is what an operator
+		// takes. A line that ends before the block draws nothing.
+		segs := lineSegments(text, sel.Start, sel.End)
+		if sel.Block {
+			segs = slices.DeleteFunc(sel.Lines, func(seg [2]int) bool { return seg[0] >= seg[1] })
+		}
+
+		for _, seg := range segs {
 			if r, ok := lineRect(text, seg[0], seg[1]); ok {
 				frame.Selection = append(frame.Selection, r)
 			}

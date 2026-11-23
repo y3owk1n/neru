@@ -651,12 +651,14 @@ Read the text in the focused window, or the whole screen with
 `--capture-scope screen`, and move a cursor over it with vim's keys. Motions,
 counts, text objects, search, registers, macros and `.` work as in vim. `j`
 and `k` keep the cursor's place on screen, not its count of characters. They
-go to the character straight below or above it, in any font. Marks do not
-work, because every scroll and edit reads the screen again and a mark would
-point at other text. For the same reason a read of the screen ends visual
-mode, as when `j` past the last line scrolls the app. Vim mode makes each
-edit in the app under the cursor, by clicking the caret into place,
-selecting with Shift+Right and typing, then reads the screen again.
+go to the character straight below or above it, in any font. A `Ctrl+V` block
+takes the characters between its corners on screen, so it shows as a
+rectangle. Marks do not work, because every scroll and edit reads the screen
+again and a mark would point at other text. For the same reason a read of
+the screen ends visual mode, as when `j` past the last line scrolls the app.
+Vim mode makes each edit in the app under the cursor, by clicking the caret
+into place, selecting with Shift+Right and typing, then reads the screen
+again.
 
 Vim mode's own keys in the table below, such as `s`, `gc` and `Ctrl+D`, are
 mappings that [`[vim.keymaps]`](configuration.md#vim-keymaps) can move or
