@@ -25,9 +25,9 @@ func screen() []screentext.Word {
 	}
 }
 
-func TestNew_LaysWordsOutInTheirColumns(t *testing.T) {
+func TestNew_PutsOneSpaceBetweenWords(t *testing.T) {
 	got := screentext.New(screen()).String()
-	if want := "File  Edit  View\nOpen    Save"; got != want {
+	if want := "File Edit View\nOpen Save"; got != want {
 		t.Fatalf("text = %q, want %q", got, want)
 	}
 }
@@ -249,7 +249,7 @@ func TestHost_Delete_HandsTheEditOverAndKeepsTheTextInStep(t *testing.T) {
 		t.Fatalf("edits handed over = %v, want one", got)
 	}
 
-	if s := host.Screen().String(); s != "File  Edit  View" {
+	if s := host.Screen().String(); s != "File Edit View" {
 		t.Fatalf("text after dd = %q, want the line gone", s)
 	}
 }

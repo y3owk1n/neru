@@ -94,12 +94,12 @@ type Text struct {
 // block of its own, in reading order, with a blank line before the next, so
 // motions stay inside the block being read. Within a container, a word joins
 // the line whose vertical span covers its vertical center, and words on a
-// line sort left to right. Each word starts at the column its left edge is
-// at, counted in the width of one character from the container's left edge,
-// so indentation and wide gaps become spaces. j and k use pixel positions
-// instead, through Host.Goal. A gap between two lines that leaves room for
-// more becomes blank lines, which is where paragraphs end. The padding is not
-// text the app has.
+// line sort left to right. A line's first word starts at the column its left
+// edge is at, counted in the width of one character from the container's left
+// edge, so indentation becomes spaces. A gap between words is one space. j
+// and k use pixel positions, through Host.Goal. A gap between two lines that
+// leaves room for more becomes blank lines, which is where paragraphs end. The
+// padding is not text the app has.
 func New(words []Word) *Text {
 	kept := slices.DeleteFunc(slices.Clone(words), func(word Word) bool {
 		return strings.TrimSpace(word.Text) == "" || word.Bounds.Empty()
@@ -558,19 +558,19 @@ func (t *Text) breakLine(builder *strings.Builder, prev, next []Word, left, cell
 	}
 }
 
-// addLine writes a line's words, each at its column, with the padding before
-// it sharing the real gap on screen, so a place on the padding is a place
-// between the two words.
+// addLine writes a line's words. The first starts at its column, after spaces
+// that split the indent on screen between them. Every later one follows a
+// single space whose box covers the whole gap before it, so h and l cross a
+// gap in one step.
 func (t *Text) addLine(builder *strings.Builder, line []Word, left, cell int) {
-	column, from := 0, left
+	from := left
 
 	for index, word := range line {
-		pad := int(math.Round(float64(word.Bounds.Min.X-left)/float64(cell))) - column
-		if index > 0 {
-			pad = max(pad, 1)
+		pad := 1
+		if index == 0 {
+			pad = max(int(math.Round(float64(word.Bounds.Min.X-left)/float64(cell))), 0)
 		}
 
-		pad = max(pad, 0)
 		gap := max(word.Bounds.Min.X-from, pad)
 
 		for space := range pad {
@@ -582,14 +582,12 @@ func (t *Text) addLine(builder *strings.Builder, line []Word, left, cell int) {
 				t.boxes,
 				image.Rect(start, word.Bounds.Min.Y, max(end, start+1), word.Bounds.Max.Y),
 			)
-			column++
 		}
 
 		from = word.Bounds.Max.X
 
 		t.addWord(builder, word)
 		t.words = append(t.words, word.Bounds)
-		column += displaywidth.String(strings.Join(strings.Fields(word.Text), " "))
 	}
 }
 

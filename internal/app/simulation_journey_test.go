@@ -5345,6 +5345,30 @@ func TestSimulation_VimTypesOnTheLineOOpens(t *testing.T) {
 	})
 }
 
+// TestSimulation_VimDeletesAGapFromItsLeftEdge covers x on a wide gap between
+// two words, which vim mode shows as one space. The click puts the caret where
+// the gap starts, so the spaces selected after the caret stop before the next
+// word.
+func TestSimulation_VimDeletesAGapFromItsLeftEdge(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		vimWordFile: image.Rect(100, 100, 160, 130),
+		vimWordEdit: image.Rect(200, 100, 260, 130),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("0", "e", "l", "x")
+	sim.waitFor("the gap deleted", func() bool {
+		return slices.Contains(sim.keyFeed.FedKeys(), "Delete")
+	})
+
+	clicks := sim.ax.recordedClicks()
+	if len(clicks) != 1 || clicks[0].point != image.Pt(160, 115) {
+		t.Fatalf("x on the gap clicked %v, want the gap's left edge at (160,115)", clicks)
+	}
+}
+
 // TestSimulation_VimLeavesTheLineBreakWhenDeletingPadding covers dw from
 // column 0 of an indented line. Column 0 is the padding that stands for the
 // indent on screen, so dw deletes only that, which the app does not have.

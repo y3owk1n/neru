@@ -12,8 +12,9 @@ var VimCmd = BuildModeCommand(ModeConfig{
 Motions, counts, text objects, search, registers, macros and dot repeat work
 as they do in vim. j and k keep the cursor's place on screen, not its count
 of characters. They go straight down or up, in any font. A Ctrl+V block takes
-the characters between its corners on screen. Marks do not, because every
-scroll and edit reads the screen again and a mark would point at other text.
+the characters between its corners on screen. A gap between two words is one
+space, so h and l cross it in one step. Marks do not, because every scroll
+and edit reads the screen again and a mark would point at other text.
 Search, :s and the s jump find text in another script by its romanization,
 so /bo finds Борис.
 
