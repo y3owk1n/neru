@@ -72,10 +72,11 @@ const (
 // vimCaretIn is where a click puts the app's caret before the character at
 // pos in text: halfway between its middle and the middle of the character
 // before it, so a box read a little off on both sides still lands nearest
-// that boundary. The character before counts as no wider than this one, so
-// after a wide gap, which is one space, the click still lands at this
-// character's left edge. At the start of a line it is a quarter into the
-// first character, and at the end just right of the last.
+// that boundary. Both characters count as no wider than the narrower of the
+// two. A gap between words is one wide space, so this keeps the click on the
+// boundary whether the gap comes before the character or is the character.
+// At the start of a line it is a quarter into the first character, and at the
+// end just right of the last.
 func vimCaretIn(text *screentext.Text, pos int) image.Point {
 	box, ok := text.Box(pos)
 	atEnd := !ok || text.Slice(pos, pos+1) == "\n"
@@ -90,12 +91,11 @@ func vimCaretIn(text *screentext.Text, pos int) image.Point {
 		return image.Pt(box.Min.X+box.Dx()/vimQuarter, (box.Min.Y+box.Max.Y)/vimHalf)
 	default:
 		prev, _ := text.Box(pos - 1)
-		prevMiddle := max((prev.Min.X+prev.Max.X)/vimHalf, box.Min.X-box.Dx()/vimHalf)
+		half := min(prev.Dx(), box.Dx()) / vimHalf
+		prevMiddle := max((prev.Min.X+prev.Max.X)/vimHalf, box.Min.X-half)
+		middle := min((box.Min.X+box.Max.X)/vimHalf, box.Min.X+half)
 
-		return image.Pt(
-			(prevMiddle+(box.Min.X+box.Max.X)/vimHalf)/vimHalf,
-			(box.Min.Y+box.Max.Y)/vimHalf,
-		)
+		return image.Pt((prevMiddle+middle)/vimHalf, (box.Min.Y+box.Max.Y)/vimHalf)
 	}
 }
 
