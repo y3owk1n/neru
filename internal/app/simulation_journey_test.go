@@ -4155,6 +4155,29 @@ func TestSimulation_VimJourney(t *testing.T) {
 	}
 }
 
+// TestSimulation_VimJGoesStraightDownOverProportionalText covers j on text
+// whose characters differ in width. The cursor goes to the character below
+// it on screen, not to the one with as many characters before it.
+func TestSimulation_VimJGoesStraightDownOverProportionalText(t *testing.T) {
+	sim := vimHarness(t, map[string]image.Rectangle{
+		"iiiiiiiiii": image.Rect(100, 100, 150, 130),
+		"mmmmmmmmmm": image.Rect(100, 140, 350, 170),
+	})
+
+	sim.pressHotkey(vimHotkey)
+	sim.waitMode(domain.ModeVim)
+
+	sim.press("g", "g", "0", "9", "l")
+	vimFrameShows(sim, "cursor on the tenth i", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(145, 100, 150, 130)
+	})
+
+	sim.press("j")
+	vimFrameShows(sim, "cursor on the second m, below the tenth i", func(f ports.VimFrame) bool {
+		return f.Cursor == image.Rect(125, 140, 150, 170)
+	})
+}
+
 // TestSimulation_VimClicks covers the clicks at the cursor. Return, gc, gr and
 // the click ex commands click there, and a count clicks that many times, so
 // 2gc is a double click, up to three. After each, vim mode stays open and

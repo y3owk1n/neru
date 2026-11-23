@@ -62,6 +62,42 @@ func TestHost_J_KeepsTheScreenColumn(t *testing.T) {
 	}
 }
 
+func TestHost_J_GoesStraightDownOverProportionalText(t *testing.T) {
+	// Ten narrow i sit over a short word, over ten wide m. The tenth i is
+	// above the third m, not the tenth m, and the third m is below the ninth i.
+	words := []screentext.Word{
+		{Text: "iiiiiiiiii", Bounds: image.Rect(0, 0, 30, 10)},
+		{Text: "ab", Bounds: image.Rect(0, 12, 12, 22)},
+		{Text: "mmmmmmmmmm", Bounds: image.Rect(0, 24, 100, 34)},
+	}
+
+	for _, test := range []struct {
+		name, keys string
+		from       int
+		want       image.Point
+	}{
+		{name: "j lands under the cursor", keys: "jj", from: 9, want: image.Pt(25, 29)},
+		{name: "k keeps the column past a short line", keys: "kk", from: 16, want: image.Pt(25, 5)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			text := screentext.New(words)
+			host := screentext.NewHost(text, test.from, nil)
+			m := screentext.NewMachine(host)
+
+			for _, k := range vim.Keys(test.keys) {
+				err := m.Feed(k)
+				if err != nil {
+					t.Fatalf("feed %q: %v", k, err)
+				}
+			}
+
+			if got, _ := text.Point(host.Cursor()); got != test.want {
+				t.Fatalf("cursor at %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
 func TestHost_Marks_AreNeverKeptAcrossAReadOrByLetter(t *testing.T) {
 	text := screentext.New(screen())
 	host := screentext.NewHost(text, 0, nil)
