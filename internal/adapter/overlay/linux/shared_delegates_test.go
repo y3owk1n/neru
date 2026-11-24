@@ -67,6 +67,14 @@ func (s *closedSurface) textPrim(_, _ string, _, _, _ float64, _ uint32, _ bool)
 	s.touched("textPrim")
 }
 
+func (s *closedSurface) badgePrim(int, image.Point, badgeLook) badgeOutcome {
+	s.touched("badgePrim")
+
+	return badgeNotShown
+}
+
+func (s *closedSurface) hideBadgePrim(int) { s.touched("hideBadgePrim") }
+
 // movedDelegate is one of the eighteen methods the two backends used
 // to declare identically and now share, called with arguments that would draw.
 // Passing empty ones would let a delegate look guarded when it was only
@@ -88,7 +96,6 @@ func movedDelegates() []movedDelegate {
 	return []movedDelegate{
 		{"Hide", func(o *sharedOverlay) { o.Hide() }},
 		{"Clear", func(o *sharedOverlay) { o.Clear() }},
-		{"ClearRect", func(o *sharedOverlay) { o.ClearRect(image.Rect(1, 1, 20, 20)) }},
 		{"UpdateGridMatches", func(o *sharedOverlay) { o.UpdateGridMatches("ab") }},
 		{
 			"ShowSubgrid",
@@ -107,8 +114,9 @@ func movedDelegates() []movedDelegate {
 			)
 		}},
 		{"DrawBadge", func(o *sharedOverlay) {
-			o.DrawBadge(10, 10, "HINTS", overlayColors{}, overlayBadgeStyle{fontSize: 14})
+			o.DrawBadge(0, 10, 10, "HINTS", overlayColors{}, overlayBadgeStyle{fontSize: 14})
 		}},
+		{"HideBadge", func(o *sharedOverlay) { o.HideBadge(0) }},
 		{"Flush", func(o *sharedOverlay) { o.Flush() }},
 		{drawMonitorSelectName, func(o *sharedOverlay) {
 			o.DrawMonitorSelect(

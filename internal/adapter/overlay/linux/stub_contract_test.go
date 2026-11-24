@@ -238,13 +238,14 @@ func TestLinuxOverlayManager_StubsAreRepeatable(t *testing.T) {
 	}
 }
 
-// TestLinuxOverlayManager_HideIndicatorErasesTheBadgeItPainted pins what
-// hiding an indicator costs here. A Linux indicator is a badge painted onto
-// the one shared overlay surface, not a window of its own, so hiding it means
-// forgetting the rectangle it occupied. Without that an indicator turned off
+// TestLinuxOverlayManager_HideIndicatorTakesItsBadgeDown pins what hiding an
+// indicator costs here. A Linux indicator is a badge on a surface the render
+// component knows nothing about, so hiding it means taking that surface down
+// and forgetting where it was. Without that an indicator turned off
 // mid-session would stay on screen until the whole overlay is hidden, which is
-// the mode ending rather than the indicator being turned off.
-func TestLinuxOverlayManager_HideIndicatorErasesTheBadgeItPainted(t *testing.T) {
+// the mode ending rather than the indicator being turned off, and a capture
+// would keep taking off a badge that is gone.
+func TestLinuxOverlayManager_HideIndicatorTakesItsBadgeDown(t *testing.T) {
 	painted := image.Rect(10, 10, 60, 30)
 
 	tests := map[string]struct {
@@ -278,7 +279,7 @@ func TestLinuxOverlayManager_HideIndicatorErasesTheBadgeItPainted(t *testing.T) 
 			mgr.HideIndicator(testCase.indicator)
 
 			if testCase.stillOn(mgr) {
-				t.Error("HideIndicator left the badge painted on the shared overlay")
+				t.Error("HideIndicator left the badge on screen")
 			}
 		})
 	}

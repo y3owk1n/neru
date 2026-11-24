@@ -48,8 +48,26 @@ const (
 	// matching macOS's MIN(height/2, 8). It is looser than the hint badge's
 	// cap because the box is taller.
 	searchInputAutoRadiusMax = 8
+)
 
-	stickyBadgeClearPadding = 3
+// badgeOutcome is what drawing an indicator badge came to.
+type badgeOutcome int
+
+const (
+	// badgeNotShown found nothing to put the badge on yet, such as a hidden
+	// overlay, and the next draw tries again.
+	badgeNotShown badgeOutcome = iota
+	badgeShown
+	// badgeUnsupported is a backend with no surface to give a badge.
+	badgeUnsupported
+)
+
+// The badge slot each indicator draws in. A slot is a surface of the
+// backend's own, a Wayland sub-surface or an X11 window, so a badge moves and
+// hides without touching what the overlay shows under it.
+const (
+	modeIndicatorBadgeSlot = 0
+	stickyBadgeSlot        = 1
 )
 
 type linuxOverlayBackend string
@@ -96,16 +114,21 @@ type Manager struct {
 
 	keyboardCaptureEnabled bool
 
+	// The indicator badges on screen and where, so a capture can leave them
+	// out. Each is a surface of its own (see modeIndicatorBadgeSlot).
 	stickyBadgeRect    image.Rectangle
 	stickyBadgeVisible bool
 
 	modeIndicatorBadgeRect    image.Rectangle
 	modeIndicatorBadgeVisible bool
 
+	// badgeRefusal warns once when the backend has no surface to give an
+	// indicator badge.
+	badgeRefusal logonce.Latch
+
 	// searchBadgeRect is where the hints search badge was last painted, empty
-	// when none is on screen. Like the two badge rects above, it exists
-	// because the badge shares the one surface, so taking it off means
-	// knowing what it covered.
+	// when none is on screen. Unlike the indicator badges it is painted on the
+	// one shared surface, so taking it off means knowing what it covered.
 	searchBadgeRect image.Rectangle
 }
 
@@ -234,7 +257,8 @@ func (m *Manager) Clear() {
 		m.wlroots.Clear()
 	}
 
-	m.forgetBadgesLocked()
+	// The indicator badges are not on the surface just cleared, so they stay.
+	m.forgetSurfaceRecordsLocked()
 }
 
 // ClearCache is a no-op on Linux. The overlay backend does not retain stale
@@ -561,17 +585,13 @@ func (m *Manager) DrawModeIndicator(posX, posY int) {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	m.clearModeIndicatorBadgeLocked()
-
 	rect := badgeBounds(posX, posY, label, scaleBadgeFont(style, m.overlayScale()))
-	m.modeIndicatorBadgeRect = expandRect(rect, stickyBadgeClearPadding)
-	m.modeIndicatorBadgeVisible = true
-
-	if m.x11 != nil {
-		m.x11.DrawBadge(posX, posY, label, colors, style)
-	} else if m.wlroots != nil {
-		m.wlroots.DrawBadge(posX, posY, label, colors, style)
-	}
+	m.modeIndicatorBadgeRect = expandRect(
+		rect, badgeStrokePad(badgeStrokeWidth(style, m.overlayScale())),
+	)
+	m.modeIndicatorBadgeVisible = m.drawBadgeLocked(
+		modeIndicatorBadgeSlot, posX, posY, label, colors, style,
+	)
 }
 
 // DrawStickyModifiersIndicator draws the sticky modifiers indicator overlay.
@@ -584,7 +604,7 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 	defer m.renderMu.Unlock()
 
 	if symbols == "" {
-		m.clearStickyBadgeLocked()
+		m.hideStickyBadgeLocked()
 
 		return
 	}
@@ -594,18 +614,11 @@ func (m *Manager) DrawStickyModifiersIndicator(posX, posY int, symbols string) {
 		return
 	}
 
-	m.clearStickyBadgeLocked()
 	m.stickyBadgeRect = expandRect(
 		badgeBounds(posX, posY, symbols, scaleBadgeFont(style, m.overlayScale())),
-		stickyBadgeClearPadding,
+		badgeStrokePad(badgeStrokeWidth(style, m.overlayScale())),
 	)
-	m.stickyBadgeVisible = true
-
-	if m.x11 != nil {
-		m.x11.DrawBadge(posX, posY, symbols, colors, style)
-	} else if m.wlroots != nil {
-		m.wlroots.DrawBadge(posX, posY, symbols, colors, style)
-	}
+	m.stickyBadgeVisible = m.drawBadgeLocked(stickyBadgeSlot, posX, posY, symbols, colors, style)
 }
 
 // DrawGrid draws the grid overlay.
@@ -1111,10 +1124,10 @@ func (m *Manager) DrawMouseActionIndicator(
 	}
 }
 
-// HideIndicator takes an indicator off the screen and erases the badge it
-// left. On Linux an indicator is a badge on the shared surface, so the render
-// component's Hide is a no-op and erasing its rectangle is the hide. Without
-// this it would stay painted until the mode ends.
+// HideIndicator takes an indicator off the screen. On Linux an indicator is a
+// badge on a surface of its own that the render component knows nothing
+// about, so its Hide is a no-op and hiding that surface is the hide. Without
+// this it would stay on screen until the mode ends.
 func (m *Manager) HideIndicator(indicator ports.Indicator) {
 	m.Base.HideIndicator(indicator)
 
@@ -1130,9 +1143,9 @@ func (m *Manager) HideIndicator(indicator ports.Indicator) {
 
 	switch indicator {
 	case ports.ModeIndicator:
-		m.clearModeIndicatorBadgeLocked()
+		m.hideModeIndicatorBadgeLocked()
 	case ports.StickyModifiersIndicator:
-		m.clearStickyBadgeLocked()
+		m.hideStickyBadgeLocked()
 	case ports.VirtualPointerIndicator:
 		// Returned above.
 	}
@@ -1277,14 +1290,20 @@ func (m *Manager) dispatchGridPointer(pointer recursivegrid.VirtualPointerState)
 	}
 }
 
-// forgetBadgesLocked drops every record of what is painted on the shared
-// surface. It follows a Hide or Clear, after which the records would describe
-// a screen that is gone.
+// forgetBadgesLocked drops every record of what the overlay shows. It
+// follows a Hide, which takes the indicator badges down with the surface.
 func (m *Manager) forgetBadgesLocked() {
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
 	m.modeIndicatorBadgeVisible = false
 	m.modeIndicatorBadgeRect = image.Rectangle{}
+	m.forgetSurfaceRecordsLocked()
+}
+
+// forgetSurfaceRecordsLocked drops the records of what is painted on the
+// shared surface. It follows a Clear, after which they would describe a
+// screen that is gone.
+func (m *Manager) forgetSurfaceRecordsLocked() {
 	m.searchBadgeRect = image.Rectangle{}
 
 	// The grid pointer record lives on the backend, whose pass paints it, but
@@ -1296,34 +1315,61 @@ func (m *Manager) forgetBadgesLocked() {
 	}
 }
 
-func (m *Manager) clearStickyBadgeLocked() {
-	if !m.stickyBadgeVisible {
-		return
-	}
-
+// drawBadgeLocked shows an indicator badge in slot and reports whether it is
+// on screen. A backend with no surface to give it is warned about once.
+func (m *Manager) drawBadgeLocked(
+	slot, posX, posY int,
+	text string,
+	colors overlayColors,
+	style overlayBadgeStyle,
+) bool {
+	outcome := badgeNotShown
 	if m.x11 != nil {
-		m.x11.ClearRect(m.stickyBadgeRect)
+		outcome = m.x11.DrawBadge(slot, posX, posY, text, colors, style)
 	} else if m.wlroots != nil {
-		m.wlroots.ClearRect(m.stickyBadgeRect)
+		outcome = m.wlroots.DrawBadge(slot, posX, posY, text, colors, style)
 	}
 
+	if outcome == badgeUnsupported {
+		m.badgeRefusal.Warn(m.logger, "subsurface",
+			"Indicator badges not shown: the compositor offers no wl_subcompositor")
+	}
+
+	return outcome == badgeShown
+}
+
+func (m *Manager) hideStickyBadgeLocked() {
+	m.hideBadgeLocked(stickyBadgeSlot)
 	m.stickyBadgeVisible = false
 	m.stickyBadgeRect = image.Rectangle{}
 }
 
-func (m *Manager) clearModeIndicatorBadgeLocked() {
-	if !m.modeIndicatorBadgeVisible {
-		return
-	}
-
-	if m.x11 != nil {
-		m.x11.ClearRect(m.modeIndicatorBadgeRect)
-	} else if m.wlroots != nil {
-		m.wlroots.ClearRect(m.modeIndicatorBadgeRect)
-	}
-
+func (m *Manager) hideModeIndicatorBadgeLocked() {
+	m.hideBadgeLocked(modeIndicatorBadgeSlot)
 	m.modeIndicatorBadgeVisible = false
 	m.modeIndicatorBadgeRect = image.Rectangle{}
+}
+
+func (m *Manager) hideBadgeLocked(slot int) {
+	if m.x11 != nil {
+		m.x11.HideBadge(slot)
+	} else if m.wlroots != nil {
+		m.wlroots.HideBadge(slot)
+	}
+}
+
+// badgeRectsLocked returns where the indicator badges on screen are.
+func (m *Manager) badgeRectsLocked() []image.Rectangle {
+	var rects []image.Rectangle
+	if m.modeIndicatorBadgeVisible {
+		rects = append(rects, m.modeIndicatorBadgeRect)
+	}
+
+	if m.stickyBadgeVisible {
+		rects = append(rects, m.stickyBadgeRect)
+	}
+
+	return rects
 }
 
 func resolveModeIndicatorAppearance(
@@ -1445,6 +1491,20 @@ func badgeBounds(posX, posY int, text string, style overlayBadgeStyle) image.Rec
 	)
 }
 
+// badgeStrokeHalves splits a badge's stroke either side of its outline.
+const badgeStrokeHalves = 2
+
+// badgeStrokeWidth is the width a badge's outline is stroked at.
+func badgeStrokeWidth(style overlayBadgeStyle, scale float64) float64 {
+	return max(style.borderWidth, 1) * scale
+}
+
+// badgeStrokePad is the margin round a badge's rectangle its surface keeps
+// for the half of the stroke outside it.
+func badgeStrokePad(strokeWidth float64) int {
+	return int(math.Ceil(strokeWidth/badgeStrokeHalves)) + 1
+}
+
 // Hint connector tail edge, matching the C hint-badge renderer: which badge
 // edge the triangular tail is merged into (0 = none).
 const (
@@ -1495,15 +1555,14 @@ func (m *Manager) drawnOn() []image.Rectangle {
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
+	var drawn []image.Rectangle
 	if m.x11 != nil {
-		return m.x11.drawnOn()
+		drawn = m.x11.drawnOn()
+	} else if m.wlroots != nil {
+		drawn = m.wlroots.drawnOn()
 	}
 
-	if m.wlroots != nil {
-		return m.wlroots.drawnOn()
-	}
-
-	return nil
+	return append(drawn, m.badgeRectsLocked()...)
 }
 
 // hideForCapture runs capture with the overlay cleared inside region, then
@@ -1516,11 +1575,17 @@ func (m *Manager) hideForCapture(region image.Rectangle, capture func() error) e
 	m.renderMu.Lock()
 	defer m.renderMu.Unlock()
 
-	if m.x11 != nil && drawnInside(m.x11.showsNothing(), m.x11.drawnOn(), region) {
+	// The indicator badges are surfaces of their own, which the blank takes
+	// off with the overlay.
+	badges := m.badgeRectsLocked()
+
+	if m.x11 != nil && (drawnInside(m.x11.showsNothing(), m.x11.drawnOn(), region) ||
+		drawnInside(len(badges) == 0, badges, region)) {
 		return m.x11.withBlanked(region, capture)
 	}
 
-	if m.wlroots != nil && drawnInside(m.wlroots.showsNothing(), m.wlroots.drawnOn(), region) {
+	if m.wlroots != nil && (drawnInside(m.wlroots.showsNothing(), m.wlroots.drawnOn(), region) ||
+		drawnInside(len(badges) == 0, badges, region)) {
 		return m.wlroots.withBlanked(region, capture)
 	}
 

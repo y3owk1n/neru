@@ -224,6 +224,25 @@ func (o *x11Overlay) textPrim(
 	)
 }
 
+// badgePrim puts the badge in a window of its own beside the overlay window.
+func (o *x11Overlay) badgePrim(slot int, corner image.Point, look badgeLook) badgeOutcome {
+	cLook := look.cLook()
+	if C.neru_x11_overlay_badge(o.raw, C.int(slot), C.int(corner.X), C.int(corner.Y), &cLook) == 0 {
+		return badgeNotShown
+	}
+
+	return badgeShown
+}
+
+func (o *x11Overlay) hideBadgePrim(slot int) {
+	C.neru_x11_overlay_hide_badge(o.raw, C.int(slot))
+}
+
+// composited reports whether a compositing manager owns the screen.
+func (o *x11Overlay) composited() bool {
+	return o != nil && o.raw != nil && C.neru_x11_overlay_composited(o.raw) != 0
+}
+
 // x11CompositorSettle is how long a capture waits after the clear for a
 // compositing manager to repaint, since X11 never says when it has. 40 ms
 // left the overlay in captures under picom's xrender backend, 120 ms did not.

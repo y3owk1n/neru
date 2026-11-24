@@ -1,6 +1,7 @@
 #ifndef OVERLAY_WAYLAND_H
 #define OVERLAY_WAYLAND_H
 
+#include "badge_paint.h"
 #include "common_defs.h"
 
 #include <cairo/cairo.h>
@@ -47,6 +48,39 @@ typedef struct {
 	int current_buffer;
 } NeruWaylandOverlayScreen;
 
+// NeruWaylandBadgeBuffer is one shared-memory buffer of a badge. Each badge
+// keeps two, so it can paint a changed badge while the compositor still
+// holds the one on screen.
+typedef struct {
+	struct wl_buffer *buffer;
+	void *data;
+	size_t size;
+	int width, height;  // in buffer pixels
+	int busy;
+} NeruWaylandBadgeBuffer;
+
+// NeruWaylandBadge is an indicator badge on a wl_subsurface of one output's
+// overlay surface. A surface of its own means moving or hiding it leaves
+// whatever the overlay drew under it alone, and being a sub-surface keeps it
+// above that overlay on every compositor, which a second layer surface does
+// not. It goes when its parent does, and is built again on the next draw.
+typedef struct {
+	struct wl_surface *surface;
+	struct wl_subsurface *subsurface;
+	struct wp_viewport *viewport;
+	struct wl_surface *parent;  // the overlay surface it was made on
+	int screen;                 // index of that overlay surface's output
+
+	NeruWaylandBadgeBuffer buffers[2];
+	int current;  // buffer the badge shows, -1 for none
+
+	NeruBadgeLook look;   // what the current buffer holds, family resolved
+	NeruBadgeLook asked;  // the look the caller asked for it with
+	int x, y;             // global logical position of the surface's corner
+	int visible;
+	int blanked;  // taken off for a capture, to be put back
+} NeruWaylandBadge;
+
 typedef struct {
 	char keys[NERU_KEY_RING_CAP][256];
 	int head;
@@ -58,6 +92,7 @@ typedef struct {
 	struct wl_display *display;
 	struct wl_registry *registry;
 	struct wl_compositor *compositor;
+	struct wl_subcompositor *subcompositor;  // NULL when the compositor has none, and badges are not drawn
 	struct wl_shm *shm;
 	struct zxdg_output_manager_v1 *xdg_output_mgr;
 	struct zwlr_layer_shell_v1 *layer_shell;
@@ -84,6 +119,8 @@ typedef struct {
 	int running;
 
 	NeruWaylandKeyRing key_ring;
+
+	NeruWaylandBadge badges[NERU_BADGE_SLOTS];
 } NeruWaylandOverlay;
 
 NeruWaylandOverlay *neru_wayland_overlay_new(void);
@@ -128,6 +165,21 @@ void neru_wayland_overlay_hint_badge(
 void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color, int bold);
+// NERU_BADGE_DRAWN, NERU_BADGE_SKIPPED and NERU_BADGE_UNSUPPORTED are what a
+// badge draw answers. A skipped draw found no overlay surface to attach the
+// badge to, or no buffer the compositor had released. It leaves the badge
+// hidden, and the next draw tries again.
+#define NERU_BADGE_DRAWN 1
+#define NERU_BADGE_SKIPPED 0
+#define NERU_BADGE_UNSUPPORTED (-1)
+
+// neru_wayland_overlay_badge shows look in badge slot at (x, y), the global
+// logical position of its surface's top-left corner, on the output that holds
+// the badge's center. It paints only when look changed and commits nothing
+// when neither look nor position did.
+int neru_wayland_overlay_badge(NeruWaylandOverlay *overlay, int slot, int x, int y, const NeruBadgeLook *look);
+// neru_wayland_overlay_hide_badge takes badge slot off the screen.
+void neru_wayland_overlay_hide_badge(NeruWaylandOverlay *overlay, int slot);
 int neru_wayland_overlay_poll(NeruWaylandOverlay *overlay);
 const char *neru_wayland_overlay_get_key(NeruWaylandOverlay *overlay);
 

@@ -118,8 +118,11 @@ what it shows without unmapping, so the overlay keeps the keyboard. Wayland
 commits a cleared spare buffer and waits for the compositor's frame callback.
 X11 copies the window into a server-side pixmap, clears it, syncs, and waits
 120 ms when a compositing manager owns `_NET_WM_CM_S<n>`. After the capture
-the drawn buffer or the copy goes back, untouched. The click indicator is a
-surface of its own and stays in the capture. Windows builds older than 2004
+the drawn buffer or the copy goes back, untouched. The mode and
+sticky-modifier badges are surfaces of their own, a sub-surface of the overlay
+on Wayland and a window beside it on X11, so the hider takes each one inside
+the captured rectangle off with the overlay and puts it back after. The click indicator is a
+surface of its own too and stays in the capture. Windows builds older than 2004
 capture Neru's windows with the rest of the screen. There a hints refresh with
 a screen-reading strategy takes the old labels off before it captures, and
 snap refuses those strategies while a mode is open.

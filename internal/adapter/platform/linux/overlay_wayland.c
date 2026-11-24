@@ -23,6 +23,8 @@
 #include <xkbcommon/xkbcommon.h>
 
 static int neru_free_buffer_except(NeruWaylandOverlay *overlay, int except);
+static void neru_badge_release(NeruWaylandBadge *badge);
+static const char *neru_resolve_font_family(const char *family);
 
 // Keyboard event ring buffer. Every access happens under the Go-side renderMu.
 // neru_keyboard_key fires inside wl_display_dispatch / wl_display_roundtrip,
@@ -222,6 +224,8 @@ static void neru_overlay_registry_global(
 
 	if (strcmp(interface, "wl_compositor") == 0) {
 		overlay->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
+	} else if (strcmp(interface, "wl_subcompositor") == 0) {
+		overlay->subcompositor = wl_registry_bind(registry, name, &wl_subcompositor_interface, 1);
 	} else if (strcmp(interface, "wl_shm") == 0) {
 		overlay->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 	} else if (strcmp(interface, "zwlr_layer_shell_v1") == 0) {
@@ -281,6 +285,10 @@ static void neru_overlay_registry_global_remove(void *data, struct wl_registry *
 	// cross-output buffer selection and freeze the remaining monitors.
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		if (overlay->screens[i].wl_output != NULL && overlay->screens[i].registry_name == name) {
+			for (int b = 0; b < NERU_BADGE_SLOTS; b++) {
+				if (overlay->badges[b].screen == i)
+					neru_badge_release(&overlay->badges[b]);
+			}
 			neru_overlay_release_screen(&overlay->screens[i]);
 			break;
 		}
@@ -474,6 +482,8 @@ NeruWaylandOverlay *neru_wayland_overlay_new(void) {
 	// eventtap_linux_wayland.go) sets EXCLUSIVE via
 	// neru_wayland_overlay_set_keyboard_capture. macOS uses a non-activating panel.
 	overlay->keyboard_interactivity_set = ZWLR_LAYER_SURFACE_V1_KEYBOARD_INTERACTIVITY_NONE;
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++)
+		neru_badge_release(&overlay->badges[b]);
 
 	overlay->display = wl_display_connect(NULL);
 	if (!overlay->display) {
@@ -516,6 +526,9 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 	if (!overlay)
 		return;
 
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++)
+		neru_badge_release(&overlay->badges[b]);
+
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 		for (int b = 0; b < scr->num_buffers; b++) {
@@ -545,6 +558,8 @@ void neru_wayland_overlay_destroy(NeruWaylandOverlay *overlay) {
 		xkb_state_unref(overlay->xkb_state);
 	if (overlay->xkb_ctx)
 		xkb_context_unref(overlay->xkb_ctx);
+	if (overlay->subcompositor)
+		wl_subcompositor_destroy(overlay->subcompositor);
 	if (overlay->viewporter)
 		wp_viewporter_destroy(overlay->viewporter);
 	if (overlay->fractional_mgr)
@@ -731,6 +746,9 @@ void neru_wayland_overlay_show(NeruWaylandOverlay *overlay) {
 void neru_wayland_overlay_hide(NeruWaylandOverlay *overlay) {
 	if (!overlay)
 		return;
+	// The badges sit on the surfaces destroyed below, so they go first.
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++)
+		neru_badge_release(&overlay->badges[b]);
 	for (int i = 0; i < overlay->nr_screens; i++) {
 		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
 		if (scr->wl_surface) {
@@ -905,6 +923,242 @@ static int neru_free_buffer_except(NeruWaylandOverlay *overlay, int except) {
 	return -1;
 }
 
+// --- indicator badges ---
+
+static void neru_badge_buffer_release(void *data, struct wl_buffer *wl_buffer) {
+	(void)wl_buffer;
+	((NeruWaylandBadgeBuffer *)data)->busy = 0;
+}
+
+static const struct wl_buffer_listener neru_badge_buffer_listener = {
+    .release = neru_badge_buffer_release,
+};
+
+static void neru_badge_buffer_free(NeruWaylandBadgeBuffer *buf) {
+	if (buf->buffer)
+		wl_buffer_destroy(buf->buffer);
+	if (buf->data)
+		munmap(buf->data, buf->size);
+	memset(buf, 0, sizeof(*buf));
+}
+
+// neru_badge_release destroys everything a badge holds and leaves the slot
+// empty, ready to be built again by the next draw.
+static void neru_badge_release(NeruWaylandBadge *badge) {
+	if (badge->subsurface)
+		wl_subsurface_destroy(badge->subsurface);
+	if (badge->viewport)
+		wp_viewport_destroy(badge->viewport);
+	if (badge->surface)
+		wl_surface_destroy(badge->surface);
+	for (int i = 0; i < 2; i++)
+		neru_badge_buffer_free(&badge->buffers[i]);
+	memset(badge, 0, sizeof(*badge));
+	badge->current = -1;
+	badge->screen = -1;
+}
+
+static int neru_badge_overlaps(const NeruWaylandBadge *badge, double x, double y, double width, double height) {
+	double bw = badge->look.width + 2 * badge->look.pad;
+	double bh = badge->look.height + 2 * badge->look.pad;
+	return badge->x < x + width && x < badge->x + bw && badge->y < y + height && y < badge->y + bh;
+}
+
+static void neru_badge_attach(NeruWaylandBadge *badge) {
+	NeruWaylandBadgeBuffer *buf = &badge->buffers[badge->current];
+	wl_surface_attach(badge->surface, buf->buffer, 0, 0);
+	wl_surface_damage_buffer(badge->surface, 0, 0, INT32_MAX, INT32_MAX);
+	buf->busy = 1;
+}
+
+// neru_badge_screen returns the output whose overlay surface holds the point,
+// else the first one with a surface, or -1 when none has one.
+static int neru_badge_screen(NeruWaylandOverlay *overlay, int x, int y) {
+	int fallback = -1;
+	for (int i = 0; i < overlay->nr_screens; i++) {
+		NeruWaylandOverlayScreen *scr = &overlay->screens[i];
+		if (!scr->wl_surface || !scr->layer_surface)
+			continue;
+		if (x >= scr->x && x < scr->x + scr->width && y >= scr->y && y < scr->y + scr->height)
+			return i;
+		if (fallback < 0)
+			fallback = i;
+	}
+	return fallback;
+}
+
+static void neru_badge_create(NeruWaylandOverlay *overlay, NeruWaylandBadge *badge, int screen, int fractional) {
+	NeruWaylandOverlayScreen *scr = &overlay->screens[screen];
+	badge->surface = wl_compositor_create_surface(overlay->compositor);
+
+	// Pointer clicks pass through, as they do through the overlay.
+	struct wl_region *empty = wl_compositor_create_region(overlay->compositor);
+	wl_surface_set_input_region(badge->surface, empty);
+	wl_region_destroy(empty);
+
+	// Desynchronized, so the badge's own commit puts a new look on screen
+	// without waiting for the overlay to commit.
+	badge->subsurface = wl_subcompositor_get_subsurface(overlay->subcompositor, badge->surface, scr->wl_surface);
+	wl_subsurface_set_desync(badge->subsurface);
+	if (fractional)
+		badge->viewport = wp_viewporter_get_viewport(overlay->viewporter, badge->surface);
+
+	badge->parent = scr->wl_surface;
+	badge->screen = screen;
+}
+
+// neru_badge_free_buffer returns a buffer of the badge the compositor is not
+// holding, preferring the one not on screen, or -1 when it holds both.
+static int neru_badge_free_buffer(NeruWaylandOverlay *overlay, NeruWaylandBadge *badge) {
+	for (int attempt = 0; attempt < 3; attempt++) {
+		for (int pass = 0; pass < 2; pass++) {
+			for (int i = 0; i < 2; i++) {
+				if (pass == 0 && i == badge->current)
+					continue;
+				if (!badge->buffers[i].busy)
+					return i;
+			}
+		}
+		if (attempt == 0)
+			wl_display_dispatch_pending(overlay->display);
+		else if (attempt == 1)
+			wl_display_roundtrip(overlay->display);
+	}
+	return -1;
+}
+
+static int neru_badge_buffer_ensure(NeruWaylandOverlay *overlay, NeruWaylandBadgeBuffer *buf, int width, int height) {
+	if (buf->buffer && buf->width == width && buf->height == height)
+		return 1;
+	neru_badge_buffer_free(buf);
+
+	int stride = width * 4;
+	size_t size = (size_t)stride * (size_t)height;
+	int fd = neru_shm_file_create("neru-badge-shm", size);
+	if (fd < 0)
+		return 0;
+	void *data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (data == MAP_FAILED) {
+		close(fd);
+		return 0;
+	}
+	struct wl_shm_pool *pool = wl_shm_create_pool(overlay->shm, fd, (int)size);
+	buf->buffer = wl_shm_pool_create_buffer(pool, 0, width, height, stride, WL_SHM_FORMAT_ARGB8888);
+	wl_buffer_add_listener(buf->buffer, &neru_badge_buffer_listener, buf);
+	wl_shm_pool_destroy(pool);
+	close(fd);
+
+	buf->data = data;
+	buf->size = size;
+	buf->width = width;
+	buf->height = height;
+	buf->busy = 0;
+	return 1;
+}
+
+int neru_wayland_overlay_badge(NeruWaylandOverlay *overlay, int slot, int x, int y, const NeruBadgeLook *look) {
+	if (!overlay || slot < 0 || slot >= NERU_BADGE_SLOTS)
+		return NERU_BADGE_SKIPPED;
+	if (!overlay->subcompositor)
+		return NERU_BADGE_UNSUPPORTED;
+
+	NeruWaylandBadge *badge = &overlay->badges[slot];
+	int surface_width = look->width + 2 * look->pad;
+	int surface_height = look->height + 2 * look->pad;
+	int screen = neru_badge_screen(overlay, x + surface_width / 2, y + surface_height / 2);
+	if (screen < 0) {
+		neru_wayland_overlay_hide_badge(overlay, slot);
+		return NERU_BADGE_SKIPPED;
+	}
+	NeruWaylandOverlayScreen *scr = &overlay->screens[screen];
+
+	// Render at the scale the overlay under it renders at, by the same means.
+	int fractional = overlay->viewporter && scr->viewport && scr->fractional_scale_120 > 0;
+	if (badge->surface &&
+	    (badge->parent != scr->wl_surface || badge->screen != screen || (badge->viewport != NULL) != fractional))
+		neru_badge_release(badge);
+	if (!badge->surface)
+		neru_badge_create(overlay, badge, screen, fractional);
+
+	NeruBadgeLook asked = *look;
+	int integer_scale = scr->scale > 0 ? scr->scale : 1;
+	asked.scale = fractional ? (double)scr->fractional_scale_120 / 120.0 : (double)integer_scale;
+
+	// Compared as asked, so a badge that did not change resolves no font.
+	int repaint = badge->current < 0 || !neru_badge_look_equal(&asked, &badge->asked);
+	if (!repaint && badge->visible && badge->x == x && badge->y == y)
+		return NERU_BADGE_DRAWN;
+
+	if (repaint) {
+		// Resolved the way neru_wayland_overlay_text resolves a family.
+		NeruBadgeLook want = asked;
+		neru_font_family_for_text(neru_resolve_font_family(look->family), look->text, want.family, sizeof(want.family));
+
+		// Waiting for a buffer dispatches events, and an output removed among
+		// them takes this badge and its overlay surface with it.
+		int idx = neru_badge_free_buffer(overlay, badge);
+		if (idx < 0 || !badge->surface || !scr->wl_surface || badge->parent != scr->wl_surface) {
+			neru_wayland_overlay_hide_badge(overlay, slot);
+			return NERU_BADGE_SKIPPED;
+		}
+
+		int buf_width = fractional ? (int)ceil(surface_width * want.scale) : surface_width * integer_scale;
+		int buf_height = fractional ? (int)ceil(surface_height * want.scale) : surface_height * integer_scale;
+		NeruWaylandBadgeBuffer *buf = &badge->buffers[idx];
+		if (!neru_badge_buffer_ensure(overlay, buf, buf_width, buf_height)) {
+			neru_wayland_overlay_hide_badge(overlay, slot);
+			return NERU_BADGE_SKIPPED;
+		}
+
+		cairo_surface_t *target =
+		    cairo_image_surface_create_for_data(buf->data, CAIRO_FORMAT_ARGB32, buf_width, buf_height, buf_width * 4);
+		cairo_t *cr = cairo_create(target);
+		cairo_scale(cr, want.scale, want.scale);
+		neru_badge_paint(cr, &want);
+		cairo_destroy(cr);
+		cairo_surface_flush(target);
+		cairo_surface_destroy(target);
+
+		if (fractional)
+			wp_viewport_set_destination(badge->viewport, surface_width, surface_height);
+		else
+			wl_surface_set_buffer_scale(badge->surface, integer_scale);
+
+		badge->current = idx;
+		badge->look = want;
+		badge->asked = asked;
+	}
+
+	if (repaint || !badge->visible)
+		neru_badge_attach(badge);
+
+	// The position is the overlay surface's state. The protocol applies it on
+	// that surface's commit, and niri only on the badge's, so both commit.
+	wl_subsurface_set_position(badge->subsurface, x - scr->x, y - scr->y);
+	wl_surface_commit(badge->surface);
+	wl_surface_commit(scr->wl_surface);
+	wl_display_flush(overlay->display);
+
+	badge->x = x;
+	badge->y = y;
+	badge->visible = 1;
+	badge->blanked = 0;
+	return NERU_BADGE_DRAWN;
+}
+
+void neru_wayland_overlay_hide_badge(NeruWaylandOverlay *overlay, int slot) {
+	if (!overlay || slot < 0 || slot >= NERU_BADGE_SLOTS)
+		return;
+	NeruWaylandBadge *badge = &overlay->badges[slot];
+	badge->blanked = 0;
+	if (!badge->visible)
+		return;
+	wl_surface_attach(badge->surface, NULL, 0, 0);
+	wl_surface_commit(badge->surface);
+	wl_display_flush(overlay->display);
+	badge->visible = 0;
+}
+
 static void neru_blank_frame_done(void *data, struct wl_callback *callback, uint32_t time) {
 	(void)time;
 	struct wl_callback **slot = data;
@@ -1013,6 +1267,21 @@ int neru_wayland_overlay_blank(
 		neru_wayland_overlay_clear(overlay);
 	}
 
+	// A badge is a surface of its own, so clearing the overlay leaves it on
+	// screen. Every one the capture would see comes off before the frame the
+	// capture waits for.
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++) {
+		NeruWaylandBadge *badge = &overlay->badges[b];
+		if (!badge->visible)
+			continue;
+		if (width > 0 && height > 0 && !neru_badge_overlaps(badge, x, y, width, height))
+			continue;
+		wl_surface_attach(badge->surface, NULL, 0, 0);
+		wl_surface_commit(badge->surface);
+		badge->visible = 0;
+		badge->blanked = 1;
+	}
+
 	// One frame callback per output, because a capture can read any of them
 	// and each draws the cleared buffer on its own schedule.
 	struct wl_callback *frames[NERU_MAX_OUTPUTS] = {0};
@@ -1040,6 +1309,15 @@ int neru_wayland_overlay_blank(
 void neru_wayland_overlay_unblank(NeruWaylandOverlay *overlay, int saved) {
 	if (!overlay || saved < 0)
 		return;
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++) {
+		NeruWaylandBadge *badge = &overlay->badges[b];
+		if (!badge->blanked || badge->current < 0)
+			continue;
+		neru_badge_attach(badge);
+		wl_surface_commit(badge->surface);
+		badge->visible = 1;
+		badge->blanked = 0;
+	}
 	neru_wayland_overlay_select_buffer(overlay, saved);
 	neru_wayland_overlay_show(overlay);
 }

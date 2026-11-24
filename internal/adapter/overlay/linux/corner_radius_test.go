@@ -40,6 +40,7 @@ type recordingSurface struct {
 	clearedRects []image.Rectangle
 	clears       int
 	flushes      int
+	badges       map[int]badgeLook
 
 	// frameOps is the order the frame-lifecycle primitives were called in.
 	// Which buffer a Wayland draw lands in depends on it. beginFrame selects
@@ -126,6 +127,20 @@ func (s *recordingSurface) textPrim(
 		bold:       bold,
 	})
 }
+
+// badgePrim keeps the look each slot was last given, so a test can tell a
+// badge on a surface of its own from one painted onto the overlay.
+func (s *recordingSurface) badgePrim(slot int, _ image.Point, look badgeLook) badgeOutcome {
+	if s.badges == nil {
+		s.badges = map[int]badgeLook{}
+	}
+
+	s.badges[slot] = look
+
+	return badgeShown
+}
+
+func (s *recordingSurface) hideBadgePrim(slot int) { delete(s.badges, slot) }
 
 // paintedText reports whether the surface was asked to paint a string.
 func (s *recordingSurface) paintedText(text string) bool {

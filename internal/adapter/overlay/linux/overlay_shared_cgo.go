@@ -79,6 +79,30 @@ type overlaySurface interface {
 		fill, border uint32, lineWidth float64,
 	)
 	textPrim(text, fontFamily string, centerX, centerY, fontSize float64, color uint32, bold bool)
+
+	// badgePrim shows an indicator badge in slot on a surface of its own,
+	// with that surface's top-left corner at corner, and hideBadgePrim takes
+	// it off. A badge is not drawn on the overlay, so neither touches what the
+	// overlay shows and the change tracking below leaves them out.
+	badgePrim(slot int, corner image.Point, look badgeLook) badgeOutcome
+	hideBadgePrim(slot int)
+}
+
+// badgeLook is everything an indicator badge's pixels depend on, in the
+// backend's own units: logical pixels on Wayland, device pixels on X11.
+type badgeLook struct {
+	width, height int
+	// pad is the transparent margin round the badge rectangle, so its stroke
+	// fits on the badge's surface.
+	pad         int
+	fill        uint32
+	stroke      uint32
+	strokeWidth float64
+	textColor   uint32
+	fontSize    float64
+	bold        bool
+	text        string
+	family      string
 }
 
 // changeTrackedSurface commits only what changed. A mode's indicator tick
@@ -320,14 +344,6 @@ func (o *sharedOverlay) Clear() {
 	o.clear()
 }
 
-func (o *sharedOverlay) ClearRect(rect image.Rectangle) {
-	if !o.drawable() || rect.Empty() {
-		return
-	}
-
-	o.clearRect(rect)
-}
-
 func (o *sharedOverlay) UpdateGridMatches(prefix string) {
 	if !o.drawable() {
 		return
@@ -419,17 +435,28 @@ func (o *sharedOverlay) DrawRecursiveGridWithSubKeyPreview(
 	)
 }
 
+// DrawBadge shows an indicator badge in slot and reports what that came to.
 func (o *sharedOverlay) DrawBadge(
+	slot int,
 	posX, posY int,
 	text string,
 	colors overlayColors,
 	style overlayBadgeStyle,
-) {
+) badgeOutcome {
 	if !o.drawable() || text == "" {
+		return badgeNotShown
+	}
+
+	return o.drawBadge(slot, posX, posY, text, colors, style)
+}
+
+// HideBadge takes the indicator badge in slot off the screen.
+func (o *sharedOverlay) HideBadge(slot int) {
+	if !o.drawable() {
 		return
 	}
 
-	o.drawBadge(posX, posY, text, colors, style)
+	o.srf.hideBadgePrim(slot)
 }
 
 // Flush is the only delegate that reaches C.
@@ -756,25 +783,42 @@ func (o *sharedOverlay) drawRecursiveGridWithSubKeyPreview(
 }
 
 func (o *sharedOverlay) drawBadge(
+	slot int,
 	posX, posY int,
 	text string,
 	colors overlayColors,
 	style overlayBadgeStyle,
-) {
-	o.srf.ensureBuffers()
+) badgeOutcome {
+	// A badge must not build the overlay's surfaces. One drawn while the
+	// overlay is hidden would wait on them and come up stale on the next show.
+	scale := o.srf.surfaceScale()
 
 	fontSize := style.fontSize
 	if fontSize <= 0 {
 		fontSize = 14
 	}
-	// Size the badge from the scaled font so it fits the text drawTextCentered
-	// renders. The manager sizes its clear rect with the same factor (Scale()).
+	// Size the badge from the scaled font so it fits the text the backend
+	// renders. The manager sizes its record of it with the same factor (Scale()).
 	scaledStyle := style
-	scaledStyle.fontSize = fontSize * o.srf.surfaceScale()
+	scaledStyle.fontSize = fontSize * scale
 	rect := badgeBounds(posX, posY, text, scaledStyle)
 
-	o.drawRect(rect, colors.background, colors.border, max(style.borderWidth, 1))
-	o.drawTextCentered(text, rect, style.fontFamily, fontSize, colors.text, true)
+	strokeWidth := badgeStrokeWidth(style, scale)
+	pad := badgeStrokePad(strokeWidth)
+
+	return o.srf.badgePrim(slot, rect.Min.Sub(image.Pt(pad, pad)), badgeLook{
+		width:       rect.Dx(),
+		height:      rect.Dy(),
+		pad:         pad,
+		fill:        colors.background,
+		stroke:      colors.border,
+		strokeWidth: strokeWidth,
+		textColor:   colors.text,
+		fontSize:    fontSize * scale,
+		bold:        true,
+		text:        text,
+		family:      style.fontFamily,
+	})
 }
 
 // drawMonitorSelect renders one centered, labeled panel per monitor for the

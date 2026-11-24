@@ -52,8 +52,8 @@ func (m *CustomMode) Activate(activation modecmd.Activation) {
 func (m *CustomMode) HandleKey(_ string) {}
 
 // RefreshForMonitorMove switches the overlay back to the declared mode on the
-// display the cursor landed on, for the reason scroll does. The indicators
-// naming the mode are painted on the shared surface on Linux.
+// display the cursor landed on, for the reason scroll does. On Linux the
+// indicators naming the mode show only while the shared surface does.
 func (m *CustomMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle) {
 	m.handler.showFrame(m.handler.customFrame(), "refresh custom mode after monitor move")
 }
