@@ -56,6 +56,10 @@ var modeLockOrder = map[string]string{
 	"Handler.snapMu": "above h.mu: Snap holds it across two separate h.mu holds " +
 		"with the unlocked scan and cursor move between them, so it is never " +
 		"taken beneath h.mu",
+	"Handler.seqMu": "a leaf below h.mu: dispatch claims a binding's single-flight " +
+		"slot under h.mu, and the sequence's own goroutine releases it holding " +
+		"nothing else, so nothing holding it reaches h.mu and no finished sequence " +
+		"waits on the keystroke queue to end",
 }
 
 // TestModeHandlerMutexesArePlacedInTheLockOrder fails when internal/app/modes
