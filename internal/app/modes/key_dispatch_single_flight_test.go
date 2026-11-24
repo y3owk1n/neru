@@ -2,6 +2,7 @@ package modes
 
 import (
 	"context"
+	"fmt"
 	"image"
 	"sync/atomic"
 	"testing"
@@ -11,7 +12,7 @@ import (
 
 	configpkg "github.com/y3owk1n/neru/internal/config"
 	"github.com/y3owk1n/neru/internal/domain"
-	"github.com/y3owk1n/neru/internal/domain/state"
+	statepkg "github.com/y3owk1n/neru/internal/domain/state"
 )
 
 // testScrollDownStep is a bound action that held_repeat is willing to repeat,
@@ -21,6 +22,32 @@ const testScrollDownStep = "action scroll_down"
 // testSpaceKey is bound in more than one mode where a test checks that one
 // mode's sequence does not silence another mode's binding.
 const testSpaceKey = "Space"
+
+// The pan-macro body the cursor-slot tests write, as one step each so a test
+// can spell the slot it saves through once.
+const (
+	panSaveStepFormat    = "action save_cursor_pos --slot %s"
+	panMouseDownStep     = "action left_mouse_down --bail-on-error"
+	panSleepStep         = "action sleep 10ms"
+	panRelativeMoveStep  = "action move_mouse_relative --dx=$1 --dy=$2"
+	panMouseUpStep       = "action left_mouse_up"
+	panRestoreStepFormat = "action restore_cursor_pos --slot %s"
+)
+
+// panTestKey and its partner are the two bindings the pan tests press, and
+// panEastStep is the step both press through the pan macro body.
+const (
+	panEastStep = "macro pan 400 0"
+
+	panTestKeyS = "Shift+s"
+	panTestKeyD = "Shift+d"
+)
+
+// panCursorSlot is the claim the default cursor slot has in the guard's map,
+// written the way sequenceClaims writes one. Most tests here touch it through
+// this constant, and the tests that name another slot build the claim the
+// same way.
+const panCursorSlot = sequenceClaim(cursorSlotClaimPrefix + statepkg.DefaultCursorSlot)
 
 // singleFlightTestWait bounds every wait in this file. A run is held open by the
 // test itself, so the only real wait is the scheduler putting a dispatched
@@ -34,7 +61,7 @@ func newSingleFlightTestHandler(
 	cfg *configpkg.Config,
 	run func(source string, steps []string),
 ) *Handler {
-	appState := state.NewAppState()
+	appState := statepkg.NewAppState()
 	appState.SetMode(domain.ModeRecursiveGrid)
 
 	return newHandlerWithState(handlerState{
@@ -42,7 +69,7 @@ func newSingleFlightTestHandler(
 		config:        cfg,
 		logger:        zap.NewNop(),
 		appState:      appState,
-		modifierState: state.NewModifierState(),
+		modifierState: statepkg.NewModifierState(),
 		modes: map[domain.Mode]Mode{
 			domain.ModeGrid:          &recordingMode{keys: make(chan string, 1)},
 			domain.ModeRecursiveGrid: &recordingMode{keys: make(chan string, 1)},
@@ -116,18 +143,19 @@ func pressUntilDispatched(
 	}
 }
 
-// waitForCount waits until reads returns want, and fails the test on the value it
-// settled on.
-func waitForCount(t *testing.T, desc string, reads func() int32, want int32) {
+// waitForDrained waits until reads reports nothing running, and fails the test
+// on the count it settled on. Every caller wants zero, so the want is spelled
+// here rather than passed: the invariant is the point.
+func waitForDrained(t *testing.T, desc string, reads func() int32) {
 	t.Helper()
 
 	deadline := time.Now().Add(singleFlightTestWait)
 
 	for {
-		if got := reads(); got == want {
+		if got := reads(); got == 0 {
 			return
 		} else if time.Now().After(deadline) {
-			t.Fatalf("%s: got %d, want %d", desc, got, want)
+			t.Fatalf("%s: got %d, want 0", desc, got)
 		}
 
 		time.Sleep(time.Millisecond)
@@ -263,7 +291,7 @@ func TestHandlerState_DispatchHotkeyActions_SeparatesOneKeyAcrossModes(t *testin
 
 	close(release)
 
-	waitForCount(t, "runs still in flight", live.Load, 0)
+	waitForDrained(t, "runs still in flight", live.Load)
 
 	if got := dispatched.Load(); got != 2 {
 		t.Fatalf("the key ran %d time(s) across two modes, want 2", got)
@@ -314,7 +342,7 @@ func TestHandler_HandleFedKeyPress_RunsEveryFedPressWhileOneIsRunning(t *testing
 
 	close(release)
 
-	waitForCount(t, "runs still in flight", live.Load, 0)
+	waitForDrained(t, "runs still in flight", live.Load)
 }
 
 // The slot is released after a panic too, or one bad step in one binding would
@@ -399,7 +427,7 @@ func TestHandler_HandleKeyPress_HeldRepeatNeverStacksTwoRunsOfOneBinding(t *test
 
 	// The key is up, so no tick is starting and the last one in flight has to
 	// come back down.
-	waitForCount(t, "runs still in flight after the key came up", live.Load, 0)
+	waitForDrained(t, "runs still in flight after the key came up", live.Load)
 
 	if got := peak.Load(); got != 1 {
 		t.Fatalf("%d runs of one binding overlapped, want 1 at a time", got)
@@ -410,4 +438,284 @@ func TestHandler_HandleKeyPress_HeldRepeatNeverStacksTwoRunsOfOneBinding(t *test
 	if got := runs.Load(); got < 2 {
 		t.Fatalf("a held key ran its binding %d time(s), want the repeat to fire again", got)
 	}
+}
+
+// panMacro is the config the cursor-slot tests share: a macro that saves the
+// cursor, drags, and restores through the named slot, the shape the pan
+// bindings a browser needs are written as.
+func panMacro(slot string) map[string]configpkg.StringOrStringArray {
+	return map[string]configpkg.StringOrStringArray{
+		"pan": {
+			fmt.Sprintf(panSaveStepFormat, slot),
+			panMouseDownStep,
+			panSleepStep,
+			panRelativeMoveStep,
+			panMouseUpStep,
+			fmt.Sprintf(panRestoreStepFormat, slot),
+		},
+	}
+}
+
+// panSlotClaim is the claim for one named cursor slot, built the way
+// sequenceClaims writes one.
+func panSlotClaim(slot string) sequenceClaim {
+	return sequenceClaim(cursorSlotClaimPrefix + slot)
+}
+
+// waitForSlotFree waits until the cursor slot named is claimed by no sequence.
+// The release runs on the sequence's own goroutine, so this waits rather than
+// reads once, but it reads the guard rather than pressing the key: what it
+// pins is the release, which no press can observe without racing one.
+func waitForSlotFree(t *testing.T, handler *Handler, claim sequenceClaim) {
+	t.Helper()
+
+	deadline := time.Now().Add(singleFlightTestWait)
+
+	for {
+		handler.outer.seqMu.Lock()
+		_, held := handler.claimedSlots[claim]
+		handler.outer.seqMu.Unlock()
+
+		if !held {
+			return
+		}
+
+		if time.Now().After(deadline) {
+			t.Fatalf("cursor slot %q is still claimed, want it free after the run ended", claim)
+		}
+
+		time.Sleep(time.Millisecond)
+	}
+}
+
+// Two pan keys sharing one cursor slot are in the same race two presses of one
+// key are, even though they are different bindings: a second pan pressed
+// inside the first run's sleeps restores a position the first run had already
+// moved away from, which is the drift a fast Shift+S then Shift+D showed. The
+// second pan is dropped while the slot is held, and runs once the first is
+// done.
+func TestHandlerState_DispatchHotkeyActions_DropsASecondPanSharingItsCursorSlot(t *testing.T) {
+	t.Parallel()
+
+	started := make(chan string, 4)
+	release := make(chan struct{})
+
+	cfg := recursiveGridBindings(
+		map[string]configpkg.StringOrStringArray{
+			panTestKeyS: {panEastStep},
+			panTestKeyD: {"macro pan 0 400"},
+		},
+		configpkg.HeldRepeatConfig{},
+	)
+	cfg.Macros = panMacro("pan")
+
+	var runs atomic.Int32
+
+	handler := newSingleFlightTestHandler(cfg, func(source string, _ []string) {
+		runs.Add(1)
+
+		started <- source
+
+		<-release
+	})
+
+	handler.HandleKeyPress(panTestKeyS)
+	waitForBindingDispatch(t, started, panTestKeyS)
+
+	// A different binding, but the same slot: dropped, not stacked.
+	handler.HandleKeyPress(panTestKeyD)
+
+	select {
+	case got := <-started:
+		t.Fatalf("a second pan through slot pan ran while the first held it: %q", got)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(release)
+	waitForSlotFree(t, handler, panCursorSlot)
+
+	// The slot is free again, so the other pan key answers.
+	pressUntilDispatched(t, handler, panTestKeyD, started, panTestKeyD)
+
+	if got := runs.Load(); got != 2 {
+		t.Fatalf("the pan ran %d time(s), want one per tap", got)
+	}
+}
+
+// Two pans through different cursor slots never wait for each other: the slot
+// is the only thing the runs share, so naming two is naming two resources.
+// Shift+s runs macros.pan through slot "other" and Shift+d macros.other
+// through slot "second", so the two bindings touch nothing in common.
+func TestHandlerState_DispatchHotkeyActions_PansThroughDifferentSlotsRunTogether(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+
+	cfg := recursiveGridBindings(
+		map[string]configpkg.StringOrStringArray{
+			panTestKeyS: {panEastStep},
+			panTestKeyD: {"macro other 0 400"},
+		},
+		configpkg.HeldRepeatConfig{},
+	)
+	cfg.Macros = map[string]configpkg.StringOrStringArray{
+		"pan": {
+			"action save_cursor_pos --slot other",
+			"action left_mouse_down --bail-on-error",
+			"action sleep 10ms",
+			"action move_mouse_relative --dx=$1 --dy=$2",
+			"action left_mouse_up",
+			"action restore_cursor_pos --slot other",
+		},
+		"other": {
+			"action save_cursor_pos --slot second",
+			"action left_mouse_down --bail-on-error",
+			"action sleep 10ms",
+			"action move_mouse_relative --dx=$1 --dy=$2",
+			"action left_mouse_up",
+			"action restore_cursor_pos --slot second",
+		},
+	}
+
+	sDone := make(chan struct{})
+	dStarted := make(chan struct{}, 1)
+
+	handler := newSingleFlightTestHandler(cfg, func(source string, _ []string) {
+		if source == panTestKeyS {
+			<-release
+			close(sDone)
+
+			return
+		}
+
+		dStarted <- struct{}{}
+	})
+
+	handler.HandleKeyPress(panTestKeyS)
+
+	// The second pan runs while the first holds its own slot: two slots are
+	// two resources, so neither binding waits for the other.
+	handler.HandleKeyPress(panTestKeyD)
+
+	select {
+	case <-dStarted:
+	case <-time.After(singleFlightTestWait):
+		t.Fatal("the second pan through another slot never ran")
+	}
+
+	close(release)
+
+	<-sDone
+
+	waitForSlotFree(t, handler, panSlotClaim("second"))
+}
+
+// A binding that saves through the default slot claims it, so two bindings
+// that write no --slot are in the same race. Clicks and scrolls claim nothing
+// and still run beside a pan.
+func TestHandlerState_SequenceClaims_ReadsTheStepsTheBindingDispatches(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		hotkeys    map[string]configpkg.StringOrStringArray
+		macros     map[string]configpkg.StringOrStringArray
+		wantClaims []sequenceClaim
+	}{
+		{
+			name: "a bare save claims the default slot",
+			hotkeys: map[string]configpkg.StringOrStringArray{
+				"j": {"action save_cursor_pos", "action left_click", "action restore_cursor_pos"},
+			},
+			wantClaims: []sequenceClaim{panCursorSlot},
+		},
+		{
+			name: "an explicit slot is claimed by its name",
+			hotkeys: map[string]configpkg.StringOrStringArray{
+				"j": {"action save_cursor_pos --slot other"},
+			},
+			wantClaims: []sequenceClaim{panSlotClaim("other")},
+		},
+		{
+			name:       "a macro claims what its body saves through",
+			hotkeys:    map[string]configpkg.StringOrStringArray{"j": {"macro pan 1 2"}},
+			macros:     panMacro("pan"),
+			wantClaims: []sequenceClaim{panSlotClaim("pan")},
+		},
+		{
+			name:       "a scroll claims nothing",
+			hotkeys:    map[string]configpkg.StringOrStringArray{"j": {testScrollDownStep}},
+			wantClaims: nil,
+		},
+		{
+			name:       "an unknown macro claims nothing",
+			hotkeys:    map[string]configpkg.StringOrStringArray{"j": {"macro nope 1 2"}},
+			wantClaims: nil,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := recursiveGridBindings(testCase.hotkeys, configpkg.HeldRepeatConfig{})
+			cfg.Macros = testCase.macros
+
+			got := sequenceClaims(testCase.hotkeys["j"], cfg.Macros)
+
+			if len(got) != len(testCase.wantClaims) {
+				t.Fatalf("claims = %v, want %v", got, testCase.wantClaims)
+			}
+
+			for idx, claim := range got {
+				if claim != testCase.wantClaims[idx] {
+					t.Fatalf("claims[%d] = %q, want %q", idx, claim, testCase.wantClaims[idx])
+				}
+			}
+		})
+	}
+}
+
+// A repeat tick holds the same cursor slots the press held, so a held pan key
+// never runs two drags through one slot at once.
+func TestHandlerState_HeldRepeat_PanClaimsItsCursorSlot(t *testing.T) {
+	t.Parallel()
+
+	var live, peak atomic.Int32
+
+	cfg := recursiveGridBindings(
+		map[string]configpkg.StringOrStringArray{"j": {panEastStep}},
+		configpkg.HeldRepeatConfig{
+			Enabled:      true,
+			InitialDelay: 1,
+			Interval:     1,
+		},
+	)
+	cfg.Macros = panMacro("pan")
+
+	handler := newSingleFlightTestHandler(cfg, func(string, []string) {
+		running := live.Add(1)
+		for {
+			highest := peak.Load()
+			if running <= highest || peak.CompareAndSwap(highest, running) {
+				break
+			}
+		}
+
+		time.Sleep(2 * time.Millisecond)
+
+		live.Add(-1)
+	})
+
+	handler.HandleKeyPress("j")
+	time.Sleep(80 * time.Millisecond)
+	handler.HandleKeyPress(keyUpPrefix + "j")
+
+	waitForDrained(t, "runs still in flight after the key came up", live.Load)
+
+	if got := peak.Load(); got != 1 {
+		t.Fatalf("%d pans ran through slot pan at once, want 1", got)
+	}
+
+	waitForSlotFree(t, handler, panCursorSlot)
 }

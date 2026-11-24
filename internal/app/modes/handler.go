@@ -237,6 +237,14 @@ type handlerState struct {
 	// drifts the pointer and loses drags.
 	seqInFlight map[sequenceSlot]struct{}
 
+	// claimedSlots maps each cursor slot a running sequence holds to the
+	// sequenceSlot that claimed it, guarded by Handler.seqMu. Two bindings that
+	// save and restore through one cursor slot are in the same race two presses
+	// of one binding are, so a dispatch claiming an occupied slot is dropped
+	// the same way. The value is the owner, which endSequence uses to free the
+	// cursor slots its run held.
+	claimedSlots map[sequenceClaim]sequenceSlot
+
 	// Pending modifier taps waiting to be committed after a short "no follow-up"
 	// window. A regular key press cancels all pending taps.
 	pendingModifierKeys   map[action.Modifiers]time.Time

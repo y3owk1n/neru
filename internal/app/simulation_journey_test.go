@@ -2247,6 +2247,95 @@ func TestSimulation_RepeatedPressOfASleepingBindingRunsOneCopy(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
+// panPanKeys are the two keys the journey below pans with. Both run the same
+// macro, which is how a pan cluster is written: one macro, one cursor slot,
+// four directions.
+const (
+	panEastKey = "Ctrl+Shift+E"
+	panWestKey = "Ctrl+Shift+W"
+)
+
+// panMacroSlot is the cursor slot those bindings save and restore through.
+const panMacroSlot = "pan"
+
+// TestSimulation_SecondPanWhileOneRunsIsDropped is the fast Shift+S then
+// Shift+D a browser pan cluster invites. Both keys run the same macro, and the
+// macro sleeps between its save and its restore, so a second pan started while
+// the first is between them restores a position the first had already moved
+// away from: the cursor ends up one pan step off where it began. The run holds
+// the cursor slot its steps save and restore through, so the second pan is
+// dropped rather than stacked, and runs once the first is done.
+func TestSimulation_SecondPanWhileOneRunsIsDropped(t *testing.T) {
+	// panHold is the macro's own duration, the sum of its sleeps, stated here
+	// rather than derived from the steps so a change to one shows up in the
+	// other.
+	const (
+		panPixels = 40
+		panHold   = 300 * time.Millisecond
+	)
+
+	cfg := simConfig()
+	cfg.Macros = map[string]config.StringOrStringArray{
+		"pan": {
+			"action save_cursor_pos --slot " + panMacroSlot,
+			"action left_mouse_down --bail-on-error",
+			"action sleep 120ms",
+			"action move_mouse_relative --dx=$1 --dy=$2",
+			"action sleep 120ms",
+			"action left_mouse_up",
+			"action sleep 60ms",
+			"action restore_cursor_pos --slot " + panMacroSlot,
+		},
+	}
+	cfg.Grid.Hotkeys[panEastKey] = config.StringOrStringArray{
+		"macro pan " + strconv.Itoa(panPixels) + " 0",
+	}
+	cfg.Grid.Hotkeys[panWestKey] = config.StringOrStringArray{
+		"macro pan -" + strconv.Itoa(panPixels) + " 0",
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	start := sim.cursor.position()
+
+	// East, then west before the first pan has finished its sleeps. Both pans
+	// would cancel out to zero if the second ran; stacking them restores a
+	// mid-drag position instead. Dropped, the cursor ends where it began.
+	sim.press(panEastKey, panWestKey)
+
+	sim.waitForWithin(
+		simWaitHeadroom+2*panHold,
+		"the first pan finished and put the cursor back where it started",
+		func() bool {
+			return sim.cursor.position().Eq(start)
+		},
+	)
+
+	movesAfter := sim.cursor.moveCount()
+
+	// The dropped pan is not lost, it waited: once the slot is free the second
+	// pan runs and comes back too. Two pans cancel to zero either way, so what
+	// this pins is that a further press answers again rather than the key
+	// being stuck.
+	sim.press(panWestKey)
+
+	sim.waitForWithin(
+		simWaitHeadroom+2*panHold,
+		"the second pan ran once the first was done",
+		func() bool {
+			return sim.cursor.moveCount() > movesAfter &&
+				sim.cursor.position().Eq(start)
+		},
+	)
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
 // TestSimulation_HeldMotionDiagonal covers the held-key glide. Two held direction
 // keys glide the cursor diagonally on the motion tick, native autorepeat of a
 // held key is ignored, and releasing both keys stops the glide.
