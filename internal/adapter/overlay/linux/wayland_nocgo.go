@@ -38,7 +38,6 @@ func (o *wlrootsOverlay) WindowPtr() unsafe.Pointer {
 func (o *wlrootsOverlay) Show()                                                  {}
 func (o *wlrootsOverlay) Hide()                                                  {}
 func (o *wlrootsOverlay) Clear()                                                 {}
-func (o *wlrootsOverlay) ClearRect(image.Rectangle)                              {}
 func (o *wlrootsOverlay) Resize()                                                {}
 func (o *wlrootsOverlay) Destroy()                                               {}
 func (o *wlrootsOverlay) UpdateGridMatches(string)                               {}
@@ -78,7 +77,18 @@ func (o *wlrootsOverlay) DrawRecursiveGridWithSubKeyPreview(
 }
 func (o *wlrootsOverlay) Flush() {}
 
-func (o *wlrootsOverlay) DrawBadge(int, int, string, overlayColors, overlayBadgeStyle) {}
+func (o *wlrootsOverlay) DrawBadge(
+	int,
+	int,
+	int,
+	string,
+	overlayColors,
+	overlayBadgeStyle,
+) badgeOutcome {
+	return badgeNotShown
+}
+
+func (o *wlrootsOverlay) HideBadge(int) {}
 
 func (o *wlrootsOverlay) DrawHintSearchInput(
 	string,

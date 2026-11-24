@@ -14,6 +14,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+// neru_x11_badge_paint paints what the badge holds into its window.
+static void neru_x11_badge_paint(NeruX11Badge *badge) {
+	cairo_t *cr = cairo_create(badge->surface);
+	neru_badge_paint(cr, &badge->look);
+	cairo_destroy(cr);
+	cairo_surface_flush(badge->surface);
+}
+
 static Visual *neru_x11_argb_visual(Display *display, int screen) {
 	XVisualInfo vinfo;
 	if (XMatchVisualInfo(display, screen, 32, TrueColor, &vinfo)) {
@@ -95,6 +103,13 @@ void neru_x11_overlay_destroy(NeruX11Overlay *overlay) {
 	if (overlay == NULL) {
 		return;
 	}
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++) {
+		NeruX11Badge *badge = &overlay->badges[b];
+		if (badge->surface != NULL)
+			cairo_surface_destroy(badge->surface);
+		if (badge->window != 0)
+			XDestroyWindow(overlay->display, badge->window);
+	}
 	if (overlay->cr != NULL) {
 		cairo_destroy(overlay->cr);
 	}
@@ -115,6 +130,12 @@ void neru_x11_overlay_destroy(NeruX11Overlay *overlay) {
 
 void neru_x11_overlay_show(NeruX11Overlay *overlay) {
 	XMapRaised(overlay->display, overlay->window);
+	overlay->mapped = 1;
+	// Raising the overlay put it over the badges, which belong above it.
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++) {
+		if (overlay->badges[b].visible)
+			XRaiseWindow(overlay->display, overlay->badges[b].window);
+	}
 	XFlush(overlay->display);
 }
 
@@ -123,13 +144,22 @@ void neru_x11_overlay_show(NeruX11Overlay *overlay) {
 // unmap the overlay before it answers that capture.
 void neru_x11_overlay_hide(NeruX11Overlay *overlay) {
 	XUnmapWindow(overlay->display, overlay->window);
+	overlay->mapped = 0;
+	// A badge is a window of its own, so it does not go with the overlay.
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++) {
+		NeruX11Badge *badge = &overlay->badges[b];
+		if (badge->visible)
+			XUnmapWindow(overlay->display, badge->window);
+		badge->visible = 0;
+		badge->blanked = 0;
+	}
 	XSync(overlay->display, False);
 }
 
 // neru_x11_overlay_composited reports whether a compositing manager owns the
 // screen's _NET_WM_CM_S<n> selection. A capture then reads what it painted,
 // which lags the server by a repaint.
-static int neru_x11_overlay_composited(NeruX11Overlay *overlay) {
+int neru_x11_overlay_composited(NeruX11Overlay *overlay) {
 	char name[32];
 	snprintf(name, sizeof(name), "_NET_WM_CM_S%d", overlay->screen);
 	Atom selection = XInternAtom(overlay->display, name, False);
@@ -177,6 +207,26 @@ cairo_surface_t *neru_x11_overlay_blank(
 		neru_x11_overlay_clear_rect(overlay, x, y, width, height);
 	else
 		neru_x11_overlay_clear(overlay);
+	// Clearing the overlay leaves the badges, which are windows of their own,
+	// so every one the capture would see is cleared too. Cleared rather than
+	// unmapped, as the overlay is, because a compositor may fade an unmap out
+	// across the capture.
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++) {
+		NeruX11Badge *badge = &overlay->badges[b];
+		if (!badge->visible)
+			continue;
+		int bw = badge->look.width + 2 * badge->look.pad;
+		int bh = badge->look.height + 2 * badge->look.pad;
+		if (width > 0 && height > 0 &&
+		    !(badge->x < x + width && x < badge->x + bw && badge->y < y + height && y < badge->y + bh))
+			continue;
+		cairo_t *cr = cairo_create(badge->surface);
+		cairo_set_operator(cr, CAIRO_OPERATOR_CLEAR);
+		cairo_paint(cr);
+		cairo_destroy(cr);
+		cairo_surface_flush(badge->surface);
+		badge->blanked = 1;
+	}
 	XSync(overlay->display, False);
 	*composited = neru_x11_overlay_composited(overlay);
 
@@ -196,6 +246,13 @@ void neru_x11_overlay_unblank(NeruX11Overlay *overlay, cairo_surface_t *saved) {
 	cairo_paint(cr);
 	cairo_destroy(cr);
 	cairo_surface_flush(overlay->surface);
+	for (int b = 0; b < NERU_BADGE_SLOTS; b++) {
+		NeruX11Badge *badge = &overlay->badges[b];
+		if (!badge->blanked)
+			continue;
+		neru_x11_badge_paint(badge);
+		badge->blanked = 0;
+	}
 	XFlush(overlay->display);
 	cairo_surface_destroy(saved);
 }
@@ -413,4 +470,107 @@ double neru_x11_overlay_scale(NeruX11Overlay *overlay) {
 	}
 
 	return neru_x11_display_scale(overlay->display);
+}
+
+static int neru_x11_badge_create(NeruX11Overlay *overlay, NeruX11Badge *badge, int x, int y, int width, int height) {
+	XSetWindowAttributes attrs;
+	attrs.override_redirect = True;
+	attrs.colormap = overlay->colormap;
+	attrs.background_pixel = 0;
+	attrs.border_pixel = 0;
+	attrs.event_mask = NoEventMask;
+	badge->window = XCreateWindow(
+	    overlay->display, overlay->root, x, y, (unsigned int)width, (unsigned int)height, 0, 32, InputOutput,
+	    overlay->visual, CWOverrideRedirect | CWColormap | CWBackPixel | CWBorderPixel | CWEventMask, &attrs);
+	if (badge->window == 0)
+		return 0;
+
+	// The overlay's identity and window type, so a compositor rule written
+	// for the overlay, such as one that turns off shadows, covers its badges
+	// too.
+	XClassHint class_hint = {.res_name = "neru-overlay", .res_class = "neru-overlay"};
+	XSetClassHint(overlay->display, badge->window, &class_hint);
+	XStoreName(overlay->display, badge->window, "neru-overlay");
+	Atom dock = XInternAtom(overlay->display, "_NET_WM_WINDOW_TYPE_DOCK", False);
+	Atom window_type = XInternAtom(overlay->display, "_NET_WM_WINDOW_TYPE", False);
+	XChangeProperty(
+	    overlay->display, badge->window, window_type, XA_ATOM, 32, PropModeReplace, (unsigned char *)&dock, 1);
+	Atom state = XInternAtom(overlay->display, "_NET_WM_STATE", False);
+	Atom above = XInternAtom(overlay->display, "_NET_WM_STATE_ABOVE", False);
+	XChangeProperty(overlay->display, badge->window, state, XA_ATOM, 32, PropModeReplace, (unsigned char *)&above, 1);
+
+	XserverRegion region = XFixesCreateRegion(overlay->display, NULL, 0);
+	XFixesSetWindowShapeRegion(overlay->display, badge->window, ShapeInput, 0, 0, region);
+	XFixesDestroyRegion(overlay->display, region);
+
+	badge->surface = cairo_xlib_surface_create(overlay->display, badge->window, overlay->visual, width, height);
+	badge->x = x;
+	badge->y = y;
+	return 1;
+}
+
+int neru_x11_overlay_badge(NeruX11Overlay *overlay, int slot, int x, int y, const NeruBadgeLook *look) {
+	if (overlay == NULL || slot < 0 || slot >= NERU_BADGE_SLOTS)
+		return 0;
+	NeruX11Badge *badge = &overlay->badges[slot];
+	if (!overlay->mapped) {
+		neru_x11_overlay_hide_badge(overlay, slot);
+		return 0;
+	}
+
+	int width = look->width + 2 * look->pad;
+	int height = look->height + 2 * look->pad;
+	if (badge->window == 0 && !neru_x11_badge_create(overlay, badge, x, y, width, height))
+		return 0;
+
+	// Compared as asked, so a badge that did not change resolves no font.
+	int resized = !badge->painted || look->width != badge->look.width || look->height != badge->look.height ||
+	              look->pad != badge->look.pad;
+	int repaint = !badge->painted || !neru_badge_look_equal(look, &badge->asked);
+	int moved = x != badge->x || y != badge->y;
+	if (!repaint && !moved && badge->visible)
+		return 1;
+
+	if (repaint) {
+		// Resolved the way neru_x11_overlay_text resolves a family.
+		badge->asked = *look;
+		badge->look = *look;
+		neru_font_family_for_text(look->family, look->text, badge->look.family, sizeof(badge->look.family));
+	}
+
+	if (resized) {
+		XMoveResizeWindow(overlay->display, badge->window, x, y, (unsigned int)width, (unsigned int)height);
+		cairo_xlib_surface_set_size(badge->surface, width, height);
+	} else if (moved) {
+		XMoveWindow(overlay->display, badge->window, x, y);
+	}
+	badge->x = x;
+	badge->y = y;
+
+	int was_visible = badge->visible;
+	if (!was_visible)
+		XMapRaised(overlay->display, badge->window);
+	badge->visible = 1;
+	badge->blanked = 0;
+
+	// A window keeps its pixels when it moves, but not across an unmap or a
+	// resize, so those paint again too.
+	if (repaint || resized || !was_visible) {
+		neru_x11_badge_paint(badge);
+		badge->painted = 1;
+	}
+	XFlush(overlay->display);
+	return 1;
+}
+
+void neru_x11_overlay_hide_badge(NeruX11Overlay *overlay, int slot) {
+	if (overlay == NULL || slot < 0 || slot >= NERU_BADGE_SLOTS)
+		return;
+	NeruX11Badge *badge = &overlay->badges[slot];
+	badge->blanked = 0;
+	if (!badge->visible)
+		return;
+	XUnmapWindow(overlay->display, badge->window);
+	XFlush(overlay->display);
+	badge->visible = 0;
 }

@@ -121,7 +121,7 @@ correct, are not.
   The window sequence is the one thing a frame varies, and only the picker
   varies it, because its panels are windows of their own. Scroll draws nothing yet
   still brings the shared window up, because on Linux the indicators that name
-  the mode are painted on that surface, and deciding otherwise would put
+  the mode show only while that surface does, and deciding otherwise would put
   macOS's one-window-per-indicator model into shared code.
 - **The hint search input went with hints.** Its geometry was computed in
   `app/modes` from configuration and handed over as a render model. It is now

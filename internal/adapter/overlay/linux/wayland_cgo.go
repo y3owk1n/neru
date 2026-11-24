@@ -345,6 +345,30 @@ func (o *wlrootsOverlay) textPrim(
 	)
 }
 
+// badgePrim puts the badge on a sub-surface of the overlay surface under it.
+func (o *wlrootsOverlay) badgePrim(slot int, corner image.Point, look badgeLook) badgeOutcome {
+	cLook := look.cLook()
+
+	switch C.neru_wayland_overlay_badge(
+		o.raw,
+		C.int(slot),
+		C.int(corner.X),
+		C.int(corner.Y),
+		&cLook,
+	) {
+	case C.NERU_BADGE_DRAWN:
+		return badgeShown
+	case C.NERU_BADGE_UNSUPPORTED:
+		return badgeUnsupported
+	default:
+		return badgeNotShown
+	}
+}
+
+func (o *wlrootsOverlay) hideBadgePrim(slot int) {
+	C.neru_wayland_overlay_hide_badge(o.raw, C.int(slot))
+}
+
 // blankFrameTimeout bounds the wait for the compositor to draw a frame without
 // the overlay. An output it is not drawing, such as one turned off, sends no
 // frame callback.

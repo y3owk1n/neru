@@ -26,7 +26,7 @@ func TestLinuxOverlayManager_Flush_CommitsOnlyAChange(t *testing.T) {
 		t.Fatalf("flushed %d times with nothing drawn, want none", surface.flushes)
 	}
 
-	overlay.ClearRect(image.Rect(0, 0, 10, 10))
+	overlay.clearRect(image.Rect(0, 0, 10, 10))
 	overlayManager.Flush()
 	overlayManager.Flush()
 

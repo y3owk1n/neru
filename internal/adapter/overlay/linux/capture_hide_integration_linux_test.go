@@ -14,7 +14,10 @@ import (
 	platformlinux "github.com/y3owk1n/neru/internal/adapter/platform/linux"
 )
 
-const magenta = 0xFFFF00FF
+const (
+	magenta = 0xFFFF00FF
+	cyan    = 0xFF00FFFF
+)
 
 // paintRect puts one filled rectangle on the overlay and gives the compositor
 // time to show it. It draws through the surface every real draw goes through,
@@ -69,6 +72,16 @@ func rawCapture(t *testing.T, mgr *Manager, backend string, region image.Rectang
 }
 
 func magentaShare(img *image.RGBA) float64 {
+	return colorShare(img, magenta)
+}
+
+// colorShare is the share of pixels in img within a few levels of the opaque
+// ARGB color on every channel.
+func colorShare(img *image.RGBA, argb uint32) float64 {
+	near := func(got uint8, want uint32) bool {
+		return max(uint32(got), want)-min(uint32(got), want) < 0x10
+	}
+
 	var hits, total int
 
 	for y := img.Rect.Min.Y; y < img.Rect.Max.Y; y++ {
@@ -76,7 +89,8 @@ func magentaShare(img *image.RGBA) float64 {
 			total++
 
 			pixel := img.RGBAAt(x, y)
-			if pixel.R > 0xF0 && pixel.G < 0x10 && pixel.B > 0xF0 {
+			if near(pixel.R, argb>>16&0xFF) && near(pixel.G, argb>>8&0xFF) &&
+				near(pixel.B, argb&0xFF) {
 				hits++
 			}
 		}
@@ -158,5 +172,103 @@ func TestManagerHideForCapture_LeavesTheOverlayOutAndPutsItBack(t *testing.T) {
 
 	if share := magentaShare(rawCapture(t, mgr, backend, region)); share < 0.9 {
 		t.Fatalf("only %.2f of the raw copy shows the overlay after the capture", share)
+	}
+}
+
+// drawTestBadge puts a cyan indicator badge with its top-left corner at
+// corner, big enough to cover a 100 pixel square, through the draw the mode
+// indicator goes through.
+func drawTestBadge(mgr *Manager, corner image.Point) {
+	colors := overlayColors{background: cyan, border: cyan, text: cyan}
+	style := overlayBadgeStyle{fontSize: 40, paddingX: 80, paddingY: 50, borderWidth: 1}
+
+	mgr.renderMu.Lock()
+	defer mgr.renderMu.Unlock()
+
+	switch {
+	case mgr.x11 != nil:
+		mgr.x11.DrawBadge(modeIndicatorBadgeSlot, corner.X, corner.Y, "MM", colors, style)
+	case mgr.wlroots != nil:
+		mgr.wlroots.DrawBadge(modeIndicatorBadgeSlot, corner.X, corner.Y, "MM", colors, style)
+	}
+
+	mgr.modeIndicatorBadgeRect = badgeBounds(
+		corner.X,
+		corner.Y,
+		"MM",
+		scaleBadgeFont(style, mgr.overlayScale()),
+	)
+	mgr.modeIndicatorBadgeVisible = true
+}
+
+// TestManagerIndicatorBadge_LeavesWhatTheOverlayDrewAlone pins the bisect
+// report. A badge used to be painted onto the overlay and erased by clearing
+// its rectangle, so a badge following the cursor across a grid left a trail
+// of holes in it. It is a surface of its own now, so moving it leaves what is
+// under it as it was, and a capture still leaves it out.
+//
+// The regions sit right of the one the test above paints, because KWin keeps
+// a destroyed overlay's last frame until the process exits.
+func TestManagerIndicatorBadge_LeavesWhatTheOverlayDrewAlone(t *testing.T) {
+	mgr := NewOverlayManager(zap.NewNop())
+	if mgr == nil {
+		t.Skip("skipping: no display")
+	}
+
+	t.Cleanup(mgr.Destroy)
+
+	backend := platform.DetectLinuxBackend().String()
+
+	painted := image.Rect(500, 0, 900, 400)
+	underBadge := image.Rect(600, 100, 700, 200)
+	badgeOnly := image.Rect(1000, 100, 1100, 200)
+
+	background := rawCapture(t, mgr, backend, badgeOnly)
+
+	paintRect(t, mgr, painted)
+
+	// Without a compositing manager the X server keeps no window's pixels,
+	// so the overlay under a badge that moves away shows its background
+	// until it is drawn again. The overlay is not see-through there anyway.
+	if mgr.x11 == nil || mgr.x11.composited() {
+		drawTestBadge(mgr, underBadge.Min.Sub(image.Pt(40, 40)))
+		time.Sleep(600 * time.Millisecond)
+
+		if share := colorShare(rawCapture(t, mgr, backend, underBadge), cyan); share < 0.9 {
+			t.Fatalf("only %.2f of the raw copy shows the badge over the overlay, "+
+				"so the check below means nothing", share)
+		}
+
+		drawTestBadge(mgr, badgeOnly.Min.Sub(image.Pt(40, 40)))
+		time.Sleep(600 * time.Millisecond)
+
+		if share := magentaShare(rawCapture(t, mgr, backend, underBadge)); share < 0.9 {
+			t.Fatalf("only %.2f of the overlay is left where the badge moved off it", share)
+		}
+	} else {
+		drawTestBadge(mgr, badgeOnly.Min.Sub(image.Pt(40, 40)))
+		time.Sleep(600 * time.Millisecond)
+	}
+
+	if share := colorShare(rawCapture(t, mgr, backend, badgeOnly), cyan); share < 0.9 {
+		t.Fatalf(
+			"only %.2f of the raw copy shows the badge, so the check below means nothing",
+			share,
+		)
+	}
+
+	img, err := platformlinux.CaptureScreenRegion(context.Background(), backend, badgeOnly)
+	if err != nil {
+		t.Fatalf("CaptureScreenRegion(%v) through the hider: %v", badgeOnly, err)
+	}
+
+	if share := sameShare(img, background); share < 0.9 {
+		t.Fatalf("only %.2f of the capture matches what is behind the badge", share)
+	}
+
+	time.Sleep(600 * time.Millisecond)
+
+	if share := colorShare(rawCapture(t, mgr, backend, badgeOnly), cyan); share < 0.9 {
+		t.Fatalf("only %.2f of the raw copy shows the badge after the capture", share)
 	}
 }

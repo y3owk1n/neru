@@ -222,6 +222,12 @@ func (s *silentSurface) hintBadgePrim(
 
 func (s *silentSurface) textPrim(_, _ string, _, _, _ float64, _ uint32, _ bool) {}
 
+func (s *silentSurface) badgePrim(int, image.Point, badgeLook) badgeOutcome {
+	return badgeShown
+}
+
+func (s *silentSurface) hideBadgePrim(int) {}
+
 // TestLinuxOverlayManager_HintSearchInputIsSerializedWithTheHintsDraw is the
 // -race regression for the screen state this feature added. searchBadgeRect on
 // the manager and the lastHints trio on the surface are written by the badge

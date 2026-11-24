@@ -43,8 +43,8 @@ func (m *ScrollMode) HandleKey(key string) {
 
 // RefreshForMonitorMove switches the overlay back to scroll on the display the
 // cursor landed on. Scroll draws nothing of its own, but on Linux the
-// indicators that name the mode are painted on the shared surface, so the
-// surface still has to come back up.
+// indicators that name the mode show only while the shared surface does, so
+// the surface still has to come back up.
 func (m *ScrollMode) RefreshForMonitorMove(_ context.Context, _ image.Rectangle) {
 	m.handler.refreshScrollForMonitorMove()
 }
