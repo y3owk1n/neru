@@ -152,6 +152,15 @@ defaults listed in its own section:
 "Right"     = "action move_mouse_relative --dx=10 --dy=0"
 ```
 
+A binding runs one sequence at a time. A press that arrives while that
+binding's own sequence is still running is the key repeating, or a second tap
+landing inside the run, and is dropped rather than queued: two copies of one
+binding share the cursor slot their steps save and restore through, and their
+`mouse_down` and `mouse_up` steps would interleave on the way to the
+application. Different bindings never wait for each other, and nothing is left
+to run once the key is released. See [`[held_repeat]`](#held_repeat) for the
+cadence this gives a held key.
+
 ### Per-app hotkey overrides
 
 `[[<mode>.app_configs]]` overrides `[<mode>.hotkeys]` for `hints`, `grid`,
@@ -1526,7 +1535,9 @@ enabled = true
 Repeats scroll, page, `move_cell` and `snap` actions while the key is held, and
 glides the cursor for a held `move_mouse_relative` (see [Glide](#glide)). A held
 `snap --direction` walks from element to element, one scan per repeat, so a
-repeat waits for the scan before it.
+repeat waits for the scan before it. A repeat of a binding whose previous run
+has not finished is dropped, so a sequence slower than `interval_ms` sets the
+cadence instead of piling up behind it.
 
 ```toml
 [held_repeat]

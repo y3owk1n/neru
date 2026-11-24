@@ -79,6 +79,15 @@ type Handler struct {
 	// snapPermissionOpen is true while a snap's screen-capture permission
 	// dialog is open. A held snap's repeats check it and open no second one.
 	snapPermissionOpen atomic.Bool
+
+	// seqMu guards handlerState.seqInFlight, the single-flight guard a
+	// binding's action sequence holds from dispatch until its last step
+	// returns (key_dispatch.go). It is a leaf: dispatch claims a slot under
+	// h.mu, so h.mu → seqMu, and the sequence's own goroutine takes it alone.
+	// Nothing takes h.mu while holding it, which is what keeps a sequence that
+	// re-enters the handler from deadlocking, and what keeps the release off
+	// h.mu's queue of keystrokes.
+	seqMu sync.Mutex
 }
 
 // handlerState carries every field of the mode handler and every method that
@@ -218,6 +227,14 @@ type handlerState struct {
 	modeSession           uint64
 	hotkeyLastKey         string
 	hotkeyLastKeyTime     int64
+
+	// seqInFlight holds the binding keys with a sequence running right now,
+	// guarded by Handler.seqMu. A second dispatch of one of them is a key
+	// repeat or a second tap landing inside the run, and is dropped rather
+	// than stacked: two runs of one binding share the cursor slots their steps
+	// save and the buttons they press, so stacking them drifts the pointer and
+	// loses drags.
+	seqInFlight map[string]struct{}
 
 	// Pending modifier taps waiting to be committed after a short "no follow-up"
 	// window. A regular key press cancels all pending taps.

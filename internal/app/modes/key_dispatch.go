@@ -376,6 +376,21 @@ func (h *handlerState) dispatchHotkeyActions(
 		return
 	}
 
+	// One binding runs one sequence at a time. A press that arrives while its
+	// previous run is still going is the kernel repeating the key, or a second
+	// tap landing inside the run, and stacking it is what makes a pan drift:
+	// the two runs share the cursor slot they save and restore through, and
+	// their mouse-down and mouse-up steps interleave. Dropping the second one
+	// rather than queueing it keeps a released key from leaving a tail of
+	// sequences behind it. Different bindings never wait for each other.
+	if !h.beginSequence(bindKey) {
+		h.logger.Debug("Dropped a repeat of a binding still running",
+			zap.String("mode", modeName),
+			zap.String("bind_key", bindKey))
+
+		return
+	}
+
 	h.logger.Debug("Hotkey matched",
 		zap.String("mode", modeName),
 		zap.String("bind_key", bindKey),
@@ -400,17 +415,61 @@ func (h *handlerState) dispatchHotkeyActions(
 
 	capturedActions := append([]string(nil), actions...)
 
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				h.logger.Error("Panic in hotkey handler",
-					zap.Any("recover", r),
-					zap.String("bind_key", capturedKey))
-			}
-		}()
+	go h.runSequence(capturedKey, capturedActions)
+}
 
-		h.executeActionSequence(capturedKey, capturedActions, nil)
+// runSequence runs one action sequence in its own goroutine and releases the
+// binding's single-flight slot whichever way it ends, a panic in a step
+// included. A panic is recovered here rather than left to take the daemon down,
+// and the slot is released after it so the binding is not stuck for the rest of
+// the session. Deferred order is what makes that work: the recover runs first,
+// then the release.
+func (h *handlerState) runSequence(bindKey string, actions []string) {
+	defer h.endSequence(bindKey)
+
+	defer func() {
+		if r := recover(); r != nil {
+			h.logger.Error("Panic in hotkey handler",
+				zap.Any("recover", r),
+				zap.String("bind_key", bindKey))
+		}
 	}()
+
+	h.executeActionSequence(bindKey, actions, nil)
+}
+
+// beginSequence claims a binding's single-flight slot, reporting whether it got
+// it. The guard's mutex is the outer Handler's, a leaf below h.mu taken for a
+// map lookup and an insert, so this is safe both from dispatch, which holds
+// h.mu, and from the held-repeat loop, which holds nothing.
+func (h *handlerState) beginSequence(bindKey string) bool {
+	seqMu := &h.outer.seqMu
+
+	seqMu.Lock()
+	defer seqMu.Unlock()
+
+	if h.seqInFlight == nil {
+		h.seqInFlight = make(map[string]struct{})
+	}
+
+	if _, running := h.seqInFlight[bindKey]; running {
+		return false
+	}
+
+	h.seqInFlight[bindKey] = struct{}{}
+
+	return true
+}
+
+// endSequence releases the slot beginSequence claimed. The sequence's own
+// goroutine calls it, holding nothing else, and it reaches nothing but the map.
+func (h *handlerState) endSequence(bindKey string) {
+	seqMu := &h.outer.seqMu
+
+	seqMu.Lock()
+	defer seqMu.Unlock()
+
+	delete(h.seqInFlight, bindKey)
 }
 
 // maybeStartHeldRepeat starts a custom repeat goroutine if the given
@@ -454,9 +513,26 @@ func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 		}()
 
 		heldrepeat.Run(ctx, cfg, capturedActions, func(tickActions []string) {
-			h.executeActionSequence(bindKey, tickActions, nil)
+			h.dispatchRepeatedSequence(bindKey, tickActions)
 		})
 	}()
+}
+
+// dispatchRepeatedSequence starts one repeat tick of a held binding. The tick
+// goes through the same single-flight slot as the press that started the
+// repeat, so a sequence slower than interval_ms sets the cadence: the ticks it
+// is still running through are dropped, and the next one after it ends lands.
+// Queueing them instead would leave a tail of them running after the key is let
+// go.
+func (h *handlerState) dispatchRepeatedSequence(bindKey string, actions []string) {
+	if !h.beginSequence(bindKey) {
+		h.logger.Debug("Dropped a repeat of a binding still running",
+			zap.String("bind_key", bindKey))
+
+		return
+	}
+
+	go h.runSequence(bindKey, append([]string(nil), actions...))
 }
 
 // isHeldRepeatAction reports whether the action list contains a single
