@@ -45,9 +45,11 @@ void neru_x11_overlay_rounded_rect(
 void neru_x11_overlay_hint_badge(
     NeruX11Overlay *overlay, double x, double y, double width, double height, double radius, int edge, double a_left,
     double a_right, double tip_x, double tip_y, unsigned int fill, unsigned int stroke, double stroke_width);
+// neru_x11_overlay_text centers text's ink on (x, y). Its first matched bytes,
+// the typed part of a hint label, are drawn in matched_color (neru_label_show).
 void neru_x11_overlay_text(
     NeruX11Overlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
-    unsigned int color, int bold);
+    unsigned int color, int bold, int matched, unsigned int matched_color);
 void neru_x11_overlay_flush(NeruX11Overlay *overlay);
 // neru_x11_overlay_scale returns the desktop-wide HiDPI UI scale from Xft.dpi
 // (clamped to [1.0, 4.0]), or 1.0 when unset. See the implementation for why this

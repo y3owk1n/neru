@@ -502,6 +502,40 @@ func alphaStrokeRoundedRect(
 	}
 }
 
+// typedSplit is the column of a label's coverage bitmap where its typed
+// letters end. DrawTextW centers the whole label's advance, full, in a box
+// that starts pad columns into the bitmap, so the typed letters run from there
+// for their own advance, typed. The column is kept on the bitmap.
+func typedSplit(texW, pad, box, full, typed int) int {
+	return min(max(pad+(box-full)/2+typed, 0), texW)
+}
+
+// compositeLabelAt composites a label's coverage bitmap as alphaCompositeTextAt
+// does, with the columns left of split in typedColor and the rest in color.
+func compositeLabelAt(
+	pixels []byte,
+	bufW, bufH int,
+	textPixels []byte,
+	texW, texH, texStride, offX, offY, split int,
+	typedColor, color uint32,
+) {
+	split = min(max(split, 0), texW)
+
+	if split > 0 {
+		alphaCompositeTextAt(
+			pixels, bufW, bufH, textPixels, split, texH, texStride, offX, offY, typedColor,
+		)
+	}
+
+	if split < texW {
+		alphaCompositeTextAt(
+			pixels, bufW, bufH,
+			textPixels[split*bytesPerPixel:], texW-split, texH, texStride, offX+split, offY,
+			color,
+		)
+	}
+}
+
 // alphaCompositeTextAt composites a text coverage bitmap of size (texW x texH)
 // with the given row stride at position (offX, offY) in the main pixel buffer
 // using the given ARGB color. Coverage is read from the red channel, which is

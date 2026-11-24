@@ -59,6 +59,13 @@ type overlayWindow interface {
 		color uint32,
 		bold bool,
 	)
+	DrawHintLabel(
+		label, typed string,
+		bounds image.Rectangle,
+		fontFamily string,
+		fontSize float64,
+		color, typedColor uint32,
+	)
 	DrawPointerGlyph(center image.Point, size int, char string, fontFamily string, color uint32)
 	Flush() error
 }
