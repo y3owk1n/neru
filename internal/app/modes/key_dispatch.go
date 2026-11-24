@@ -161,16 +161,16 @@ func (h *handlerState) handleKeyPress(key string) {
 	// only. Sticky modifiers are for the next action, not Neru's own navigation
 	// keys. Using rawKey here would make a sticky Ctrl turn "c" into "Ctrl+c".
 	if rawKey != key {
-		if actions, bindKey, ok := h.handleHotkey(key); ok {
+		if actions, bindKey, modeName, ok := h.handleHotkey(key); ok {
 			if len(actions) > 0 {
-				h.maybeStartHeldRepeat(key, bindKey, actions)
+				h.maybeStartHeldRepeat(key, bindKey, modeName, actions)
 			}
 
 			return
 		}
-	} else if actions, bindKey, ok := h.handleHotkey(rawKey); ok {
+	} else if actions, bindKey, modeName, ok := h.handleHotkey(rawKey); ok {
 		if len(actions) > 0 {
-			h.maybeStartHeldRepeat(rawKey, bindKey, actions)
+			h.maybeStartHeldRepeat(rawKey, bindKey, modeName, actions)
 		}
 
 		return
@@ -284,8 +284,11 @@ func (h *handlerState) stripStickyModifiersFromKey(key string, mods action.Modif
 // handleHotkey checks whether the key matches a binding in the keymap in
 // force. If it does, it executes the binding's steps (IPC command or shell
 // command) using the same logic as top-level hotkeys. It returns the matched
-// steps and true if the key was consumed, and nil steps with true for sequence
-// starts (Phase 3), where nothing is dispatched yet.
+// steps, the mode the binding was matched in, and true if the key was
+// consumed, and nil steps with true for sequence starts (Phase 3), where
+// nothing is dispatched yet. The mode is the one the steps were dispatched
+// under, and the held-repeat slot reuses it so a repeat claims the press's
+// slot rather than re-reading a mode a concurrent sequence may have moved.
 //
 // It consults the settled keymap and resolves nothing. Which bindings are in
 // force was decided when the mode, the focused app or the configuration last
@@ -293,10 +296,10 @@ func (h *handlerState) stripStickyModifiersFromKey(key string, mods action.Modif
 //
 // Caller must hold h.mu.
 func (h *handlerState) handleHotkey(key string) (
-	[]string, string, bool,
+	[]string, string, string, bool,
 ) {
 	if h.executeActionSequence == nil {
-		return nil, "", false
+		return nil, "", "", false
 	}
 
 	keymap, globalHotkeys := h.settledKeymaps()
@@ -306,7 +309,7 @@ func (h *handlerState) handleHotkey(key string) (
 	}
 
 	if keymap.Len() == 0 && globalHotkeys.Len() == 0 {
-		return nil, "", false
+		return nil, "", "", false
 	}
 
 	currentModeName := domain.ModeString(h.appState.CurrentMode())
@@ -323,7 +326,7 @@ func (h *handlerState) handleHotkey(key string) (
 			if binding, ok := keymap.LookupSequence(pending + normalizedKey); ok {
 				h.dispatchHotkeyActions(currentModeName, binding.Key, key, binding.Steps)
 
-				return binding.Steps, binding.Key, true
+				return binding.Steps, binding.Key, currentModeName, true
 			}
 		}
 
@@ -338,7 +341,7 @@ func (h *handlerState) handleHotkey(key string) (
 	if binding, ok := keymap.Lookup(normalizedKey); ok {
 		h.dispatchHotkeyActions(currentModeName, binding.Key, key, binding.Steps)
 
-		return binding.Steps, binding.Key, true
+		return binding.Steps, binding.Key, currentModeName, true
 	}
 
 	// Phase 2b: the global [hotkeys] chord for the same key. The mode's own table
@@ -350,7 +353,7 @@ func (h *handlerState) handleHotkey(key string) (
 	if binding, ok := globalHotkeys.Lookup(normalizedKey); ok {
 		h.dispatchHotkeyActions(currentModeName, binding.Key, key, binding.Steps)
 
-		return binding.Steps, binding.Key, true
+		return binding.Steps, binding.Key, currentModeName, true
 	}
 
 	// Phase 3: start a new sequence for two-letter bindings.
@@ -358,10 +361,10 @@ func (h *handlerState) handleHotkey(key string) (
 		h.hotkeyLastKey = normalizedKey
 		h.hotkeyLastKeyTime = time.Now().UnixNano()
 
-		return nil, "", true
+		return nil, "", "", true
 	}
 
-	return nil, "", false
+	return nil, "", "", false
 }
 
 func (h *handlerState) dispatchHotkeyActions(
@@ -382,8 +385,17 @@ func (h *handlerState) dispatchHotkeyActions(
 	// the two runs share the cursor slot they save and restore through, and
 	// their mouse-down and mouse-up steps interleave. Dropping the second one
 	// rather than queueing it keeps a released key from leaving a tail of
-	// sequences behind it. Different bindings never wait for each other.
-	if !h.beginSequence(bindKey) {
+	// sequences behind it. Different bindings never wait for each other, and the
+	// same key bound in two modes is two bindings.
+	//
+	// A fed key is the exception, and it takes no slot at all. A script feeding
+	// keys over IPC sends them back to back, far faster than any sequence
+	// finishes, so the tail of a feed would be dropped as repeats that no one
+	// repeated. It is a real press each time, and it runs.
+	slot := newSequenceSlot(modeName, bindKey)
+
+	claimed := !h.fedPress
+	if claimed && !h.beginSequence(slot) {
 		h.logger.Debug("Dropped a repeat of a binding still running",
 			zap.String("mode", modeName),
 			zap.String("bind_key", bindKey))
@@ -415,7 +427,21 @@ func (h *handlerState) dispatchHotkeyActions(
 
 	capturedActions := append([]string(nil), actions...)
 
-	go h.runSequence(capturedKey, capturedActions)
+	go h.runSequence(slot, capturedKey, capturedActions, claimed)
+}
+
+// sequenceSlot identifies one binding for the single-flight guard: the mode the
+// key was pressed in, then the key. Space in grid and Space in hints are two
+// bindings, so a sequence that holds one of them for as long as a mode is up
+// leaves the other answering.
+//
+// The separator is a NUL, which neither a mode name nor a normalised key
+// contains, so two pairs never fold onto one slot.
+type sequenceSlot string
+
+// newSequenceSlot builds the slot for a press of bindKey in modeName.
+func newSequenceSlot(modeName, bindKey string) sequenceSlot {
+	return sequenceSlot(modeName + "\x00" + bindKey)
 }
 
 // runSequence runs one action sequence in its own goroutine and releases the
@@ -424,8 +450,18 @@ func (h *handlerState) dispatchHotkeyActions(
 // and the slot is released after it so the binding is not stuck for the rest of
 // the session. Deferred order is what makes that work: the recover runs first,
 // then the release.
-func (h *handlerState) runSequence(bindKey string, actions []string) {
-	defer h.endSequence(bindKey)
+//
+// claimed says whether this run took the slot. A fed key's run holds none, so it
+// releases nothing: that slot may belong to a press that is still running.
+func (h *handlerState) runSequence(
+	slot sequenceSlot,
+	bindKey string,
+	actions []string,
+	claimed bool,
+) {
+	if claimed {
+		defer h.endSequence(slot)
+	}
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -442,34 +478,34 @@ func (h *handlerState) runSequence(bindKey string, actions []string) {
 // it. The guard's mutex is the outer Handler's, a leaf below h.mu taken for a
 // map lookup and an insert, so this is safe both from dispatch, which holds
 // h.mu, and from the held-repeat loop, which holds nothing.
-func (h *handlerState) beginSequence(bindKey string) bool {
+func (h *handlerState) beginSequence(slot sequenceSlot) bool {
 	seqMu := &h.outer.seqMu
 
 	seqMu.Lock()
 	defer seqMu.Unlock()
 
 	if h.seqInFlight == nil {
-		h.seqInFlight = make(map[string]struct{})
+		h.seqInFlight = make(map[sequenceSlot]struct{})
 	}
 
-	if _, running := h.seqInFlight[bindKey]; running {
+	if _, running := h.seqInFlight[slot]; running {
 		return false
 	}
 
-	h.seqInFlight[bindKey] = struct{}{}
+	h.seqInFlight[slot] = struct{}{}
 
 	return true
 }
 
 // endSequence releases the slot beginSequence claimed. The sequence's own
 // goroutine calls it, holding nothing else, and it reaches nothing but the map.
-func (h *handlerState) endSequence(bindKey string) {
+func (h *handlerState) endSequence(slot sequenceSlot) {
 	seqMu := &h.outer.seqMu
 
 	seqMu.Lock()
 	defer seqMu.Unlock()
 
-	delete(h.seqInFlight, bindKey)
+	delete(h.seqInFlight, slot)
 }
 
 // maybeStartHeldRepeat starts a custom repeat goroutine if the given
@@ -477,8 +513,9 @@ func (h *handlerState) endSequence(bindKey string) {
 // repeat is enabled in config.
 // actions is the already-resolved action list from handleHotkey.
 // bindKey is the normalised config-binding key (for consistent logging).
+// modeName is the mode handleHotkey matched the binding in.
 // Caller must hold h.mu.
-func (h *handlerState) maybeStartHeldRepeat(key, bindKey string, actions []string) {
+func (h *handlerState) maybeStartHeldRepeat(key, bindKey, modeName string, actions []string) {
 	if h.heldRepeatingCancel != nil || h.motionApplies(actions) {
 		return
 	}
@@ -487,19 +524,27 @@ func (h *handlerState) maybeStartHeldRepeat(key, bindKey string, actions []strin
 		return
 	}
 
-	h.startHeldRepeat(key, bindKey, actions)
+	h.startHeldRepeat(key, bindKey, modeName, actions)
 }
 
 // startHeldRepeat launches a goroutine that dispatches the held-key
 // action at heldRepeatInterval until the key-up event arrives.
 // bindKey is the normalised config-binding key (for consistent logging).
+// modeName is the mode handleHotkey matched the binding in.
 // Caller must hold h.mu.
-func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
+func (h *handlerState) startHeldRepeat(key, bindKey, modeName string, actions []string) {
 	cfg := h.config.HeldRepeat
 
 	ctx, cancel := context.WithCancel(h.ctx)
 	h.heldRepeatingKey = key
 	h.heldRepeatingCancel = cancel
+
+	// The repeat claims the same slot the press claimed: modeName is the one
+	// handleHotkey dispatched the press under, so the two agree by construction
+	// and a concurrent sequence changing modes cannot slip between them. A held
+	// key that starts a sequence changing modes keeps claiming its own slot,
+	// rather than one no further tick would release.
+	slot := newSequenceSlot(modeName, bindKey)
 
 	capturedActions := append([]string(nil), actions...)
 
@@ -513,7 +558,7 @@ func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 		}()
 
 		heldrepeat.Run(ctx, cfg, capturedActions, func(tickActions []string) {
-			h.dispatchRepeatedSequence(bindKey, tickActions)
+			h.dispatchRepeatedSequence(slot, bindKey, tickActions)
 		})
 	}()
 }
@@ -524,15 +569,19 @@ func (h *handlerState) startHeldRepeat(key, bindKey string, actions []string) {
 // is still running through are dropped, and the next one after it ends lands.
 // Queueing them instead would leave a tail of them running after the key is let
 // go.
-func (h *handlerState) dispatchRepeatedSequence(bindKey string, actions []string) {
-	if !h.beginSequence(bindKey) {
+func (h *handlerState) dispatchRepeatedSequence(
+	slot sequenceSlot,
+	bindKey string,
+	actions []string,
+) {
+	if !h.beginSequence(slot) {
 		h.logger.Debug("Dropped a repeat of a binding still running",
 			zap.String("bind_key", bindKey))
 
 		return
 	}
 
-	go h.runSequence(bindKey, append([]string(nil), actions...))
+	go h.runSequence(slot, bindKey, append([]string(nil), actions...), true)
 }
 
 // isHeldRepeatAction reports whether the action list contains a single

@@ -2160,6 +2160,93 @@ func TestSimulation_HeldRepeatScroll(t *testing.T) {
 	sim.waitMode(domain.ModeIdle)
 }
 
+// sleepingBindingKey carries the journey below. Nothing else binds it, and it is
+// not a grid label key, so the press reaches the binding rather than the
+// narrowing.
+const sleepingBindingKey = "Ctrl+Shift+P"
+
+// TestSimulation_RepeatedPressOfASleepingBindingRunsOneCopy covers what a
+// sequence still running costs the key that started it. A binding whose steps
+// sleep or wait on a mode ignores its own key until it ends, so a press inside
+// that window is dropped rather than stacked: two copies share the cursor slot
+// they save and restore through, so the pan one press asked for would run twice
+// as far.
+func TestSimulation_RepeatedPressOfASleepingBindingRunsOneCopy(t *testing.T) {
+	// sleepStep is the binding's own duration and settleWindow is how long the
+	// check that nothing ran behind it samples for, so both are stated on top of
+	// the headroom rather than absorbed into it.
+	const (
+		sleepStep    = 150 * time.Millisecond
+		settleWindow = 250 * time.Millisecond
+		nudgePixels  = 20
+		// movesPerRun is what one copy of the sequence costs the cursor: the
+		// relative move and the restore after it.
+		movesPerRun = 2
+	)
+
+	cfg := simConfig()
+	cfg.Grid.Hotkeys[sleepingBindingKey] = config.StringOrStringArray{
+		"action save_cursor_pos",
+		"action move_mouse_relative --dx=" + strconv.Itoa(nudgePixels) + " --dy=0",
+		"action sleep " + sleepStep.String(),
+		"action restore_cursor_pos",
+	}
+
+	sim := newSimHarness(t, cfg, nil)
+
+	sim.pressHotkey(gridHotkey)
+	sim.waitMode(domain.ModeGrid)
+	sim.waitFor("grid drawn", func() bool { return sim.overlay.lastGrid() != nil })
+
+	start := sim.cursor.position()
+	movesBefore := sim.cursor.moveCount()
+
+	// Two presses with no wait between them. The second lands inside the first
+	// run's sleep, which is the repeat the binding drops.
+	sim.press(sleepingBindingKey, sleepingBindingKey)
+
+	sim.waitForWithin(
+		simWaitHeadroom+sleepStep,
+		"the sequence ran once and put the cursor back where it started",
+		func() bool {
+			return sim.cursor.moveCount() == movesBefore+movesPerRun &&
+				sim.cursor.position().Eq(start)
+		},
+	)
+
+	movesAfter := sim.cursor.moveCount()
+
+	// Nothing ran behind it. A second copy would still be inside its sleep here
+	// and would move the cursor again on the way out of it.
+	sim.waitForWithin(
+		simWaitHeadroom+2*settleWindow,
+		"no second copy ran behind the first",
+		func() bool {
+			before := sim.cursor.moveCount()
+
+			time.Sleep(settleWindow)
+
+			return sim.cursor.moveCount() == before
+		},
+	)
+
+	// With that run over the binding answers again, so the drop was the run's
+	// length and not the key being stuck for good.
+	sim.press(sleepingBindingKey)
+
+	sim.waitForWithin(
+		simWaitHeadroom+sleepStep,
+		"the binding ran again once its first run ended",
+		func() bool {
+			return sim.cursor.moveCount() == movesAfter+movesPerRun &&
+				sim.cursor.position().Eq(start)
+		},
+	)
+
+	sim.press("Escape")
+	sim.waitMode(domain.ModeIdle)
+}
+
 // TestSimulation_HeldMotionDiagonal covers the held-key glide. Two held direction
 // keys glide the cursor diagonally on the motion tick, native autorepeat of a
 // held key is ignored, and releasing both keys stops the glide.

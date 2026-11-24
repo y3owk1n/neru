@@ -152,14 +152,17 @@ defaults listed in its own section:
 "Right"     = "action move_mouse_relative --dx=10 --dy=0"
 ```
 
-A binding runs one sequence at a time. A press that arrives while that
-binding's own sequence is still running is the key repeating, or a second tap
-landing inside the run, and is dropped rather than queued: two copies of one
-binding share the cursor slot their steps save and restore through, and their
-`mouse_down` and `mouse_up` steps would interleave on the way to the
-application. Different bindings never wait for each other, and nothing is left
-to run once the key is released. See [`[held_repeat]`](#held_repeat) for the
-cadence this gives a held key.
+A binding runs one sequence at a time. A binding is a key in the mode it is
+bound in, so the same key bound in two modes runs in each without waiting for
+the other. A press that arrives while that binding's own sequence is still
+running is the key repeating, or a second tap landing inside the run, and is
+dropped rather than queued: two copies of one binding share the cursor slot
+their steps save and restore through, and their `mouse_down` and `mouse_up`
+steps would interleave on the way to the application. So a binding whose
+sequence sleeps or waits on a mode ignores its own key until that run finishes.
+Different bindings never wait for each other, and nothing is left to run once
+the key is released. See [`[held_repeat]`](#held_repeat) for the cadence this
+gives a held key.
 
 ### Per-app hotkey overrides
 

@@ -228,13 +228,14 @@ type handlerState struct {
 	hotkeyLastKey         string
 	hotkeyLastKeyTime     int64
 
-	// seqInFlight holds the binding keys with a sequence running right now,
-	// guarded by Handler.seqMu. A second dispatch of one of them is a key
-	// repeat or a second tap landing inside the run, and is dropped rather
-	// than stacked: two runs of one binding share the cursor slots their steps
-	// save and the buttons they press, so stacking them drifts the pointer and
-	// loses drags.
-	seqInFlight map[string]struct{}
+	// seqInFlight holds the sequenceSlots with a sequence running right now,
+	// guarded by Handler.seqMu. A slot is one binding, a key and the mode it was
+	// pressed in, since the same key bound in two modes is two bindings. A second
+	// dispatch of one of them is a key repeat or a second tap landing inside the
+	// run, and is dropped rather than stacked: two runs of one binding share the
+	// cursor slots their steps save and the buttons they press, so stacking them
+	// drifts the pointer and loses drags.
+	seqInFlight map[sequenceSlot]struct{}
 
 	// Pending modifier taps waiting to be committed after a short "no follow-up"
 	// window. A regular key press cancels all pending taps.
