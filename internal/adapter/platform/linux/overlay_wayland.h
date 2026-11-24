@@ -166,8 +166,9 @@ void neru_wayland_overlay_text(
     NeruWaylandOverlay *overlay, const char *text, const char *font_family, double x, double y, double font_size,
     unsigned int color, int bold);
 // NERU_BADGE_DRAWN, NERU_BADGE_SKIPPED and NERU_BADGE_UNSUPPORTED are what a
-// badge draw answers. A skipped draw found no overlay surface to sit on, or
-// no buffer the compositor had let go of, and the next draw tries again.
+// badge draw answers. A skipped draw found no overlay surface to attach the
+// badge to, or no buffer the compositor had released. It leaves the badge
+// hidden, and the next draw tries again.
 #define NERU_BADGE_DRAWN 1
 #define NERU_BADGE_SKIPPED 0
 #define NERU_BADGE_UNSUPPORTED (-1)

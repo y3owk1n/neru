@@ -1097,14 +1097,18 @@ int neru_wayland_overlay_badge(NeruWaylandOverlay *overlay, int slot, int x, int
 		// Waiting for a buffer dispatches events, and an output removed among
 		// them takes this badge and its overlay surface with it.
 		int idx = neru_badge_free_buffer(overlay, badge);
-		if (idx < 0 || !badge->surface || !scr->wl_surface || badge->parent != scr->wl_surface)
+		if (idx < 0 || !badge->surface || !scr->wl_surface || badge->parent != scr->wl_surface) {
+			neru_wayland_overlay_hide_badge(overlay, slot);
 			return NERU_BADGE_SKIPPED;
+		}
 
 		int buf_width = fractional ? (int)ceil(surface_width * want.scale) : surface_width * integer_scale;
 		int buf_height = fractional ? (int)ceil(surface_height * want.scale) : surface_height * integer_scale;
 		NeruWaylandBadgeBuffer *buf = &badge->buffers[idx];
-		if (!neru_badge_buffer_ensure(overlay, buf, buf_width, buf_height))
+		if (!neru_badge_buffer_ensure(overlay, buf, buf_width, buf_height)) {
+			neru_wayland_overlay_hide_badge(overlay, slot);
 			return NERU_BADGE_SKIPPED;
+		}
 
 		cairo_surface_t *target =
 		    cairo_image_surface_create_for_data(buf->data, CAIRO_FORMAT_ARGB32, buf_width, buf_height, buf_width * 4);
