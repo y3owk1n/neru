@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.64.0](https://github.com/y3owk1n/neru/compare/v1.63.0...v1.64.0) (2026-11-24)
+
+
+### Features
+
+* **hints:** find hints in any script by typing their romanization ([#1997](https://github.com/y3owk1n/neru/issues/1997)) ([8d39057](https://github.com/y3owk1n/neru/commit/8d39057f392b0af3fd2ed0130551c4a6b96ff94b))
+* **hints:** match the initials of words in hint search and vim jumps ([#2002](https://github.com/y3owk1n/neru/issues/2002)) ([9ed2dc1](https://github.com/y3owk1n/neru/commit/9ed2dc1808a406e40eb23f3b137898a68315f60d))
+* **vim,windows:** use the account's cjk language if any ([#2004](https://github.com/y3owk1n/neru/issues/2004)) ([107f211](https://github.com/y3owk1n/neru/commit/107f211ae54113be870873eaa0bc69acbface249))
+* **vim:** a Ctrl+V block is a rectangle on screen in any font ([#2014](https://github.com/y3owk1n/neru/issues/2014)) ([3175bbe](https://github.com/y3owk1n/neru/commit/3175bbe535f1c38683e61951cc80e348f2c8f362))
+* **vim:** find text in any script by its romanization ([#1994](https://github.com/y3owk1n/neru/issues/1994)) ([c231e9f](https://github.com/y3owk1n/neru/commit/c231e9f79b9ce8a550b35f3b4cb0ce7123fad6a3))
+* **vim:** h and l cross a gap between words in one step ([#2016](https://github.com/y3owk1n/neru/issues/2016)) ([e94d05e](https://github.com/y3owk1n/neru/commit/e94d05ecafbc0b73b0a978fd4f7bf2815a3cedc1))
+* **vim:** j and k go straight down the screen in any font ([#2010](https://github.com/y3owk1n/neru/issues/2010)) ([1fcf870](https://github.com/y3owk1n/neru/commit/1fcf870ee60447f8bbf1e12980e38f4086a1f621))
+
+
+### Bug Fixes
+
+* **hints,darwin:** copy Chinese, Japanese and Korean text from vision hints ([#2013](https://github.com/y3owk1n/neru/issues/2013)) ([042c371](https://github.com/y3owk1n/neru/commit/042c37194583551adf5945a79502de520f8dd453))
+* **hints,linux,windows:** stop vision hints doubling up on shapes inside text ([#2008](https://github.com/y3owk1n/neru/issues/2008)) ([4153285](https://github.com/y3owk1n/neru/commit/41532853ccacb65cfa3cef8688a7758d5ccc2ad5))
+* **hints:** allow `session_action` in `--action copy_text` ([#2000](https://github.com/y3owk1n/neru/issues/2000)) ([cf45b81](https://github.com/y3owk1n/neru/commit/cf45b81e8a41af433b081fa79af7ed27208f8541))
+* **hints:** label system menu extras on macOS 27 ([#1998](https://github.com/y3owk1n/neru/issues/1998)) ([043bee5](https://github.com/y3owk1n/neru/commit/043bee5e174603f3feb43694648159c3aadb4155))
+* **linux:** stop indicator badges leaving holes in the overlay as they move ([#2020](https://github.com/y3owk1n/neru/issues/2020)) ([6426276](https://github.com/y3owk1n/neru/commit/6426276e117bec60fd8ebcbe875d080c30cbd028))
+* **modes:** list only the actions a mode accepts when --action is wrong ([#2006](https://github.com/y3owk1n/neru/issues/2006)) ([77ddf5f](https://github.com/y3owk1n/neru/commit/77ddf5f41263dc1717edd5e641fec429c2ee4600))
+* **vim,linux,windows:** keep the cursor on CJK characters over a gradient ([#2009](https://github.com/y3owk1n/neru/issues/2009)) ([b5bfbc3](https://github.com/y3owk1n/neru/commit/b5bfbc3cf0dbd9c1644c6209675754fe5284fdb4))
+* **vim:** keep typing into a jump until the screen is read ([#2001](https://github.com/y3owk1n/neru/issues/2001)) ([8aca1dd](https://github.com/y3owk1n/neru/commit/8aca1dd5e5a34a8247a0c163b56d0d5dd56d7f52))
+
 ## [1.63.0](https://github.com/y3owk1n/neru/compare/v1.62.0...v1.63.0) (2026-11-15)
 
 
