@@ -40,8 +40,8 @@ github.com/xrash/smetrics v0.0.0-20261013231157-39c47d93efba h1:tXo8fNGjrZLpWGM8
 github.com/xrash/smetrics v0.0.0-20261013231157-39c47d93efba/go.mod h1:Ohn+xnUBiLI6FVj/9LpzZWtj1/D6lUovWYBkxHVV3aM=
 github.com/y3owk1n/fude/vim v0.4.5 h1:BIRSEVc8Wyq2lhcOCAn4yTWwIOhmzOuuR5zJJ3jSxPk=
 github.com/y3owk1n/fude/vim v0.4.5/go.mod h1:02OJIoIX1hHx3wMQUegg+YxvegEEUL/VxxbBsJ91jU0=
-github.com/y3owk1n/yomi v0.0.0-20261125145756-b66185a1593b h1:yMRdLaT9jVgYiXar1oA2VbaJ1OXiIVX56yKJgTEVmWI=
-github.com/y3owk1n/yomi v0.0.0-20261125145756-b66185a1593b/go.mod h1:eGGG/UxibiHzJXCwGvWt5yB4FgIMgWYncPHiXWHqdh0=
+github.com/y3owk1n/yomi v0.0.0-20261125162514-4d399d8f5069 h1:eWnWZ22eZiLWUNXY9X3ofCP9o6DI0e7mcHJ9SrASr1I=
+github.com/y3owk1n/yomi v0.0.0-20261125162514-4d399d8f5069/go.mod h1:eGGG/UxibiHzJXCwGvWt5yB4FgIMgWYncPHiXWHqdh0=
 go.uber.org/goleak v1.3.0 h1:2K3zAYmnTNqV73imy9J1T3WC+gmCePx2hEGkimedGto=
 go.uber.org/goleak v1.3.0/go.mod h1:CoHD4mav9JJNrW/WLlf7HGZPjdw8EucARQHekz1X6bE=
 go.uber.org/multierr v1.11.0 h1:blXXJkSxSSfBVBlC76pxqeO+LN3aDfLQo+309xJstO0=
