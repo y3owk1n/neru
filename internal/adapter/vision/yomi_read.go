@@ -9,6 +9,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/y3owk1n/yomi"
 	"github.com/y3owk1n/yomi/models/caucasian"
@@ -119,6 +120,64 @@ func scaleRect(r image.Rectangle, scale float64) image.Rectangle {
 	return image.Rect(at(r.Min.X), at(r.Min.Y), at(r.Max.X), at(r.Max.Y))
 }
 
+// readingOrder returns a line's words, which yomi gives left to right as
+// they sit on screen, in the order they are read. A line written mostly in a
+// right-to-left script reads right to left, and a run of words in it with no
+// right-to-left letter, as a name or a number, keeps its own order.
+func readingOrder(texts []string) []string {
+	var rtl, ltr int
+
+	for _, text := range texts {
+		for _, r := range text {
+			switch {
+			case rightToLeft(r):
+				rtl++
+			case unicode.IsLetter(r):
+				ltr++
+			}
+		}
+	}
+
+	if rtl <= ltr {
+		return texts
+	}
+
+	hasRTL := func(text string) bool { return strings.IndexFunc(text, rightToLeft) >= 0 }
+	out := make([]string, 0, len(texts))
+
+	for last := len(texts) - 1; last >= 0; {
+		if hasRTL(texts[last]) {
+			out = append(out, texts[last])
+			last--
+
+			continue
+		}
+
+		// A left-to-right run ends at last and starts after first.
+		first := last
+		for first >= 0 && !hasRTL(texts[first]) {
+			first--
+		}
+
+		out = append(out, texts[first+1:last+1]...)
+		last = first
+	}
+
+	return out
+}
+
+// rightToLeft reports whether r is a letter of a script written right to left.
+func rightToLeft(r rune) bool {
+	return unicode.In(
+		r,
+		unicode.Arabic,
+		unicode.Hebrew,
+		unicode.Syriac,
+		unicode.Thaana,
+		unicode.Nko,
+	)
+}
+
 // yomiWords gives lines as recognized words, one per word when wordLevel asks
 // for it and otherwise one per line, as `neru hints --split-word` means. A
 // line's text is its words in screen order, its confidence its least sure
@@ -150,7 +209,7 @@ func yomiWords(lines []yomi.Line, wordLevel bool) []recognizedWord {
 		}
 
 		words = append(words, recognizedWord{
-			Text:       strings.Join(texts, " "),
+			Text:       strings.Join(readingOrder(texts), " "),
 			Bounds:     bounds,
 			Confidence: float64(confidence),
 		})
