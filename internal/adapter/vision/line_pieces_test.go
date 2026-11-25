@@ -242,6 +242,7 @@ func TestPiecesFromSymbols_PlacesWideCharactersOnAGradient(t *testing.T) {
 }
 
 // drawGlyph draws a stand-in for a character over box: its outline, two
+// pixels thick, so like real text it leaves most of its box background.
 func drawGlyph(img *image.RGBA, box image.Rectangle) {
 	draw.Draw(img, box, image.NewUniform(color.Black), image.Point{}, draw.Src)
 	draw.Draw(img, box.Inset(2), image.NewUniform(color.White), image.Point{}, draw.Src)
