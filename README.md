@@ -17,6 +17,8 @@ Hints, grids and vim keys for your whole desktop. Free, open source, one binary,
 
 <sub>[What the labels mean](docs/reference/platform-support.md#what-the-labels-mean)</sub>
 
+<sub>English | <a href="README.zh-CN.md">简体中文</a></sub>
+
 </div>
 
 ---
