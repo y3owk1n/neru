@@ -18,7 +18,7 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/tc-hib/go-winres v0.3.3
 	github.com/y3owk1n/fude/vim v0.4.5
-	github.com/y3owk1n/yomi v0.0.0-20261126092359-47d4fad06c1f
+	github.com/y3owk1n/yomi v0.0.0-20261126121115-710553d46827
 	go.uber.org/goleak v1.3.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.28.0
