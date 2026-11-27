@@ -72,8 +72,7 @@ func (a *Adapter) PrepareAccurateRead() <-chan struct{} {
 }
 
 // prepareAccurateRead runs prepare and closes ready. A preparation that
-// fails leaves the first accurate read to compile what it needs, as it would
-// with none.
+// fails leaves the first accurate read to do that work itself.
 func (a *Adapter) prepareAccurateRead(ready chan struct{}, prepare func() error) {
 	defer close(ready)
 

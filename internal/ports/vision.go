@@ -86,13 +86,10 @@ type VisionPort interface {
 
 	// PrepareAccurateRead starts, the first time it is called, whatever makes
 	// the first ReadLines at TextAccurate as fast as the ones after it, and
-	// returns a channel closed once that is done. It never blocks. On macOS,
-	// Vision compiles its recognition models the first time an app reads
-	// with them after an install or a macOS update, which takes up to a
-	// minute, so there the adapter reads a sample of every script Vision
-	// reads. An accurate read started before the channel
-	// closes would compile the same models a second time, so callers wait
-	// for it first. Where nothing compiles, the channel comes back closed.
+	// returns a channel closed once that is done. It never blocks. Callers
+	// wait for the channel before an accurate read. yomi needs no
+	// preparation, so on every platform today the channel comes back
+	// closed.
 	PrepareAccurateRead() <-chan struct{}
 
 	// ReadLines captures region, in global coordinates, and returns its text

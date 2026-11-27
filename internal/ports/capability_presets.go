@@ -124,8 +124,8 @@ func LinuxCapabilities() PlatformCapabilities {
 			"dark mode detection via freedesktop appearance portal (Settings.Read), with kdeglobals fallback",
 		),
 		// Both halves are implemented on every backend: capture through
-		// wlr-screencopy, XGetImage or the portal's ScreenCast session,
-		// recognition through yomi, compiled in. The detail names what can still
+		// wlr-screencopy, XGetImage or the portal's ScreenCast session, and
+		// recognition through yomi, compiled in. Capture needs a cgo build. The detail names what can still
 		// be missing on a given machine, because this preset is static and
 		// `neru doctor` reports it without probing. KDE's screen-sharing consent
 		// has to be approved once. VisionPort.Health answers the same question
@@ -134,7 +134,8 @@ func LinuxCapabilities() PlatformCapabilities {
 			"vision element detection via yomi OCR over a screen capture " +
 				"(wlr-screencopy on wlroots, XGetImage on X11, the xdg-desktop-portal " +
 				"ScreenCast session on KDE and COSMIC, which asks for screen-sharing consent " +
-				"once), with button shapes from the contour detector over the same frame",
+				"once), with button shapes from the contour detector over the same frame. " +
+				"Capture needs a cgo build",
 		),
 		KeyFeed: supportedCapability(
 			"key injection via XTest on X11, and on Wayland a uinput virtual keyboard " +

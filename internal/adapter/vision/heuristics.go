@@ -7,9 +7,10 @@ import (
 	"github.com/y3owk1n/neru/internal/config"
 )
 
-// DetectedRegion is a region of interest identified by a Vision
-// Framework request. Multiple requests (text, rectangles, saliency) produce
-// overlapping regions that are merged into a single element.
+// DetectedRegion is a region of interest the detection pass found: a word
+// yomi read, or a shape the contour detector outlined. MergeRegions merges
+// overlapping regions into a single element. Score is the word's confidence,
+// or one for a shape.
 type DetectedRegion struct {
 	Bounds image.Rectangle
 	Label  string
@@ -17,9 +18,8 @@ type DetectedRegion struct {
 	IsText bool
 }
 
-// regionClassifier applies geometric and saliency heuristics to assign
-// roles to detected regions. It is the first-pass classifier used on all
-// platforms. A Core ML model can be swapped in later for better accuracy.
+// regionClassifier applies geometric and confidence heuristics to assign
+// roles to detected regions. It is the classifier used on all platforms.
 //
 // roles is the native role vocabulary it answers in. See classifier_roles.go
 // for why the answer is native rather than semantic. Build one with
@@ -37,7 +37,7 @@ func newRegionClassifier(cfg config.HintsVisionConfig) regionClassifier {
 }
 
 // Classify assigns a role to a detected region based on its geometry and
-// saliency score. Returns the role string and whether the region is considered
+// score. Returns the role string and whether the region is considered
 // clickable.
 func (c *regionClassifier) Classify(region DetectedRegion) (string, bool) {
 	bounds := region.Bounds
@@ -77,9 +77,9 @@ func (c *regionClassifier) Classify(region DetectedRegion) (string, bool) {
 	}
 }
 
-// isLikelyButton checks aspect ratio and saliency to guess "button".
+// isLikelyButton checks aspect ratio and score to guess "button".
 // Buttons and toolbar icons are typically 0.8:1 to 8:1 width:height
-// (square-ish to wide) with decent saliency. For near-square regions,
+// (square-ish to wide) with a decent score. For near-square regions,
 // size is constrained to avoid catching large images.
 func (c *regionClassifier) isLikelyButton(aspectRatio, score, width, height float64) bool {
 	minAspect := 0.8

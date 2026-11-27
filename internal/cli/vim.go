@@ -73,16 +73,15 @@ are reading, and it outlines the one the cursor is in. Containers nest, so a
 card sits in a column and the column in the page, and the block around the
 cursor's container is outlined fainter.
 
-Vim mode reads the screen twice. A fast read opens the mode at once, and an
-accurate read replaces it when it finishes. The status bar says "reading…"
-until then. The accurate read also finds icons and pictures with no text,
-such as an icon-only button, and puts a □ where each one is, so w, j and s
-reach it and Return clicks it. A yank leaves the □ out. The box beside the
-cursor shows the word under it as read.
+Vim mode opens on one read of the screen's text. A second pass then finds
+icons and pictures with no text, such as an icon-only button, and puts a □
+where each one is, so w, j and s reach it and Return clicks it. The status
+bar says "reading…" until it finishes. A yank leaves the □ out. The box
+beside the cursor shows the word under it as read.
 
-The fast read knows Latin script only. The accurate read finds each line's
-script, so it reads Chinese, Japanese, Korean, Thai, Russian and the rest,
-and a wide character, as in Chinese, takes two columns.
+The read finds each line's script, so it reads Chinese, Japanese, Korean,
+Thai, Russian, Arabic and the rest, and a wide character, as in Chinese,
+takes two columns.
 
 Examples:
   neru vim                            # Read the focused window

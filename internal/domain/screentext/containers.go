@@ -289,9 +289,8 @@ func distance(a, b int) int {
 }
 
 // lineTall returns words with each one as tall as the line the reader read
-// it on. macOS's reader and yomi on Linux measure a word at its line's
-// height, while Windows measures only its ink, so "There" comes out shorter
-// than "typesetting". The paragraph break and heading rules weigh a gap
+// it on. yomi measures a word by its ink, so "There" comes out shorter than
+// "typesetting". The paragraph break and heading rules weigh a gap
 // against a word's height, so they use the line's height to read every
 // reader alike.
 func lineTall(words []Word, cell int) []Word {
