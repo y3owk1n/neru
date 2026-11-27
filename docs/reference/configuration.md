@@ -762,19 +762,17 @@ Element outlines for dense layouts, in `[hints.boundary_highlight]`.
 
 `[hints.vision]` is read only when the global or per-app `strategy` is
 `"vision"`. Turning off both `detect_text` and `detect_rectangles` refuses the
-file, whatever the strategy. The rectangle and confidence options do nothing on
-some platforms, see
-[Platform support per word](platform-support.md#platform-support-per-word).
+file, whatever the strategy.
 
 | Option                             | Type  | Default | Description                                                                   |
 | ---------------------------------- | ----- | ------- | ----------------------------------------------------------------------------- |
-| `detect_text`                      | bool  | `true`  | Enable text detection. With this off, Linux detects nothing                   |
+| `detect_text`                      | bool  | `true`  | Enable text detection                                                         |
 | `detect_rectangles`                | bool  | `true`  | Enable rectangle detection                                                    |
-| `request_timeout_ms`               | int   | `5000`  | Timeout for one analysis request (one OCR pass on Linux), in ms               |
+| `request_timeout_ms`               | int   | `5000`  | Timeout for one analysis request (one OCR pass), in ms                        |
 | `minimum_confidence`               | float | `0.0`   | Minimum confidence (0.0 to 1.0) for keeping an observation                    |
 | `merge_iou_threshold`              | float | `0.5`   | Intersection-over-Union overlap at which boxes merge                          |
 | `rectangle_max_candidates`         | int   | `100`   | Maximum rectangle candidates to evaluate                                      |
-| `rectangle_min_size`               | float | `0.01`  | Minimum rectangle size as a fraction of the captured region's shorter side (`0.01` is 1%) |
+| `rectangle_min_size`               | float | `0.07`  | Minimum rectangle size as a fraction of the captured region's shorter side (`0.07` is 7%) |
 | `rectangle_min_aspect`             | float | `0.3`   | Minimum rectangle aspect ratio (width/height)                                 |
 | `rectangle_max_aspect`             | float | `10.0`  | Maximum rectangle aspect ratio (width/height)                                 |
 | `button_min_confidence`            | float | `0.3`   | Minimum confidence for classifying a rectangle as a button                    |

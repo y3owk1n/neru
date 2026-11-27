@@ -34,9 +34,8 @@ var HintsCmd = BuildModeCommand(ModeConfig{
     --text "Submit,Cancel"        Only hint elements containing "Submit" or "Cancel"
 
   Use --strategy vision to detect elements by recognizing what is on screen
-  instead of walking the accessibility tree. It uses the Vision framework on
-  macOS, tesseract OCR on Linux and Windows.Media.Ocr on Windows, with button
-  shapes from the contour detector on both.
+  instead of walking the accessibility tree. It reads text with yomi, built
+  into Neru, and finds button shapes with the contour detector.
 
   Use --strategy contour to detect interactive targets (buttons, icons,
   text) by edge and contour analysis of the focused window's pixels, an

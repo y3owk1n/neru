@@ -628,7 +628,7 @@ linux-deps:
             libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
             libxrender-dev libxext-dev libxfixes-dev libxkbcommon-dev \
             libei-dev liboeffis-dev libfontconfig-dev \
-            libtesseract-dev tesseract-ocr-eng libpipewire-0.3-dev \
+            libpipewire-0.3-dev \
             wayland-protocols fonts-dejavu-core
     elif command -v dnf >/dev/null 2>&1; then
         sudo dnf install -y \
@@ -636,7 +636,7 @@ linux-deps:
             cairo-devel wayland-devel libX11-devel libXtst-devel libXrandr-devel \
             libXrender-devel libXext-devel libXfixes-devel libxkbcommon-devel \
             libei-devel fontconfig-devel \
-            tesseract-devel tesseract-langpack-eng pipewire-devel \
+            pipewire-devel \
             wayland-protocols-devel \
             dejavu-sans-fonts dejavu-serif-fonts dejavu-sans-mono-fonts
     elif command -v pacman >/dev/null 2>&1; then
@@ -644,7 +644,7 @@ linux-deps:
             base-devel pkgconf \
             cairo wayland libx11 libxtst libxrandr libxrender libxext libxfixes \
             libxkbcommon libei fontconfig \
-            tesseract tesseract-data-eng libpipewire wayland-protocols ttf-dejavu
+            libpipewire wayland-protocols ttf-dejavu
     else
         echo "no apt-get, dnf or pacman here, see docs/contributing/development.md#build-dependencies" >&2
         exit 1
@@ -672,7 +672,7 @@ test-linux:
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
         libxrender-dev libxext-dev libxfixes-dev libxkbcommon-dev \
         libei-dev liboeffis-dev libfontconfig-dev \
-        libtesseract-dev tesseract-ocr-eng libpipewire-0.3-dev \
+        libpipewire-0.3-dev \
         pkg-config >/dev/null 2>&1
     DOCKERFILE
     echo "Running the Linux test suite (CGO on, headless)..."
@@ -731,7 +731,7 @@ lint-cross:
         libcairo2-dev libwayland-dev libx11-dev libxtst-dev libxrandr-dev \
         libxrender-dev libxext-dev libxfixes-dev libxkbcommon-dev \
         libei-dev liboeffis-dev libfontconfig-dev \
-        libtesseract-dev tesseract-ocr-eng libpipewire-0.3-dev \
+        libpipewire-0.3-dev \
         pkg-config >/dev/null 2>&1
     BASE
     docker build -q -t neru-linux-lint - >/dev/null <<'LINT'

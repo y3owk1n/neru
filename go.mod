@@ -18,10 +18,10 @@ require (
 	github.com/stretchr/testify v1.12.1
 	github.com/tc-hib/go-winres v0.3.3
 	github.com/y3owk1n/fude/vim v0.4.5
+	github.com/y3owk1n/yomi v0.0.0-20261126172247-fb58b593872c
 	go.uber.org/goleak v1.3.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.28.0
-	golang.org/x/image v0.48.0
 	golang.org/x/sys v0.50.0
 	golang.org/x/term v0.48.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -36,4 +36,5 @@ require (
 	github.com/urfave/cli/v2 v2.27.7 // indirect
 	github.com/xrash/smetrics v0.0.0-20261013231157-39c47d93efba // indirect
 	go.yaml.in/yaml/v3 v3.0.6 // indirect
+	golang.org/x/image v0.48.0 // indirect
 )

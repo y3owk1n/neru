@@ -4,7 +4,7 @@ package vision
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
-#cgo LDFLAGS: -framework Vision -framework CoreGraphics -framework Foundation
+#cgo LDFLAGS: -framework CoreGraphics -framework Foundation
 #include "../platform/darwin/vision.h"
 */
 import "C"

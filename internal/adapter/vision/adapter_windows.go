@@ -6,7 +6,6 @@ import (
 	"context"
 	"image"
 	"math"
-	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -20,167 +19,46 @@ import (
 	"github.com/y3owk1n/neru/internal/ports"
 )
 
-// Windows answers this port with two native pieces: screen capture through GDI
-// (BitBlt off the desktop DC, platform/windows/screencapture.go) and text
-// recognition through Windows.Media.Ocr (platform/windows/ocr.go), the WinRT
-// engine every Windows 10 and 11 desktop ships.
+// Windows answers this port with screen capture through GDI (BitBlt off the
+// desktop DC, platform/windows/screencapture.go) and, as on macOS and Linux,
+// yomi for text and the pure-Go contour detector for button shapes, both over
+// the one captured frame and at the same time (detect_elements.go).
 //
-// macOS runs Vision's text and rectangle requests. Here Windows.Media.Ocr
-// answers the text half and the pure-Go contour detector the rectangle half,
-// both over the one captured frame and at the same time (rectangles.go). The
-// engine reports no per-word confidence, so the three confidence floors are
-// declared inert here and every word carries a score of one.
+// The process is per-monitor-v2 DPI aware, so a capture is the region's own
+// size in physical pixels, which is also what Neru's coordinates are on
+// Windows. Text is drawn at the monitor's DPI scale, which is the scale yomi
+// reads at.
 //
 // Privacy runs through every line below. Recognized text is screen content. It
 // reaches an element's title and search text, where the hint pipeline needs it,
 // and nowhere else. Nothing here logs it, counts characters of it into a
 // message, or writes it anywhere. The debug lines carry durations and counts.
 
-// DetectElements captures screenBounds and returns the text and button shapes
-// found in it as hintable elements.
-//
-// screenBounds is where the caller wants hints, normally the focused window,
-// in global top-left-origin unscaled pixels, and it is honored rather than
-// widened, because it is what places the results, so an empty rectangle is refused
-// rather than read as "the whole screen".
-func (a *Adapter) DetectElements(
+// captureText captures region for DetectElements and returns the frame, the
+// region it shows, which is region itself, and the scale its text is drawn
+// at, the monitor's DPI scale.
+func (a *Adapter) captureText(
 	ctx context.Context,
-	screenBounds image.Rectangle,
-	cfg config.HintsVisionConfig,
-	splitWord bool,
-) ([]*element.Element, error) {
-	region, err := detectionRegion(ctx, screenBounds, "vision")
-	if err != nil {
-		return nil, err
-	}
-
-	if !cfg.DetectText && !cfg.DetectRectangles {
-		a.logger.Debug("Vision detection skipped: text and rectangle detection are disabled")
-
-		return nil, nil
-	}
-
-	// The engine is checked before the screen is read, because a machine with no OCR
-	// language pack would otherwise have its focused window captured on every
-	// activation only to be told there is nothing to read it with. After the
-	// first call this is a cached handle.
-	if cfg.DetectText {
-		engineErr := platformwindows.OCRHealth()
-		if engineErr != nil {
-			return nil, engineErr
-		}
-	}
-
+	region image.Rectangle,
+) (*image.RGBA, image.Rectangle, float64, error) {
 	img, err := a.captureRegion(ctx, region)
 	if err != nil {
-		return nil, err
+		return nil, image.Rectangle{}, 0, err
 	}
 
-	// Canceling on return stops the rectangle pass when the text half fails.
-	rectCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	rectangles := a.startRectangles(rectCtx, img, region, cfg)
-
-	var (
-		words []platformwindows.OCRWord
-		stats platformwindows.OCRStats
-		text  []DetectedRegion
-	)
-
-	if cfg.DetectText {
-		words, stats, err = platformwindows.RecognizeText(ctx, img, platformwindows.OCRParams{
-			WordLevel: splitWord,
-			TimeoutMS: cfg.RequestTimeoutMS,
-		})
-		if err != nil {
-			// A refusal already names what to install, and that text reaches the
-			// user as written, so it passes through unchanged.
-			if derrors.IsNotSupported(err) {
-				return nil, err
-			}
-
-			// The cost and budget tell an early give-up from a timeout. The error
-			// never carries the recognized text.
-			return nil, derrors.Wrapf(
-				err,
-				derrors.GetCode(err),
-				"text recognition failed after %s (budget %d ms, frame %dx%d)",
-				stats.Recognition,
-				cfg.RequestTimeoutMS,
-				img.Rect.Dx(),
-				img.Rect.Dy(),
-			)
-		}
-
-		text = regionsFromWords(toRecognizedWords(words), region, img.Rect, cfg.MinimumConfidence)
-	}
-
-	found, err := rectangles()
-	if err != nil && !cfg.DetectText {
-		return nil, err
-	}
-
-	rects := withoutTextOverlap(found, text, cfg.MergeIOUThreshold)
-	merged := MergeRegions(append(text, rects...), cfg.MergeIOUThreshold)
-
-	classifier := newRegionClassifier(cfg)
-
-	elements, skipped := elementsFromRegions(merged, &classifier)
-
-	a.logger.Debug("Vision detection complete",
-		zap.Duration("recognition", stats.Recognition),
-		zap.Int("frame_width", img.Rect.Dx()),
-		zap.Int("frame_height", img.Rect.Dy()),
-		zap.Int("raw_words", len(words)),
-		zap.Int("rectangles", len(rects)),
-		zap.Int("merged_elements", len(elements)),
-		zap.Int("skipped_regions", skipped),
-		zap.Bool("word_level", splitWord),
-	)
-
-	return elements, nil
+	return img, region, textScale(region), nil
 }
 
-// toRecognizedWords adapts the platform bridge's word type to the shared one
-// the region mapping is written against.
-func toRecognizedWords(words []platformwindows.OCRWord) []recognizedWord {
-	converted := make([]recognizedWord, 0, len(words))
-
-	for _, word := range words {
-		converted = append(converted, recognizedWord{
-			Text:       word.Text,
-			Bounds:     word.Bounds,
-			Confidence: word.Confidence,
-		})
-	}
-
-	return converted
+// textScale is the scale region's text is drawn at, the DPI scale of the
+// monitor holding it.
+func textScale(region image.Rectangle) float64 {
+	return platformwindows.DPIScaleAt(regionCenter(region))
 }
 
-// AccurateReadDiffers is true when the account lists a Chinese, Japanese or
-// Korean language the profile engine does not read in, the one thing an
-// accurate read adds here, since Windows.Media.Ocr has one level. It asks
-// what ReadLines asks, so the two never disagree.
+// AccurateReadDiffers is false. yomi reads every script in one pass, so an
+// accurate read would read the same lines again.
 func (a *Adapter) AccurateReadDiffers() bool {
-	return a.wideRead()
-}
-
-// wideOCRWarned keeps a missing OCR pack to one warning.
-var wideOCRWarned sync.Once
-
-// wideRead reports whether an accurate read also reads with the engine for
-// the account's Chinese, Japanese or Korean language. An account listing one
-// that no OCR pack reads warns once and reads without it.
-func (a *Adapter) wideRead() bool {
-	ready, err := platformwindows.WideOCRReady()
-	if err != nil {
-		wideOCRWarned.Do(func() {
-			a.logger.Warn("Vim mode cannot read every language the account lists", zap.Error(err))
-		})
-	}
-
-	return ready
+	return false
 }
 
 // CaptureExcludesOwnWindows is true from Windows 10 version 2004, where each
@@ -282,14 +160,10 @@ func detectionFrameOf(img *image.RGBA, region image.Rectangle) detectionFrame {
 	return detectionFrame{img: img, origin: region.Min, region: region, scale: 1}
 }
 
-// Health reports whether the vision strategy can run on this machine.
-//
-// Capture needs no probe, because every interactive Windows desktop can read its own
+// Health reports whether the vision strategy can run on this machine. Capture
+// needs no probe, because every interactive Windows desktop can read its own
 // pixels, and a session without one fails at the capture rather than here.
-// The recognition half catches the failure a user can fix. The OCR language
-// pack is installed per language, separately from Windows itself, so a
-// machine that runs Neru can still have none. The error names the remedy.
-// Asking also warms the engine, and the handle is kept for the process.
+// Text recognition is compiled in, so loading it fails only on a broken build.
 func (a *Adapter) Health(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
@@ -297,7 +171,9 @@ func (a *Adapter) Health(ctx context.Context) error {
 	default:
 	}
 
-	return platformwindows.OCRHealth()
+	_, err := yomiEngine()
+
+	return err
 }
 
 // captureProbe captures region for the captures that watch a region settle.
@@ -362,54 +238,20 @@ func scaleRects(rects []image.Rectangle, factor float64) []image.Rectangle {
 	return out
 }
 
-// linesFromWords lays the words Windows.Media.Ocr read off img, which shows
-// region, out as ReadLines pieces, a character at a time.
-func linesFromWords(
-	words []platformwindows.OCRWord,
-	img *image.RGBA,
-	region image.Rectangle,
-) [][]ports.TextPiece {
-	symbols := make([]lineSymbol, 0, len(words))
-
-	word, line := 0, -1
-
-	for _, found := range words {
-		if found.Line != line {
-			word, line = 0, found.Line
-		}
-
-		symbols = append(symbols,
-			wordSymbols(img, found.Text, found.Bounds.Add(img.Rect.Min), found.Line, word)...)
-		word++
-	}
-
-	return piecesFromSymbols(symbols, img, region)
-}
-
-// ReadText reports CodeNotSupported. Windows.Media.Ocr already reads text
-// accurately in the detection pass, so copy_text keeps the text the hint has.
+// ReadText reports CodeNotSupported. yomi already reads text accurately in the
+// detection pass, so copy_text keeps the text the hint has.
 func (a *Adapter) ReadText(_ context.Context, _ image.Rectangle) (string, error) {
 	return "", derrors.New(derrors.CodeNotSupported, "accurate re-reading is not needed on Windows")
 }
 
-// ReadLines captures region and has Windows.Media.Ocr read it a word at a
-// time, in the user's profile languages, and splits each word into its
-// characters by their ink (wordSymbols). An accurate read also reads it with
-// the account's Chinese, Japanese or Korean engine, as macOS reads in the
-// preferred one, since the profile engine drops a Chinese word or reads it as
-// Latin noise. The fast read, which a keystroke waits on, stays the profile
-// engine alone.
+// ReadLines captures region and has yomi read it. Both levels read the same
+// way, since one pass reads every script accurately.
 func (a *Adapter) ReadLines(
 	ctx context.Context,
 	region image.Rectangle,
 	level ports.TextLevel,
 ) ([][]ports.TextPiece, error) {
 	if region.Empty() {
-		err := platformwindows.OCRHealth()
-		if err != nil {
-			return nil, err
-		}
-
 		return nil, derrors.New(
 			derrors.CodeInvalidInput,
 			"reading lines needs a region with an area",
@@ -429,90 +271,36 @@ func (a *Adapter) ReadLines(
 	return lines, err
 }
 
-// readFrameLines reads img, a capture of region, at level.
+// readFrameLines reads img, a capture of region. level only goes to the log,
+// since both levels read alike.
 func (a *Adapter) readFrameLines(
 	ctx context.Context,
 	region image.Rectangle,
 	img *image.RGBA,
 	level ports.TextLevel,
 ) ([][]ports.TextPiece, error) {
-	timeoutMS := 0
-	if deadline, ok := ctx.Deadline(); ok {
-		timeoutMS = max(int(time.Until(deadline).Milliseconds()), 1)
-	}
+	started := time.Now()
 
-	params := platformwindows.OCRParams{
-		WordLevel: true,
-		TimeoutMS: timeoutMS,
-		Accurate:  level == ports.TextAccurate,
-	}
-
-	// The wide engine lives on a thread of its own, so its read runs beside
-	// the profile one. Canceling on return stops it when the profile read fails.
-	readCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	type wideResult struct {
-		words []platformwindows.OCRWord
-		stats platformwindows.OCRStats
-		err   error
-	}
-
-	var wideDone chan wideResult
-
-	if level == ports.TextAccurate && a.wideRead() {
-		wideDone = make(chan wideResult, 1)
-		wideParams := params
-		wideParams.Wide = true
-
-		go func() {
-			words, stats, err := platformwindows.RecognizeText(readCtx, img, wideParams)
-			wideDone <- wideResult{words: words, stats: stats, err: err}
-		}()
-	}
-
-	words, stats, err := platformwindows.RecognizeText(readCtx, img, params)
+	lines, err := readYomiLines(ctx, img, region, textScale(region))
 	if err != nil {
-		if derrors.IsNotSupported(err) {
-			return nil, err
-		}
-
 		return nil, derrors.Wrapf(
 			err,
 			derrors.GetCode(err),
 			"reading lines failed after %s (frame %dx%d)",
-			stats.Recognition,
+			time.Since(started),
 			img.Rect.Dx(),
 			img.Rect.Dy(),
 		)
 	}
 
-	lines := linesFromWords(words, img, region)
-
-	var wideRecognition time.Duration
-
-	if wideDone != nil {
-		wide := <-wideDone
-		wideRecognition = wide.stats.Recognition
-
-		if wide.err != nil {
-			a.logger.Debug("Wide-language read failed, keeping the profile read",
-				zap.Duration("recognition", wideRecognition), zap.Error(wide.err))
-		} else {
-			lines = mergeSecondLines(lines, linesFromWords(wide.words, img, region))
-		}
-	}
-
 	a.logger.Debug("Read lines",
 		zap.Bool("accurate", level == ports.TextAccurate),
-		zap.Bool("wide_language", wideDone != nil),
 		zap.Int("line_count", len(lines)),
-		zap.Duration("recognition", stats.Recognition),
-		zap.Duration("wide_recognition", wideRecognition))
+		zap.Duration("recognition", time.Since(started)))
 
 	return lines, nil
 }
 
-// accurateReadPreparation is nil. Windows.Media.Ocr compiles nothing on first use, so
+// accurateReadPreparation is nil. yomi compiles nothing on first use, so
 // there is nothing to prepare.
 func (a *Adapter) accurateReadPreparation() func() error { return nil }

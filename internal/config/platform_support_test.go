@@ -40,11 +40,6 @@ func TestPlatformSupport_DeclaresTheKnownNarrowColumns(t *testing.T) {
 			screenShareHide, "",
 			parity.Platforms{parity.Darwin, parity.Windows},
 		},
-		{
-			"Windows.Media.Ocr reports no confidence, so the floor is inert there",
-			visionMinConfidence, "",
-			parity.Platforms{parity.Darwin, parity.Linux},
-		},
 	}
 
 	for _, test := range tests {
@@ -198,15 +193,9 @@ func TestInertWords_Options(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name:    "a floor the Windows engine cannot honor is reported there",
+			name:    "a confidence floor is silent now that every platform scores words",
 			written: map[string]string{visionMinConfidence: "0.5"},
 			target:  parity.Windows,
-			want:    []string{visionMinConfidence},
-		},
-		{
-			name:    "an option inert only on Windows is silent on Linux",
-			written: map[string]string{visionMinConfidence: "0.5"},
-			target:  parity.Linux,
 			want:    nil,
 		},
 	}

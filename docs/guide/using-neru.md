@@ -135,8 +135,7 @@ Vim mode has no default hotkey, so bind one:
    jump anywhere, press `s`, type a few characters of the target, then the
    label that appears on it. The jump and search find text in another
    script by its romanization, so `shenzhen` finds 深圳 and `boris` finds
-   Борис. This works once Neru has read that script, and on Linux that
-   needs the script's tesseract data [installed](linux.md). The jump also
+   Борис. This works once Neru has read that script. The jump also
    finds the initials of words, so `sas` jumps to "Save As". Labels appear
    once Neru has finished reading the screen, and until then every key adds
    to the text.

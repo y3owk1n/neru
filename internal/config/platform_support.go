@@ -15,9 +15,6 @@ import (
 const (
 	noteScreenShareHide = "hiding the overlay from a screen share is an NSWindow sharing level " +
 		"on macOS and a display affinity on Windows, with no X11 or Wayland counterpart"
-	noteVisionConfidence = "Windows.Media.Ocr reports no per-word confidence, so every word " +
-		"scores one there and a floor keeps everything; the Vision framework and tesseract " +
-		"score each word"
 	noteMacOSSurfaces = "the menu bar, the Dock, Notification Center, Stage Manager, " +
 		"picture-in-picture and the screen-capture chrome are macOS surfaces with no counterpart"
 	noteMissionControl = "Mission Control is a macOS concept, so the detection never fires " +
@@ -46,13 +43,14 @@ var captureScopeOptions = []string{
 	"app_configs.capture_scope",
 }
 
-// darwinOnly, darwinAndLinux and darwinAndWindows are the narrow columns this
-// schema uses today, named so a reader compares two options by the same words.
-// A linux-only column existed for contour until macOS fed it a frame. Add one
-// back the moment an option needs it rather than reaching for the nearest fit.
+// darwinOnly and darwinAndWindows are the narrow columns this schema uses
+// today, named so a reader compares two options by the same words. A
+// linux-only column existed for contour until macOS fed it a frame, and a
+// macOS-and-Linux one for the confidence floors until Windows read with yomi.
+// Add one back the moment an option needs it rather than reaching for the
+// nearest fit.
 var (
 	darwinOnly       = parity.Platforms{parity.Darwin}
-	darwinAndLinux   = parity.Platforms{parity.Darwin, parity.Linux}
 	darwinAndWindows = parity.Platforms{parity.Darwin, parity.Windows}
 )
 
@@ -128,11 +126,6 @@ func PlatformSupport() parity.Declaration {
 			"mode_indicator.vim.border_color",
 		),
 
-		parity.On(parity.KindOption, darwinAndLinux, noteVisionConfidence,
-			"hints.vision.minimum_confidence",
-			"hints.vision.button_min_confidence",
-			"hints.vision.generic_clickable_min_confidence",
-		),
 		parity.Everywhere(parity.KindOption,
 			"recursive_grid.animation.enabled",
 			"recursive_grid.animation.duration_ms",
@@ -178,11 +171,14 @@ func PlatformSupport() parity.Declaration {
 		),
 
 		parity.Everywhere(parity.KindOption, captureScopeOptions...),
-		// The vision strategy's text half runs everywhere: the Vision framework
-		// on macOS, tesseract on Linux, Windows.Media.Ocr on Windows. The
-		// strategy value itself carries no declaration, like contour.
+		// The vision strategy runs everywhere, yomi for text and the contour
+		// detector for shapes, and yomi scores every word. The strategy value
+		// itself carries no declaration, like contour.
 		parity.Everywhere(parity.KindOption,
 			"hints.vision.detect_text",
+			"hints.vision.minimum_confidence",
+			"hints.vision.button_min_confidence",
+			"hints.vision.generic_clickable_min_confidence",
 			"hints.vision.detect_rectangles",
 			"hints.vision.rectangle_max_candidates",
 			"hints.vision.rectangle_min_size",

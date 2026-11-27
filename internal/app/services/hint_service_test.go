@@ -160,14 +160,14 @@ func TestHintService_GenerateHintsVisionWithNilPortReturnsSupplementaryElements(
 // about a failure a log line cannot fix.
 //
 // When vision detection reports CodeNotSupported the machine cannot run the
-// strategy at all. There is no tesseract language data, no capture backend,
-// or a build with no engine in it, and the error names what to install.
+// strategy at all. There is no capture backend, or the platform has none, and
+// the error names what is missing.
 // Swallowing that leaves the user pressing the hotkey and getting an overlay
 // with nothing on it, since the supplementary elements the pipeline keeps are macOS surfaces
 // with no counterpart elsewhere. The message has to reach a person, which is
 // what ADR 0002 says a log line does not do.
 func TestHintService_GenerateHintsVisionNotifiesWhenTheStrategyIsUnavailable(t *testing.T) {
-	const missing = "install the tesseract eng language data"
+	const missing = "no display server to capture"
 
 	notified := make(chan string, 4)
 

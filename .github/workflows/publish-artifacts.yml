@@ -190,8 +190,6 @@ jobs:
                     wayland-protocols \
                     libei-dev \
                     liboeffis-dev \
-                    libtesseract-dev \
-                    tesseract-ocr-eng \
                     libpipewire-0.3-dev
 
             - uses: actions/setup-go@v7
@@ -257,8 +255,6 @@ jobs:
                     wayland-protocols \
                     libei-dev \
                     liboeffis-dev \
-                    libtesseract-dev \
-                    tesseract-ocr-eng \
                     libpipewire-0.3-dev
 
             - uses: actions/setup-go@v7

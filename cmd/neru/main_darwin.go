@@ -5,7 +5,6 @@ package main
 import (
 	"runtime"
 
-	visionAdapter "github.com/y3owk1n/neru/internal/adapter/vision"
 	"github.com/y3owk1n/neru/internal/cli"
 )
 
@@ -19,7 +18,6 @@ func main() {
 	runtime.LockOSThread()
 
 	cli.LaunchFunc = LaunchDaemon
-	cli.ReadTextLinesFunc = visionAdapter.ServeTextLines
 
 	cli.Execute()
 }

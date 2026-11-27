@@ -53,8 +53,8 @@ type ElementFilter struct {
 
 	// SkipWindowElements skips querying the frontmost window for elements.
 	// When true, only supplementary elements (menubar, dock, NC, etc.) are
-	// collected. Used by the vision strategy where the frontmost window
-	// is detected via Vision Framework instead of the AX tree.
+	// collected. Used by the vision strategy, which reads the frontmost window
+	// off the screen instead of the AX tree.
 	SkipWindowElements bool
 
 	// MinSize specifies the minimum element size to include.

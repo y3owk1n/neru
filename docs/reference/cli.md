@@ -527,7 +527,7 @@ without the overlay, use [`neru query hints`](#neru-query).
 Element discovery uses the full accessibility tree on macOS, an AT-SPI walk
 on Linux whose coverage depends on the application, and a cached UI Automation
 walk on Windows. The `vision` strategy is the fallback where the tree is thin.
-It works on every platform and needs an OCR language pack on Windows. See
+It works on every platform. See
 [Accessibility and hints](platform-support.md#notes).
 
 ```bash
@@ -701,34 +701,24 @@ at the gaps that run all the way across the screen, so a card sits in a column
 and the column in the page. The block around the cursor's container is
 outlined fainter.
 
-Vim mode reads the screen twice. A fast read opens the mode at once, and an
-accurate read replaces it when it finishes. The status bar says `reading…`
-until then. The accurate read also finds icons and pictures with no text,
-such as an icon-only button, and puts a `□` where each one is, so `w`, `j` and
-`s` reach it and `Return` clicks it. A yank leaves the `□` out. The box beside
+Vim mode opens on one read of the screen's text. A second pass then finds
+icons and pictures with no text, such as an icon-only button, and puts a `□`
+where each one is, so `w`, `j` and `s` reach it and `Return` clicks it. The
+status bar says `reading…` until it finishes. A yank leaves the `□` out. The box beside
 the cursor shows the word under it as read. The counts in one command, such
 as both in `99d99j`, multiply to at most 9999, and vim mode drops a digit
 past that. One command changes at most 64 places and sends the app at most
 2000 keys, a Shift+Right for each character it selects and a key for each it
 types.
 
-The fast read knows Latin script only. The accurate read finds each line's
-script, so it reads Chinese, Japanese, Korean, Thai, Russian and the other
-languages macOS knows. It reads each line in one script. When your macOS
-languages include Chinese, Japanese or Korean, it also reads with that
-language, so a word of it in an English line is read correctly. Linux and
-Windows read fewer scripts, which [platform support](platform-support.md#notes) lists. Until the
-accurate read finishes, a line in another script shows as noise. A wide character such as 中
-takes two columns, and a character the app moves over in one step, such as
-a Thai consonant with its vowel sign, is one character to vim. Arabic and
-Hebrew are read and moved over, but laid out left to right, so an edit in
-them selects the wrong text. Japanese and Korean on one line can be read as
-one of the two. After an install or a macOS update, macOS compiles the
-accurate read's models once, which takes about a minute. Neru starts that as
-it launches when a hotkey, hook or macro opens vim mode, and otherwise at the
-first `neru vim`. It runs in a separate process, so moving around keeps
-working meanwhile, and a card says what the wait is when vim mode opens
-before it finishes.
+yomi, built into Neru, reads the text on every platform. It finds each
+line's script, so it reads Chinese, Japanese, Korean, Thai, Russian, Arabic,
+the Indic scripts and the others [platform support](platform-support.md#notes)
+lists, with no language to set. A wide character such as 中 takes two
+columns, and a character the app moves over in one step, such as a Thai
+consonant with its vowel sign, is one character to vim. Arabic and Hebrew are
+read and moved over, but laid out left to right, so an edit in them selects
+the wrong text.
 
 Typing into the app re-sends each key, so an input method's composition does
 not work there, and `i` over text that cannot be edited sends the keys to the

@@ -5,10 +5,7 @@ import (
 	"image/color"
 	"image/draw"
 	"slices"
-	"strings"
 	"testing"
-
-	"github.com/y3owk1n/neru/internal/ports"
 )
 
 func TestPiecesFromSymbols_LaysCharactersOutAsCellsPerLineAndWord(t *testing.T) {
@@ -53,8 +50,8 @@ func TestPiecesFromSymbols_LaysCharactersOutAsCellsPerLineAndWord(t *testing.T) 
 }
 
 func TestPiecesFromSymbols_KeepsAWordWithCrossedInkWhole(t *testing.T) {
-	// tesseract sometimes gives a character a box over the one before it, as
-	// a "t" covering the "e" of "the".
+	// A recognizer can give a character a box over the one before it, as a
+	// "t" covering the "e" of "the".
 	img := image.NewRGBA(image.Rect(0, 0, 100, 40))
 	symbols := []lineSymbol{
 		{text: "h", ink: image.Rect(10, 10, 18, 30), line: 0, word: 0},
@@ -74,9 +71,9 @@ func TestPiecesFromSymbols_KeepsAWordWithCrossedInkWhole(t *testing.T) {
 }
 
 func TestPiecesFromSymbols_MovesABoundaryInsideACharacterToTheGap(t *testing.T) {
-	// Two glyphs, 10 to 20 and 24 to 34, on white. tesseract
-	// reads the first one 4 pixels too wide, so halfway between the boxes is
-	// column 23, inside the second glyph's ink. The gap is columns 20 to 23.
+	// Two glyphs, 10 to 20 and 24 to 34, on white. The recognizer reads the
+	// first one 4 pixels too wide, so halfway between the boxes is column 23,
+	// inside the second glyph's ink. The gap is columns 20 to 23.
 	img := image.NewRGBA(image.Rect(0, 0, 60, 40))
 	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
 
@@ -108,8 +105,8 @@ func TestPiecesFromSymbols_MovesABoundaryInsideACharacterToTheGap(t *testing.T) 
 //nolint:gosmopolitan // The fixtures are Chinese text.
 func TestPiecesFromSymbols_PlacesWideCharactersFromTheirInk(t *testing.T) {
 	// Three 20-pixel characters on a 24-pixel pitch, the middle one in two
-	// halves with a 2-pixel gap, as 测 is. tesseract reads each as a word of
-	// its own with boxes that drift right.
+	// halves with a 2-pixel gap, as 测 is. The recognizer reads each as a word
+	// of its own with boxes that drift right.
 	img := image.NewRGBA(image.Rect(0, 0, 100, 40))
 	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
 
@@ -198,49 +195,6 @@ func TestPiecesFromSymbols_KeepsWideWordsApartAtTheirSpace(t *testing.T) {
 	}
 }
 
-//nolint:gosmopolitan // The fixtures are Chinese, Korean and Russian text.
-func TestMergeSecondLines_ReplacesOnlyLinesReadAsLatinNoise(t *testing.T) {
-	piece := func(text string, left, top int) ports.TextPiece {
-		return ports.TextPiece{Text: text, Bounds: image.Rect(left, top, left+20, top+20)}
-	}
-
-	// eng read the second line as noise in two pieces and the fourth as
-	// Latin, and the Russian read gave the last English line a lookalike.
-	detected := [][]ports.TextPiece{
-		{piece("hello", 0, 0)},
-		{piece("G", 0, 40)},
-		{piece("E", 20, 40)},
-		{piece("한", 0, 80)},
-		{piece("Pycckuit", 0, 160)},
-		{piece("Various", 0, 200)},
-	}
-	second := [][]ports.TextPiece{
-		{piece("hello", 0, 0)},
-		{piece("括", 0, 40), piece("号", 20, 40)},
-		{piece("韓", 0, 80)},
-		{piece("新", 0, 120)},
-		{piece("Русский", 0, 160)},
-		{piece("Vаrious", 0, 200)},
-	}
-
-	merged := mergeSecondLines(detected, second)
-
-	texts := make([]string, 0, len(merged))
-	for _, line := range merged {
-		var text strings.Builder
-		for _, p := range line {
-			text.WriteString(p.Text)
-		}
-
-		texts = append(texts, text.String())
-	}
-
-	want := []string{"hello", "한", "Various", "括号", "新", "Русский"}
-	if !slices.Equal(texts, want) {
-		t.Fatalf("merged lines = %q, want %q", texts, want)
-	}
-}
-
 //nolint:gosmopolitan // The fixtures are Chinese text.
 func TestPiecesFromSymbols_PlacesWideCharactersOnAGradient(t *testing.T) {
 	// Three 20-pixel characters on a 24-pixel pitch, each drawn as three white
@@ -292,50 +246,6 @@ func TestPiecesFromSymbols_PlacesWideCharactersOnAGradient(t *testing.T) {
 func drawGlyph(img *image.RGBA, box image.Rectangle) {
 	draw.Draw(img, box, image.NewUniform(color.Black), image.Point{}, draw.Src)
 	draw.Draw(img, box.Inset(2), image.NewUniform(color.White), image.Point{}, draw.Src)
-}
-
-func TestWordSymbols_GivesEachCharacterItsRunOfInk(t *testing.T) {
-	// "ab": a in two thin strokes a pixel apart, as an "m" or an "n" can
-	// read, and b four pixels after it. The pixel gap inside a merges, the
-	// wider one parts the two characters.
-	img := image.NewRGBA(image.Rect(0, 0, 60, 30))
-	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
-
-	for _, stroke := range []image.Rectangle{
-		image.Rect(10, 5, 12, 25), image.Rect(13, 5, 15, 25), image.Rect(19, 5, 21, 25),
-	} {
-		draw.Draw(img, stroke, image.NewUniform(color.Black), image.Point{}, draw.Src)
-	}
-
-	symbols := wordSymbols(img, "ab", image.Rect(8, 3, 32, 27), 0, 0)
-
-	if len(symbols) != 2 || symbols[0].text != "a" || symbols[1].text != "b" {
-		t.Fatalf("symbols = %v, want a and b", symbols)
-	}
-
-	if symbols[0].ink.Min.X != 10 || symbols[0].ink.Max.X != 15 ||
-		symbols[1].ink.Min.X != 19 || symbols[1].ink.Max.X != 21 {
-		t.Fatalf("a spans %v and b %v, want 10 to 15 and 19 to 21", symbols[0].ink, symbols[1].ink)
-	}
-}
-
-func TestWordSymbols_SplitsTouchingCharactersByTheirWidths(t *testing.T) {
-	// One unbroken run of ink holds three characters.
-	img := image.NewRGBA(image.Rect(0, 0, 60, 30))
-	draw.Draw(img, img.Rect, image.NewUniform(color.White), image.Point{}, draw.Src)
-	draw.Draw(
-		img,
-		image.Rect(10, 5, 40, 25),
-		image.NewUniform(color.Black),
-		image.Point{},
-		draw.Src,
-	)
-
-	symbols := wordSymbols(img, "abc", image.Rect(10, 5, 40, 25), 0, 0)
-
-	if len(symbols) != 3 || symbols[1].ink.Min.X != 20 || symbols[1].ink.Max.X != 30 {
-		t.Fatalf("symbols = %v, want three of 10 pixels, b from 20 to 30", symbols)
-	}
 }
 
 func TestBackgroundOf_IsTheColorAroundTheBox(t *testing.T) {

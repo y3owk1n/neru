@@ -51,8 +51,7 @@ int neru_capture_begin(NeruCapture *out, int w, int h);
 
 // neru_capture_wipe zeroes size bytes of buf through a volatile pointer, so the
 // compiler cannot elide the write on a buffer that is about to be freed or
-// unmapped. Exposed for the backends' intermediate buffers, and for ocr.c,
-// whose recognized strings are the same screen content in another shape.
+// unmapped. Exposed for the backends' intermediate buffers.
 void neru_capture_wipe(unsigned char *buf, size_t size);
 
 #endif /* SCREENCAPTURE_H */

@@ -8,10 +8,9 @@ import (
 	"github.com/y3owk1n/neru/internal/domain/element"
 )
 
-// VisionPort is the interface for vision-based element detection using
-// macOS Vision Framework (or platform equivalents). Implementations capture
-// screenshots and detect UI elements via text recognition, rectangle detection,
-// and saliency analysis.
+// VisionPort is the interface for vision-based element detection.
+// Implementations capture the screen and detect UI elements through text
+// recognition and rectangle detection.
 //
 // Only used when hints.strategy is set to "vision" for the frontmost window.
 // System-level components (menubar, dock, notification center, etc.) always
@@ -22,9 +21,8 @@ type VisionPort interface {
 
 	// DetectElements captures a screenshot of the frontmost window and returns
 	// detected interactive elements. The screenBounds parameter constrains
-	// detection to the window region. Implementations use Vision Framework
-	// requests (text recognition, rectangle detection, saliency) and a
-	// heuristic classifier to assign element roles.
+	// detection to the window region. Implementations recognize text and
+	// rectangles and use a heuristic classifier to assign element roles.
 	DetectElements(
 		ctx context.Context,
 		screenBounds image.Rectangle,
@@ -88,13 +86,10 @@ type VisionPort interface {
 
 	// PrepareAccurateRead starts, the first time it is called, whatever makes
 	// the first ReadLines at TextAccurate as fast as the ones after it, and
-	// returns a channel closed once that is done. It never blocks. On macOS,
-	// Vision compiles its recognition models the first time an app reads
-	// with them after an install or a macOS update, which takes up to a
-	// minute, so there the adapter reads a sample of every script Vision
-	// reads. An accurate read started before the channel
-	// closes would compile the same models a second time, so callers wait
-	// for it first. Where nothing compiles, the channel comes back closed.
+	// returns a channel closed once that is done. It never blocks. Callers
+	// wait for the channel before an accurate read. yomi needs no
+	// preparation, so on every platform today the channel comes back
+	// closed.
 	PrepareAccurateRead() <-chan struct{}
 
 	// ReadLines captures region, in global coordinates, and returns its text
