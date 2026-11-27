@@ -2,6 +2,7 @@
   fetchurl,
   gitUpdater,
   installShellFiles,
+  makeWrapper,
   patchelf,
   stdenv,
   versionCheckHook,
@@ -21,6 +22,11 @@
   libxtst,
   libxi,
   fontconfig,
+  # tesseract is for the release binary alone. Releases up to v1.63.0 link
+  # libtesseract dynamically and read its language data from
+  # TESSDATA_PREFIX. Source builds read text with yomi, compiled in. Drop it
+  # once the pinned release reads with yomi.
+  tesseract,
   # pipewire is how KDE Plasma sessions read the screen. KWin implements no
   # screencopy protocol, so capture there goes through xdg-desktop-portal's
   # ScreenCast session and its frames arrive over PipeWire. It is required
@@ -76,6 +82,7 @@ if useZip then
       libxtst
       libxi
       fontconfig
+      tesseract
       pipewire
     ];
   in
@@ -99,6 +106,7 @@ if useZip then
     ]
     ++ lib.optionals stdenv.hostPlatform.isLinux [
       patchelf
+      makeWrapper
     ];
 
     buildInputs = lib.optionals stdenv.hostPlatform.isLinux linuxLibs;
@@ -152,6 +160,11 @@ if useZip then
               --fish <($out/Applications/Neru.app/Contents/MacOS/neru completion fish) \
               --zsh <($out/Applications/Neru.app/Contents/MacOS/neru completion zsh)
       fi
+    ''
+    + lib.optionalString stdenv.hostPlatform.isLinux ''
+      # --set-default, so a user who exports their own TESSDATA_PREFIX keeps it.
+      wrapProgram $out/bin/neru \
+        --set-default TESSDATA_PREFIX ${tesseract}/share/tessdata
     '';
 
     doInstallCheck = true;
